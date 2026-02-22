@@ -1,0 +1,21 @@
+{
+  "name": "@ojf/cli",
+  "version": "0.1.0",
+  "description": "CLI runner for the OJF slash-command workflow framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "ojf-workflow": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@ojf/workflows": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

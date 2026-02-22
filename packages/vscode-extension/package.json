@@ -1,0 +1,37 @@
+{
+  "name": "ojf-vscode-extension",
+  "displayName": "OJF Workflow",
+  "version": "0.1.0",
+  "description": "VS Code extension for running OJF slash-command workflows",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "ojf.runSlashCommand",
+        "title": "OJF: Run Slash Command"
+      },
+      {
+        "command": "ojf.listCommands",
+        "title": "OJF: List Available Commands"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "vscode:prepublish": "pnpm run build"
+  },
+  "dependencies": {
+    "@ojf/workflows": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.5.0"
+  }
+}
