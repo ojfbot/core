@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Create, list, search, or update Architecture Decision Records. Triggers on "adr new", "adr list", "adr search", "adr accept", "adr supersede".
+description: Create, list, search, update, or publish Architecture Decision Records. Triggers on "adr new", "adr list", "adr search", "adr accept", "adr supersede", "adr publish".
 ---
 
 # /adr — Architecture Decision Records
@@ -20,6 +20,7 @@ Determine the subcommand from `$ARGUMENTS`:
 - `search <keyword>` — find ADRs matching a keyword
 - `accept <XXXX>` — update ADR status to Accepted
 - `supersede <XXXX> <YYYY>` — mark ADR-XXXX as superseded by ADR-YYYY
+- `publish` — sync `decisions/README.md` index from ADR files on disk
 
 If no subcommand is given, default to `list`.
 
@@ -47,7 +48,7 @@ ADR-0002  Accepted  Single LLM gateway (frame-agent) for all sub-apps
 5. Remind the user to:
    - Fill in Context, Decision, Consequences, and Alternatives
    - Add the OKR reference
-   - Update the index table in `decisions/README.md` when accepting
+   - Run `/adr publish` to sync the README index when accepting
 
 ---
 
@@ -59,13 +60,38 @@ Grep `decisions/adr/` for the keyword (case-insensitive). Return matching ADR ti
 
 ## `accept <XXXX>`
 
-Read `decisions/adr/XXXX-*.md`. Change `Status: Proposed` to `Status: Accepted`. Confirm the update. Remind the user to update the index in `decisions/README.md`.
+Read `decisions/adr/XXXX-*.md`. Change `Status: Proposed` to `Status: Accepted`. Confirm the update. Suggest running `/adr publish` to sync the README index.
 
 ---
 
 ## `supersede <XXXX> <YYYY>`
 
-Read `decisions/adr/XXXX-*.md`. Change its status line to `Status: Superseded-by: ADR-YYYY`. Output the updated status line. Remind the user to update `decisions/README.md`.
+Read `decisions/adr/XXXX-*.md`. Change its status line to `Status: Superseded-by: ADR-YYYY`. Output the updated status line. Suggest running `/adr publish` to sync the README index.
+
+---
+
+## `publish`
+
+Sync the `decisions/README.md` ADR index from the actual ADR files on disk.
+
+### Step 1 — read all ADR files
+
+Glob `decisions/adr/[0-9]*.md`. For each file, extract:
+- **ID** — 4-digit number from the filename
+- **Title** — from the `# ADR-XXXX: <title>` heading
+- **Status** — from the `Status:` front-matter line
+- **Date** — from the `Date:` front-matter line (use the year-month portion, e.g. `2026-02`)
+
+### Step 2 — reconcile the README index table
+
+If `decisions/README.md` does not exist, output an error and stop:
+> `Error: decisions/README.md not found. Create it before running publish.`
+
+Read `decisions/README.md`. Rebuild the `| ID | Title | Status | Date |` table rows from the ADR files:
+- Add rows for any ADR not currently in the table
+- Update `Status` and `Date` cells for any ADR whose values differ from the file
+
+Write the updated `decisions/README.md` if any changes were made. Report what changed (added rows, updated statuses). If nothing changed, output: `Index is already up to date.`
 
 ---
 
