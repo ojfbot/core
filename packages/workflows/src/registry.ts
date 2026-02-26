@@ -1,9 +1,11 @@
 import type { WorkflowRegistry } from "./types.js";
 import { techDebtWorkflow } from "./workflows/techdebt.js";
 import { summarizeWorkflow } from "./workflows/summarize.js";
+import { workbenchWorkflow } from "./workflows/workbench.js";
 import { fileBackedWorkflow } from "./fileBackedWorkflow.js";
 
-// File-backed workflows: prompt lives in .claude/commands/<name>.md
+// File-backed workflows: prompt lives in .claude/commands/<name>/<name>.md
+// Each skill is a directory: <name>.md + knowledge/ (JIT reference) + scripts/ (deterministic utils)
 // Single source of truth — updating the .md updates both Claude Code and the CLI.
 const fileBacked: WorkflowRegistry = {
   "plan-feature":  fileBackedWorkflow("plan-feature",  "Turn a rough idea or ticket into an implementation-ready spec with acceptance criteria and ADR stub"),
@@ -27,12 +29,16 @@ const fileBacked: WorkflowRegistry = {
   "rag-audit":        fileBackedWorkflow("rag-audit",         "Audit RAG pipeline: persistence, chunking, retriever config, seeding, migration path"),
   "extension-audit":  fileBackedWorkflow("extension-audit",   "Browser extension audit: bundle size, permissions, CSP, prompt injection from DOM, message passing security"),
   "scaffold-app":     fileBackedWorkflow("scaffold-app",      "Scaffold a new application from a canonical template (langgraph-app, browser-extension, python-scraper)"),
+  "daily-logger":     fileBackedWorkflow("daily-logger",      "Daily-logger architecture briefing: 4-phase pipeline, council-of-experts pattern, persona format, invariants"),
+  "skill-loader":     fileBackedWorkflow("skill-loader",      "Skill catalog manager: examine a repo and produce an install plan for which OJF skills to add, keep, or remove"),
+  "council-review":   fileBackedWorkflow("council-review",    "Multi-persona expert council review of any draft doc: each persona critiques independently, then synthesizes final version"),
 };
 
 export const workflows: WorkflowRegistry = {
   // Programmatic workflows with custom TypeScript handlers
   techdebt: techDebtWorkflow,
   summarize: summarizeWorkflow,
+  workbench: workbenchWorkflow,
   // File-backed workflows
   ...fileBacked,
 };

@@ -2,9 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
+
 ## Commands
 
 ```bash
+# Install commands + domain-knowledge into any sibling ojfbot repo
+./scripts/install-agents.sh <repo-name>          # e.g. cv-builder, shell, blogengine
+./scripts/install-agents.sh <repo-name> --force  # overwrite existing symlinks
+
 pnpm install                    # install all workspace dependencies
 pnpm build                      # compile all packages
 pnpm test                       # run vitest
@@ -45,6 +51,12 @@ The primary interface is `.claude/commands/`. Each file is a `/command` in Claud
 | `/sweep` | 1/2 | Daily/weekly | Stale TODOs, unused imports, debug logs, config duplication |
 | `/techdebt` | 3 | Continuous | Scan for debt → TECHDEBT.md; or propose/apply framework patches |
 
+### Environment
+
+| Command | Purpose |
+|---------|---------|
+| `/workbench` | Launch / stop / inspect the 6-tile tmux multi-repo development workbench |
+
 ### Starting new projects
 
 | Command | Purpose |
@@ -76,6 +88,13 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
 | `/observe` | Triage logs/metrics/alerts (Sentry, Prometheus, LangGraph-aware) |
+
+### Skill management
+
+| Command | Purpose |
+|---------|---------|
+| `/skill-loader` | Examine a repo and produce an install plan: which skills to add, keep, or remove |
+| `/daily-logger` | Load the daily-logger architecture context (4-phase pipeline, council-of-experts, personas) |
 
 ### Recommended lifecycle order
 
@@ -123,6 +142,7 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 
 `domain-knowledge/` contains reference files read by commands when context is needed:
 
+- `frame-os-context.md` — **agent context brief**: product vision, two demo tracks, full repo inventory, shell blockers, roadmap phases, architectural decisions, env vars, constraints
 - `cv-builder-architecture.md` — monorepo packages, agent graph structure, P0 blockers, `.agents/` system, open issues map
 - `langgraph-patterns.md` — state schema rules, node/routing invariants, checkpointer behavior, common failure signatures
 - `shared-stack.md` — Carbon Design System components, JWT auth pattern, LangGraph node signature, SSE, RAG, structured logging
@@ -131,8 +151,17 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 - `mrplug-architecture.md` — browser extension package map, bundle limits, provider factory, prompt injection attack surface
 - `purefoy-architecture.md` — Python knowledge base (Roger Deakins), bbPress scraper, Pydantic leaf models, MCP server, roadmap
 - `app-templates.md` — canonical file structures, dependency versions, and config patterns for the three scaffold-app templates
+- `tbcony-dia-context.md` — TBCoNY/Dia AI-native product philosophy (Samir Mody talk): assistant-centricity, model behavior discipline, eval/hill-climbing, prompt injection as UX, "internet computer" framing
+- `daily-logger-architecture.md` — daily-logger pipeline (collect → draft → council → synthesize), persona format, council-of-experts pattern, CI orchestration, invariants
 
-Commands that audit or debug project code should read the relevant architecture file(s) first. The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly.
+Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.
+
+## Personal knowledge
+
+`personal-knowledge/` contains Jim Green's career and application context. **Not installed into sibling repos** (node-template only). Read when generating career artifacts, tailoring applications, or mapping Frame OS features to job requirements.
+
+- `tbcony-job-target.md` — TBCoNY Design Engineer listing, requirements mapping, gap analysis, application strategy
+- `jim-green-profile.md` — career profile, skills inventory, Concur tenure (stub — to be filled in), cv-builder agent instructions
 
 ## The `.agents/` system (cv-builder complement)
 
