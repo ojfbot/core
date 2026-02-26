@@ -1,6 +1,6 @@
 # ADR Template and Example
 
-When `/plan-feature` produces an ADR stub, use this format. The file goes in `decisions/adr/` in the repo root.
+When any skill needs to produce an ADR stub, load this file and use this format. The file goes in `decisions/adr/` in the repo root. Any skill can reference this template — not just `/plan-feature`.
 
 ---
 
