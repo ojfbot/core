@@ -56,7 +56,7 @@ Decisions needed before implementation can start.
 
 ### 7. ADR stub
 
-> **Load `knowledge/adr-template.md`** for the OJF ADR format with a completed example.
+> **Load `../adr/knowledge/adr-template.md`** for the OJF ADR format with a completed example.
 
 Status: Proposed | Context / Decision / Consequences.
 
