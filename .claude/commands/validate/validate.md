@@ -55,6 +55,15 @@ Detect which frameworks are in use from CLAUDE.md and domain-knowledge/ files.
 
 Identify callers of changed code and flag any that may behave differently.
 
+### Step 5.5: ADR coverage check
+
+Does this change introduce an architectural decision that isn't documented in `decisions/adr/`? A decision needs an ADR if it:
+- Affects how more than one module or repo will be structured
+- Involves a real trade-off (at least one alternative was rejected)
+- Would be confusing to a future reader without context
+
+If yes: note it as PASS WITH NOTES and suggest `/adr new "<title>"`. This is never blocking.
+
 ### Step 6: Emit verdict
 
 PASS | PASS WITH NOTES | BLOCKED

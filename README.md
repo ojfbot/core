@@ -1,151 +1,81 @@
 # OJF Workflow Framework
 
-A portable framework for extending the `/` commands available in Claude Code, plus a supporting TypeScript engine for running those same workflows from a CLI or VS Code extension.
+A portable Claude Code workflow framework: slash commands for the development lifecycle, backed by a TypeScript engine for CLI and CI use.
 
-## How it works
-
-Custom Claude Code slash commands live in `.claude/commands/`. Each `.md` file in that directory becomes a `/command` available in this repo when working inside Claude Code. The `$ARGUMENTS` placeholder is replaced by whatever you type after the command name.
-
-```
-.claude/commands/
-  techdebt.md    →  /techdebt --mode=propose --incident='...'
-  summarize.md   →  /summarize src/app.ts --style=detailed
-  recon.md       →  /recon packages/
-  roadmap.md     →  /roadmap --format=github
-  observe.md     →  /observe <logs or alert>
-```
-
-The `packages/` directory provides a TypeScript engine (`@ojf/workflows`) for the same workflows — useful for CI/CD, automation, or running outside Claude Code via the `ojf-workflow` CLI.
+Part of [Frame OS](docs/architecture.md) — an AI-native application OS built as both a live product and an engineering portfolio.
 
 ---
 
-## Claude Code commands (primary interface)
+## For humans
 
-Available as soon as you clone the repo — no build step required.
+| I want to... | Start here |
+|---|---|
+| Understand what this project is and how it's structured | [docs/architecture.md](docs/architecture.md) |
+| See why decisions were made the way they were | [decisions/adr/](decisions/adr/) |
+| Understand current priorities | [decisions/okr/2026-q1.md](decisions/okr/2026-q1.md) |
+| Set up and start using commands | [docs/getting-started.md](docs/getting-started.md) |
+| Find the right command for a task | [docs/commands.md](docs/commands.md) |
 
-| Command | Purpose |
-|---------|---------|
-| `/techdebt` | Meta-workflow: analyze incidents and propose/apply improvements to the framework itself |
-| `/summarize` | Summarize a file or selected text |
-| `/recon` | Reconnaissance report of a codebase or directory |
-| `/roadmap` | Generate or update a product roadmap |
-| `/observe` | Triage logs, metrics, or alerts |
+## For Claude Code
 
-### Starting a new project
-
-`/scaffold-app` generates a complete project skeleton from a canonical template and writes the files to disk.
-
-```
-/scaffold-app --type=langgraph-app --name=my-service --description="Resume builder API"
-/scaffold-app --type=browser-extension --name=my-ext --org=myorg
-/scaffold-app --type=python-scraper --name=my-scraper --description="Film database scraper"
-```
-
-Three templates are available:
-
-| Template | Stack | Based on |
-|----------|-------|----------|
-| `langgraph-app` | Express + LangGraph + Carbon DS + SQLite + Vitest + pnpm | cv-builder, TripPlanner, BlogEngine |
-| `browser-extension` | Vite + pnpm + Lerna, 5-package extension (content-script/background/popup/options/shared) | MrPlug |
-| `python-scraper` | Python + Pydantic v2 + httpx + SQLite FTS5 + MCP server + typer | purefoy |
-
-Each template includes: project structure, `package.json`/`pyproject.toml`, TypeScript/Python stubs, auth and logging wiring, GitHub Actions CI, `CLAUDE.md`, `.env.example`, and a next-steps checklist.
-
-The canonical template specs live in `domain-knowledge/app-templates.md`. Updating that file updates the templates for all future scaffolds.
-
-### Adding a new command
-
-Create `.claude/commands/mycommand.md` with a prompt. Use `$ARGUMENTS` anywhere you want user input injected. That's it — the command is immediately available as `/mycommand` in Claude Code.
+| I need... | Read |
+|---|---|
+| Agent context before cross-repo work | [domain-knowledge/frame-os-context.md](domain-knowledge/frame-os-context.md) |
+| Available commands and architecture | [CLAUDE.md](CLAUDE.md) |
+| Skill reference material | `.claude/commands/<name>/knowledge/` |
+| ADR for a specific decision | [decisions/adr/](decisions/adr/) |
 
 ---
 
-## `/techdebt` — the self-improvement loop
-
-`/techdebt` is the meta-command. Other workflows can trigger it whenever they encounter errors, surprising behavior, or capability gaps. It operates in two modes:
-
-### `mode=propose` (default)
-Accepts a `TechDebtIncident` JSON and returns a `TechDebtProposal` with concrete improvement suggestions and file patches.
-
-```
-/techdebt --mode=propose --incident='{
-  "timestamp": "2024-01-01T00:00:00Z",
-  "workflowName": "summarize",
-  "triggerReason": "bad_outcome",
-  "shortTitle": "Summary misses TypeScript-specific detail",
-  "contextSummary": "The summarize prompt does not mention types or interfaces."
-}'
-```
-
-### `mode=apply`
-Takes a `TechDebtProposal` and applies its `filePatches` to disk.
-
-```
-/techdebt --mode=apply --proposal='{...}' --dryRun
-/techdebt --mode=apply --proposal='{...}'
-/techdebt --mode=apply --proposal='{...}' --select=0
-```
-
-**Safety:** `mode=apply` only patches files inside `packages/workflows/**`, `domain-knowledge/**`, or `skills/**`. Any other path is skipped.
-
----
-
-## TypeScript engine (supporting layer)
-
-For running workflows outside Claude Code:
+## Quick start
 
 ```bash
-cp .env.example .env   # add ANTHROPIC_API_KEY
-pnpm install
-pnpm build
-
-# CLI
-node packages/cli/dist/index.js "/summarize packages/workflows/src/types.ts"
-node packages/cli/dist/index.js --help
+pnpm install && pnpm build
 ```
 
-### Programmatic subagent trigger
+Commands are available immediately in Claude Code — no build step required:
 
-From inside another workflow, call `/techdebt` programmatically:
-
-```typescript
-import { logTechDebtIncident } from "@ojf/workflows";
-
-const proposalJson = await logTechDebtIncident({
-  timestamp: new Date().toISOString(),
-  workflowName: "my-workflow",
-  triggerReason: "error",
-  shortTitle: "Unexpected failure",
-  contextSummary: "The workflow failed with...",
-  errorMessage: err.message,
-}, ctx.cwd);
+```
+/plan-feature add auth to the API
+/validate
+/investigate why is the LangGraph node failing
+/push-all
+/adr new "server-side session storage over JWT"
 ```
 
-### Adding a workflow to the TypeScript engine
+Install into a sibling repo:
 
-1. Create `packages/workflows/src/workflows/myworkflow.ts` exporting a `WorkflowSpec`.
-2. Register it in `packages/workflows/src/registry.ts`.
+```bash
+./scripts/install-agents.sh cv-builder
+```
 
 ---
 
-## Safety guarantees
-
-`/techdebt --mode=apply` only modifies:
-- `packages/workflows/**`
-- `domain-knowledge/**`
-- `skills/**`
-
-Production business code (`src/**`, `app/**`, etc.) is never touched.
-
----
-
-## Project structure
+## What's in here
 
 ```
-.claude/commands/      Claude Code slash commands (primary interface)
+.claude/commands/     28 slash commands (skill directories)
 packages/
-  workflows/           @ojf/workflows — TypeScript workflow engine
-  cli/                 @ojf/cli — ojf-workflow binary
-  vscode-extension/    VS Code extension
-domain-knowledge/      Allowed patch target for /techdebt
-skills/                Allowed patch target for /techdebt
+  workflows/          @ojf/workflows — TypeScript workflow engine
+  cli/                ojf-workflow binary
+  vscode-extension/   VS Code extension
+domain-knowledge/     Machine context corpus (loaded by commands at runtime)
+docs/                 Human-readable documentation
+decisions/
+  adr/                Architecture Decision Records
+  okr/                Objectives and Key Results (technical track)
+personal-knowledge/   Career context (not tracked publicly)
 ```
+
+---
+
+## The self-improvement loop
+
+`/techdebt` is the meta-command. Other workflows trigger it when they encounter patterns worth recording. It proposes patches to `packages/workflows/**`, `domain-knowledge/**`, or `skills/**` — never production code.
+
+When a mistake is caught, write it in 3 places:
+1. Update or add the ADR in `decisions/adr/`
+2. Update the relevant `knowledge/` file in the affected command
+3. Update `memory/MEMORY.md`
+
+See [decisions/README.md](decisions/README.md) for the full write-back protocol.

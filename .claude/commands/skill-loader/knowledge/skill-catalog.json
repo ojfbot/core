@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated": "2026-02-25",
+  "updated": "2026-02-26",
   "skills": [
     {
       "name": "plan-feature",
@@ -217,6 +217,14 @@
       "tags": ["daily-logger", "council", "personas", "article", "pipeline"],
       "description": "Daily-logger architecture briefing: 4-phase pipeline, persona format, council pattern, invariants.",
       "triggers": ["daily-logger", "how does the council work", "explain the council of experts", "article pipeline"]
+    },
+    {
+      "name": "adr",
+      "tier": 1,
+      "phase": "any",
+      "tags": ["adr", "decisions", "architecture", "why", "rationale", "okr"],
+      "description": "Create, list, search, or update Architecture Decision Records in decisions/adr/.",
+      "triggers": ["adr", "adr new", "adr list", "create an adr", "document this decision", "why did we decide"]
     }
   ]
 }

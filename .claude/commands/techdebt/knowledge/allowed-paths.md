@@ -10,6 +10,7 @@ packages/cli/**
 domain-knowledge/**
 .claude/commands/**
 scripts/**
+decisions/**
 ```
 
 ## Blocked paths (never auto-patched)
@@ -45,6 +46,7 @@ function isAllowedPath(filePath: string): boolean {
     /^domain-knowledge\//,
     /^\.claude\/commands\//,
     /^scripts\//,
+    /^decisions\//,
   ]
   return allowed.some(re => re.test(filePath))
 }

@@ -87,6 +87,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | `/recon` | Codebase reconnaissance report |
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
+| `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
 | `/observe` | Triage logs/metrics/alerts (Sentry, Prometheus, LangGraph-aware) |
 
 ### Skill management
@@ -153,6 +154,7 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 - `app-templates.md` — canonical file structures, dependency versions, and config patterns for the three scaffold-app templates
 - `tbcony-dia-context.md` — TBCoNY/Dia AI-native product philosophy (Samir Mody talk): assistant-centricity, model behavior discipline, eval/hill-climbing, prompt injection as UX, "internet computer" framing
 - `daily-logger-architecture.md` — daily-logger pipeline (collect → draft → council → synthesize), persona format, council-of-experts pattern, CI orchestration, invariants
+- `coding-standards.md` — TypeScript rules, forbidden patterns, naming conventions, skill file structure, PR standards, ADR quality guide
 
 Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.
 
@@ -172,7 +174,7 @@ cv-builder has a separate `.agents/registry.json` that defines programmatic agen
 
 ## Adding a new command
 
-**Claude Code only:** Create `.claude/commands/mycommand.md`. Done — available immediately as `/mycommand`.
+**Claude Code only:** Create `.claude/commands/mycommand/mycommand.md`. Done — available immediately as `/mycommand`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
 
 **Also in CLI/TypeScript:** The file-backed factory picks it up automatically once registered in `src/registry.ts`:
 ```typescript
@@ -181,4 +183,4 @@ mycommand: fileBackedWorkflow("mycommand", "short description"),
 
 ## `/techdebt` path allowlist
 
-`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`.
+`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/commands/**`, `skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`. Full allowlist documented in `.claude/commands/techdebt/knowledge/allowed-paths.md`.
