@@ -4,3 +4,7 @@ dist/
 *.d.ts.map
 .env
 runs/
+
+# Personal knowledge — career context, job targets, personal OKRs
+# Not for public repos. Technical ADRs and OKRs live in decisions/ (public-safe).
+personal-knowledge/

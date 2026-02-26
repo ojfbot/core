@@ -10,6 +10,8 @@ const ALLOWED_ROOTS = [
   "packages/workflows/",
   "domain-knowledge/",
   "skills/",
+  "decisions/",
+  ".claude/commands/",
 ];
 
 function isAllowedPath(filePath: string): boolean {

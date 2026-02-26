@@ -32,6 +32,7 @@ const fileBacked: WorkflowRegistry = {
   "daily-logger":     fileBackedWorkflow("daily-logger",      "Daily-logger architecture briefing: 4-phase pipeline, council-of-experts pattern, persona format, invariants"),
   "skill-loader":     fileBackedWorkflow("skill-loader",      "Skill catalog manager: examine a repo and produce an install plan for which OJF skills to add, keep, or remove"),
   "council-review":   fileBackedWorkflow("council-review",    "Multi-persona expert council review of any draft doc: each persona critiques independently, then synthesizes final version"),
+  adr:                fileBackedWorkflow("adr",               "Create, list, search, or update Architecture Decision Records in decisions/adr/"),
 };
 
 export const workflows: WorkflowRegistry = {

@@ -21,8 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-      issues: read
+      pull-requests: write
+      issues: write
       id-token: write
 
     steps:
@@ -36,9 +36,17 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
-          plugins: 'code-review@claude-code-plugins'
-          prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
+          prompt: |
+            Review this pull request and post your findings as a PR review comment.
+
+            Use the /pr-review workflow:
+            - Correctness against any spec or ADR referenced in the PR description
+            - TypeScript safety (no `any`, no silent error swallowing)
+            - Forbidden patterns: console.log in production modules, direct Anthropic calls in sub-apps, iframes in shell
+            - Auth middleware on new routes
+            - ADR coverage: does this change introduce an undocumented architectural decision?
+            - Test coverage for new code paths
+
+            Output: APPROVE | REQUEST CHANGES | BLOCKED verdict with specific findings.
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-          # or https://code.claude.com/docs/en/cli-reference for available options
 

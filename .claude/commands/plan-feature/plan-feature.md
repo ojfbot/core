@@ -60,6 +60,9 @@ Decisions needed before implementation can start.
 
 Status: Proposed | Context / Decision / Consequences.
 
+Write the stub inline in the spec output. If the decision warrants its own file, tell the user:
+> "Save this ADR to `decisions/adr/` with: `/adr new "<decision title>"`"
+
 ### 8. Suggested next command
 
 `/scaffold` with a brief description.
