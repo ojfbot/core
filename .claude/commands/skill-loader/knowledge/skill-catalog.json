@@ -6,225 +6,595 @@
       "name": "plan-feature",
       "tier": 2,
       "phase": "planning",
-      "tags": ["plan", "spec", "build", "feature", "adr", "acceptance-criteria"],
+      "tags": [
+        "plan",
+        "spec",
+        "build",
+        "feature",
+        "adr",
+        "acceptance-criteria"
+      ],
       "description": "Turn a rough idea into a concrete, implementation-ready spec with acceptance criteria, test matrix, and ADR stub.",
-      "triggers": ["plan-feature", "write a spec", "spec out", "plan this", "write acceptance criteria"]
+      "triggers": [
+        "plan-feature",
+        "write a spec",
+        "spec out",
+        "plan this",
+        "write acceptance criteria"
+      ]
+    },
+    {
+      "name": "spec-review",
+      "tier": 2,
+      "phase": "pre-kick-off",
+      "tags": [
+        "review",
+        "spec",
+        "plan",
+        "fact-check",
+        "peer-review",
+        "cross-check"
+      ],
+      "description": "Fact-check a plan or spec produced by another agent against domain knowledge and actual code. Finds factual errors, gaps, and contradictions before implementation starts.",
+      "triggers": [
+        "spec-review",
+        "double-check this spec",
+        "double-check another agent's work",
+        "review this plan",
+        "fact-check this",
+        "cross-check the spec",
+        "peer review this plan"
+      ]
     },
     {
       "name": "scaffold",
       "tier": 2,
       "phase": "kick-off",
-      "tags": ["build", "types", "stubs", "skeleton", "wiring"],
+      "tags": [
+        "build",
+        "types",
+        "stubs",
+        "skeleton",
+        "wiring"
+      ],
       "description": "Generate types, skeleton implementations, and test stubs from a spec. Follows /plan-feature.",
-      "triggers": ["scaffold", "scaffold this feature", "generate stubs", "create the skeleton"]
+      "triggers": [
+        "scaffold",
+        "scaffold this feature",
+        "generate stubs",
+        "create the skeleton"
+      ]
     },
     {
       "name": "investigate",
       "tier": 2,
       "phase": "debugging",
-      "tags": ["debug", "root-cause", "investigate", "trace", "bug"],
+      "tags": [
+        "debug",
+        "root-cause",
+        "investigate",
+        "trace",
+        "bug"
+      ],
       "description": "Evidence-first root-cause analysis. No code edits. Produces symptom, evidence, cause map, candidates.",
-      "triggers": ["investigate", "debug", "why is X failing", "trace this error", "find root cause"]
+      "triggers": [
+        "investigate",
+        "debug",
+        "why is X failing",
+        "trace this error",
+        "find root cause"
+      ]
     },
     {
       "name": "validate",
       "tier": 2,
       "phase": "quality-gate",
-      "tags": ["review", "quality", "invariants", "ship", "audit"],
+      "tags": [
+        "review",
+        "quality",
+        "invariants",
+        "ship",
+        "audit"
+      ],
       "description": "Pre-merge quality gate: spec coverage, TypeScript safety, auth, logging, tests, framework-specific checks.",
-      "triggers": ["validate", "review this change", "quality gate", "check invariants", "is this safe to ship"]
+      "triggers": [
+        "validate",
+        "review this change",
+        "quality gate",
+        "check invariants",
+        "is this safe to ship"
+      ]
     },
     {
       "name": "deploy",
       "tier": 2,
       "phase": "release",
-      "tags": ["ship", "release", "deploy", "pre-flight", "rollback"],
+      "tags": [
+        "ship",
+        "release",
+        "deploy",
+        "pre-flight",
+        "rollback"
+      ],
       "description": "Release orchestration: pre-flight checklist, blast radius, rollback plan, monitoring targets.",
-      "triggers": ["deploy", "release this", "prepare for deployment", "what do I need to ship"]
+      "triggers": [
+        "deploy",
+        "release this",
+        "prepare for deployment",
+        "what do I need to ship"
+      ]
     },
     {
       "name": "handoff",
       "tier": 2,
       "phase": "post-ship",
-      "tags": ["runbook", "docs", "handoff", "post-ship", "operations"],
+      "tags": [
+        "runbook",
+        "docs",
+        "handoff",
+        "post-ship",
+        "operations"
+      ],
       "description": "Generate runbook / handoff doc: overview, how to run, debug guide, operations, open items.",
-      "triggers": ["handoff", "write a runbook", "document this module", "post-ship documentation"]
+      "triggers": [
+        "handoff",
+        "write a runbook",
+        "document this module",
+        "post-ship documentation"
+      ]
     },
     {
       "name": "hardening",
       "tier": 2,
       "phase": "pre-milestone",
-      "tags": ["security", "resilience", "observability", "audit", "gaps"],
-      "description": "Security/resilience/observability gap analysis. No fixes — audit and ranked finding list.",
-      "triggers": ["hardening", "security audit", "find vulnerabilities", "harden this", "pre-milestone"]
+      "tags": [
+        "security",
+        "resilience",
+        "observability",
+        "audit",
+        "gaps"
+      ],
+      "description": "Security/resilience/observability gap analysis. No fixes \u2014 audit and ranked finding list.",
+      "triggers": [
+        "hardening",
+        "security audit",
+        "find vulnerabilities",
+        "harden this",
+        "pre-milestone"
+      ]
     },
     {
       "name": "doc-refactor",
       "tier": 2,
       "phase": "post-mvp",
-      "tags": ["docs", "readme", "mermaid", "adr", "normalize"],
+      "tags": [
+        "docs",
+        "readme",
+        "mermaid",
+        "adr",
+        "normalize"
+      ],
       "description": "Normalize README, docs/, inline comments, CLAUDE.md. Generate Mermaid diagrams.",
-      "triggers": ["doc-refactor", "update the docs", "fix the README", "normalize docs"]
+      "triggers": [
+        "doc-refactor",
+        "update the docs",
+        "fix the README",
+        "normalize docs"
+      ]
     },
     {
       "name": "test-expand",
       "tier": 2,
       "phase": "after-milestones",
-      "tags": ["tests", "coverage", "gaps", "branches", "propose"],
+      "tags": [
+        "tests",
+        "coverage",
+        "gaps",
+        "branches",
+        "propose"
+      ],
       "description": "Identify untested branches and propose new tests. Never modifies implementation code.",
-      "triggers": ["test-expand", "what's not tested", "improve coverage", "write tests for X"]
+      "triggers": [
+        "test-expand",
+        "what's not tested",
+        "improve coverage",
+        "write tests for X"
+      ]
     },
     {
       "name": "sweep",
       "tier": 2,
       "phase": "daily-weekly",
-      "tags": ["cleanup", "maintenance", "todos", "imports", "console", "daily-ops"],
+      "tags": [
+        "cleanup",
+        "maintenance",
+        "todos",
+        "imports",
+        "console",
+        "daily-ops"
+      ],
       "description": "Maintenance pass: stale TODOs, unused imports, commented-out code, console.*, config duplication.",
-      "triggers": ["sweep", "cleanup", "maintenance pass", "tidy the codebase", "fix stale TODOs"]
+      "triggers": [
+        "sweep",
+        "cleanup",
+        "maintenance pass",
+        "tidy the codebase",
+        "fix stale TODOs"
+      ]
     },
     {
       "name": "techdebt",
       "tier": 3,
       "phase": "continuous",
-      "tags": ["debt", "scan", "propose", "apply", "meta", "daily-ops"],
+      "tags": [
+        "debt",
+        "scan",
+        "propose",
+        "apply",
+        "meta",
+        "daily-ops"
+      ],
       "description": "Meta-skill: scan for debt, propose patches, apply to allowed paths. Improves all other skills.",
-      "triggers": ["techdebt", "scan for tech debt", "file a tech debt item", "record this as debt"]
+      "triggers": [
+        "techdebt",
+        "scan for tech debt",
+        "file a tech debt item",
+        "record this as debt"
+      ]
     },
     {
       "name": "setup-ci-cd",
       "tier": 2,
       "phase": "poc-to-mvp",
-      "tags": ["ci", "cd", "github-actions", "pre-commit", "coverage", "pipeline"],
+      "tags": [
+        "ci",
+        "cd",
+        "github-actions",
+        "pre-commit",
+        "coverage",
+        "pipeline"
+      ],
       "description": "One-shot CI/CD: pre-commit hooks, GitHub Actions workflows, security scans, coverage gates.",
-      "triggers": ["setup-ci-cd", "add CI", "set up GitHub Actions", "add pre-commit hooks"]
+      "triggers": [
+        "setup-ci-cd",
+        "add CI",
+        "set up GitHub Actions",
+        "add pre-commit hooks"
+      ]
     },
     {
       "name": "push-all",
       "tier": 2,
       "phase": "daily-ops",
-      "tags": ["commit", "push", "secrets", "git", "daily-ops"],
+      "tags": [
+        "commit",
+        "push",
+        "secrets",
+        "git",
+        "daily-ops"
+      ],
       "description": "Safe commit: scan for secrets, warn on protected branches, draft smart message, commit.",
-      "triggers": ["push-all", "commit my changes", "commit and push", "make a commit"]
+      "triggers": [
+        "push-all",
+        "commit my changes",
+        "commit and push",
+        "make a commit"
+      ]
     },
     {
       "name": "observe",
       "tier": 2,
       "phase": "production",
-      "tags": ["logs", "metrics", "alerts", "sentry", "incident", "triage"],
+      "tags": [
+        "logs",
+        "metrics",
+        "alerts",
+        "sentry",
+        "incident",
+        "triage"
+      ],
       "description": "Production observability triage: logs, metrics, traces, error reports. Severity + action plan.",
-      "triggers": ["observe", "triage these logs", "analyze this error", "incident report"]
+      "triggers": [
+        "observe",
+        "triage these logs",
+        "analyze this error",
+        "incident report"
+      ]
     },
     {
       "name": "recon",
       "tier": 1,
       "phase": "orientation",
-      "tags": ["explore", "map", "orient", "understand", "new-repo"],
+      "tags": [
+        "explore",
+        "map",
+        "orient",
+        "understand",
+        "new-repo"
+      ],
       "description": "Dense codebase reconnaissance: structure, entry points, stack, architecture, data flows.",
-      "triggers": ["recon", "map the codebase", "understand this project", "get oriented", "what does this repo do"]
+      "triggers": [
+        "recon",
+        "map the codebase",
+        "understand this project",
+        "get oriented",
+        "what does this repo do"
+      ]
     },
     {
       "name": "summarize",
       "tier": 1,
       "phase": "any",
-      "tags": ["read", "explain", "overview", "tldr", "file"],
+      "tags": [
+        "read",
+        "explain",
+        "overview",
+        "tldr",
+        "file"
+      ],
       "description": "Summarize a file, module, or pasted text. --style=brief (default) or --style=detailed.",
-      "triggers": ["summarize", "what does X do", "explain this file", "give me an overview", "TL;DR"]
+      "triggers": [
+        "summarize",
+        "what does X do",
+        "explain this file",
+        "give me an overview",
+        "TL;DR"
+      ]
     },
     {
       "name": "roadmap",
       "tier": 2,
       "phase": "strategy",
-      "tags": ["strategy", "plan", "prioritize", "features", "product"],
+      "tags": [
+        "strategy",
+        "plan",
+        "prioritize",
+        "features",
+        "product"
+      ],
       "description": "Analyze codebase and produce short/medium/long-term roadmap with priorities and effort.",
-      "triggers": ["roadmap", "what should we build next", "prioritize features", "what's the plan"]
+      "triggers": [
+        "roadmap",
+        "what should we build next",
+        "prioritize features",
+        "what's the plan"
+      ]
     },
     {
       "name": "scaffold-app",
       "tier": 2,
       "phase": "new-project",
-      "tags": ["new-project", "template", "init", "langgraph", "extension", "scraper"],
+      "tags": [
+        "new-project",
+        "template",
+        "init",
+        "langgraph",
+        "extension",
+        "scraper"
+      ],
       "description": "Scaffold a brand-new application from canonical template: langgraph-app, browser-extension, python-scraper.",
-      "triggers": ["scaffold-app", "create a new app", "start a new project", "initialize a new repo"]
+      "triggers": [
+        "scaffold-app",
+        "create a new app",
+        "start a new project",
+        "initialize a new repo"
+      ]
     },
     {
       "name": "workbench",
       "tier": 1,
       "phase": "daily-ops",
-      "tags": ["tmux", "dev-env", "multi-repo", "daily-ops", "workbench"],
+      "tags": [
+        "tmux",
+        "dev-env",
+        "multi-repo",
+        "daily-ops",
+        "workbench"
+      ],
       "description": "Start/stop/inspect the 6-tile tmux multi-repo development workbench.",
-      "triggers": ["workbench", "start the workbench", "launch the dev environment", "open all repos"]
+      "triggers": [
+        "workbench",
+        "start the workbench",
+        "launch the dev environment",
+        "open all repos"
+      ]
     },
     {
       "name": "agent-debug",
       "tier": 2,
       "phase": "debugging",
-      "tags": ["langgraph", "agent", "debug", "state-machine", "graph"],
+      "tags": [
+        "langgraph",
+        "agent",
+        "debug",
+        "state-machine",
+        "graph"
+      ],
       "description": "LangGraph / multi-agent debugging: graph map, failure trace, diagnosis. No code changes.",
-      "triggers": ["agent-debug", "the agent graph is broken", "LangGraph error", "debug the agent"]
+      "triggers": [
+        "agent-debug",
+        "the agent graph is broken",
+        "LangGraph error",
+        "debug the agent"
+      ]
     },
     {
       "name": "pr-review",
       "tier": 2,
       "phase": "review",
-      "tags": ["review", "pr", "code-review", "correctness", "security"],
+      "tags": [
+        "review",
+        "pr",
+        "code-review",
+        "correctness",
+        "security"
+      ],
       "description": "Structured PR audit: correctness, LangGraph invariants, auth, logging, test coverage.",
-      "triggers": ["pr-review", "review this PR", "review PR #NNN", "code review"]
+      "triggers": [
+        "pr-review",
+        "review this PR",
+        "review PR #NNN",
+        "code review"
+      ]
     },
     {
       "name": "screenshot-audit",
       "tier": 2,
       "phase": "ci-review",
-      "tags": ["visual", "regression", "screenshots", "ci", "diff"],
+      "tags": [
+        "visual",
+        "regression",
+        "screenshots",
+        "ci",
+        "diff"
+      ],
       "description": "Classify screenshot pairs as regression/enhancement/intentional/false-positive. Structured audit report.",
-      "triggers": ["screenshot-audit", "review visual diffs", "classify screenshot changes", "are these regressions"]
+      "triggers": [
+        "screenshot-audit",
+        "review visual diffs",
+        "classify screenshot changes",
+        "are these regressions"
+      ]
     },
     {
       "name": "rag-audit",
       "tier": 2,
       "phase": "audit",
-      "tags": ["rag", "vector-store", "retrieval", "embeddings", "chunking"],
+      "tags": [
+        "rag",
+        "vector-store",
+        "retrieval",
+        "embeddings",
+        "chunking"
+      ],
       "description": "Audit RAG pipeline: chunking, embeddings, vector store, retriever config, seeding.",
-      "triggers": ["rag-audit", "audit the RAG setup", "check the vector store", "review retrieval pipeline"]
+      "triggers": [
+        "rag-audit",
+        "audit the RAG setup",
+        "check the vector store",
+        "review retrieval pipeline"
+      ]
     },
     {
       "name": "extension-audit",
       "tier": 2,
       "phase": "pre-release",
-      "tags": ["extension", "chrome", "firefox", "bundle", "permissions", "csp"],
+      "tags": [
+        "extension",
+        "chrome",
+        "firefox",
+        "bundle",
+        "permissions",
+        "csp"
+      ],
       "description": "Browser extension audit: bundle size, permissions, CSP, prompt injection, message passing.",
-      "triggers": ["extension-audit", "audit the extension", "review MrPlug", "check bundle size"]
+      "triggers": [
+        "extension-audit",
+        "audit the extension",
+        "review MrPlug",
+        "check bundle size"
+      ]
     },
     {
       "name": "council-review",
       "tier": 2,
       "phase": "pre-publish",
-      "tags": ["review", "personas", "multi-perspective", "write", "article", "feedback"],
+      "tags": [
+        "review",
+        "personas",
+        "multi-perspective",
+        "write",
+        "article",
+        "feedback"
+      ],
       "description": "Multi-persona expert council review of any draft doc. Each persona critiques independently; synthesizes final version.",
-      "triggers": ["council-review", "run the council", "get expert feedback", "multi-perspective review"]
+      "triggers": [
+        "council-review",
+        "run the council",
+        "get expert feedback",
+        "multi-perspective review"
+      ]
     },
     {
       "name": "skill-loader",
       "tier": 3,
       "phase": "init",
-      "tags": ["meta", "skills", "install", "catalog", "init"],
+      "tags": [
+        "meta",
+        "skills",
+        "install",
+        "catalog",
+        "init"
+      ],
       "description": "Enumerate available skills, fuzzy-match to purpose, output install/remove commands.",
-      "triggers": ["skill-loader", "what skills are available", "load skills for this repo", "install skills"]
+      "triggers": [
+        "skill-loader",
+        "what skills are available",
+        "load skills for this repo",
+        "install skills"
+      ]
+    },
+    {
+      "name": "skill-create",
+      "tier": 2,
+      "phase": "meta",
+      "tags": [
+        "meta",
+        "skill",
+        "create",
+        "workflow",
+        "slash-command"
+      ],
+      "description": "Turn a reusable workflow or session pattern into a convention-compliant skill directory. Creates files on disk, registers in skill-catalog.json.",
+      "triggers": [
+        "skill-create",
+        "create a skill",
+        "capture this as a skill",
+        "make this a slash command",
+        "save this workflow as a skill",
+        "add a new skill"
+      ]
     },
     {
       "name": "daily-logger",
       "tier": 1,
       "phase": "orientation",
-      "tags": ["daily-logger", "council", "personas", "article", "pipeline"],
+      "tags": [
+        "daily-logger",
+        "council",
+        "personas",
+        "article",
+        "pipeline"
+      ],
       "description": "Daily-logger architecture briefing: 4-phase pipeline, persona format, council pattern, invariants.",
-      "triggers": ["daily-logger", "how does the council work", "explain the council of experts", "article pipeline"]
+      "triggers": [
+        "daily-logger",
+        "how does the council work",
+        "explain the council of experts",
+        "article pipeline"
+      ]
     },
     {
       "name": "adr",
       "tier": 1,
       "phase": "any",
-      "tags": ["adr", "decisions", "architecture", "why", "rationale", "okr"],
+      "tags": [
+        "adr",
+        "decisions",
+        "architecture",
+        "why",
+        "rationale",
+        "okr"
+      ],
       "description": "Create, list, search, or update Architecture Decision Records in decisions/adr/.",
-      "triggers": ["adr", "adr new", "adr list", "create an adr", "document this decision", "why did we decide"]
+      "triggers": [
+        "adr",
+        "adr new",
+        "adr list",
+        "create an adr",
+        "document this decision",
+        "why did we decide"
+      ]
     }
   ]
 }

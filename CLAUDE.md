@@ -35,6 +35,7 @@ The primary interface is `.claude/commands/`. Each file is a `/command` in Claud
 | Command | Tier | Phase | Purpose |
 |---------|------|-------|---------|
 | `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub |
+| `/spec-review` | 2 | Pre-kick-off | Fact-check a plan or spec before scaffolding — PASS / PASS WITH NOTES / BLOCKED |
 | `/scaffold` | 2 | Kick-off | Types, skeleton implementations, test stubs |
 | `/investigate` | 2 | Debugging | Cause map + candidate fixes — no code edits |
 | `/validate` | 2 | Quality gate | Spec coverage, invariants, auth/data safety checks |
@@ -94,13 +95,14 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 
 | Command | Purpose |
 |---------|---------|
+| `/skill-create` | Turn a reusable workflow or session pattern into a convention-compliant skill directory |
 | `/skill-loader` | Examine a repo and produce an install plan: which skills to add, keep, or remove |
 | `/daily-logger` | Load the daily-logger architecture context (4-phase pipeline, council-of-experts, personas) |
 
 ### Recommended lifecycle order
 
 ```
-/plan-feature → /scaffold → [implement] → /investigate (if needed)
+/plan-feature → /spec-review → /scaffold → [implement] → /investigate (if needed)
 → /test-expand → /validate → /hardening → /deploy → /handoff
                                     ↑
                               /techdebt (continuous)
