@@ -57,6 +57,7 @@ The primary interface is `.claude/commands/`. Each file is a `/command` in Claud
 | Command | Purpose |
 |---------|---------|
 | `/workbench` | Launch / stop / inspect the 6-tile tmux multi-repo development workbench |
+| `/frame-standup` | Sync repos, audit latest daily-logger post, present interactive prioritized day plan |
 
 ### Starting new projects
 

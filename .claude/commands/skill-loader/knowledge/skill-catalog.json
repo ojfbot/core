@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated": "2026-02-26",
+  "updated": "2026-02-27",
   "skills": [
     {
       "name": "plan-feature",
@@ -378,6 +378,23 @@
         "create a new app",
         "start a new project",
         "initialize a new repo"
+      ]
+    },
+    {
+      "name": "frame-standup",
+      "tier": 3,
+      "phase": "continuous",
+      "tags": ["daily", "planning", "standup", "repos", "daily-logger", "audit", "subagent"],
+      "description": "Sync all tracked repos, audit the latest daily-logger post for accuracy, produce a prioritized day plan, and present interactive options that expand to full subagent prompts via framework skills.",
+      "triggers": [
+        "frame-standup",
+        "morning standup",
+        "start the day",
+        "what should I work on today",
+        "sync repos and plan the day",
+        "check the daily-logger and plan work",
+        "what did we ship yesterday",
+        "daily kickoff"
       ]
     },
     {
