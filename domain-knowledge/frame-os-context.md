@@ -72,14 +72,14 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 | Repo | Tech | Port(s) | Status | Key gap |
 |------|------|---------|--------|---------|
-| cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Phase 0 complete |
-| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | No CI pipeline; sub-app remotes not yet federated (Phase 1) |
-| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Partial (v2 chat is mock-only) | No Module Federation, no /api/tools |
-| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation, no /api/tools |
-| daily-logger | Node/Jekyll → GitHub Pages | — | Scaffolded, workflow exists | articles/ is empty — workflow hasn't run, start clock NOW |
-| node-template | TypeScript, 23 slash commands | — | 1 commit, not public | Not public, no CLAUDE.md, /techdebt not wired to MrPlug |
-| MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security), no /techdebt integration, 906KB bundle |
-| purefoy | Python, Roger Deakins cinematography RAG | — | Exists | Not integrated into Frame yet |
+| cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; browser-app NOT a Module Federation remote ❌ |
+| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | Shell visual language does not yet match sub-apps; ShellHeader uses bare input (not Carbon component) |
+| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped (PR #17). Module Federation configured, exposes Dashboard ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
+| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation ❌, no GET /api/tools ❌ — both needed (Phase 1) |
+| daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
+| node-template | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
+| MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
+| purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
 
 ---
 
@@ -102,7 +102,10 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 ### MISSING / next gaps:
 - CI: visual regression tests (shell not yet covered; cv-builder has this)
-- Sub-app Module Federation: BlogEngine + TripPlanner need `@originjs/vite-plugin-federation` + `GET /api/tools` (Phase 1)
+- **Shell visual**: ShellHeader uses bare `<input>` (not Carbon `<TextInput>`); light mode tokens incomplete; visual language does not match cv-builder
+- **cv-builder Module Federation**: browser-app vite.config.ts has no federation config — shell cannot load it as a remote (Phase 1)
+- **TripPlanner Module Federation + GET /api/tools**: neither configured (Phase 1)
+- **MetaOrchestrator dynamic discovery**: currently hardcodes tool knowledge; should fetch from GET /api/tools at startup (Phase 2, per ADR-0007)
 - `spawnInstance` wired to frame-agent NL signal (Phase 4)
 - AppRegistry persistence to localStorage
 
@@ -157,8 +160,9 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | Phase | What | Repo(s) | Status |
 |-------|------|---------|--------|
 | 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
-| 1 | Module Federation for BlogEngine + TripPlanner; GET /api/tools on both | BlogEngine, TripPlanner | Not started |
-| 2 | classify() quality audit + routing UX; thread resumption synthesis | shell/frame-agent | Not started |
+| 1 | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine already done | cv-builder, TripPlanner | In progress — BlogEngine ✅, cv-builder ❌, TripPlanner ❌ |
+| 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Not started |
+| 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Not started |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
 | 3 | Cross-domain coordination (hero demo) | shell/frame-agent | Not started |
 | 3B | Earned badge threshold + conversation-aware suggestions | shell/frame-agent | Not started |
