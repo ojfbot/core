@@ -36,11 +36,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: "Bash(git log*),Bash(git diff*),Bash(git status*),Bash(git show*),Bash(gh pr*),Bash(gh api*),Read,Glob,Grep"
+          claude_args: "--allowedTools Bash(git log*),Bash(git diff*),Bash(git status*),Bash(git show*),Bash(gh pr*),Bash(gh api*),Read,Glob,Grep"
           prompt: |
-            Review this pull request and post your findings as a PR review comment.
+            Review PR #${{ github.event.pull_request.number }} in this repository and post your findings as a comment on it.
 
-            Use the /pr-review workflow:
+            Use: gh pr comment ${{ github.event.pull_request.number }} --body "..."
+
+            Review checklist:
             - Correctness against any spec or ADR referenced in the PR description
             - TypeScript safety (no `any`, no silent error swallowing)
             - Forbidden patterns: console.log in production modules, direct Anthropic calls in sub-apps, iframes in shell
