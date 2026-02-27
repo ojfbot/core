@@ -19,6 +19,9 @@ decisions/
 | [0003](adr/0003-skill-directories-over-flat-files.md) | Skill directories over flat command files | Accepted | 2026-02 |
 | [0004](adr/0004-pnpm-workspaces.md) | pnpm workspaces as the package manager for all monorepos | Accepted | 2026-01 |
 | [0005](adr/0005-carbon-design-system.md) | IBM Carbon Design System for sub-app UI components | Accepted | 2026-01 |
+| [0006](adr/0006-graphql-federation-domain-data-layer.md) | GraphQL federation for cross-domain data layer | Accepted | 2026-02 |
+| [0007](adr/0007-get-api-tools-capability-manifest.md) | GET /api/tools capability manifest contract for all sub-apps | Accepted | 2026-02 |
+| [0008](adr/0008-shell-agent-routing-protocol.md) | ShellAgent routing protocol and MetaOrchestrator dynamic discovery | Accepted | 2026-02 |
 
 ---
 
