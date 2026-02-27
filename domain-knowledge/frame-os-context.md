@@ -54,7 +54,7 @@ AI experience design, not AI integration:
 - **Routing as understanding** — `classify()` routes NL to the right domain silently, correctly. The user never thinks about routing.
 - **Thread continuity as memory** — returning to a thread, the agent synthesizes "last time you were..." from actual history, not a template.
 - **Cross-domain coordination as magic** — "I'm applying for Berlin jobs, how does this affect my trip plans and resume?" → cv-builder + tripplanner agents fan out, MetaOrchestrator synthesizes one coherent answer. This is the hero demo moment.
-- **Earned badge suggestions** — surface suggestions only after ≥3 messages, referencing specific things said, not profile data.
+- **Earned badge suggestions** — surface suggestions only after ≥2 messages, referencing specific things said, not profile data.
 - **NL instance spawning** — "new trip to Berlin, I have interviews there" → TripPlanner instance "Berlin Interviews" appears. The LLM signals intent; the shell acts.
 
 What we are NOT doing: theme switching, CSS brand skins, visual design demos. That's "any LLM can do it" territory. We design delightful AI experiences.
@@ -73,7 +73,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | Repo | Tech | Port(s) | Status | Key gap |
 |------|------|---------|--------|---------|
 | cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Phase 0 complete |
-| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | frame-agent shipped, components exist | App.tsx + main.tsx + index.html missing — shell cannot render |
+| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | No CI pipeline; sub-app remotes not yet federated (Phase 1) |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Partial (v2 chat is mock-only) | No Module Federation, no /api/tools |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation, no /api/tools |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Scaffolded, workflow exists | articles/ is empty — workflow hasn't run, start clock NOW |
@@ -88,18 +88,23 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 ### EXISTS (built, committed to shell repo main):
 - `packages/agent-core/` — `@ojfbot/agent-core`: BaseAgent, AgentManager<T>, middleware (validateBody, getRateLimiter, errorHandler)
 - `packages/frame-agent/` — Express server port 4001, MetaOrchestratorAgent, CvBuilderDomainAgent, BlogEngineDomainAgent, TripPlannerDomainAgent, `/api/chat`, `/api/chat/stream` (SSE), `/api/tools`, `/health`
-- `packages/shell-app/src/components/` — AppFrame.tsx, AppSwitcher.tsx, ShellHeader.tsx
-- `packages/shell-app/src/store/` — index.ts, hooks.ts, slices/appRegistrySlice.ts, slices/chatSlice.ts
+- `packages/shell-app/index.html` — HTML shell (class="cds--g100" for FOUC prevention)
+- `packages/shell-app/src/main.tsx` — Vite entry point (imports carbon.scss → tokens.css → index.css)
+- `packages/shell-app/src/App.tsx` — root layout: Carbon Header + SideNav + AppFrame; Redux themeSlice; useEffect syncs theme class to `<html>`
+- `packages/shell-app/src/components/` — AppFrame.tsx, AppSwitcher.tsx, ShellHeader.tsx (⌘K focus, chat input), HomeScreen.tsx (instance-aware launcher)
+- `packages/shell-app/src/store/` — index.ts, hooks.ts, slices/appRegistrySlice.ts, slices/chatSlice.ts, slices/themeSlice.ts (toggleTheme, selectIsDark)
 - `packages/shell-app/src/api/` — frame-agent-client.ts
+- `packages/shell-app/src/styles/carbon.scss` — selective Carbon SCSS imports (191KB vs 600KB monolith)
+- `packages/shell-app/src/themes/tokens.css` — ojf-* custom property tokens; :root (light) + .cds--g100 (dark) overrides
 - `packages/shell-app/vite.config.ts` — Module Federation host config (remotes: cv_builder, blogengine, tripplanner, purefoy)
 - `k8s/` — all manifests (frame-agent deployment, ingress, namespace, deployment)
+- `.github/workflows/` — Claude Code Review on PR; CI (type-check + build on PR and main push)
 
-### MISSING (hard blockers — shell cannot start without these):
-- `packages/shell-app/src/App.tsx` — root layout component
-- `packages/shell-app/src/main.tsx` — Vite entry point
-- `packages/shell-app/index.html` — HTML shell
-
-App.tsx should compose: `<Provider store>` wraps everything; layout is CSS grid — AppSwitcher (fixed left) + AppFrame (fills rest); ShellHeader floats at top; reads `activeAppType` from appRegistrySlice for frame-agent context.
+### MISSING / next gaps:
+- CI: visual regression tests (shell not yet covered; cv-builder has this)
+- Sub-app Module Federation: BlogEngine + TripPlanner need `@originjs/vite-plugin-federation` + `GET /api/tools` (Phase 1)
+- `spawnInstance` wired to frame-agent NL signal (Phase 4)
+- AppRegistry persistence to localStorage
 
 ---
 
@@ -151,7 +156,7 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 
 | Phase | What | Repo(s) | Status |
 |-------|------|---------|--------|
-| 0 | App.tsx + main.tsx + index.html in shell-app | shell | Next |
+| 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
 | 1 | Module Federation for BlogEngine + TripPlanner; GET /api/tools on both | BlogEngine, TripPlanner | Not started |
 | 2 | classify() quality audit + routing UX; thread resumption synthesis | shell/frame-agent | Not started |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
