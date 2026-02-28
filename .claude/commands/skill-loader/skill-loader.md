@@ -26,7 +26,7 @@ You are a skill orchestrator. Your job is to help an LLM agent or developer disc
 > **Load `knowledge/skill-catalog.json`** for the full skill inventory with names, triggers, and use-case tags.
 
 Glob `.claude/commands/` in the current repo to see what is already installed.
-Glob `.claude/commands/` in `node-template` (if available as a sibling) to see what is available but not yet installed.
+Glob `.claude/commands/` in `core` (if available as a sibling) to see what is available but not yet installed.
 
 ### Phase 2: Understand the purpose
 
@@ -43,7 +43,7 @@ If `$ARGUMENTS` is empty:
 
 For each recommended skill:
 - State why it is relevant to the stated purpose.
-- Output the install command (symlink from node-template).
+- Output the install command (symlink from core).
 - Flag skills already installed.
 
 For skills currently installed that are NOT relevant:
@@ -62,7 +62,7 @@ For skills currently installed that are NOT relevant:
 
 #### Install
 - /skill-name — [why relevant]
-  `ln -sf ../node-template/.claude/commands/skill-name .claude/commands/`
+  `ln -sf ../core/.claude/commands/skill-name .claude/commands/`
 
 #### Already installed (keep)
 - /skill-name
@@ -79,7 +79,7 @@ For skills currently installed that are NOT relevant:
 
 - Never execute any commands — list only.
 - Never remove skills automatically.
-- If node-template is not a sibling, note it and skip availability check.
+- If core is not a sibling, note it and skip availability check.
 
 ---
 

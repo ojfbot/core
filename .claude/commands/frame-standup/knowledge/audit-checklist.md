@@ -34,7 +34,7 @@ Check: plugin imported AND `exposes` key exists AND `filename: 'remoteEntry.js'`
 
 ### "ADR-NNN written / accepted"
 ```bash
-ls /Users/yuri/ojfbot/node-template/decisions/adr/ | grep NNN
+ls /Users/yuri/ojfbot/core/decisions/adr/ | grep NNN
 ```
 Then read the file and check `Status:` field in frontmatter.
 

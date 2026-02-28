@@ -1,8 +1,8 @@
 {
-  "name": "ojf-vscode-extension",
-  "displayName": "OJF Workflow",
+  "name": "core-vscode-extension",
+  "displayName": "Core Workflow",
   "version": "0.1.0",
-  "description": "VS Code extension for running OJF slash-command workflows",
+  "description": "VS Code extension for running core slash-command workflows",
   "engines": {
     "vscode": "^1.90.0"
   },
@@ -12,12 +12,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "ojf.runSlashCommand",
-        "title": "OJF: Run Slash Command"
+        "command": "core.runSlashCommand",
+        "title": "Core: Run Slash Command"
       },
       {
-        "command": "ojf.listCommands",
-        "title": "OJF: List Available Commands"
+        "command": "core.listCommands",
+        "title": "Core: List Available Commands"
       }
     ]
   },
@@ -27,7 +27,7 @@
     "vscode:prepublish": "pnpm run build"
   },
   "dependencies": {
-    "@ojf/workflows": "workspace:*"
+    "@core/workflows": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

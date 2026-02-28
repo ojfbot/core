@@ -62,9 +62,9 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 ### Track B — Pitching the engineer
 
 - **Visual regression CI** — every UI change runs screenshot diffs against baseline. PRs block on regression. cv-builder has this live and passing.
-- **MrPlug + /techdebt loop** — Chrome extension runs AI UI/UX analysis on live UIs → structured `/techdebt` payload → node-template `/techdebt propose` generates patches → `/techdebt apply` ships improvements.
+- **MrPlug + /techdebt loop** — Chrome extension runs AI UI/UX analysis on live UIs → structured `/techdebt` payload → core `/techdebt propose` generates patches → `/techdebt apply` ships improvements.
 - **daily-logger** — Claude auto-commits a dev log to `log.jim.software` daily, sweeping all ojfbot repos. Passive proof of sustained output.
-- **node-template** — 23 slash commands systematizing the entire workflow. `/techdebt` is the keystone.
+- **core** — 30 slash commands systematizing the entire workflow. `/techdebt` is the keystone.
 
 ---
 
@@ -77,7 +77,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped (PR #17). Module Federation configured, exposes Dashboard ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation ❌, no GET /api/tools ❌ — both needed (Phase 1) |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
-| node-template | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
+| core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
 | purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
 
@@ -167,8 +167,8 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | 3 | Cross-domain coordination (hero demo) | shell/frame-agent | Not started |
 | 3B | Earned badge threshold + conversation-aware suggestions | shell/frame-agent | Not started |
 | 4 | NL instance spawning — MetaOrchestrator spawn_instance + shell handler | shell/frame-agent | Not started |
-| 4B | node-template: make public + CLAUDE.md + polish /techdebt | node-template | Not started |
-| 5 | MrPlug /techdebt integration | MrPlug + node-template | Not started |
+| 4B | core: make public + CLAUDE.md + polish /techdebt | core | Not started |
+| 5 | MrPlug /techdebt integration | MrPlug + core | Not started |
 | 6 | Deploy frame.jim.software via K8s | shell, K8s | Not started |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
 
@@ -223,5 +223,5 @@ VITE_REMOTE_PUREFOY=http://localhost:3020
 | CV builder agents | `cv-builder/packages/agent-core/src/agents/orchestrator-agent.ts` |
 | Visual regression CI | `cv-builder/.github/workflows/browser-automation-tests.yml` |
 | K8s topology | `shell/k8s/` (namespace, shell deployment, frame-agent deployment, ingress) |
-| /techdebt command | `node-template/.claude/commands/techdebt.md` |
+| /techdebt command | `core/.claude/commands/techdebt.md` |
 | MrPlug AI call (to migrate) | `MrPlug/src/content/index.tsx` + `MrPlug/src/background/index.ts` |

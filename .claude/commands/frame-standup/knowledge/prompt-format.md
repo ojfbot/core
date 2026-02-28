@@ -42,7 +42,7 @@ success looks like. Write as if the agent has never seen this codebase.>
 
 ### `[repo:]`
 Exact repo directory name: `cv-builder`, `shell`, `blogengine`, `TripPlanner`,
-`mrplug`, `purefoy`, `daily-logger`, `node-template`
+`mrplug`, `purefoy`, `daily-logger`, `core`
 
 ### `[phase:]`
 Roadmap phase number from `frame-os-context.md`:
@@ -81,7 +81,7 @@ The `find-latest-post.js` script derives the URL automatically. Always include
 it so the spawned agent can read the full context that motivated the action.
 
 For actions motivated by an ADR rather than the daily-logger, use:
-`file:///Users/yuri/ojfbot/node-template/decisions/adr/<filename>.md`
+`file:///Users/yuri/ojfbot/core/decisions/adr/<filename>.md`
 
 ---
 

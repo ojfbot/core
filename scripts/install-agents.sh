@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-agents.sh — install OJF slash commands into any ojfbot sibling repo
+# install-agents.sh — install core slash commands into any ojfbot sibling repo
 #
 # Usage:
 #   ./scripts/install-agents.sh <target-repo-path> [--force]
@@ -9,11 +9,13 @@
 #   ./scripts/install-agents.sh cv-builder --force   # overwrite existing symlinks
 #
 # What it does:
-#   1. Creates .claude/commands/ with symlinks to all node-template skill directories
+#   1. Creates .claude/commands/ with symlinks to all core skill directories
 #      Each skill is a directory: .claude/commands/<name>/ with <name>.md + knowledge/ + scripts/
 #      Symlinking the directory gives the target repo the full skill tree automatically.
 #   2. Creates domain-knowledge/ with symlinks to the universal context files
 #   3. Optionally links the repo-specific architecture file (auto-detected by name)
+#   4. Symlinks decisions/ (ADRs + OKRs) — single source of truth across all repos
+#   5. Symlinks personal-knowledge/tbcony-job-target.md if present (local file, gitignored)
 #
 # Symlinks are relative so they survive path changes. All ojfbot repos are assumed
 # to be siblings under the same parent directory.
@@ -43,7 +45,7 @@ if [[ -z "$TARGET_ARG" ]]; then
   echo "Available sibling repos:"
   for d in "$OJFBOT_ROOT"/*/; do
     name="$(basename "$d")"
-    [[ "$name" == "node-template" ]] && continue
+    [[ "$name" == "core" ]] && continue
     [[ -d "$d/.git" ]] && echo "  $name"
   done
   exit 1
@@ -60,7 +62,7 @@ else
 fi
 
 if [[ "$(realpath "$TARGET")" == "$(realpath "$NODE_TEMPLATE")" ]]; then
-  echo "Error: cannot install into node-template itself"
+  echo "Error: cannot install into core itself"
   exit 1
 fi
 
@@ -71,12 +73,12 @@ if [[ ! -d "$TARGET/.git" ]]; then
 fi
 
 REPO_NAME="$(basename "$TARGET")"
-echo "Installing OJF agents into: $TARGET ($REPO_NAME)"
+echo "Installing core agents into: $TARGET ($REPO_NAME)"
 echo ""
 
 # Compute relative path from TARGET back to NODE_TEMPLATE
-# e.g. from /ojfbot/cv-builder → ../../node-template is wrong;
-# correct: from cv-builder/.claude/commands/ → ../../../node-template/.claude/commands/
+# e.g. from /ojfbot/cv-builder → ../../core is wrong;
+# correct: from cv-builder/.claude/commands/ → ../../../core/.claude/commands/
 # We compute: TARGET → NODE_TEMPLATE as a relative path, then prepend the depth of the link location.
 #
 # Helper: relative path from $1 to $2 (both absolute)
@@ -121,9 +123,25 @@ echo "── Commands (.claude/commands/)"
 mkdir -p "$TARGET/.claude/commands"
 
 # Remove stale flat *.md symlinks from the old structure (pre-skill-directory migration)
+# Also sweep broken directory symlinks (e.g. dangling links from a repo rename)
 if $FORCE; then
   for old_link in "$TARGET/.claude/commands/"*.md; do
     [[ -L "$old_link" ]] && rm "$old_link" && echo "  removed stale flat link: $(basename "$old_link")"
+  done
+  # Remove broken directory symlinks (dead targets — dangling after a rename)
+  for dir_link in "$TARGET/.claude/commands"/*/; do
+    real="${dir_link%/}"
+    if [[ -L "$real" && ! -e "$real" ]]; then
+      rm "$real"
+      echo "  removed broken dir link: $(basename "$real")"
+    fi
+  done
+  # Same sweep for domain-knowledge/
+  for dk_link in "$TARGET/domain-knowledge"/*; do
+    if [[ -L "$dk_link" && ! -e "$dk_link" ]]; then
+      rm "$dk_link"
+      echo "  removed broken dk link: $(basename "$dk_link")"
+    fi
   done
 fi
 
@@ -180,7 +198,21 @@ if [[ -n "$ARCH_FILE" ]]; then
   fi
 fi
 
-# ── 4. Summary ────────────────────────────────────────────────────────────────
+# ── 4. Decisions (ADRs + OKRs) ───────────────────────────────────────────────
+echo "── Decisions (ADRs + OKRs)"
+link_file "$TARGET/decisions" "$NODE_TEMPLATE/decisions"
+echo ""
+
+# ── 5. Personal context ───────────────────────────────────────────────────────
+PERSONAL_SRC="$NODE_TEMPLATE/personal-knowledge/tbcony-job-target.md"
+if [[ -f "$PERSONAL_SRC" ]]; then
+  echo "── Personal context (tbcony-job-target.md)"
+  mkdir -p "$TARGET/personal-knowledge"
+  link_file "$TARGET/personal-knowledge/tbcony-job-target.md" "$PERSONAL_SRC"
+  echo ""
+fi
+
+# ── 6. Summary ────────────────────────────────────────────────────────────────
 echo "Done."
 echo "  Created/updated: $CREATED"
 echo "  Skipped (already linked): $SKIPPED"

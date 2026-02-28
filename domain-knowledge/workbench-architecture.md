@@ -198,14 +198,14 @@ wbk          # kill everything
 /workbench start --repo='{"name":"api","path":"/code/api","service_cmd":"pnpm start"}'
 ```
 
-### 3. CLI / MCP via `ojf-workflow`
+### 3. CLI / MCP via `core-workflow`
 
 ```bash
-ojf-workflow "/workbench start --config /path/to/config.json"
-ojf-workflow "/workbench status"
+core-workflow "/workbench start --config /path/to/config.json"
+core-workflow "/workbench status"
 
 # Inline repos (MCP use case — no file needed)
-ojf-workflow '/workbench start --config-json {"socket":"workbench","session":"workbench","max_slots":6,"repos":[{"name":"api","path":"/code/api","service_cmd":"pnpm dev","claude_prompt":"help me with the auth bug"}]}'
+core-workflow '/workbench start --config-json {"socket":"workbench","session":"workbench","max_slots":6,"repos":[{"name":"api","path":"/code/api","service_cmd":"pnpm dev","claude_prompt":"help me with the auth bug"}]}'
 ```
 
 For MCP callers that can't block on an interactive `tmux attach`, run `workbench.py` in the background and return the attach command:

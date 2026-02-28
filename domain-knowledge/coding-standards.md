@@ -45,7 +45,7 @@
 ### Imports
 - Use explicit named imports, not namespace imports (`import * as X`).
 - Sort imports: node built-ins → external packages → internal packages → relative imports.
-- In pnpm workspaces, import from the package name (`@ojf/workflows`), not a relative path across packages.
+- In pnpm workspaces, import from the package name (`@core/workflows`), not a relative path across packages.
 
 ---
 
@@ -99,8 +99,8 @@ These are hard rules. `/validate` blocks on them.
 ## pnpm workspace
 
 - Run `pnpm install` at repo root — never `npm install` or `yarn`.
-- Build a single package: `pnpm --filter @ojf/workflows build`.
-- Add a dependency: `pnpm --filter @ojf/cli add <package>`.
+- Build a single package: `pnpm --filter @core/workflows build`.
+- Add a dependency: `pnpm --filter @core/cli add <package>`.
 - Never edit `pnpm-lock.yaml` by hand.
 - Node version: v24.11.1 (`.nvmrc`). Run `fnm use` after cloning.
 

@@ -54,7 +54,7 @@ Date: 2026-02
 Status: Accepted
 OKR: 2026-Q1 / O2 / KR2
 Commands affected: all 28 slash commands
-Repos affected: node-template, all sibling repos via install-agents.sh
+Repos affected: core, all sibling repos via install-agents.sh
 
 ---
 
