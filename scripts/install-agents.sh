@@ -14,7 +14,8 @@
 #      Symlinking the directory gives the target repo the full skill tree automatically.
 #   2. Creates domain-knowledge/ with symlinks to the universal context files
 #   3. Optionally links the repo-specific architecture file (auto-detected by name)
-#   4. Symlinks decisions/ (ADRs + OKRs) — single source of truth across all repos
+#   4. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
+#      Adds decisions/core/ → core/decisions/ symlink for cluster-wide access
 #   5. Symlinks personal-knowledge/tbcony-job-target.md if present (local file, gitignored)
 #
 # Symlinks are relative so they survive path changes. All ojfbot repos are assumed
@@ -198,9 +199,36 @@ if [[ -n "$ARCH_FILE" ]]; then
   fi
 fi
 
-# ── 4. Decisions (ADRs + OKRs) ───────────────────────────────────────────────
-echo "── Decisions (ADRs + OKRs)"
-link_file "$TARGET/decisions" "$NODE_TEMPLATE/decisions"
+# ── 4. Decisions ─────────────────────────────────────────────────────────────
+# Structure: decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
+#            decisions/core/ → symlink to core/decisions/ for cluster-wide ADRs + OKRs
+#
+# Migration: if decisions was previously a flat symlink to core (old approach), convert it
+# to a real directory under --force. The core/ sub-symlink gives the same access.
+echo "── Decisions (local + core/)"
+DECISIONS_DIR="$TARGET/decisions"
+
+# Migrate flat symlink → real dir (rename recovery or old-style install)
+if [[ -L "$DECISIONS_DIR" ]]; then
+  if $FORCE; then
+    rm "$DECISIONS_DIR"
+    mkdir -p "$DECISIONS_DIR/adr" "$DECISIONS_DIR/okr"
+    echo "  migrated: decisions/ (flat symlink → real dir with adr/ okr/)"
+    CREATED=$((CREATED + 1))
+  else
+    echo "  warn: decisions/ is a flat symlink to core — run with --force to migrate to nested structure"
+    WARNED=$((WARNED + 1))
+  fi
+elif [[ ! -d "$DECISIONS_DIR" ]]; then
+  mkdir -p "$DECISIONS_DIR/adr" "$DECISIONS_DIR/okr"
+  echo "  created: decisions/adr/ decisions/okr/"
+  CREATED=$((CREATED + 2))
+fi
+
+# Add decisions/core/ → core/decisions/ symlink (cluster-wide decisions, read-only by convention)
+if [[ -d "$DECISIONS_DIR" && ! -L "$DECISIONS_DIR" ]]; then
+  link_file "$DECISIONS_DIR/core" "$NODE_TEMPLATE/decisions"
+fi
 echo ""
 
 # ── 5. Personal context ───────────────────────────────────────────────────────
