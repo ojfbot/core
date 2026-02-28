@@ -16,7 +16,7 @@ pnpm build                      # compile all packages
 pnpm test                       # run vitest
 pnpm test:watch                 # vitest watch mode
 
-pnpm --filter @ojf/workflows build   # build one package
+pnpm --filter @core/workflows build   # build one package
 pnpm vitest run packages/workflows/src/__tests__/parseCommand.test.ts
 
 # CLI (after build)
@@ -28,7 +28,7 @@ node packages/cli/dist/index.js "/plan-feature add user auth"
 
 ## Available slash commands
 
-The primary interface is `.claude/commands/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/` backs the same commands for CLI/CI use via `ojf-workflow`.
+The primary interface is `.claude/commands/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/` backs the same commands for CLI/CI use via `core-workflow`.
 
 ### Development lifecycle
 
@@ -117,17 +117,17 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 **Two layers:**
 
 ### 1. `.claude/commands/*.md` — Claude Code slash commands (primary)
-Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a new command by creating a new `.md` file. Updating the `.md` file automatically updates both Claude Code and the `ojf-workflow` CLI (the TypeScript engine reads it at runtime).
+Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a new command by creating a new `.md` file. Updating the `.md` file automatically updates both Claude Code and the `core-workflow` CLI (the TypeScript engine reads it at runtime).
 
 ### 2. `packages/` — TypeScript engine (supporting)
 
 | Package | Role |
 |---------|------|
-| `@ojf/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
-| `@ojf/cli` | `ojf-workflow` binary — joins argv, calls `runWorkflow`, prints output |
-| `vscode-extension` | VS Code extension — `ojf.runSlashCommand` command, output channel |
+| `@core/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
+| `@core/cli` | `core-workflow` binary — joins argv, calls `runWorkflow`, prints output |
+| `vscode-extension` | VS Code extension — `core.runSlashCommand` command, output channel |
 
-**Key files in `@ojf/workflows`:**
+**Key files in `@core/workflows`:**
 
 | File | Role |
 |------|------|
@@ -163,7 +163,7 @@ Always read `frame-os-context.md` first for cross-repo work. Commands that audit
 
 ## Personal knowledge
 
-`personal-knowledge/` contains Jim Green's career and application context. **Not installed into sibling repos** (node-template only). Read when generating career artifacts, tailoring applications, or mapping Frame OS features to job requirements.
+`personal-knowledge/` contains Jim Green's career and application context. **Not installed into sibling repos** (core only). Read when generating career artifacts, tailoring applications, or mapping Frame OS features to job requirements.
 
 - `tbcony-job-target.md` — TBCoNY Design Engineer listing, requirements mapping, gap analysis, application strategy
 - `jim-green-profile.md` — career profile, skills inventory, Concur tenure (stub — to be filled in), cv-builder agent instructions

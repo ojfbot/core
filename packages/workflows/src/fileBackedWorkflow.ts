@@ -16,7 +16,7 @@ const SYSTEM_PROMPT =
  *   └── scripts/         ← deterministic utilities, executed without loading into context
  *
  * This keeps `.claude/commands/` as the single source of truth for both
- * Claude Code slash commands and the programmatic ojf-workflow CLI.
+ * Claude Code slash commands and the programmatic core-workflow CLI.
  */
 export function fileBackedWorkflow(
   name: string,

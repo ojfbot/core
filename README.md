@@ -56,8 +56,8 @@ Install into a sibling repo:
 ```
 .claude/commands/     28 slash commands (skill directories)
 packages/
-  workflows/          @ojf/workflows — TypeScript workflow engine
-  cli/                ojf-workflow binary
+  workflows/          @core/workflows — TypeScript workflow engine
+  cli/                core-workflow binary
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 docs/                 Human-readable documentation

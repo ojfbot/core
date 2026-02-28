@@ -1,5 +1,5 @@
 {
-  "name": "ojf-workflow-framework",
+  "name": "core-workflow-framework",
   "private": true,
   "version": "0.1.0",
   "description": "Unified slash-command workflow framework for CLI and VS Code",

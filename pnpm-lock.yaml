@@ -20,7 +20,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@ojf/workflows':
+      '@core/workflows':
         specifier: workspace:*
         version: link:../workflows
     devDependencies:
@@ -33,7 +33,7 @@ importers:
 
   packages/vscode-extension:
     dependencies:
-      '@ojf/workflows':
+      '@core/workflows':
         specifier: workspace:*
         version: link:../workflows
     devDependencies:

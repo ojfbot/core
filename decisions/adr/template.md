@@ -4,7 +4,7 @@ Date: YYYY-MM-DD
 Status: Proposed
 OKR: [e.g. 2026-Q1 / O2 / KR1]
 Commands affected: [e.g. /plan-feature, /scaffold]
-Repos affected: [e.g. shell, cv-builder, node-template]
+Repos affected: [e.g. shell, cv-builder, core]
 
 ---
 

@@ -7,7 +7,7 @@
 
 ## What this is
 
-**node-template** is a portable workflow framework: a set of slash commands for Claude Code, backed by a TypeScript engine. It systematizes the development lifecycle across the entire Frame OS cluster — from feature planning through deployment.
+**core** is a portable workflow framework: a set of slash commands for Claude Code, backed by a TypeScript engine. It systematizes the development lifecycle across the entire Frame OS cluster — from feature planning through deployment.
 
 It is also the portfolio evidence for "I build AI tools, I don't just use them."
 
@@ -56,9 +56,9 @@ Multiple instances of the same app type are supported. `activeAppType` is passed
 
 ---
 
-## node-template — the workflow layer
+## core — the workflow layer
 
-node-template is a two-layer system:
+core is a two-layer system:
 
 ### Layer 1: `.claude/commands/` — Claude Code slash commands
 
@@ -82,9 +82,9 @@ See [ADR-0003](../decisions/adr/0003-skill-directories-over-flat-files.md) for w
 
 | Package | Role |
 |---------|------|
-| `@ojf/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
-| `@ojf/cli` | `ojf-workflow` binary — joins argv, calls `runWorkflow`, prints output |
-| `vscode-extension` | VS Code extension — `ojf.runSlashCommand` command, output channel |
+| `@core/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
+| `@core/cli` | `core-workflow` binary — joins argv, calls `runWorkflow`, prints output |
+| `vscode-extension` | VS Code extension — `core.runSlashCommand` command, output channel |
 
 The TypeScript engine reads the same `.claude/commands/<name>/<name>.md` files at runtime. Updating a command file updates both Claude Code and the CLI simultaneously.
 
@@ -120,7 +120,7 @@ The TypeScript engine reads the same `.claude/commands/<name>/<name>.md` files a
 | blogengine | Partial | No Module Federation |
 | tripplanner | Partial | No Module Federation |
 | daily-logger | Scaffolded | articles/ is empty |
-| node-template | Active | Phase 4B: make public |
+| core | Active | Phase 4B: make public |
 | MrPlug | Builds clean | AI in content script (security), no /techdebt integration |
 | purefoy | Exists | Not integrated into Frame |
 

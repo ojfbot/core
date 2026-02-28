@@ -123,7 +123,7 @@ Example option set:
 ```
 [P0] Add Module Federation + /api/tools to TripPlanner · TripPlanner · /scaffold
 [P0] Add Module Federation to cv-builder browser-app · cv-builder · /scaffold
-[P1] Write ADR-008 ShellAgent routing protocol · node-template · /adr
+[P1] Write ADR-008 ShellAgent routing protocol · core · /adr
 [P1] classify() quality audit + routing UX design · shell · /plan-feature
 [P2] Fix BlogEngine /api/tools contract divergence · blogengine · /techdebt
 All P0 + P1 items

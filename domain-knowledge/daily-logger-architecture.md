@@ -1,6 +1,6 @@
 # daily-logger architecture
 
-**Repo:** `../daily-logger` (sibling of node-template, at `/Users/yuri/ojfbot/daily-logger`)
+**Repo:** `../daily-logger` (sibling of core, at `/Users/yuri/ojfbot/daily-logger`)
 **Purpose:** Automated daily development blog for the Frame OS project. 4-phase pipeline → expert council review → GitHub Pages publish.
 **Stack:** TypeScript, tsx, Anthropic SDK (`@anthropic-ai/sdk`), `gh` CLI, Jekyll (GitHub Pages)
 
@@ -13,7 +13,7 @@
 ```
 Phase 1: Collect    src/collect-context.ts
          gh API sweep, 8 repos: shell, cv-builder, BlogEngine, TripPlanner,
-           node-template, MrPlug, purefoy, daily-logger
+           core, MrPlug, purefoy, daily-logger
          Window: 24h commits / 7d PRs+issues (7d prevents duplication across articles)
          Reads ROADMAP.md (first 2500 chars) → projectVision
          Returns BlogContext {
@@ -155,7 +155,7 @@ Writes `_reports/{date}-{persona-slug}.md`. Not synthesized — direct memo per 
 
 ## Shared skills pattern
 
-`daily-logger/.claude/commands/` = 26 symlinks → `node-template/.claude/commands/`
-`daily-logger/domain-knowledge/` = 6 symlinks → universal node-template knowledge files + this file
-No daily-logger-specific commands — it uses the full node-template toolkit.
-Propagate command changes: `./scripts/install-agents.sh daily-logger` from node-template.
+`daily-logger/.claude/commands/` = 26 symlinks → `core/.claude/commands/`
+`daily-logger/domain-knowledge/` = 6 symlinks → universal core knowledge files + this file
+No daily-logger-specific commands — it uses the full core toolkit.
+Propagate command changes: `./scripts/install-agents.sh daily-logger` from core.

@@ -1,5 +1,5 @@
 {
-  "name": "@ojf/workflows",
+  "name": "@core/workflows",
   "version": "0.1.0",
   "description": "Core workflow library for the Dia slash-command framework",
   "type": "module",

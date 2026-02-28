@@ -1,15 +1,15 @@
 import * as vscode from "vscode";
-import { runWorkflow, workflows } from "@ojf/workflows";
-import type { WorkflowContext } from "@ojf/workflows";
+import { runWorkflow, workflows } from "@core/workflows";
+import type { WorkflowContext } from "@core/workflows";
 
 let outputChannel: vscode.OutputChannel;
 
 export function activate(context: vscode.ExtensionContext): void {
-  outputChannel = vscode.window.createOutputChannel("OJF Workflow");
+  outputChannel = vscode.window.createOutputChannel("Core Workflow");
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("ojf.runSlashCommand", runSlashCommand),
-    vscode.commands.registerCommand("ojf.listCommands", listCommands)
+    vscode.commands.registerCommand("core.runSlashCommand", runSlashCommand),
+    vscode.commands.registerCommand("core.listCommands", listCommands)
   );
 }
 
@@ -38,7 +38,7 @@ async function runSlashCommand(): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     outputChannel.appendLine(`Error: ${message}`);
-    vscode.window.showErrorMessage(`OJF workflow error: ${message}`);
+    vscode.window.showErrorMessage(`Core workflow error: ${message}`);
   }
 }
 
@@ -76,7 +76,7 @@ async function listCommands(): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     outputChannel.appendLine(`Error: ${message}`);
-    vscode.window.showErrorMessage(`OJF workflow error: ${message}`);
+    vscode.window.showErrorMessage(`Core workflow error: ${message}`);
   }
 }
 

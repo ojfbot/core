@@ -10,7 +10,7 @@ description: >
 Load the daily-logger architecture context and orient yourself before making any changes.
 
 **Tier:** 1 — Context load / orientation
-**Repo:** `../daily-logger` (sibling of node-template)
+**Repo:** `../daily-logger` (sibling of core)
 
 ## Step 1: Read these files first
 
