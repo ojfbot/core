@@ -1,6 +1,19 @@
 # ADR Template and Example
 
-When any skill needs to produce an ADR stub, load this file and use this format. The file goes in `decisions/adr/` in the repo root. Any skill can reference this template — not just `/plan-feature`.
+When any skill needs to produce an ADR stub, load this file and use this format.
+
+## decisions/ namespace convention
+
+Each repo has its own `decisions/` directory for domain isolation:
+- `decisions/adr/` — ADRs specific to this repo (create new ones here)
+- `decisions/okr/` — OKRs specific to this repo (if any)
+- `decisions/core/` — symlink → cluster-wide ADRs + OKRs from the `core` repo (read-only by convention)
+
+When deciding where an ADR belongs:
+- **Repo-local** (e.g. cv-builder/decisions/adr/): architectural decisions that only affect this repo or its domain agents
+- **Cluster-wide** (core/decisions/adr/): decisions about shared contracts, cross-repo patterns, Module Federation, ADR-0001-style rules
+
+When referencing cluster ADRs from a sibling repo, use `decisions/core/adr/<file>.md`.
 
 ---
 
