@@ -1,23 +1,15 @@
 name: Claude Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to review"
+        required: true
+        type: string
 
 jobs:
   claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -38,18 +30,17 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_args: "--allowedTools Bash(git log*),Bash(git diff*),Bash(git status*),Bash(git show*),Bash(gh pr*),Bash(gh api*),Read,Glob,Grep"
           prompt: |
-            Review PR #${{ github.event.pull_request.number }} in this repository and post your findings as a comment on it.
+            Review PR #${{ github.event.inputs.pr_number }} in this repository and post your findings as a comment on it.
 
-            Use: gh pr comment ${{ github.event.pull_request.number }} --body "..."
+            Use: gh pr comment ${{ github.event.inputs.pr_number }} --body "..."
 
             Review checklist:
             - Correctness against any spec or ADR referenced in the PR description
             - TypeScript safety (no `any`, no silent error swallowing)
             - Forbidden patterns: console.log in production modules, direct Anthropic calls in sub-apps, iframes in shell
+            - Stack consistency: bundler, framework, and build tool choices must match the established stack in domain-knowledge/shared-stack.md and existing sub-apps
             - Auth middleware on new routes
             - ADR coverage: does this change introduce an undocumented architectural decision?
             - Test coverage for new code paths
 
             Output: APPROVE | REQUEST CHANGES | BLOCKED verdict with specific findings.
-          # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
-
