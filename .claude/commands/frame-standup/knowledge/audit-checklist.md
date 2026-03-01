@@ -15,26 +15,26 @@ Check: `state == "MERGED"`. If `state == "OPEN"` the claim is false.
 
 ### "X is now live at frame.jim.software"
 ```bash
-git -C /Users/yuri/ojfbot/<repo> log --oneline origin/main -5
+git -C $HOME/ojfbot/<repo> log --oneline origin/main -5
 ```
 Check the relevant commit appears on `origin/main`. GitHub Pages deploys
 from main — if the commit isn't on main, it's not live.
 
 ### "GET /api/tools added" / "endpoint now exists"
 ```bash
-grep -r "api/tools" /Users/yuri/ojfbot/<repo>/packages/api/src/ --include="*.ts" -l
+grep -r "api/tools" $HOME/ojfbot/<repo>/packages/api/src/ --include="*.ts" -l
 ```
 Check the file exists and contains the route definition, not just a comment.
 
 ### "Module Federation configured"
 ```bash
-grep -r "vite-plugin-federation\|@originjs" /Users/yuri/ojfbot/<repo>/packages/browser-app/vite.config.ts
+grep -r "vite-plugin-federation\|@originjs" $HOME/ojfbot/<repo>/packages/browser-app/vite.config.ts
 ```
 Check: plugin imported AND `exposes` key exists AND `filename: 'remoteEntry.js'` set.
 
 ### "ADR-NNN written / accepted"
 ```bash
-ls /Users/yuri/ojfbot/core/decisions/adr/ | grep NNN
+ls $HOME/ojfbot/core/decisions/adr/ | grep NNN
 ```
 Then read the file and check `Status:` field in frontmatter.
 
