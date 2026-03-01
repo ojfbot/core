@@ -77,7 +77,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | Shell visual language does not yet match sub-apps; ShellHeader uses bare input (not Carbon component) |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped (PR #17). Module Federation configured, exposes Dashboard ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation ❌, no GET /api/tools ❌ — both needed (Phase 1) |
-| core-reader | React/Webpack, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
+| core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |

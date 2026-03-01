@@ -48,13 +48,13 @@ Mutations do not write directly to the working tree. The API creates a temporary
 ```
 core-reader/
 ├── packages/
-│   ├── browser-app/          # React 18 + Carbon + Webpack 5 MF remote
+│   ├── browser-app/          # React 18 + Carbon + Vite MF remote (VITE_EMBED_MODE)
 │   │   ├── src/
 │   │   │   ├── tabs/         # Commands, ADRs, OKRs, Roadmap, Docs
 │   │   │   ├── components/   # Shared: Chat panel, GlobalSearch, DetailPane
 │   │   │   ├── hooks/        # TanStack Query data-fetching hooks
 │   │   │   └── App.tsx
-│   │   └── webpack.config.js
+│   │   └── vite.config.ts
 │   ├── api/                  # Express + TypeScript
 │   │   ├── src/
 │   │   │   ├── routes/       # /api/commands, /api/adrs, /api/okrs, /api/roadmap, /api/docs
@@ -155,6 +155,15 @@ The CoreReader chat panel connects to `frame-agent` POST `/api/chat` (same as sh
 | Direct Anthropic calls in agent-graph | Violates ADR-0002; adds a second API key context outside frame-agent's single-gateway contract |
 | SQLite database for parsed entities | Adds infra complexity with no benefit — the `core` filesystem IS the source of truth; caching can be in-memory if needed |
 | iframe instead of Module Federation | Violates ADR-0001 |
+
+---
+
+## Tech Debt
+
+**TD-001 — stack consistency check in planning phase (process debt)**
+The original planning doc specified Webpack 5 for CoreReader's `browser-app`, deviating from every other Frame OS sub-app (all use Vite + `VITE_EMBED_MODE`). This slipped through initial ADR drafting and was caught during code review. Corrected to Vite before merge.
+
+Root cause: planning docs were generated against the spec without cross-checking the established stack in `domain-knowledge/shared-stack.md` and existing sub-app configs. Mitigation: `/spec-review` should explicitly check `bundler` and `build tool` fields against the canonical stack before any scaffold work begins.
 
 ---
 
