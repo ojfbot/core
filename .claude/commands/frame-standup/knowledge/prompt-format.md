@@ -16,7 +16,7 @@ receiving it has no access to the current session.
 **Context:** <URL to daily-logger post that surfaced this action>
 **Deadline pressure:** <days remaining to March 25> days to application target
 
-**Working directory:** `/Users/yuri/ojfbot/<repo-name>`
+**Working directory:** `~/ojfbot/<repo-name>`
 
 <3–5 sentences explaining what needs to be done, why it matters, and what
 success looks like. Write as if the agent has never seen this codebase.>
@@ -81,7 +81,7 @@ The `find-latest-post.js` script derives the URL automatically. Always include
 it so the spawned agent can read the full context that motivated the action.
 
 For actions motivated by an ADR rather than the daily-logger, use:
-`file:///Users/yuri/ojfbot/core/decisions/adr/<filename>.md`
+`file://$HOME/ojfbot/core/decisions/adr/<filename>.md`
 
 ---
 

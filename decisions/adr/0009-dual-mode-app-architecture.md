@@ -77,8 +77,8 @@ Shell (MF host) remotes point to the `:X001` ports in local dev. The `:X000` por
 1. Refactor `Dashboard.tsx` to pure content (already done for MF compatibility, 2026-02-28)
 2. Extract `StandaloneShell.tsx` from `App.tsx` in each sub-app
 3. Add `embedded.tsx` entry + Vite config second build
-4. Update `frame-dev.sh` to start both standalone and embedded preview servers
-5. Update shell's `vite.config.ts` remotes to target `:X001`
+4. Update `frame-dev.sh` to start both standalone and embedded preview servers *(deferred — tracked in [ojfbot/core#7](https://github.com/ojfbot/core/issues/7))*
+5. Update shell's `vite.config.ts` remotes to target `:X001` *(deferred — same issue)*
 
 ---
 

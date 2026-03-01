@@ -27,8 +27,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NODE_TEMPLATE="$(dirname "$SCRIPT_DIR")"
-OJFBOT_ROOT="$(dirname "$NODE_TEMPLATE")"
+CORE_DIR="$(dirname "$SCRIPT_DIR")"
+OJFBOT_ROOT="$(dirname "$CORE_DIR")"
 
 FORCE=false
 TARGET_ARG=""
@@ -62,7 +62,7 @@ else
   exit 1
 fi
 
-if [[ "$(realpath "$TARGET")" == "$(realpath "$NODE_TEMPLATE")" ]]; then
+if [[ "$(realpath "$TARGET")" == "$(realpath "$CORE_DIR")" ]]; then
   echo "Error: cannot install into core itself"
   exit 1
 fi
@@ -77,10 +77,10 @@ REPO_NAME="$(basename "$TARGET")"
 echo "Installing core agents into: $TARGET ($REPO_NAME)"
 echo ""
 
-# Compute relative path from TARGET back to NODE_TEMPLATE
+# Compute relative path from TARGET back to CORE_DIR
 # e.g. from /ojfbot/cv-builder → ../../core is wrong;
 # correct: from cv-builder/.claude/commands/ → ../../../core/.claude/commands/
-# We compute: TARGET → NODE_TEMPLATE as a relative path, then prepend the depth of the link location.
+# We compute: TARGET → CORE_DIR as a relative path, then prepend the depth of the link location.
 #
 # Helper: relative path from $1 to $2 (both absolute)
 rel_path() {
@@ -147,7 +147,7 @@ if $FORCE; then
 fi
 
 # Symlink each skill directory (the directory contains <name>.md + knowledge/ + scripts/)
-for src in "$NODE_TEMPLATE/.claude/commands"/*/; do
+for src in "$CORE_DIR/.claude/commands"/*/; do
   [[ -d "$src" ]] || continue
   name="$(basename "$src")"
   link_file "$TARGET/.claude/commands/$name" "$src"
@@ -168,7 +168,7 @@ UNIVERSAL=(
 )
 
 for f in "${UNIVERSAL[@]}"; do
-  src="$NODE_TEMPLATE/domain-knowledge/$f"
+  src="$CORE_DIR/domain-knowledge/$f"
   if [[ ! -f "$src" ]]; then
     echo "  warn: source not found, skipping: $f"
     WARNED=$((WARNED + 1))
@@ -191,7 +191,7 @@ case "$REPO_NAME" in
 esac
 
 if [[ -n "$ARCH_FILE" ]]; then
-  src="$NODE_TEMPLATE/domain-knowledge/$ARCH_FILE"
+  src="$CORE_DIR/domain-knowledge/$ARCH_FILE"
   if [[ -f "$src" ]]; then
     echo "── Repo-specific architecture file"
     link_file "$TARGET/domain-knowledge/$ARCH_FILE" "$src"
@@ -227,12 +227,12 @@ fi
 
 # Add decisions/core/ → core/decisions/ symlink (cluster-wide decisions, read-only by convention)
 if [[ -d "$DECISIONS_DIR" && ! -L "$DECISIONS_DIR" ]]; then
-  link_file "$DECISIONS_DIR/core" "$NODE_TEMPLATE/decisions"
+  link_file "$DECISIONS_DIR/core" "$CORE_DIR/decisions"
 fi
 echo ""
 
 # ── 5. Personal context ───────────────────────────────────────────────────────
-PERSONAL_SRC="$NODE_TEMPLATE/personal-knowledge/tbcony-job-target.md"
+PERSONAL_SRC="$CORE_DIR/personal-knowledge/tbcony-job-target.md"
 if [[ -f "$PERSONAL_SRC" ]]; then
   echo "── Personal context (tbcony-job-target.md)"
   mkdir -p "$TARGET/personal-knowledge"

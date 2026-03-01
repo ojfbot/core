@@ -33,6 +33,10 @@ const fileBacked: WorkflowRegistry = {
   "skill-loader":     fileBackedWorkflow("skill-loader",      "Skill catalog manager: examine a repo and produce an install plan for which OJF skills to add, keep, or remove"),
   "council-review":   fileBackedWorkflow("council-review",    "Multi-persona expert council review of any draft doc: each persona critiques independently, then synthesizes final version"),
   adr:                fileBackedWorkflow("adr",               "Create, list, search, or update Architecture Decision Records in decisions/adr/"),
+  "frame-dev":        fileBackedWorkflow("frame-dev",         "Start, stop, or check status of all Frame OS dev servers; outputs clickable URL guide"),
+  "frame-standup":    fileBackedWorkflow("frame-standup",     "Daily standup: sync all repos, audit latest daily-logger post, present prioritized day plan"),
+  "spec-review":      fileBackedWorkflow("spec-review",       "Cross-check an agent-generated spec against domain knowledge and code before implementation"),
+  "skill-create":     fileBackedWorkflow("skill-create",      "Turn a session workflow into a convention-compliant skill directory; registers in skill-catalog.json"),
 };
 
 export const workflows: WorkflowRegistry = {
