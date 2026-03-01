@@ -17,7 +17,7 @@ $ARGUMENTS accepts: `start` (default), `stop`, or `status`.
 **Step 1 — Run the launcher script:**
 
 ```bash
-bash /Users/yuri/ojfbot/core/scripts/frame-dev.sh $ARGUMENTS
+bash "$(git rev-parse --show-toplevel)/scripts/frame-dev.sh" $ARGUMENTS
 ```
 
 If `$ARGUMENTS` is empty, default to `start`.

@@ -20,7 +20,7 @@ const REPOS = [
   'mrplug',
   'purefoy',
   'daily-logger',
-  'node-template',
+  'core',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');

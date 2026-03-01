@@ -22,6 +22,7 @@ decisions/
 | [0006](adr/0006-graphql-federation-domain-data-layer.md) | GraphQL federation for cross-domain data layer | Accepted | 2026-02 |
 | [0007](adr/0007-get-api-tools-capability-manifest.md) | GET /api/tools capability manifest contract for all sub-apps | Accepted | 2026-02 |
 | [0008](adr/0008-shell-agent-routing-protocol.md) | ShellAgent routing protocol and MetaOrchestrator dynamic discovery | Accepted | 2026-02 |
+| [0009](adr/0009-dual-mode-app-architecture.md) | Dual-mode app architecture (standalone vs. embedded) | Accepted | 2026-02 |
 
 ---
 
