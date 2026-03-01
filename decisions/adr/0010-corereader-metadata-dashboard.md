@@ -120,6 +120,46 @@ The CoreReader chat panel connects to `frame-agent` POST `/api/chat` (same as sh
 | 4 | LangGraph chat agent via frame-agent; global Cmd+K search | NL queries and mutations |
 | 5 | Backlinks panel, drag-and-drop kanban, markdown editor, a11y audit | Polish |
 
+### UX specification
+
+Derived from cross-app pattern analysis. Full research brief: `domain-knowledge/corereader-ux-research.md`.
+
+**Dominant UI pattern:** Developer portal + TripPlanner's persistent chat overlay.
+CoreReader is not a workflow app (unlike blogengine) and not a single-domain editor (unlike cv-builder). Users browse a corpus and ask questions about it. The tripplanner "lens views + CondensedChat persists across all views" model maps directly.
+
+**Phase 1 tab structure — two tabs:**
+
+| Tab | Pattern source | Key components |
+|-----|---------------|----------------|
+| Commands | BlogEngine Library tab | Filter bar (Tier/Phase/Search) + expandable CommandCard + markdown render |
+| ADRs | TripPlanner lens views | Lens switcher (All / By Status / By Repo) + expandable ADRCard + cross-linked tags |
+
+Cross-links: `Commands affected` tag pills in an ADR card are clickable — they navigate to the Commands tab filtered to that command. This is the only cross-tab navigation in Phase 1.
+
+**CondensedChat — staged but visible in Phase 1:**
+
+A disabled chat footer is present from Phase 1 with the label "Ask about the codebase — available in Phase 4." The assistant's entry point is on-screen before it's live (TBCoNY: assistant-centric architecture means the AI is a visible organizing primitive, not a feature added later).
+
+If wiring `CoreReaderDomainAgent` read-only in Phase 1 is feasible (single tool: `get_document`, no mutations), it should be pulled forward. A read-only chat satisfies the TBCoNY "at least one orchestration flow" requirement within Phase 1 alone.
+
+**Phase 3 mutation confirmation (Dia security principle):**
+
+Every mutation surfaces a diff panel with the label "Here's what I'm about to do:" before any write occurs. No silent writes. The git worktree staging model makes this natural — the diff is the staging diff, shown verbatim. User must click Commit to finalize.
+
+**Carbon components:**
+
+| Use | Component |
+|-----|-----------|
+| Tab navigation | `ContentSwitcher` |
+| Lens view switcher (ADRs) | `ContentSwitcher` (nested) |
+| Status / tier / phase labels | `Tag` |
+| Command / ADR list | expandable card pattern (custom over `StructuredList`) |
+| Docs file tree (Phase 2) | `TreeView` |
+| Roadmap phases (Phase 2) | `ProgressIndicator` (stepped) |
+| Mutation diff (Phase 3) | `CodeSnippet` (multi-line, read-only) |
+| Chat input | `TextInput` + `Button` (same as ShellHeader pattern) |
+| Markdown render | `react-markdown` + `remark-gfm` |
+
 ---
 
 ## Consequences
