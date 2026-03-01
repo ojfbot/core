@@ -58,6 +58,7 @@ The primary interface is `.claude/commands/`. Each file is a `/command` in Claud
 |---------|---------|
 | `/workbench` | Launch / stop / inspect the 6-tile tmux multi-repo development workbench |
 | `/frame-standup` | Sync repos, audit latest daily-logger post, present interactive prioritized day plan |
+| `/frame-dev` | Start/stop/status all Frame OS dev servers; outputs clickable URL guide |
 
 ### Starting new projects
 
