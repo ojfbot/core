@@ -68,8 +68,10 @@ major version. MetaOrchestrator reads this version to detect incompatible manife
 
 **Registration:** MetaOrchestrator fetches all registered sub-app manifests at
 startup. Sub-app URLs are provided via environment variables
-(`CV_BUILDER_API_URL`, `BLOGENGINE_API_URL`, `TRIPPLANNER_API_URL`). Startup
-fails fast if a registered sub-app is unreachable (no silent partial degradation).
+(`CV_BUILDER_API_URL`, `BLOGENGINE_API_URL`, `TRIPPLANNER_API_URL`). If a
+registered sub-app is unreachable at startup, frame-agent logs a warning and
+falls back to hardcoded tool stubs — consistent with ADR-0008's graceful-degradation
+stance. A cv-builder outage must not prevent the gateway from starting.
 
 ## Consequences
 

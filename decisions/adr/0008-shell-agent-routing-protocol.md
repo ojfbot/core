@@ -153,7 +153,7 @@ stub tool (`cinematography_query`).
 | Create `domain-agents/purefoy-agent.ts` | frame-agent | ❌ |
 | cv-builder `GET /api/tools` matches ADR-0007 shape | cv-builder | ✅ (exists) |
 | blogengine `GET /api/tools` matches ADR-0007 shape | blogengine | ⚠️ (diverges — tools → chat dispatcher) |
-| tripplanner `GET /api/tools` implemented | tripplanner | ✅ (this session) |
+| tripplanner `GET /api/tools` implemented | tripplanner | ❌ |
 | purefoy `GET /api/tools` implemented | purefoy | ❌ |
 
 ---
