@@ -16,7 +16,7 @@ Frame OS's own intelligence**.
 | Commands | `.claude/commands/<name>/` | 1 |
 | ADRs | `decisions/adr/` | 1 |
 | OKRs | `decisions/okr/` | 2 |
-| Roadmap | `domain-knowledge/frame-os-context.md` roadmap table | 2 |
+| Roadmap | `domain-knowledge/frame-os-context.md` roadmap table | 1 |
 | Docs | `domain-knowledge/*.md` | 2 |
 | Mutations (ADRs, commands) | git worktree staging | 3 |
 | Chat agent | CoreReaderDomainAgent via frame-agent | 4 |
@@ -34,7 +34,7 @@ demonstrate the "internet computer" framing without any chat at all.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Commands  │  ADRs                                              │
+│  Commands  │  ADRs  │  Roadmap                                  │
 │  ──────────                                                      │
 │  (Carbon ContentSwitcher — same pattern as all Frame sub-apps)  │
 └─────────────────────────────────────────────────────────────────┘
@@ -68,6 +68,15 @@ Expanded card: full ADR markdown + `Repos affected` tag pills + `Commands affect
 tag pills. Tags are **cross-linked** — clicking a command name in "Commands affected"
 jumps to that command in the Commands tab.
 
+**Roadmap tab**
+
+The phases table from `frame-os-context.md` rendered as a visual stepped timeline.
+
+- Carbon `ProgressIndicator` (stepped, horizontal) for phase status at a glance
+- Phase rows: phase number + what + repo(s) + status tag (Complete / In progress / Not started / Blocked)
+- Click a phase row → expand to show associated ADRs and open GitHub issues (cross-links to ADRs tab)
+- Source: `GET /api/roadmap` — parsed from frame-os-context.md roadmap table by the API
+
 **CondensedChat — present but staged**
 
 A minimal chat input in the footer of both tabs reads:
@@ -81,16 +90,14 @@ If the chat can be wired to frame-agent even in Phase 1 (read-only queries only 
 no mutations), that should be done. "What does ADR-0007 mean for TripPlanner?" is
 immediately valuable and demonstrates the single-gateway architecture.
 
-### Phase 2 — add three tabs
+### Phase 2 — add two tabs
 
 ```
-│  Commands  │  ADRs  │  OKRs  │  Roadmap  │  Docs  │
+│  Commands  │  ADRs  │  Roadmap  │  OKRs  │  Docs  │
 ```
 
 - **OKRs** — Current cycle objectives + KR list. Status tag per KR (Done / In progress /
   Not started). Progress bar per objective. Source: `decisions/okr/`.
-- **Roadmap** — Phase table from frame-os-context.md. Status column with colored tags.
-  Visual: a horizontal phase timeline (Carbon ProgressIndicator or custom stepped flow).
 - **Docs** — File tree sidebar (domain-knowledge/ files) + markdown viewer panel.
   Searchable. This is the "Library tab" pattern from blogengine.
 
@@ -176,6 +183,7 @@ The `/scaffold-app` prompt for CoreReader should specify:
 - `CommandCard.tsx` — expandable card with markdown render
 - `ADRsTab.tsx` — lens view switcher + ADR list
 - `ADRCard.tsx` — expandable card with cross-link tags
+- `RoadmapTab.tsx` — ProgressIndicator (stepped) + expandable phase rows
 - `CondensedChat.tsx` — chat footer (disabled state in Phase 1)
 
 **API routes to stub:**
@@ -183,6 +191,7 @@ The `/scaffold-app` prompt for CoreReader should specify:
 - `GET /api/commands/:name` — returns full markdown content
 - `GET /api/adrs` — scans `decisions/adr/`, parses frontmatter, returns list
 - `GET /api/adrs/:number` — returns full markdown content
+- `GET /api/roadmap` — parses roadmap table from frame-os-context.md, returns phase list
 - `GET /api/tools` — capability manifest stub (ADR-0007)
 
 **API parsers to scaffold:**
@@ -190,8 +199,10 @@ The `/scaffold-app` prompt for CoreReader should specify:
   header lines for tier/phase metadata
 - `parseADRs(coreRepoPath)` — reads `decisions/adr/*.md`, extracts frontmatter fields
   (Status, Date, OKR, Repos affected, Commands affected) via gray-matter
+- `parseRoadmap(coreRepoPath)` — reads `domain-knowledge/frame-os-context.md`, extracts
+  the roadmap phases table via remark
 
 **Not in scope for scaffold:**
-- OKR/Roadmap/Docs parsers (Phase 2)
+- OKR/Docs parsers (Phase 2)
 - Mutation API (Phase 3)
 - Agent graph (Phase 4)

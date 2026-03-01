@@ -114,8 +114,8 @@ The CoreReader chat panel connects to `frame-agent` POST `/api/chat` (same as sh
 
 | Phase | Scope | Unblocks |
 |-------|-------|----------|
-| 1 | Scaffold, read-only Commands + ADRs, Shell MF integration | Developer tool immediately usable |
-| 2 | OKRs, Roadmap, Docs tabs; cross-entity links | Full read coverage |
+| 1 | Scaffold, read-only Commands + ADRs + Roadmap, Shell MF integration | Developer tool immediately usable |
+| 2 | OKRs, Docs tabs; cross-entity links | Full read coverage |
 | 3 | File write-back for all entities; chokidar + WebSocket live sync | Mutations from UI |
 | 4 | LangGraph chat agent via frame-agent; global Cmd+K search | NL queries and mutations |
 | 5 | Backlinks panel, drag-and-drop kanban, markdown editor, a11y audit | Polish |
@@ -127,14 +127,15 @@ Derived from cross-app pattern analysis. Full research brief: `domain-knowledge/
 **Dominant UI pattern:** Developer portal + TripPlanner's persistent chat overlay.
 CoreReader is not a workflow app (unlike blogengine) and not a single-domain editor (unlike cv-builder). Users browse a corpus and ask questions about it. The tripplanner "lens views + CondensedChat persists across all views" model maps directly.
 
-**Phase 1 tab structure — two tabs:**
+**Phase 1 tab structure — three tabs:**
 
 | Tab | Pattern source | Key components |
 |-----|---------------|----------------|
 | Commands | BlogEngine Library tab | Filter bar (Tier/Phase/Search) + expandable CommandCard + markdown render |
 | ADRs | TripPlanner lens views | Lens switcher (All / By Status / By Repo) + expandable ADRCard + cross-linked tags |
+| Roadmap | TripPlanner lens views | Phase table from frame-os-context.md; Carbon `ProgressIndicator` (stepped); status `Tag` per phase |
 
-Cross-links: `Commands affected` tag pills in an ADR card are clickable — they navigate to the Commands tab filtered to that command. This is the only cross-tab navigation in Phase 1.
+Cross-links: `Commands affected` tag pills in an ADR card are clickable — they navigate to the Commands tab filtered to that command. Roadmap phase status links to the relevant ADRs where they exist.
 
 **CondensedChat — staged but visible in Phase 1:**
 
@@ -155,7 +156,7 @@ Every mutation surfaces a diff panel with the label "Here's what I'm about to do
 | Status / tier / phase labels | `Tag` |
 | Command / ADR list | expandable card pattern (custom over `StructuredList`) |
 | Docs file tree (Phase 2) | `TreeView` |
-| Roadmap phases (Phase 2) | `ProgressIndicator` (stepped) |
+| Roadmap phases (Phase 1) | `ProgressIndicator` (stepped) |
 | Mutation diff (Phase 3) | `CodeSnippet` (multi-line, read-only) |
 | Chat input | `TextInput` + `Button` (same as ShellHeader pattern) |
 | Markdown render | `react-markdown` + `remark-gfm` |
