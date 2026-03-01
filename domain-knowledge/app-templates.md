@@ -55,17 +55,30 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
     │       │   └── ownership.ts  # checkThreadOwnership
     │       └── utils/
     │           └── logger.ts     # getLogger(module)
-    └── browser-app/              # React + Carbon Design System
+    └── browser-app/              # React + Carbon Design System (dual-mode — ADR-0009)
         ├── package.json
         ├── tsconfig.json
-        ├── vite.config.ts
+        ├── vite.config.ts        # standalone build (VITE_EMBED_MODE=false), MF exposes ./Dashboard
         ├── index.html
         └── src/
-            ├── main.tsx
-            ├── App.tsx           # Carbon Shell + router
+            ├── main.tsx          # standalone entry: <StandaloneShell><Dashboard/></StandaloneShell>
+            ├── embedded.tsx      # embedded entry: <EmbeddedApp> (no shell chrome)
+            ├── App.tsx           # re-exports StandaloneShell for backwards compat
             └── components/
-                └── Dashboard.tsx # placeholder tab layout
+                ├── Dashboard.tsx      # pure content — no shell assumptions, no margins
+                ├── StandaloneShell.tsx # mock header + app-switcher for local dev/QA
+                └── EmbeddedApp.tsx    # threads sidebar + main panel + condensed chat only
 ```
+
+> **ADR-0009 dual-mode invariant:** `Dashboard.tsx` is the MF export. It must render `<EmbeddedApp>` — no
+> `dashboard-header` title, no `margin: 36px 72px`, no `position: fixed` sidebars. All shell chrome belongs
+> exclusively in `StandaloneShell.tsx`. Violating this causes doubled navigation and layout breakage when
+> the shell host loads the remote (as observed in cv-builder before the dual-mode retrofit). Build this
+> correctly from the start — do not add a `shellMode` prop as a workaround.
+>
+> **CSS isolation:** `standalone.css` includes full Carbon shell styles. `embedded.css` scoped to
+> content-area tokens only (no `.cds--header`, `.cds--side-nav`). Carbon CSS custom properties cascade
+> from the shell's `<Theme>` wrapper — sub-apps do not re-declare theme tokens in embedded mode.
 
 ### Root `package.json`
 
