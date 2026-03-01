@@ -25,10 +25,11 @@ frame.jim.software (shell — port 4000)
   Loads sub-apps as real React remotes (no iframes)
   Shared React/Redux/RTK singleton across all apps
 
-  ├── cv-builder remote   (cv.jim.software   — ports 3000/3001)
-  ├── blogengine remote   (blog.jim.software  — ports 3005/3006)
-  ├── tripplanner remote  (trips.jim.software — ports 3010/3011)
-  └── purefoy remote      (purefoy.jim.software)
+  ├── cv-builder remote   (cv.jim.software        — ports 3000/3001)
+  ├── blogengine remote   (blog.jim.software       — ports 3005/3006)
+  ├── tripplanner remote  (trips.jim.software      — ports 3010/3011)
+  ├── purefoy remote      (purefoy.jim.software)
+  └── core-reader remote  (core-reader.jim.software — ports 3015/3016)
 
 frame-agent (port 4001)
   Single LLM gateway for the entire cluster
@@ -76,6 +77,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | Shell visual language does not yet match sub-apps; ShellHeader uses bare input (not Carbon component) |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped (PR #17). Module Federation configured, exposes Dashboard ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation ❌, no GET /api/tools ❌ — both needed (Phase 1) |
+| core-reader | React/Webpack, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
@@ -166,10 +168,14 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
 | 3 | Cross-domain coordination (hero demo) | shell/frame-agent | Not started |
 | 3B | Earned badge threshold + conversation-aware suggestions | shell/frame-agent | Not started |
+| 3C | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration | core-reader, shell | Not started |
 | 4 | NL instance spawning — MetaOrchestrator spawn_instance + shell handler | shell/frame-agent | Not started |
 | 4B | core: make public + CLAUDE.md + polish /techdebt | core | Not started |
+| 4C | CoreReader Phase 2 — OKRs, Roadmap, Docs tabs; cross-entity links | core-reader | Not started |
 | 5 | MrPlug /techdebt integration | MrPlug + core | Not started |
+| 5B | CoreReader Phase 3 — file write-back mutations; WebSocket live sync | core-reader | Not started |
 | 6 | Deploy frame.jim.software via K8s | shell, K8s | Not started |
+| 6B | CoreReader Phase 4 — LangGraph chat agent via frame-agent; Cmd+K search | core-reader, frame-agent | Not started |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
 
 **Time-sensitive:** daily-logger must start running daily NOW. Every day without an entry is lost shipping signal.
@@ -184,6 +190,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 CV_BUILDER_API_URL=http://localhost:3001
 BLOGENGINE_API_URL=http://localhost:3006
 TRIPPLANNER_API_URL=http://localhost:3011
+CORE_READER_API_URL=http://localhost:3016
 CORS_ORIGIN=http://localhost:4000
 PORT=4001
 ```
@@ -195,6 +202,14 @@ VITE_REMOTE_CV_BUILDER=http://localhost:3000
 VITE_REMOTE_BLOGENGINE=http://localhost:3005
 VITE_REMOTE_TRIPPLANNER=http://localhost:3010
 VITE_REMOTE_PUREFOY=http://localhost:3020
+VITE_REMOTE_CORE_READER=http://localhost:3016
+```
+
+**core-reader api (port 3016):**
+```
+CORE_REPO_PATH=/path/to/ojfbot/core
+PORT=3016
+CORS_ORIGIN=http://localhost:4000
 ```
 
 **cv-builder api (port 3001):** `ANTHROPIC_API_KEY` via `packages/agent-core/env.json`
