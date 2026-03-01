@@ -162,20 +162,21 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | Phase | What | Repo(s) | Status |
 |-------|------|---------|--------|
 | 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
-| 1 | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine already done | cv-builder, TripPlanner | In progress — BlogEngine ✅, cv-builder ❌, TripPlanner ❌ |
+| 1A | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration (**fast-tracked**) | core-reader, shell | Not started |
+| 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine tools fix | cv-builder, TripPlanner, BlogEngine | In progress — BlogEngine ✅, cv-builder ❌, TripPlanner ❌ |
+| 1 ship | All 1A + 1B work ships together as a single milestone | — | Blocked on 1A + 1B |
 | 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Not started |
 | 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Not started |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
+| 2C | CoreReader Phase 2 — OKRs, Roadmap, Docs tabs; cross-entity links | core-reader | Not started |
 | 3 | Cross-domain coordination (hero demo) | shell/frame-agent | Not started |
 | 3B | Earned badge threshold + conversation-aware suggestions | shell/frame-agent | Not started |
-| 3C | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration | core-reader, shell | Not started |
+| 3C | CoreReader Phase 3 — git worktree-staged mutations; WebSocket live sync | core-reader | Not started |
 | 4 | NL instance spawning — MetaOrchestrator spawn_instance + shell handler | shell/frame-agent | Not started |
 | 4B | core: make public + CLAUDE.md + polish /techdebt | core | Not started |
-| 4C | CoreReader Phase 2 — OKRs, Roadmap, Docs tabs; cross-entity links | core-reader | Not started |
+| 4C | CoreReader Phase 4 — LangGraph chat agent via frame-agent; Cmd+K search | core-reader, frame-agent | Not started |
 | 5 | MrPlug /techdebt integration | MrPlug + core | Not started |
-| 5B | CoreReader Phase 3 — file write-back mutations; WebSocket live sync | core-reader | Not started |
 | 6 | Deploy frame.jim.software via K8s | shell, K8s | Not started |
-| 6B | CoreReader Phase 4 — LangGraph chat agent via frame-agent; Cmd+K search | core-reader, frame-agent | Not started |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
 
 **Time-sensitive:** daily-logger must start running daily NOW. Every day without an entry is lost shipping signal.

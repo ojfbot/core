@@ -32,13 +32,16 @@ CoreReader is a new sibling repo (`core-reader`) that follows the established Fr
 
 ### Data access
 
-CoreReader API reads the `core` repo filesystem via a `CORE_REPO_PATH` environment variable. This decouples the two repos while giving the API full read (and, in Phase 3, write) access to commands, ADRs, OKRs, and docs.
+CoreReader API reads the `core` repo filesystem via a `CORE_REPO_PATH` environment variable. This decouples the two repos while giving the API full read access to commands, ADRs, OKRs, and docs.
 
 ```
 CORE_REPO_PATH=/path/to/ojfbot/core
 ```
 
-No separate database. All persistence is the `core` repo filesystem. Mutations in Phase 3 write back to disk; git commit/push is a manual step.
+No separate database. All persistence is the `core` repo filesystem.
+
+**Phase 3 mutation model — git worktree staging:**
+Mutations do not write directly to the working tree. The API creates a temporary `git worktree` (via `git worktree add`) inside the `CORE_REPO_PATH` repo, applies changes there, and returns a unified diff to the UI for review. The user explicitly commits from the CoreReader UI (or CLI). This staging layer is designed to be extended: future dev-mode configuration will support branch selection, commit message templates, and auto-push to remote without changing the mutation API surface.
 
 ### Repo structure
 
@@ -155,10 +158,10 @@ The CoreReader chat panel connects to `frame-agent` POST `/api/chat` (same as sh
 
 ---
 
-## Open Questions
+## Resolved Decisions
 
-1. **frame-agent registration**: Does CoreReader register as a domain in frame-agent (alongside cv-builder, blogengine, etc.), or does the shell treat CoreReader as infrastructure that bypasses the MetaOrchestrator? Recommendation: register as a domain — consistent, discoverable, testable.
+**1. frame-agent registration:** CoreReader registers as a full domain in frame-agent — a `CoreReaderDomainAgent` sits alongside `CvBuilderDomainAgent`, `BlogEngineDomainAgent`, etc. The MetaOrchestrator routes NL intent to it via the same mechanism as other domains. This keeps routing consistent and discoverable.
 
-2. **Mutation safety**: Phase 3 file write-back — should mutations write directly to disk, or should the API stage changes in a git working tree and require explicit commit? Staging is safer but adds scope. Direct write is simpler and matches how the CLI commands work today.
+**2. Mutation staging:** Phase 3 mutations stage changes in a **local git working tree** rather than writing directly to disk. The API creates a temporary working tree via `git worktree add`, applies mutations there, and returns a diff for review before the user commits. This is intentionally extensible — the staging layer will later support additional dev-mode configuration (branch selection, commit message templates, auto-push to remote). Direct write is deferred; staging is the foundation.
 
-3. **Phase priority**: CoreReader Phase 1 vs. TripPlanner Module Federation — which ships first? TripPlanner MF is needed for the hero demo (Phase 3 roadmap); CoreReader Phase 1 is a developer tool. Recommendation: TripPlanner MF first.
+**3. Phase priority:** CoreReader is **fast-tracked** — it ships before the remaining Phase 1 work (TripPlanner MF, cv-builder MF). The rationale: CoreReader done well gives quick browser access to roadmap, ADRs, and commands as a single point of contact, accelerating iteration on everything else. All four — CoreReader Phase 1, TripPlanner MF, cv-builder MF, and BlogEngine GET /api/tools fix — then ship together as a coherent milestone.
