@@ -83,6 +83,15 @@ case "$CMD" in
     start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
     start_subapp "tripplanner" "tripplanner" "@tripplanner/browser-app"  3010 1
     start_subapp "core-reader" "core-reader" "@core-reader/browser-app"  3015
+    # CoreReader API — reads from core repo; requires CORE_REPO_PATH
+    if port_up 3016; then
+      printf "  ✓  %-14s  :3016  already running\n" "core-reader-api"
+    else
+      printf "  ▶  %-14s  :3016  starting...\n" "core-reader-api"
+      (cd "$REPOS/core-reader/packages/api" && \
+        CORE_REPO_PATH="$REPOS/core" CORS_ORIGIN="http://localhost:4000" pnpm dev \
+        >> "$LOGDIR/core-reader-api.log" 2>&1 &)
+    fi
     echo ""
     echo "  Sub-apps build in the background (~30s each). Shell is ready now."
     echo "  Watch builds: tail -f $LOGDIR/<app>.log"
@@ -98,6 +107,7 @@ case "$CMD" in
     stop_port "blogengine"   3005
     stop_port "tripplanner"  3010
     stop_port "core-reader"  3015
+    stop_port "core-reader-api" 3016
     echo ""
     ;;
   status)
@@ -110,6 +120,7 @@ case "$CMD" in
     status_port "blogengine"   3005
     status_port "tripplanner"  3010
     status_port "core-reader"  3015
+    status_port "core-reader-api" 3016
     echo ""
     ;;
   *)
