@@ -79,9 +79,10 @@ case "$CMD" in
     echo "Frame OS dev servers"
     echo "────────────────────────────────────────────────────────────────"
     start_shell
-    start_subapp "cv-builder"  "cv-builder"  "@cv-builder/browser-app"  3000
-    start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"  3005
-    start_subapp "tripplanner" "tripplanner" "@tripplanner/browser-app" 3010 1
+    start_subapp "cv-builder"  "cv-builder"  "@cv-builder/browser-app"   3000
+    start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
+    start_subapp "tripplanner" "tripplanner" "@tripplanner/browser-app"  3010 1
+    start_subapp "core-reader" "core-reader" "@core-reader/browser-app"  3015
     echo ""
     echo "  Sub-apps build in the background (~30s each). Shell is ready now."
     echo "  Watch builds: tail -f $LOGDIR/<app>.log"
@@ -96,6 +97,7 @@ case "$CMD" in
     stop_port "cv-builder"   3000
     stop_port "blogengine"   3005
     stop_port "tripplanner"  3010
+    stop_port "core-reader"  3015
     echo ""
     ;;
   status)
@@ -107,6 +109,7 @@ case "$CMD" in
     status_port "cv-builder"   3000
     status_port "blogengine"   3005
     status_port "tripplanner"  3010
+    status_port "core-reader"  3015
     echo ""
     ;;
   *)
