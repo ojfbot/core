@@ -56,29 +56,42 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
     │       └── utils/
     │           └── logger.ts     # getLogger(module)
     └── browser-app/              # React + Carbon Design System (dual-mode — ADR-0009)
-        ├── package.json
+        ├── package.json          # devDeps: vite-plugin-css-injected-by-js, @originjs/vite-plugin-federation
         ├── tsconfig.json
-        ├── vite.config.ts        # standalone build (VITE_EMBED_MODE=false), MF exposes ./Dashboard
+        ├── vite.config.ts        # cssInjectedByJs (before federation) + federation with singleton shared map
         ├── index.html
         └── src/
-            ├── main.tsx          # standalone entry: <StandaloneShell><Dashboard/></StandaloneShell>
-            ├── embedded.tsx      # embedded entry: <EmbeddedApp> (no shell chrome)
-            ├── App.tsx           # re-exports StandaloneShell for backwards compat
+            ├── main.tsx          # standalone entry: <App /> — full shell chrome for dev/QA
+            ├── App.tsx           # standalone wrapper: mock header + sidebar + <Dashboard />
             └── components/
-                ├── Dashboard.tsx      # pure content — no shell assumptions, no margins
-                ├── StandaloneShell.tsx # mock header + app-switcher for local dev/QA
-                └── EmbeddedApp.tsx    # threads sidebar + main panel + condensed chat only
+                ├── Dashboard.tsx      # MF export — shellMode prop + double-Provider (see below)
+                ├── DashboardContent.tsx # inner component, reads Redux; receives shellMode
+                ├── ThreadSidebar.tsx  # inert wrapper, CSS sidebar (not Carbon SideNav)
+                └── CondensedChat.tsx  # position:fixed, sidebar-aware right offset
 ```
 
-> **ADR-0009 dual-mode invariant:** `Dashboard.tsx` is the MF export. It must render `<EmbeddedApp>` — no
-> `dashboard-header` title, no `margin: 36px 72px`, no `position: fixed` sidebars. All shell chrome belongs
-> exclusively in `StandaloneShell.tsx`. Violating this causes doubled navigation and layout breakage when
-> the shell host loads the remote (as observed in cv-builder before the dual-mode retrofit). Build this
-> correctly from the start — do not add a `shellMode` prop as a workaround.
+> **Shell MF integration invariant (proven pattern — cv-builder PR #103, BlogEngine PR #22, TripPlanner PR #13):**
+> Read `domain-knowledge/shell-mf-integration.md` before writing any browser-app code. All four patterns below
+> must be present from day one — retrofitting them later caused multi-session debugging.
 >
-> **CSS isolation:** `standalone.css` includes full Carbon shell styles. `embedded.css` scoped to
-> content-area tokens only (no `.cds--header`, `.cds--side-nav`). Carbon CSS custom properties cascade
-> from the shell's `<Theme>` wrapper — sub-apps do not re-declare theme tokens in embedded mode.
+> **`Dashboard.tsx` — `shellMode` prop + double-Provider:**
+> `Dashboard` wraps `DashboardContent` in `<Provider store={store}>`. The shell mounts it under the shell's
+> own Provider (no sub-app Redux slices) — without the inner Provider, all `useAppSelector` calls return
+> `undefined`. Standalone `App.tsx` also wraps with the same store singleton — harmless (inner Provider wins).
+> `shellMode?: boolean` suppresses the app title heading and activates the flex-height CSS chain.
+>
+> **`vite.config.ts` — plugin order matters:**
+> `cssInjectedByJs` must come before `federation`. Without it the remote emits a separate `.css` file the
+> shell never loads. Use `jsAssetsFilterFunction` scoped to `__federation_expose_*` chunk names only.
+> `@carbon/react` must be in the `shared` map as a singleton (object form, not string array).
+>
+> **`ThreadSidebar` — `inert` attribute:**
+> Use `{...(!isExpanded ? { inert: '' } : {})}` on the wrapper `<div>`. `visibility:hidden` alone does not
+> remove Carbon components from the keyboard focus order.
+>
+> **Dashboard CSS — shell-mode block:**
+> Must be self-declared in the remote bundle because `@carbon/react`'s shared chunk is replaced by the
+> host singleton and may not include these rules. See `shell-mf-integration.md` for the exact rule set.
 
 ### Root `package.json`
 

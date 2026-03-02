@@ -176,33 +176,125 @@ If this is accepted, update ADR-0010 to reflect Phase 1 including a minimal
 
 ## Scaffold implications
 
-The `/scaffold-app` prompt for CoreReader should specify:
+> **Read first:** `domain-knowledge/shell-mf-integration.md` — the canonical reference
+> for every MF integration pattern below. CoreReader must follow it exactly to avoid
+> the multi-session debugging loop that cv-builder, BlogEngine, and TripPlanner went
+> through.
 
-**browser-app components to generate as stubs:**
-- `CommandsTab.tsx` — filter bar + command list
-- `CommandCard.tsx` — expandable card with markdown render
-- `ADRsTab.tsx` — lens view switcher + ADR list
-- `ADRCard.tsx` — expandable card with cross-link tags
-- `RoadmapTab.tsx` — ProgressIndicator (stepped) + expandable phase rows
-- `CondensedChat.tsx` — chat footer (disabled state in Phase 1)
+### Shell integration — required from day one
 
-**API routes to stub:**
-- `GET /api/commands` — scans `.claude/commands/`, returns `{ name, tier, phase, description, knowledgeFiles: string[] }`
-- `GET /api/commands/:name` — returns full markdown content
-- `GET /api/adrs` — scans `decisions/adr/`, parses frontmatter, returns list
+CoreReader must implement these patterns **at scaffold time**, not as a follow-up PR.
+All three client apps (cv-builder PR #103, BlogEngine PR #22, TripPlanner PR #13)
+added them retroactively — the result was CSS-less remotes, z-index wars, and a11y
+regressions. CoreReader scaffolds correctly from the start.
+
+**`vite.config.ts`:**
+```typescript
+import cssInjectedByJs from 'vite-plugin-css-injected-by-js'
+import federation from '@originjs/vite-plugin-federation'
+
+// cssInjectedByJs BEFORE federation
+cssInjectedByJs({
+  jsAssetsFilterFunction: ({ fileName }) =>
+    fileName.includes('__federation_expose_Dashboard') ||
+    fileName.includes('__federation_expose_Settings'),
+}),
+federation({
+  name: 'core_reader',
+  filename: 'remoteEntry.js',
+  exposes: { './Dashboard': './src/components/Dashboard' },
+  shared: {
+    react: { singleton: true, requiredVersion: false },
+    'react-dom': { singleton: true, requiredVersion: false },
+    '@carbon/react': { singleton: true, requiredVersion: false },
+  },
+}),
+```
+
+**`Dashboard.tsx` — always export with double-Provider + `shellMode` prop:**
+```tsx
+interface DashboardProps { shellMode?: boolean }
+
+function DashboardContent({ shellMode }: DashboardProps) {
+  // suppress heading in shell: {!shellMode && <Heading>CoreReader</Heading>}
+  // add CSS classes: ['dashboard-wrapper', shellMode && 'shell-mode'].filter(Boolean)
+}
+
+function Dashboard({ shellMode }: DashboardProps) {
+  return <Provider store={store}><DashboardContent shellMode={shellMode} /></Provider>
+}
+export default Dashboard
+```
+
+**`ThreadSidebar.tsx` — `inert` wrapper from day one:**
+```tsx
+<div {...(!isExpanded ? { inert: '' } : {})}>
+  <div className={`thread-sidebar ${isExpanded ? 'expanded' : ''}`}>
+    ...
+  </div>
+</div>
+```
+
+**`Dashboard.css` — shell-mode block (copy verbatim from shell-mf-integration.md):**
+- `.dashboard-wrapper.shell-mode { margin-top: 4.5rem; }`
+- `.dashboard-wrapper.with-sidebar { margin-right: calc(320px + 2rem); }`
+- `.dashboard-wrapper.shell-mode .cds--tabs { flex-shrink: 0; flex-direction: column; }`
+- `.dashboard-wrapper.shell-mode .cds--tab-panels { flex: 1; min-height: 0; overflow: hidden; }`
+- `.dashboard-wrapper.shell-mode .cds--tab-content { max-height: none; height: 100%; overflow-y: auto; }`
+- `.dashboard-wrapper .cds--tabs--contained .cds--tab--list { display: flex; background-color: var(--cds-layer-accent-01, #393939); }`
+- `.dashboard-wrapper .cds--tabs--contained .cds--tabs__nav-item { flex: 1 0 auto; }`
+
+**`CondensedChat.css` — positioning formulas:**
+- `right: calc(72px - 1rem)` (no sidebar)
+- `right: calc(320px + 3rem)` (sidebar open — `.with-sidebar` state)
+
+**`ThreadSidebar.css` — positioning constants:**
+- `right: 1rem; top: calc(48px + 0.5rem); height: calc(100vh - 48px - 1rem)`
+- Collapsed: `transform: translateX(calc(100% + 1rem)); visibility: hidden; transition: transform 0.3s ease, visibility 0s 0.3s`
+- Expanded: `transform: translateX(0); visibility: visible; transition: transform 0.3s ease, visibility 0s`
+
+### browser-app components to generate as stubs
+
+- `Dashboard.tsx` — MF export with `shellMode` prop + double-Provider (see above)
+- `DashboardContent.tsx` — inner component, separates Provider boundary from logic
+- `CommandsTab.tsx` — ContentSwitcher + filter bar (Tier/Phase/Search) + command list
+- `CommandCard.tsx` — expandable card with markdown render via `react-markdown`
+- `ADRsTab.tsx` — nested ContentSwitcher lens views (All / By Status / By Repo) + ADR list
+- `ADRCard.tsx` — expandable card, `Repos affected` + `Commands affected` Tag pills (cross-linked)
+- `RoadmapTab.tsx` — Carbon ProgressIndicator (stepped) + expandable phase rows with ADR cross-links
+- `ThreadSidebar.tsx` — `inert` wrapper from day one; CSS sidebar pattern (not Carbon SideNav)
+- `CondensedChat.tsx` — disabled state footer in Phase 1; sidebar-aware positioning
+
+### API routes to stub
+
+- `GET /api/commands` — returns `CommandManifest[]`: `{ name, tier, phase, description, knowledgeFiles }`
+- `GET /api/commands/:name` — returns full markdown content + knowledge file list
+- `GET /api/adrs` — returns `ADRManifest[]`: `{ number, title, status, date, reposAffected, commandsAffected }`
 - `GET /api/adrs/:number` — returns full markdown content
-- `GET /api/roadmap` — parses roadmap table from frame-os-context.md, returns phase list
-- `GET /api/tools` — capability manifest stub (ADR-0007)
+- `GET /api/roadmap` — returns `RoadmapPhase[]`: `{ phase, what, repos, status }`
+- `GET /api/tools` — ADR-0007 capability manifest stub
 
-**API parsers to scaffold:**
-- `parseCommands(coreRepoPath)` — fs.readdirSync `.claude/commands/`, reads `<name>.md`
-  header lines for tier/phase metadata
-- `parseADRs(coreRepoPath)` — reads `decisions/adr/*.md`, extracts frontmatter fields
-  (Status, Date, OKR, Repos affected, Commands affected) via gray-matter
+### API parsers to scaffold
+
+- `parseCommands(coreRepoPath)` — `fs.readdirSync('.claude/commands/')`, reads `<name>.md`
+  header comment block (Tier, Phase metadata from the CLAUDE.md commands table)
+- `parseADRs(coreRepoPath)` — reads `decisions/adr/*.md`, extracts via `gray-matter`:
+  `Status`, `Date`, `OKR`, `Repos affected`, `Commands affected`
 - `parseRoadmap(coreRepoPath)` — reads `domain-knowledge/frame-os-context.md`, extracts
-  the roadmap phases table via remark
+  the `## The roadmap phases` table via `remark`
 
-**Not in scope for scaffold:**
+### devDependencies to include at scaffold
+
+```json
+"vite-plugin-css-injected-by-js": "^4.0.1",
+"@originjs/vite-plugin-federation": "^1.4.1",
+"gray-matter": "^4.0.3",
+"react-markdown": "^9.0.0",
+"remark-gfm": "^4.0.0"
+```
+
+### Not in scope for scaffold
+
 - OKR/Docs parsers (Phase 2)
 - Mutation API (Phase 3)
-- Agent graph (Phase 4)
+- Agent graph stub (Phase 4 — note: CondensedChat footer present but disabled)
