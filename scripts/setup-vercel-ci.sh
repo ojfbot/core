@@ -93,11 +93,10 @@ for entry in "${PROJECTS[@]}"; do
     echo "  Created — projectId: $project_id"
   fi
 
-  # Set GitHub secrets
+  # Set GitHub secrets (VERCEL_TOKEN already present in all repos — skip)
   echo "  Setting GitHub secrets on $gh_repo..."
-  gh secret set VERCEL_TOKEN      --body "$VERCEL_TOKEN" --repo "$gh_repo"
-  gh secret set VERCEL_ORG_ID     --body "$ORG_ID"       --repo "$gh_repo"
-  gh secret set VERCEL_PROJECT_ID --body "$project_id"   --repo "$gh_repo"
+  gh secret set VERCEL_ORG_ID     --body "$ORG_ID"     --repo "$gh_repo"
+  gh secret set VERCEL_PROJECT_ID --body "$project_id" --repo "$gh_repo"
   echo "  Done."
 done
 
