@@ -73,10 +73,10 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 | Repo | Tech | Port(s) | Status | Key gap |
 |------|------|---------|--------|---------|
-| cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; browser-app NOT a Module Federation remote ❌ |
-| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 0 complete — shell renders, Carbon chrome, dark/light mode, HomeScreen | Shell visual language does not yet match sub-apps; ShellHeader uses bare input (not Carbon component) |
-| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped (PR #17). Module Federation configured, exposes Dashboard ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
-| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Partial | No Module Federation ❌, no GET /api/tools ❌ — both needed (Phase 1) |
+| cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
+| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal (ADR-0011), Vercel live at frame.jim.software | ShellHeader uses bare input (not Carbon component); light mode tokens incomplete |
+| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
+| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ❌ — still needed (Phase 1) |
 | core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
@@ -94,22 +94,25 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 - `packages/shell-app/src/main.tsx` — Vite entry point (imports carbon.scss → tokens.css → index.css)
 - `packages/shell-app/src/App.tsx` — root layout: Carbon Header + SideNav + AppFrame; Redux themeSlice; useEffect syncs theme class to `<html>`
 - `packages/shell-app/src/components/` — AppFrame.tsx, AppSwitcher.tsx, ShellHeader.tsx (⌘K focus, chat input), HomeScreen.tsx (instance-aware launcher)
-- `packages/shell-app/src/store/` — index.ts, hooks.ts, slices/appRegistrySlice.ts, slices/chatSlice.ts, slices/themeSlice.ts (toggleTheme, selectIsDark)
+- `packages/shell-app/src/store/` — index.ts, hooks.ts, slices/appRegistrySlice.ts, slices/chatSlice.ts, slices/themeSlice.ts (toggleTheme, selectIsDark), slices/settingsSlice.ts (typed per-app settings + AppCapabilityManifest isolation — ADR-0011)
+- `packages/shell-app/src/components/SettingsModal.tsx` — multi-panel settings (ADR-0011): tab bar with auto-jump to active app, search bar, Carbon ComposedModal, localStorage persistence
+- `packages/shell-app/src/remotes/settings-loaders.ts` — MF lazy loaders for sub-app Settings panels + SETTINGS_META search registry
 - `packages/shell-app/src/api/` — frame-agent-client.ts
 - `packages/shell-app/src/styles/carbon.scss` — selective Carbon SCSS imports (191KB vs 600KB monolith)
 - `packages/shell-app/src/themes/tokens.css` — ojf-* custom property tokens; :root (light) + .cds--g100 (dark) overrides
 - `packages/shell-app/vite.config.ts` — Module Federation host config (remotes: cv_builder, blogengine, tripplanner, purefoy)
 - `k8s/` — all manifests (frame-agent deployment, ingress, namespace, deployment)
-- `.github/workflows/` — Claude Code Review on PR; CI (type-check + build on PR and main push)
+- `.github/workflows/` — Claude Code Review on PR; CI (type-check + build on PR and main push); Deploy to Vercel on push to main
 
 ### MISSING / next gaps:
 - CI: visual regression tests (shell not yet covered; cv-builder has this)
 - **Shell visual**: ShellHeader uses bare `<input>` (not Carbon `<TextInput>`); light mode tokens incomplete; visual language does not match cv-builder
-- **cv-builder Module Federation**: browser-app vite.config.ts has no federation config — shell cannot load it as a remote (Phase 1)
-- **TripPlanner Module Federation + GET /api/tools**: neither configured (Phase 1)
+- **TripPlanner GET /api/tools**: not yet implemented (Phase 1)
+- **BlogEngine GET /api/tools**: exists but routes all tools to `POST /api/v2/chat` — diverges from ADR-0007 contract (Phase 1 fix needed)
 - **MetaOrchestrator dynamic discovery**: currently hardcodes tool knowledge; should fetch from GET /api/tools at startup (Phase 2, per ADR-0007)
 - `spawnInstance` wired to frame-agent NL signal (Phase 4)
 - AppRegistry persistence to localStorage
+- core-reader remote: not yet scaffolded (Phase 1A)
 
 ---
 
@@ -127,7 +130,15 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 **Module Federation:** shell `vite.config.ts` expects remotes at: cv_builder (port 3000), blogengine (port 3005), tripplanner (port 3010), purefoy (port 3020). Production URLs via `VITE_REMOTE_*` env vars.
 
-**K8s namespace:** `frame`. Ingress routes `frame.jim.software` (not `app.jim.software` — that subdomain was changed). frame-agent endpoint: `frame.jim.software/frame-api`.
+**Module Federation shared singletons:** All sub-apps must include `@carbon/react: { singleton: true, requiredVersion: '^1.67.0' }` in their MF `shared` config alongside react, react-dom, RTK, react-redux. Missing `@carbon/react` causes duplicate instances and broken CSS class resolution. The `singleton`/`requiredVersion` options require `as any` cast — type gap in `@originjs/vite-plugin-federation` v1.4.x types. See ADR-0012.
+
+**`remoteEntry.js` must use `Cache-Control: no-store`:** It is the MF index file mapping chunk hashes — caching it causes the shell to reference stale asset paths after a redeploy. All sub-app `vercel.json` files have a specific rule for `/assets/remoteEntry.js`. Content-hashed assets use `max-age=31536000, immutable`.
+
+**MF local dev:** `@originjs/vite-plugin-federation` only generates `remoteEntry.js` on `vite build`, NOT `vite dev`. Run `vite build && vite preview` for sub-apps in local MF development. Shell can use `vite dev`.
+
+**Settings isolation (ADR-0011):** Shell owns all settings state via `settingsSlice`. Sub-apps expose `./Settings` via MF and use scoped selectors only (`selectAppSettings(state, appType)`). Cross-namespace reads require explicit `setCapabilities()` dispatch from shell. Shell's `SETTINGS_META` registry powers search without inspecting lazy-loaded panel components.
+
+**K8s namespace:** `frame`. Ingress routes `frame.jim.software` (not `app.jim.software` — that subdomain was changed). frame-agent endpoint: `frame.jim.software/frame-api`. NOTE: K8s is Layer 2 (future) — see ADR-0014. Current live deployment is Vercel (Layer 1 CDN).
 
 **Package manager:** pnpm everywhere. Node pinned at v24.11.1 via `.nvmrc`. Use `fnm use` to switch.
 
@@ -163,8 +174,8 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 |-------|------|---------|--------|
 | 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
 | 1A | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration (**fast-tracked**) | core-reader, shell | Not started |
-| 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine tools fix | cv-builder, TripPlanner, BlogEngine | In progress — BlogEngine ✅, cv-builder ❌, TripPlanner ❌ |
-| 1 ship | All 1A + 1B work ships together as a single milestone | — | Blocked on 1A + 1B |
+| 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine tools fix | cv-builder, TripPlanner, BlogEngine | MF ✅ all three; GET /api/tools: cv-builder ✅, blogengine ⚠️ (partial), tripplanner ❌ |
+| 1 ship | All 1A + 1B work ships together as a single milestone | — | Partial — MF live, tools/CoreReader gap remains |
 | 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Not started |
 | 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Not started |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
@@ -176,7 +187,7 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | 4B | core: make public + CLAUDE.md + polish /techdebt | core | Not started |
 | 4C | CoreReader Phase 4 — LangGraph chat agent via frame-agent; Cmd+K search | core-reader, frame-agent | Not started |
 | 5 | MrPlug /techdebt integration | MrPlug + core | Not started |
-| 6 | Deploy frame.jim.software via K8s | shell, K8s | Not started |
+| 6 | Deploy frame.jim.software via K8s (Layer 2) | shell, K8s | Layer 1 (Vercel static) ✅ live — ADR-0013/0014; Layer 2 (APIs + frame-agent) not yet deployed |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
 
 **Time-sensitive:** daily-logger must start running daily NOW. Every day without an entry is lost shipping signal.
@@ -225,7 +236,25 @@ CORS_ORIGIN=http://localhost:4000
 - Do not commit `env.json`, `.env.local`, `dist/`, `node_modules/` — TruffleHog will block the PR
 - Do not create helpers or abstractions for one-time operations
 - Do not add error handling for scenarios that can't happen — trust the framework
-- Do not push to main without a PR unless fixing a CI workflow bug
+- Do not push to main without a PR — all 4 repos have GitHub Rulesets enforcing PR-required, rebase-only merge
+- Do not use `vite dev` for sub-apps in MF local dev — `remoteEntry.js` only generates on `vite build`. Use `vite preview` for sub-apps.
+
+---
+
+## Live deployment state — 2026-03-03
+
+Layer 1 (Vercel CDN) is live (ADR-0013/ADR-0014):
+
+| Domain | Repo | Status |
+|--------|------|--------|
+| frame.jim.software | shell browser-app | ✅ Live |
+| cv.jim.software | cv-builder browser-app | ✅ Live |
+| blog.jim.software | blogengine browser-app | ✅ Live |
+| trips.jim.software | tripplanner browser-app | ✅ Live |
+
+Layer 2 (Express APIs + frame-agent) NOT YET deployed — all 4 apps run in UI wireframe mode (ADR-0013). LLM chat returns offline state gracefully.
+
+Branch protection: All 4 repos (shell, cv-builder, blogengine, TripPlanner) have GitHub Rulesets — PR required, rebase-only merge on default branch.
 
 ---
 
@@ -239,5 +268,8 @@ CORS_ORIGIN=http://localhost:4000
 | CV builder agents | `cv-builder/packages/agent-core/src/agents/orchestrator-agent.ts` |
 | Visual regression CI | `cv-builder/.github/workflows/browser-automation-tests.yml` |
 | K8s topology | `shell/k8s/` (namespace, shell deployment, frame-agent deployment, ingress) |
+| Settings modal | `shell/packages/shell-app/src/components/SettingsModal.tsx` + `settingsSlice.ts` + `settings-loaders.ts` |
+| MF integration pattern | `core/decisions/adr/0012-module-federation-remote-integration-pattern.md` |
+| Deployment topology | `core/decisions/adr/0013-safe-demo-deployment.md` + `0014-layered-deployment-architecture.md` |
 | /techdebt command | `core/.claude/commands/techdebt.md` |
 | MrPlug AI call (to migrate) | `MrPlug/src/content/index.tsx` + `MrPlug/src/background/index.ts` |
