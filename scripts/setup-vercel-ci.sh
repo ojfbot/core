@@ -2,14 +2,16 @@
 # setup-vercel-ci.sh — Create Vercel projects via API and push secrets to GitHub
 #
 # What this does (no browser, no manual deploy):
-#   1. Reads VERCEL_TOKEN from env
+#   1. Reads VERCEL_TOKEN from env, or falls back to ~/.vercel-token file
 #   2. Creates a Vercel project for each repo via REST API (idempotent)
 #   3. Fetches your orgId from the token
 #   4. Runs `gh secret set` to write VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID
 #      into each GitHub repo
 #
 # Prerequisites:
-#   export VERCEL_TOKEN=<your token from vercel.com/account/tokens>
+#   # One-time: save token to ~/.vercel-token (outside repo, never committed)
+#   echo "your_token_here" > ~/.vercel-token && chmod 600 ~/.vercel-token
+#   # OR: export VERCEL_TOKEN=<token>
 #   gh auth login  (if not already authenticated)
 #
 # Usage:
@@ -17,13 +19,24 @@
 
 set -euo pipefail
 
-# ── token check ──────────────────────────────────────────────────────────────
+# ── token resolution ──────────────────────────────────────────────────────────
+# Priority: env var → ~/.vercel-token file
 if [[ -z "${VERCEL_TOKEN:-}" ]]; then
-  echo "ERROR: VERCEL_TOKEN is not set."
-  echo "  1. Go to https://vercel.com/account/tokens"
-  echo "  2. Create a token (Full Account scope)"
-  echo "  3. export VERCEL_TOKEN=<token>"
-  exit 1
+  if [[ -f "$HOME/.vercel-token" ]]; then
+    VERCEL_TOKEN=$(cat "$HOME/.vercel-token" | tr -d '[:space:]')
+    echo "Using token from ~/.vercel-token"
+  else
+    echo "ERROR: VERCEL_TOKEN not found."
+    echo ""
+    echo "Option A — save once to disk (recommended):"
+    echo "  echo 'your_token' > ~/.vercel-token && chmod 600 ~/.vercel-token"
+    echo ""
+    echo "Option B — env var:"
+    echo "  export VERCEL_TOKEN=your_token"
+    echo ""
+    echo "Get a token at: https://vercel.com/account/tokens (Full Account scope)"
+    exit 1
+  fi
 fi
 
 # ── gh auth check ─────────────────────────────────────────────────────────────
