@@ -18,6 +18,7 @@ REPOS=(
   "tripplanner:/Users/yuri/ojfbot/TripPlanner:ojf-tripplanner"
   "cv-builder:/Users/yuri/ojfbot/cv-builder:ojf-cv-builder"
   "blogengine:/Users/yuri/ojfbot/blogengine:ojf-blogengine"
+  "core-reader:/Users/yuri/ojfbot/core-reader:ojf-core-reader"
 )
 
 DOMAINS=(
@@ -25,6 +26,7 @@ DOMAINS=(
   "ojf-tripplanner:trips.jim.software"
   "ojf-cv-builder:cv.jim.software"
   "ojf-blogengine:blog.jim.software"
+  "ojf-core-reader:reader.jim.software"
 )
 
 deploy_app() {
@@ -76,12 +78,14 @@ echo "  ojf-shell       → frame.jim.software"
 echo "  ojf-tripplanner → trips.jim.software"
 echo "  ojf-cv-builder  → cv.jim.software"
 echo "  ojf-blogengine  → blog.jim.software"
+echo "  ojf-core-reader → reader.jim.software"
 echo ""
 echo "DNS CNAME records required at your registrar:"
 echo "  frame   CNAME  cname.vercel-dns.com"
 echo "  trips   CNAME  cname.vercel-dns.com"
 echo "  cv      CNAME  cname.vercel-dns.com"
 echo "  blog    CNAME  cname.vercel-dns.com"
+echo "  reader  CNAME  cname.vercel-dns.com"
 echo ""
 echo "Smoke test checklist (ADR-0013 Checkpoint 4):"
 echo "  [ ] frame.jim.software loads shell"

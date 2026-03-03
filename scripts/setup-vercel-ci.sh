@@ -50,6 +50,7 @@ declare -a PROJECTS=(
   "ojf-tripplanner:ojfbot/TripPlanner"
   "ojf-cv-builder:ojfbot/cv-builder"
   "ojf-blogengine:ojfbot/BlogEngine"
+  "ojf-core-reader:ojfbot/core-reader"
 )
 
 # ── create / fetch each project ───────────────────────────────────────────────
@@ -98,9 +99,11 @@ echo "       ojf-shell       → frame.jim.software"
 echo "       ojf-tripplanner → trips.jim.software"
 echo "       ojf-cv-builder  → cv.jim.software"
 echo "       ojf-blogengine  → blog.jim.software"
+echo "       ojf-core-reader → reader.jim.software"
 echo "  3. Add DNS CNAMEs in Squarespace:"
-echo "       frame  CNAME  cname.vercel-dns.com"
-echo "       trips  CNAME  cname.vercel-dns.com"
-echo "       cv     CNAME  cname.vercel-dns.com"
-echo "       blog   CNAME  cname.vercel-dns.com"
+echo "       frame   CNAME  cname.vercel-dns.com"
+echo "       trips   CNAME  cname.vercel-dns.com"
+echo "       cv      CNAME  cname.vercel-dns.com"
+echo "       blog    CNAME  cname.vercel-dns.com"
+echo "       reader  CNAME  cname.vercel-dns.com"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
