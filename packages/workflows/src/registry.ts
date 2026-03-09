@@ -37,6 +37,7 @@ const fileBacked: WorkflowRegistry = {
   "frame-standup":    fileBackedWorkflow("frame-standup",     "Daily standup: sync all repos, audit latest daily-logger post, present prioritized day plan"),
   "spec-review":      fileBackedWorkflow("spec-review",       "Cross-check an agent-generated spec against domain knowledge and code before implementation"),
   "skill-create":     fileBackedWorkflow("skill-create",      "Turn a session workflow into a convention-compliant skill directory; registers in skill-catalog.json"),
+  gastown:            fileBackedWorkflow("gastown",            "Gas Town adoption audit and planning — four modes: audit, plan (--sprint=N), pilot (--panel=<name>), sync"),
 };
 
 export const workflows: WorkflowRegistry = {

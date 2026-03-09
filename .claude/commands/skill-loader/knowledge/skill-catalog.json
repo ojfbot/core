@@ -3,35 +3,6 @@
   "updated": "2026-03-08",
   "skills": [
     {
-      "name": "gastown",
-      "tier": 3,
-      "phase": "continuous",
-      "tags": [
-        "gas-town",
-        "gastown",
-        "adoption",
-        "alignment",
-        "audit",
-        "bead",
-        "molecule",
-        "pilot",
-        "integration"
-      ],
-      "description": "Gas Town alignment agent. Four modes: audit (adoption progress), plan (sprint plan), pilot (GasTownPilot UI), sync (update GitHub roadmap issues).",
-      "triggers": [
-        "gastown",
-        "gas town audit",
-        "gt align",
-        "check gas town adoption",
-        "plan gastown sprint",
-        "gastown pilot",
-        "pilot panel",
-        "audit gt patterns",
-        "gastown sync",
-        "update gastown issue"
-      ]
-    },
-    {
       "name": "plan-feature",
       "tier": 2,
       "phase": "planning",
@@ -183,7 +154,7 @@
         "audit",
         "gaps"
       ],
-      "description": "Security/resilience/observability gap analysis. No fixes \u2014 audit and ranked finding list.",
+      "description": "Security/resilience/observability gap analysis. No fixes — audit and ranked finding list.",
       "triggers": [
         "hardening",
         "security audit",
@@ -413,7 +384,15 @@
       "name": "frame-standup",
       "tier": 3,
       "phase": "continuous",
-      "tags": ["daily", "planning", "standup", "repos", "daily-logger", "audit", "subagent"],
+      "tags": [
+        "daily",
+        "planning",
+        "standup",
+        "repos",
+        "daily-logger",
+        "audit",
+        "subagent"
+      ],
       "description": "Sync all tracked repos, audit the latest daily-logger post for accuracy, produce a prioritized day plan, and present interactive options that expand to full subagent prompts via framework skills.",
       "triggers": [
         "frame-standup",
@@ -424,6 +403,35 @@
         "check the daily-logger and plan work",
         "what did we ship yesterday",
         "daily kickoff"
+      ]
+    },
+    {
+      "name": "gastown",
+      "tier": 3,
+      "phase": "continuous",
+      "tags": [
+        "gas-town",
+        "gastown",
+        "adoption",
+        "alignment",
+        "audit",
+        "bead",
+        "molecule",
+        "pilot",
+        "integration"
+      ],
+      "description": "Gas Town alignment agent. Four modes: audit (adoption progress), plan (sprint plan), pilot (GasTownPilot UI), sync (update GitHub roadmap issues).",
+      "triggers": [
+        "gastown",
+        "gas town audit",
+        "gt align",
+        "check gas town adoption",
+        "plan gastown sprint",
+        "gastown pilot",
+        "pilot panel",
+        "audit gt patterns",
+        "gastown sync",
+        "update gastown issue"
       ]
     },
     {
