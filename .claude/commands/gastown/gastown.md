@@ -3,7 +3,7 @@ name: gastown
 description: >
   MANDATORY: Load this skill IMMEDIATELY when user asks to "gastown",
   "gas town audit", "gt align", "check gas town adoption", "plan gastown
-  sprint", "gastown pilot", "pilot panel", "audit gt patterns",
+  sprint", "gastown pilot", "gastown pilot panel", "audit gt patterns",
   "gastown sync", "update gastown issue". Four modes:
   audit (default) — scan repo for adoption progress;
   plan (--mode=plan --sprint=N) — sprint implementation plan;

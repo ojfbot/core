@@ -60,6 +60,12 @@ The primary interface is `.claude/commands/`. Each file is a `/command` in Claud
 | `/frame-standup` | Sync repos, audit latest daily-logger post, present interactive prioritized day plan |
 | `/frame-dev` | Start/stop/status all Frame OS dev servers; outputs clickable URL guide |
 
+### Frame alignment (Gas Town / Paperclip / Wasteland)
+
+| Command | Tier | Purpose |
+|---------|------|---------|
+| `/gastown` | 3 | Audit Gas Town adoption progress, plan sprint work, review GasTownPilot panels, sync GitHub roadmap issues. Four modes: `audit` (default) · `plan --sprint=N` · `pilot --panel=<name>` · `sync`. See ADR-0015. |
+
 ### Starting new projects
 
 | Command | Purpose |
