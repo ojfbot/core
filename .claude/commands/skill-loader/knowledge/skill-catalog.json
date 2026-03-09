@@ -1,7 +1,36 @@
 {
   "version": "1.0",
-  "updated": "2026-02-27",
+  "updated": "2026-03-08",
   "skills": [
+    {
+      "name": "gastown",
+      "tier": 3,
+      "phase": "continuous",
+      "tags": [
+        "gas-town",
+        "gastown",
+        "adoption",
+        "alignment",
+        "audit",
+        "bead",
+        "molecule",
+        "pilot",
+        "integration"
+      ],
+      "description": "Gas Town alignment agent. Four modes: audit (adoption progress), plan (sprint plan), pilot (GasTownPilot UI), sync (update GitHub roadmap issues).",
+      "triggers": [
+        "gastown",
+        "gas town audit",
+        "gt align",
+        "check gas town adoption",
+        "plan gastown sprint",
+        "gastown pilot",
+        "pilot panel",
+        "audit gt patterns",
+        "gastown sync",
+        "update gastown issue"
+      ]
+    },
     {
       "name": "plan-feature",
       "tier": 2,
