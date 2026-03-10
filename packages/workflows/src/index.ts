@@ -1,4 +1,6 @@
 export * from "./types.js";
+export * from "./types/bead.js";
+export { FilesystemBeadStore, DEFAULT_BEADS_ROOT } from "./bead-store/FilesystemBeadStore.js";
 export * from "./parseCommand.js";
 export * from "./registry.js";
 export * from "./runner.js";
