@@ -16,7 +16,8 @@
     "dev": "tsc -p tsconfig.json --watch"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.30.0"
+    "@anthropic-ai/sdk": "^0.30.0",
+    "chokidar": "^5.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
