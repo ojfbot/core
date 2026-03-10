@@ -38,7 +38,7 @@ for (const repo of REPOS) {
   const row = { repo, branch: '?', status: '?', error: null };
 
   try {
-    // Fetch silently
+    // Fetch — updates remote-tracking refs so we see the true remote state
     run(`git -C "${dir}" fetch origin --quiet`);
 
     // Branch + tracking status from status -sb
@@ -47,16 +47,22 @@ for (const repo of REPOS) {
     const branchMatch = statusLine.match(/^## (.+?)(?:\.\.\.(.+?))?(?:\s+\[(.+?)\])?$/);
     row.branch = branchMatch ? branchMatch[1] : '?';
     const tracking = branchMatch && branchMatch[3] ? branchMatch[3] : 'up to date';
-    row.status = tracking;
 
     // Check for uncommitted changes
     const dirty = run(`git -C "${dir}" status --porcelain`);
-    if (dirty) {
-      const count = dirty.split('\n').filter(Boolean).length;
-      row.status = (row.status === 'up to date' ? '' : row.status + '; ') + `${count} uncommitted`;
-    }
 
-    if (!dirty && tracking === 'up to date') {
+    // Pull fast-forward if behind and clean — keeps local branch current
+    const isBehind = tracking.includes('behind') && !tracking.includes('ahead');
+    if (isBehind && !dirty) {
+      run(`git -C "${dir}" pull --ff-only --quiet`);
+      row.status = 'pulled';
+    } else if (dirty) {
+      const count = dirty.split('\n').filter(Boolean).length;
+      const behindNote = isBehind ? tracking + '; ' : '';
+      row.status = `${behindNote}${count} uncommitted`;
+    } else if (tracking.includes('ahead')) {
+      row.status = tracking; // local has unpushed commits
+    } else {
       row.status = 'clean';
     }
   } catch (e) {

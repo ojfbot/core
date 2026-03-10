@@ -51,9 +51,13 @@ node .claude/commands/frame-standup/scripts/sync-repos.js
 # Returns: JSON array of { repo, branch, status } for each tracked repo
 ```
 
-Output a compact status table. Flag any repo that is behind remote, has
-uncommitted changes, or returned an error. Do not proceed on repos with
-sync errors.
+The script runs `git fetch origin` on every repo, then `git pull --ff-only`
+on any repo that is behind and clean. Repos with uncommitted changes are
+reported but not pulled (no risk of clobbering work-in-progress).
+
+Output a compact status table. Flag any repo that is still behind after the
+pull attempt, has uncommitted changes, or returned an error. Do not proceed
+on repos with sync errors.
 
 ### Step 2 — Find and read the latest daily-logger post
 
