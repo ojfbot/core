@@ -73,7 +73,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 | Repo | Tech | Port(s) | Status | Key gap |
 |------|------|---------|--------|---------|
-| cv-builder | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
+| cv-builder (display: "Resume Builder") | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
 | shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal (ADR-0011), Vercel live at frame.jim.software | ShellHeader uses bare input (not Carbon component); light mode tokens incomplete |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ❌ — still needed (Phase 1) |
