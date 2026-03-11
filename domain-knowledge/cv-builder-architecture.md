@@ -1,5 +1,7 @@
 # cv-builder Architecture
 
+> Display name: **Resume Builder** (repo: ojfbot/cv-builder, package: resume-builder)
+
 Source: https://github.com/ojfbot/cv-builder
 
 ## Overview
