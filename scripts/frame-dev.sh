@@ -82,7 +82,17 @@ case "$CMD" in
     start_subapp "cv-builder"  "cv-builder"  "@cv-builder/browser-app"   3000
     start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
     start_subapp "tripplanner" "tripplanner" "@tripplanner/browser-app"  3010 1
-    start_subapp "core-reader" "core-reader" "@core-reader/browser-app"  3015
+    # core-reader preview needs VITE_CORE_READER_API_URL baked into the build so
+    # API calls resolve to :3016 instead of falling through to the shell at :4000.
+    if port_up 3015; then
+      printf "  ✓  %-14s  :3015  already running\n" "core-reader"
+    else
+      printf "  ▶  %-14s  :3015  building (MF)... tail -f %s/core-reader.log\n" "core-reader" "$LOGDIR"
+      (cd "$REPOS/core-reader" && \
+        VITE_CORE_READER_API_URL=http://localhost:3016 pnpm --filter "@core-reader/browser-app" build \
+        && pnpm --filter "@core-reader/browser-app" preview \
+        >> "$LOGDIR/core-reader.log" 2>&1 &)
+    fi
     # CoreReader API — reads from core repo; requires CORE_REPO_PATH
     if port_up 3016; then
       printf "  ✓  %-14s  :3016  already running\n" "core-reader-api"

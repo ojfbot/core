@@ -160,7 +160,7 @@ All gates currently passing on main:
 
 Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 
-- **AppType:** `'cv-builder' | 'tripplanner' | 'blogengine' | 'purefoy'`
+- **AppType:** `'cv-builder' | 'tripplanner' | 'blogengine' | 'purefoy' | 'core-reader'`
 - **Instance:** named running context of an app type ("Tokyo 2025", "Berlin Interviews")
 - **Thread:** named conversation within an instance ("Flights", "Accommodation")
 - Multiple instances of same app type are fully supported
@@ -173,11 +173,11 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | Phase | What | Repo(s) | Status |
 |-------|------|---------|--------|
 | 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
-| 1A | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration (**fast-tracked**) | core-reader, shell | Not started |
+| 1A | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration (**fast-tracked**) | core-reader, shell | ✅ Complete — repo live, Commands + ADRs tabs serving, Shell MF singleton ✅, Vercel deployed (ADR-0014) |
 | 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine tools fix | cv-builder, TripPlanner, BlogEngine | MF ✅ all three; GET /api/tools: cv-builder ✅, blogengine ⚠️ (partial), tripplanner ❌ |
 | 1 ship | All 1A + 1B work ships together as a single milestone | — | Partial — MF live, tools/CoreReader gap remains |
-| 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Not started |
-| 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Not started |
+| 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Partial — ShellHeader Carbon TextInput ✅; `@ojfbot/shell` Phase 1 extraction scaffold ✅; light mode tokens + full visual parity pending |
+| 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Partial — cross-domain keyword co-presence detection fixed ✅; thread resumption + dynamic `/api/tools` fetch pending |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
 | 2C | CoreReader Phase 2 — OKRs, Roadmap, Docs tabs; cross-entity links | core-reader | Not started |
 | 3 | Cross-domain coordination (hero demo) | shell/frame-agent | Not started |
@@ -189,6 +189,8 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | 5 | MrPlug /techdebt integration | MrPlug + core | Not started |
 | 6 | Deploy frame.jim.software via K8s (Layer 2) | shell, K8s | Layer 1 (Vercel static) ✅ live — ADR-0013/0014; Layer 2 (APIs + frame-agent) not yet deployed |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
+
+> **Gas Town (ADR-0015/0016/0017) — cross-cutting:** FrameBead universal work primitive defined; `FrameBeadLike` interface + `FilesystemBeadStore` in core-reader ✅; cv-builder `/api/beads` ✅; shell `/api/beads` aggregation pending. Not a numbered phase — runs alongside 1B–3.
 
 **Time-sensitive:** daily-logger must start running daily NOW. Every day without an entry is lost shipping signal.
 
@@ -251,6 +253,7 @@ Layer 1 (Vercel CDN) is live (ADR-0013/ADR-0014):
 | cv.jim.software | cv-builder browser-app | ✅ Live |
 | blog.jim.software | blogengine browser-app | ✅ Live |
 | trips.jim.software | tripplanner browser-app | ✅ Live |
+| core-reader.jim.software (or /api route) | core-reader browser-app + API | ✅ Live (ADR-0014) |
 
 Layer 2 (Express APIs + frame-agent) NOT YET deployed — all 4 apps run in UI wireframe mode (ADR-0013). LLM chat returns offline state gracefully.
 
