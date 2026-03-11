@@ -46,7 +46,7 @@ Commands are available immediately in Claude Code — no build step required:
 Install into a sibling repo:
 
 ```bash
-./scripts/install-agents.sh cv-builder
+./scripts/install-agents.sh resume-builder
 ```
 
 ---
@@ -61,8 +61,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 docs/                 Human-readable documentation
-decisions/
-  adr/                Architecture Decision Records
+  adr/                Architecture Decision Records (incl. ADR-0016 FrameBead, ADR-0017 singleton enforcement)
   okr/                Objectives and Key Results (technical track)
 personal-knowledge/   Career context (not tracked publicly)
 ```
