@@ -22,8 +22,8 @@ Paperclip (github.com/paperclip-ai/paperclip) treats a company as a first-order 
 │  Paperclip patterns: goal hierarchy, budget, approval gates, │
 │  audit trail, org-chart agent reporting                      │
 ├──────┬──────────┬───────────┬───────────┬──────────┬────────┤
-│Core  │CV Builder│BlogEngine │TripPlanner│ Purefoy  │GasTown │
-│Reader│          │           │           │          │ Pilot  │
+│Core  │Resume    │BlogEngine │TripPlanner│ Purefoy  │GasTown │
+│Reader│Builder   │           │           │          │ Pilot  │
 │              (execution plane per sub-app)                  │
 │  Gas Town patterns: FrameBeads, Hooks, GUPP, Molecules,     │
 │  Handoff, Agent identity, NDI, Mail                         │

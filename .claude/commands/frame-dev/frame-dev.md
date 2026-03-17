@@ -34,7 +34,7 @@ If `$ARGUMENTS` is empty, default to `start`.
 |---------|-----|-------|
 | **Shell** _(MF host)_ | [http://localhost:4000](http://localhost:4000) | Open this. Sidebar loads sub-apps via MF |
 | **frame-agent** | [http://localhost:4001/health](http://localhost:4001/health) | LLM gateway · started by `pnpm dev` in shell |
-| **CV Builder** | [http://localhost:3000](http://localhost:3000) | Standalone or loaded by Shell |
+| **Resume Builder** | [http://localhost:3000](http://localhost:3000) | Standalone or loaded by Shell |
 | **BlogEngine** | [http://localhost:3005](http://localhost:3005) | Standalone or loaded by Shell |
 | **TripPlanner** | [http://localhost:3010](http://localhost:3010) | Standalone or loaded by Shell |
 | **CoreReader** | [http://localhost:3015](http://localhost:3015) | Standalone or loaded by Shell · API on :3016 |
@@ -42,7 +42,7 @@ If `$ARGUMENTS` is empty, default to `start`.
 ### Module Federation flow
 
 1. Open **[Shell](http://localhost:4000)** → click the hamburger → expand sidebar
-2. Click an app (e.g. CV Builder) → Shell dynamically loads `./Dashboard` from `:3000`
+2. Click an app (e.g. Resume Builder) → Shell dynamically loads `./Dashboard` from `:3000`
 3. The app renders inside Shell's main pane with the fade-in transition
 4. Cmd+K → type a prompt → frame-agent at `:4001` routes it to the active sub-app
 
