@@ -21,6 +21,7 @@ const REPOS = [
   'purefoy',
   'daily-logger',
   'core',
+  'lean-canvas',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');

@@ -81,7 +81,8 @@ case "$CMD" in
     start_shell
     start_subapp "cv-builder"  "cv-builder"  "@cv-builder/browser-app"   3000
     start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
-    start_subapp "tripplanner" "tripplanner" "@tripplanner/browser-app"  3010 1
+    start_subapp "tripplanner" "TripPlanner" "@tripplanner/browser-app"  3010 1
+    start_subapp "lean-canvas" "lean-canvas" "@lean-canvas/browser-app"  3020
     # core-reader preview needs VITE_CORE_READER_API_URL baked into the build so
     # API calls resolve to :3016 instead of falling through to the shell at :4000.
     if port_up 3015; then
@@ -116,6 +117,8 @@ case "$CMD" in
     stop_port "cv-builder"   3000
     stop_port "blogengine"   3005
     stop_port "tripplanner"  3010
+    stop_port "lean-canvas"  3020
+    stop_port "lean-canvas-api" 3021
     stop_port "core-reader"  3015
     stop_port "core-reader-api" 3016
     echo ""
@@ -129,6 +132,8 @@ case "$CMD" in
     status_port "cv-builder"   3000
     status_port "blogengine"   3005
     status_port "tripplanner"  3010
+    status_port "lean-canvas"  3020
+    status_port "lean-canvas-api" 3021
     status_port "core-reader"  3015
     status_port "core-reader-api" 3016
     echo ""

@@ -187,6 +187,7 @@ case "$REPO_NAME" in
   mrplug|MrPlug) ARCH_FILE="mrplug-architecture.md" ;;
   purefoy)      ARCH_FILE="purefoy-architecture.md" ;;
   daily-logger) ARCH_FILE="daily-logger-architecture.md" ;;
+  lean-canvas)  ARCH_FILE="lean-canvas-architecture.md" ;;
   shell)        ARCH_FILE="" ;;  # frame-os-context covers the shell
 esac
 
