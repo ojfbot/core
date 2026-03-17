@@ -46,7 +46,7 @@ Commands are available immediately in Claude Code — no build step required:
 Install into a sibling repo:
 
 ```bash
-./scripts/install-agents.sh resume-builder
+./scripts/install-agents.sh lean-canvas
 ```
 
 ---
@@ -54,14 +54,14 @@ Install into a sibling repo:
 ## What's in here
 
 ```
-.claude/commands/     28 slash commands (skill directories)
+.claude/commands/     slash commands (skill directories)
 packages/
   workflows/          @core/workflows — TypeScript workflow engine
   cli/                core-workflow binary
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 docs/                 Human-readable documentation
-  adr/                Architecture Decision Records (incl. ADR-0016 FrameBead, ADR-0017 singleton enforcement)
+  adr/                Architecture Decision Records (incl. ADR-0016 FrameBead, ADR-0017 singleton enforcement, ADR-0018 cv-builder slug split, ADR-0019 fan-out isolation)
   okr/                Objectives and Key Results (technical track)
 personal-knowledge/   Career context (not tracked publicly)
 ```
