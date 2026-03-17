@@ -79,7 +79,7 @@ case "$CMD" in
     echo "Frame OS dev servers"
     echo "────────────────────────────────────────────────────────────────"
     start_shell
-    start_subapp "cv-builder"  "cv-builder"  "@cv-builder/browser-app"   3000
+    start_subapp "resume-builder" "cv-builder"  "@resume-builder/browser-app" 3000
     start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
     start_subapp "tripplanner" "TripPlanner" "@tripplanner/browser-app"  3010 1
     start_subapp "lean-canvas" "lean-canvas" "@lean-canvas/browser-app"  3025
@@ -114,7 +114,7 @@ case "$CMD" in
     echo "────────────────────────────────────────────────────────────────"
     stop_port "shell"        4000
     stop_port "frame-agent"  4001
-    stop_port "cv-builder"   3000
+    stop_port "resume-builder" 3000
     stop_port "blogengine"   3005
     stop_port "tripplanner"  3010
     stop_port "lean-canvas"  3025
@@ -129,7 +129,7 @@ case "$CMD" in
     echo "────────────────────────────────────────────────────────────────"
     status_port "shell"        4000
     status_port "frame-agent"  4001
-    status_port "cv-builder"   3000
+    status_port "resume-builder" 3000
     status_port "blogengine"   3005
     status_port "tripplanner"  3010
     status_port "lean-canvas"  3025
