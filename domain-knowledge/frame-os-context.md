@@ -76,7 +76,8 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | cv-builder (display: "Resume Builder") | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
 | shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal (ADR-0011), Vercel live at frame.jim.software | ShellHeader uses bare input (not Carbon component); light mode tokens incomplete |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
-| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ❌ — still needed (Phase 1) |
+| TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ✅ — PR #27 open (Phase 1) |
+| lean-canvas | React/Vite, Express, LangGraph, Carbon DS | 3020/3021 | Scaffolded 2026-03-17 — MF remote, 9-section AI canvas, frame-agent routing | pnpm install + first run; shell registration pending |
 | core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
 | daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |

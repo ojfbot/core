@@ -114,7 +114,7 @@ stance. A cv-builder outage must not prevent the gateway from starting.
 
 - [x] cv-builder: `GET /api/tools` — shape conforms to this contract
 - [ ] BlogEngine: `GET /api/tools` — exists but tools point to chat dispatcher, not specific endpoints (tech debt)
-- [ ] TripPlanner: `GET /api/tools` — not yet implemented (Phase 1)
+- [x] TripPlanner: `GET /api/tools` — implemented (PR #27, 2026-03-17)
 - [ ] purefoy: `GET /api/tools` — not yet implemented
 - [ ] MetaOrchestrator: refactor from hardcoded tool knowledge to dynamic manifest fetch (Phase 2)
 - [ ] CI validation: add schema test for `GET /api/tools` in each sub-app's test suite
