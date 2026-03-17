@@ -13,8 +13,8 @@ Migrated from the `ai-mcp-stack` sandbox prototype. Module Federation remote at 
 packages/
   shared/          CanvasSection types, Message, CanvasThread, ToolManifestEntry
   agent-graph/     LangGraph nodes — one canvasSectionNode with 9 domain system prompts
-  api/             Express on :3021 — GET /api/tools + POST /api/canvas/:section/chat
-  browser-app/     Vite + Carbon DS on :3020 — LeanCanvasGrid + LeanCanvasSectionPanel
+  api/             Express on :3026 — GET /api/tools + POST /api/canvas/:section/chat
+  browser-app/     Vite + Carbon DS on :3025 — LeanCanvasGrid + LeanCanvasSectionPanel
 ```
 
 ## Canvas sections (9)
