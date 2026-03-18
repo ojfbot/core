@@ -275,5 +275,5 @@ Branch protection: All 4 repos (shell, cv-builder, blogengine, TripPlanner) have
 | Settings modal | `shell/packages/shell-app/src/components/SettingsModal.tsx` + `settingsSlice.ts` + `settings-loaders.ts` |
 | MF integration pattern | `core/decisions/adr/0012-module-federation-remote-integration-pattern.md` |
 | Deployment topology | `core/decisions/adr/0013-safe-demo-deployment.md` + `0014-layered-deployment-architecture.md` |
-| /techdebt command | `core/.claude/commands/techdebt.md` |
+| /techdebt command | `core/.claude/skills/techdebt.md` |
 | MrPlug AI call (to migrate) | `MrPlug/src/content/index.tsx` + `MrPlug/src/background/index.ts` |

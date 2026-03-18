@@ -15,7 +15,7 @@ Reference for `/skill-create`. Covers naming conventions, phase values, tier def
 ## Conflict check
 
 ```bash
-ls .claude/commands/
+ls .claude/skills/
 ```
 
 If a directory with the name exists, pick a more specific name. Do not overwrite.

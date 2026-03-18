@@ -56,7 +56,7 @@ The outer panes each attach an inner tmux client, giving the appearance of neste
 | `~/.tmux/workbench/workbench.py` | Python launcher (start / kill / status) |
 | `~/.tmux/workbench/config.json` | Active config (create from example below) |
 | `~/.tmux/workbench/example-config.json` | Schema reference |
-| `.claude/commands/workbench.md` | `/workbench` Claude Code slash command |
+| `.claude/skills/workbench.md` | `/workbench` Claude Code slash command |
 | `packages/workflows/src/workflows/workbench.ts` | TypeScript handler for CLI/MCP invocation |
 
 ---

@@ -22,7 +22,7 @@ Part of [Frame OS](docs/architecture.md) — an AI-native application OS built a
 |---|---|
 | Agent context before cross-repo work | [domain-knowledge/frame-os-context.md](domain-knowledge/frame-os-context.md) |
 | Available commands and architecture | [CLAUDE.md](CLAUDE.md) |
-| Skill reference material | `.claude/commands/<name>/knowledge/` |
+| Skill reference material | `.claude/skills/<name>/knowledge/` |
 | ADR for a specific decision | [decisions/adr/](decisions/adr/) |
 
 ---
@@ -54,7 +54,7 @@ Install into a sibling repo:
 ## What's in here
 
 ```
-.claude/commands/     slash commands (skill directories)
+.claude/skills/     slash commands (skill directories)
 packages/
   workflows/          @core/workflows — TypeScript workflow engine
   cli/                core-workflow binary

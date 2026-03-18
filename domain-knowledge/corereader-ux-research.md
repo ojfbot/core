@@ -13,7 +13,7 @@ Frame OS's own intelligence**.
 
 | Surface | Source path | Phase |
 |---------|-------------|-------|
-| Commands | `.claude/commands/<name>/` | 1 |
+| Commands | `.claude/skills/<name>/` | 1 |
 | ADRs | `decisions/adr/` | 1 |
 | OKRs | `decisions/okr/` | 2 |
 | Roadmap | `domain-knowledge/frame-os-context.md` roadmap table | 1 |
@@ -276,7 +276,7 @@ export default Dashboard
 
 ### API parsers to scaffold
 
-- `parseCommands(coreRepoPath)` — `fs.readdirSync('.claude/commands/')`, reads `<name>.md`
+- `parseCommands(coreRepoPath)` — `fs.readdirSync('.claude/skills/')`, reads `<name>.md`
   header comment block (Tier, Phase metadata from the CLAUDE.md commands table)
 - `parseADRs(coreRepoPath)` — reads `decisions/adr/*.md`, extracts via `gray-matter`:
   `Status`, `Date`, `OKR`, `Repos affected`, `Commands affected`

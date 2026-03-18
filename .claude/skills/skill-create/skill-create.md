@@ -45,7 +45,7 @@ Identify:
 
 Derive a kebab-case name. Run:
 ```bash
-ls .claude/commands/
+ls .claude/skills/
 ```
 Confirm no conflict. If a clash exists, use a more specific name.
 
@@ -74,19 +74,19 @@ scripts/<verb>-<noun>.js --input <arg> --output <arg>
 Create the following files:
 
 **Always:**
-- `.claude/commands/<name>/<name>.md` — main orchestration file
+- `.claude/skills/<name>/<name>.md` — main orchestration file
 
 **When knowledge files are needed** (one file per distinct reference topic):
-- `.claude/commands/<name>/knowledge/<topic>.md`
+- `.claude/skills/<name>/knowledge/<topic>.md`
 
 **When deterministic scripts are needed:**
-- `.claude/commands/<name>/scripts/<verb>-<noun>.js` — CommonJS, `--help` flag, proper exit codes
+- `.claude/skills/<name>/scripts/<verb>-<noun>.js` — CommonJS, `--help` flag, proper exit codes
 
 Write each file using the conventions in `knowledge/skill-template.md`. Read back the generated `<name>.md` and verify: YAML frontmatter present, ≤250 lines, no hardcoded project names, JIT directives point to real files.
 
 ### Step 5 — Register the skill
 
-Add an entry to `.claude/commands/skill-loader/knowledge/skill-catalog.json`:
+Add an entry to `.claude/skills/skill-loader/knowledge/skill-catalog.json`:
 
 ```json
 {
@@ -107,9 +107,9 @@ Insert it adjacent to related skills (e.g., after `plan-feature` if it's a plann
 ## Skill created: /<name>
 
 Files written:
-  .claude/commands/<name>/<name>.md            (<N> lines)
-  .claude/commands/<name>/knowledge/<topic>.md  (if any)
-  .claude/commands/<name>/scripts/<name>.js     (if any)
+  .claude/skills/<name>/<name>.md            (<N> lines)
+  .claude/skills/<name>/knowledge/<topic>.md  (if any)
+  .claude/skills/<name>/scripts/<name>.js     (if any)
 
 skill-catalog.json updated  →  <N> total skills
 
