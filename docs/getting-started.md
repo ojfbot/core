@@ -33,7 +33,7 @@ See [docs/commands.md](commands.md) for the full command reference.
 ./scripts/install-agents.sh cv-builder --force   # overwrite existing symlinks
 ```
 
-This symlinks `.claude/commands/` and `domain-knowledge/` into the target repo. The target repo gets the full command stack without copying files.
+This symlinks `.claude/skills/` and `domain-knowledge/` into the target repo. The target repo gets the full command stack without copying files.
 
 ## Run the TypeScript CLI
 
@@ -57,7 +57,7 @@ See `domain-knowledge/workbench-architecture.md` for tile layout and keybindings
 
 ## Add a new command
 
-1. Create `.claude/commands/mycommand/mycommand.md` — immediately available as `/mycommand` in Claude Code.
+1. Create `.claude/skills/mycommand/mycommand.md` — immediately available as `/mycommand` in Claude Code.
 2. Optionally add `knowledge/` subdirectory for reference material.
 3. Register in `packages/workflows/src/registry.ts` if you also want CLI support.
 

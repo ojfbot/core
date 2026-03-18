@@ -7,16 +7,17 @@ const SYSTEM_PROMPT =
   "You are an expert software engineering assistant. Follow the instructions in the user message precisely. Be specific, concrete, and technical.";
 
 /**
- * Creates a WorkflowSpec whose prompt is loaded from a `.claude/commands/<name>/<name>.md` file.
+ * Creates a WorkflowSpec whose prompt is loaded from a `.claude/skills/<name>/<name>.md` file.
  * `$ARGUMENTS` in the markdown is replaced with the joined positional args + flags.
  *
- * Each command is a skill directory: `.claude/commands/<name>/`
+ * Each skill is a directory: `.claude/skills/<name>/`
  *   ├── <name>.md        ← concise orchestration skeleton (loaded into context)
  *   ├── knowledge/       ← deep reference material, loaded just-in-time by the agent
  *   └── scripts/         ← deterministic utilities, executed without loading into context
  *
- * This keeps `.claude/commands/` as the single source of truth for both
+ * This keeps `.claude/skills/` as the single source of truth for both
  * Claude Code slash commands and the programmatic core-workflow CLI.
+ * A backward-compat symlink `.claude/commands → skills/` is maintained for legacy tooling.
  */
 export function fileBackedWorkflow(
   name: string,
@@ -26,10 +27,10 @@ export function fileBackedWorkflow(
   return {
     name,
     description,
-    usage: `/${name} <arguments>  (prompt loaded from .claude/commands/${name}/${name}.md)`,
+    usage: `/${name} <arguments>  (prompt loaded from .claude/skills/${name}/${name}.md)`,
 
     async handler({ args, ctx }) {
-      const dir = commandsDir ?? path.join(ctx.cwd, ".claude", "commands");
+      const dir = commandsDir ?? path.join(ctx.cwd, ".claude", "skills");
       const mdPath = path.join(dir, name, `${name}.md`);
 
       let template: string;

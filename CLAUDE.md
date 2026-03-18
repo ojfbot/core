@@ -28,7 +28,7 @@ node packages/cli/dist/index.js "/plan-feature add user auth"
 
 ## Available slash commands
 
-The primary interface is `.claude/commands/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/` backs the same commands for CLI/CI use via `core-workflow`.
+The primary interface is `.claude/skills/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/` backs the same commands for CLI/CI use via `core-workflow`.
 
 ### Development lifecycle
 
@@ -123,7 +123,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 
 **Two layers:**
 
-### 1. `.claude/commands/*.md` — Claude Code slash commands (primary)
+### 1. `.claude/skills/*.md` — Claude Code slash commands (primary)
 Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a new command by creating a new `.md` file. Updating the `.md` file automatically updates both Claude Code and the `core-workflow` CLI (the TypeScript engine reads it at runtime).
 
 ### 2. `packages/` — TypeScript engine (supporting)
@@ -143,7 +143,7 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 | `src/registry.ts` | Maps slash names → `WorkflowSpec`. Register new workflows here. |
 | `src/runner.ts` | `runWorkflow(raw, ctx)` — shared dispatch entry point |
 | `src/llm.ts` | `callClaude(system, user)` — wraps `@anthropic-ai/sdk` |
-| `src/fileBackedWorkflow.ts` | Factory: loads `.claude/commands/<name>.md`, replaces `$ARGUMENTS`, calls Claude |
+| `src/fileBackedWorkflow.ts` | Factory: loads `.claude/skills/<name>.md`, replaces `$ARGUMENTS`, calls Claude |
 | `src/subagent.ts` | `logTechDebtIncident(incident, cwd)` — programmatic `/techdebt` trigger |
 | `src/utils/diff.ts` | `applyUnifiedDiff()` — pure TS, no external deps |
 | `src/workflows/techdebt/schema.ts` | `TechDebtIncident`, `TechDebtProposal` types |
@@ -180,11 +180,11 @@ Always read `frame-os-context.md` first for cross-repo work. Commands that audit
 cv-builder has a separate `.agents/registry.json` that defines programmatic agents (`pre-commit-validator`, `issue-manager`, `pr-manager`, etc.) invokable via Claude Code natural language triggers. This is **complementary**, not competing:
 
 - `.agents/` = triggered automation (runs automatically on events or NL invocation)
-- `.claude/commands/` = interactive structured workflows (invoked explicitly with `/command`)
+- `.claude/skills/` = interactive structured workflows (invoked explicitly with `/command`)
 
 ## Adding a new command
 
-**Claude Code only:** Create `.claude/commands/mycommand/mycommand.md`. Done — available immediately as `/mycommand`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
+**Claude Code only:** Create `.claude/skills/mycommand/mycommand.md`. Done — available immediately as `/mycommand`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
 
 **Also in CLI/TypeScript:** The file-backed factory picks it up automatically once registered in `src/registry.ts`:
 ```typescript
@@ -193,4 +193,4 @@ mycommand: fileBackedWorkflow("mycommand", "short description"),
 
 ## `/techdebt` path allowlist
 
-`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/commands/**`, `skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`. Full allowlist documented in `.claude/commands/techdebt/knowledge/allowed-paths.md`.
+`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`, `skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`. Full allowlist documented in `.claude/skills/techdebt/knowledge/allowed-paths.md`.

@@ -8,7 +8,7 @@
 packages/workflows/**
 packages/cli/**
 domain-knowledge/**
-.claude/commands/**
+.claude/skills/**
 scripts/**
 decisions/**
 ```

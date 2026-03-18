@@ -60,12 +60,12 @@ Multiple instances of the same app type are supported. `activeAppType` is passed
 
 core is a two-layer system:
 
-### Layer 1: `.claude/commands/` — Claude Code slash commands
+### Layer 1: `.claude/skills/` — Claude Code slash commands
 
 Each command is a **skill directory**:
 
 ```
-.claude/commands/
+.claude/skills/
   validate/
     validate.md          ← orchestration prompt (≤250 lines)
     knowledge/
@@ -86,7 +86,7 @@ See [ADR-0003](../decisions/adr/0003-skill-directories-over-flat-files.md) for w
 | `@core/cli` | `core-workflow` binary — joins argv, calls `runWorkflow`, prints output |
 | `vscode-extension` | VS Code extension — `core.runSlashCommand` command, output channel |
 
-The TypeScript engine reads the same `.claude/commands/<name>/<name>.md` files at runtime. Updating a command file updates both Claude Code and the CLI simultaneously.
+The TypeScript engine reads the same `.claude/skills/<name>/<name>.md` files at runtime. Updating a command file updates both Claude Code and the CLI simultaneously.
 
 ---
 

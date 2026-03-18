@@ -11,7 +11,7 @@ const ALLOWED_ROOTS = [
   "domain-knowledge/",
   "skills/",
   "decisions/",
-  ".claude/commands/",
+  ".claude/skills/",
 ];
 
 function isAllowedPath(filePath: string): boolean {

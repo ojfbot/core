@@ -45,7 +45,7 @@ Accept a structured incident (`--incident='{ JSON }'`) and produce a `TechDebtPr
 
 **Rules:**
 - Output the proposal as a fenced JSON block.
-- Only propose changes to: `packages/workflows/**`, `domain-knowledge/**`, `.claude/commands/**`.
+- Only propose changes to: `packages/workflows/**`, `domain-knowledge/**`, `.claude/skills/**`.
 - Never propose changes to production business code.
 - Include `filePatches` for every item where a concrete change is warranted.
 
@@ -55,7 +55,7 @@ Accept a `TechDebtProposal` JSON and apply its `filePatches` to disk.
 
 > **In apply mode, load `knowledge/allowed-paths.md`** for path safety rules before writing any file.
 
-**Safety:** Only patch files inside `packages/workflows/`, `domain-knowledge/`, or `.claude/commands/`. Any other path → `SKIP [proposal N] <path> (outside allowed roots)`.
+**Safety:** Only patch files inside `packages/workflows/`, `domain-knowledge/`, or `.claude/skills/`. Any other path → `SKIP [proposal N] <path> (outside allowed roots)`.
 
 Flags:
 - `--dryRun` — show what would change without writing.

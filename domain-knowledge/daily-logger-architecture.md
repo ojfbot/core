@@ -155,7 +155,7 @@ Writes `_reports/{date}-{persona-slug}.md`. Not synthesized — direct memo per 
 
 ## Shared skills pattern
 
-`daily-logger/.claude/commands/` = 26 symlinks → `core/.claude/commands/`
+`daily-logger/.claude/skills/` = 26 symlinks → `core/.claude/skills/`
 `daily-logger/domain-knowledge/` = 6 symlinks → universal core knowledge files + this file
 No daily-logger-specific commands — it uses the full core toolkit.
 Propagate command changes: `./scripts/install-agents.sh daily-logger` from core.

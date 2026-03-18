@@ -1,7 +1,7 @@
 # ADR-0003: Skill directories over flat command files
 
 Date: 2026-02
-Status: Accepted
+Status: Superseded by ADR-0021
 OKR: 2026-Q1 / O2 / KR2
 Commands affected: all 28 slash commands
 Repos affected: core, and all sibling repos via install-agents.sh

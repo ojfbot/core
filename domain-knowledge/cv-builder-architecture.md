@@ -64,7 +64,7 @@ A separate agent registry at `.agents/registry.json` that defines programmatic a
 | `build-validator` | Build configuration validation |
 | `code-quality-enforcer` | Continuous quality monitoring |
 
-These are complementary to `.claude/commands/` slash commands: `.agents/` handles triggered automation; `.claude/commands/` handles interactive structured workflows.
+These are complementary to `.claude/skills/` slash commands: `.agents/` handles triggered automation; `.claude/skills/` handles interactive structured workflows.
 
 ## Acceptance audit pattern
 

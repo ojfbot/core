@@ -47,7 +47,7 @@ area (e.g. "focus:shell" to prioritize shell work in the output)
 ### Step 1 — Sync all repos
 
 ```bash
-node .claude/commands/frame-standup/scripts/sync-repos.js
+node .claude/skills/frame-standup/scripts/sync-repos.js
 # Returns: JSON array of { repo, branch, status } for each tracked repo
 ```
 
@@ -62,7 +62,7 @@ on repos with sync errors.
 ### Step 2 — Find and read the latest daily-logger post
 
 ```bash
-node .claude/commands/frame-standup/scripts/find-latest-post.js
+node .claude/skills/frame-standup/scripts/find-latest-post.js
 # Returns: { date, filePath, title, url } for the most recent article
 ```
 

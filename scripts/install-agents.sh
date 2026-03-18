@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-agents.sh — install core slash commands into any ojfbot sibling repo
+# install-agents.sh — install core skills into any ojfbot sibling repo
 #
 # Usage:
 #   ./scripts/install-agents.sh <target-repo-path> [--force]
@@ -9,9 +9,10 @@
 #   ./scripts/install-agents.sh cv-builder --force   # overwrite existing symlinks
 #
 # What it does:
-#   1. Creates .claude/commands/ with symlinks to all core skill directories
-#      Each skill is a directory: .claude/commands/<name>/ with <name>.md + knowledge/ + scripts/
+#   1. Creates .claude/skills/ with symlinks to all core skill directories
+#      Each skill is a directory: .claude/skills/<name>/ with <name>.md + knowledge/ + scripts/
 #      Symlinking the directory gives the target repo the full skill tree automatically.
+#      Also creates .claude/commands → skills/ backward-compat symlink.
 #   2. Creates domain-knowledge/ with symlinks to the universal context files
 #   3. Optionally links the repo-specific architecture file (auto-detected by name)
 #   4. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
@@ -23,6 +24,7 @@
 #
 # MIGRATION NOTE: If upgrading from flat *.md symlinks to skill directories,
 # run with --force to remove old flat symlinks and replace with directory symlinks.
+# If upgrading from .claude/commands/ to .claude/skills/, run with --force to migrate.
 
 set -euo pipefail
 
@@ -119,18 +121,32 @@ link_file() {
   fi
 }
 
-# ── 1. Commands ───────────────────────────────────────────────────────────────
-echo "── Commands (.claude/commands/)"
-mkdir -p "$TARGET/.claude/commands"
+# ── 1. Skills ─────────────────────────────────────────────────────────────────
+echo "── Skills (.claude/skills/)"
+mkdir -p "$TARGET/.claude/skills"
 
 # Remove stale flat *.md symlinks from the old structure (pre-skill-directory migration)
 # Also sweep broken directory symlinks (e.g. dangling links from a repo rename)
+# Also migrate old .claude/commands/ real directory → .claude/skills/ (commands→skills rename)
 if $FORCE; then
-  for old_link in "$TARGET/.claude/commands/"*.md; do
-    [[ -L "$old_link" ]] && rm "$old_link" && echo "  removed stale flat link: $(basename "$old_link")"
-  done
-  # Remove broken directory symlinks (dead targets — dangling after a rename)
-  for dir_link in "$TARGET/.claude/commands"/*/; do
+  # Migrate: if .claude/commands is a real directory (not a symlink), move entries to skills/
+  if [[ -d "$TARGET/.claude/commands" && ! -L "$TARGET/.claude/commands" ]]; then
+    for entry in "$TARGET/.claude/commands"/*/; do
+      [[ -e "$entry" || -L "${entry%/}" ]] || continue
+      name="$(basename "${entry%/}")"
+      [[ ! -e "$TARGET/.claude/skills/$name" && ! -L "$TARGET/.claude/skills/$name" ]] && \
+        mv "${entry%/}" "$TARGET/.claude/skills/$name" && \
+        echo "  migrated: commands/$name → skills/$name"
+    done
+    # Remove stale flat *.md links
+    for old_link in "$TARGET/.claude/commands/"*.md; do
+      [[ -L "$old_link" ]] && rm "$old_link" && echo "  removed stale flat link: $(basename "$old_link")"
+    done
+    rmdir "$TARGET/.claude/commands" 2>/dev/null || rm -rf "$TARGET/.claude/commands"
+    echo "  removed: old .claude/commands/ directory"
+  fi
+  # Remove broken directory symlinks in skills/
+  for dir_link in "$TARGET/.claude/skills"/*/; do
     real="${dir_link%/}"
     if [[ -L "$real" && ! -e "$real" ]]; then
       rm "$real"
@@ -147,11 +163,25 @@ if $FORCE; then
 fi
 
 # Symlink each skill directory (the directory contains <name>.md + knowledge/ + scripts/)
-for src in "$CORE_DIR/.claude/commands"/*/; do
+for src in "$CORE_DIR/.claude/skills"/*/; do
   [[ -d "$src" ]] || continue
   name="$(basename "$src")"
-  link_file "$TARGET/.claude/commands/$name" "$src"
+  link_file "$TARGET/.claude/skills/$name" "$src"
 done
+
+# Backward-compat: .claude/commands → skills/ so Claude Code and any hardcoded refs still resolve
+COMMANDS_LINK="$TARGET/.claude/commands"
+if [[ -L "$COMMANDS_LINK" ]]; then
+  : # already a symlink — leave it (or update under --force)
+  if $FORCE; then
+    rm "$COMMANDS_LINK"
+    ln -s skills "$COMMANDS_LINK"
+    echo "  updated: .claude/commands → skills/"
+  fi
+elif [[ ! -e "$COMMANDS_LINK" ]]; then
+  ln -s skills "$COMMANDS_LINK"
+  echo "  linked: .claude/commands → skills/"
+fi
 echo ""
 
 # ── 2. Universal domain-knowledge files ──────────────────────────────────────

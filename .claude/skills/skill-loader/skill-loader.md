@@ -25,8 +25,8 @@ You are a skill orchestrator. Your job is to help an LLM agent or developer disc
 
 > **Load `knowledge/skill-catalog.json`** for the full skill inventory with names, triggers, and use-case tags.
 
-Glob `.claude/commands/` in the current repo to see what is already installed.
-Glob `.claude/commands/` in `core` (if available as a sibling) to see what is available but not yet installed.
+Glob `.claude/skills/` in the current repo to see what is already installed.
+Glob `.claude/skills/` in `core` (if available as a sibling) to see what is available but not yet installed.
 
 ### Phase 2: Understand the purpose
 
@@ -62,14 +62,14 @@ For skills currently installed that are NOT relevant:
 
 #### Install
 - /skill-name — [why relevant]
-  `ln -sf ../core/.claude/commands/skill-name .claude/commands/`
+  `ln -sf ../core/.claude/skills/skill-name .claude/skills/`
 
 #### Already installed (keep)
 - /skill-name
 
 #### Consider removing (not relevant to current purpose)
 - /skill-name — [why not needed]
-  `rm .claude/commands/skill-name`
+  `rm .claude/skills/skill-name`
 
 ### Full catalog
 [grouped by phase if no purpose was given]

@@ -86,7 +86,7 @@ These are hard rules. `/validate` blocks on them.
 
 ---
 
-## Skill files (`.claude/commands/<name>/`)
+## Skill files (`.claude/skills/<name>/`)
 
 - `<name>.md` is the orchestration skeleton — max 250 lines.
 - Heavy reference material goes in `knowledge/` and is loaded explicitly with `> **Load \`knowledge/<file>.md\`**`.
