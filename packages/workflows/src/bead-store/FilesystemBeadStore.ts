@@ -27,6 +27,8 @@ import type {
   FrameBead,
 } from '../types/bead.js';
 import { beadPrefix } from '../types/bead.js';
+import { eventBus, makeEvent } from '../event-bus.js';
+import type { FrameEvent } from '../types/event.js';
 
 export const DEFAULT_BEADS_ROOT = path.join(os.homedir(), '.beads');
 
@@ -70,11 +72,17 @@ export class FilesystemBeadStore implements BeadStore {
   async create(bead: FrameBead): Promise<void> {
     await fs.mkdir(this.beadDir(bead.id), { recursive: true });
     await fs.writeFile(this.beadPath(bead.id), JSON.stringify(bead, null, 2));
+    const created_evt = makeEvent('bead:created', bead.actor, `created ${bead.type} "${bead.title}"`, { bead_id: bead.id });
+    eventBus.emit(created_evt);
+    void this.appendEventLog(created_evt);
   }
 
   async update(id: string, patch: Partial<FrameBead>): Promise<void> {
     const existing = await this.get(id);
     if (!existing) throw new Error(`Bead not found: ${id}`);
+    if (existing.status === 'closed' && existing.labels['audit_locked'] === 'true') {
+      throw new Error(`Bead ${id} is audit-locked and cannot be mutated. Create a new bead to supersede it.`);
+    }
     const updated: FrameBead = {
       ...existing,
       ...patch,
@@ -82,13 +90,26 @@ export class FilesystemBeadStore implements BeadStore {
       updated_at: new Date().toISOString(),
     };
     await fs.writeFile(this.beadPath(id), JSON.stringify(updated, null, 2));
+    const updated_evt = makeEvent('bead:updated', updated.actor, `updated ${updated.type} "${updated.title}"`, { bead_id: id });
+    eventBus.emit(updated_evt);
+    void this.appendEventLog(updated_evt);
   }
 
   async close(id: string): Promise<void> {
+    const existing = await this.get(id);
+    if (!existing) throw new Error(`Bead not found: ${id}`);
     await this.update(id, {
       status: 'closed',
       closed_at: new Date().toISOString(),
+      labels: { ...existing.labels, audit_locked: 'true' },
     });
+    // close() calls update() which emits bead:updated; emit bead:closed too
+    const closed = await this.get(id);
+    if (closed) {
+      const closed_evt = makeEvent('bead:closed', closed.actor, `closed ${closed.type} "${closed.title}"`, { bead_id: id });
+      eventBus.emit(closed_evt);
+      void this.appendEventLog(closed_evt);
+    }
   }
 
   async query(filter: BeadFilter): Promise<FrameBead[]> {
@@ -148,6 +169,18 @@ export class FilesystemBeadStore implements BeadStore {
     watcher.on('change', (p) => handleFile(p, 'updated'));
 
     return () => { watcher.close(); };
+  }
+
+  private async appendEventLog(event: FrameEvent): Promise<void> {
+    try {
+      const eventsDir = path.join(this.root, 'events');
+      await fs.mkdir(eventsDir, { recursive: true });
+      const date = event.timestamp.slice(0, 10);
+      const logFile = path.join(eventsDir, `${date}.jsonl`);
+      await fs.appendFile(logFile, JSON.stringify(event) + '\n');
+    } catch {
+      // Never crash on persistence failure
+    }
   }
 
   private async _allPrefixDirs(): Promise<string[]> {
