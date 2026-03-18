@@ -83,6 +83,24 @@ case "$CMD" in
     start_subapp "blogengine"  "blogengine"  "@blogengine/browser-app"   3005
     start_subapp "tripplanner" "TripPlanner" "@tripplanner/browser-app"  3010 1
     start_subapp "lean-canvas" "lean-canvas" "@lean-canvas/browser-app"  3025
+    start_subapp "purefoy"    "purefoy"     "@purefoy/browser-app"       3020
+    # purefoy API — knowledge browser backend
+    if port_up 3021; then
+      printf "  ✓  %-14s  :3021  already running\n" "purefoy-api"
+    else
+      printf "  ▶  %-14s  :3021  starting...\n" "purefoy-api"
+      (cd "$REPOS/purefoy" && pnpm --filter "@purefoy/api" dev \
+        >> "$LOGDIR/purefoy-api.log" 2>&1 &)
+    fi
+    start_subapp "gastown-pilot" "gastown-pilot" "@ojfbot/gastown-pilot-browser-app" 3017
+    # gastown-pilot API
+    if port_up 3018; then
+      printf "  ✓  %-14s  :3018  already running\n" "gastown-api"
+    else
+      printf "  ▶  %-14s  :3018  starting...\n" "gastown-api"
+      (cd "$REPOS/gastown-pilot" && pnpm --filter "@ojfbot/gastown-pilot-api" dev \
+        >> "$LOGDIR/gastown-api.log" 2>&1 &)
+    fi
     # core-reader preview needs VITE_CORE_READER_API_URL baked into the build so
     # API calls resolve to :3016 instead of falling through to the shell at :4000.
     if port_up 3015; then
@@ -119,6 +137,10 @@ case "$CMD" in
     stop_port "tripplanner"  3010
     stop_port "lean-canvas"  3025
     stop_port "lean-canvas-api" 3026
+    stop_port "purefoy"      3020
+    stop_port "purefoy-api"  3021
+    stop_port "gastown-pilot" 3017
+    stop_port "gastown-api"  3018
     stop_port "core-reader"  3015
     stop_port "core-reader-api" 3016
     echo ""
@@ -134,6 +156,10 @@ case "$CMD" in
     status_port "tripplanner"  3010
     status_port "lean-canvas"  3025
     status_port "lean-canvas-api" 3026
+    status_port "purefoy"      3020
+    status_port "purefoy-api"  3021
+    status_port "gastown-pilot" 3017
+    status_port "gastown-api"  3018
     status_port "core-reader"  3015
     status_port "core-reader-api" 3016
     echo ""
