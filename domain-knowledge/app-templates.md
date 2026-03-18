@@ -61,13 +61,19 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
         ├── vite.config.ts        # cssInjectedByJs (before federation) + federation with singleton shared map
         ├── index.html
         └── src/
-            ├── main.tsx          # standalone entry: <App /> — full shell chrome for dev/QA
-            ├── App.tsx           # standalone wrapper: mock header + sidebar + <Dashboard />
+            ├── main.tsx          # standalone entry: imports @carbon/styles/css/styles.css
+            ├── App.tsx           # standalone wrapper: mock header + <Dashboard shellMode={false} />
+            ├── store/
+            │   ├── store.ts          # configureStore + typed hooks (useAppDispatch, useAppSelector)
+            │   ├── threadsSlice.ts   # threads list, activeThreadId, sidebarExpanded, activePanelTab
+            │   └── chatSlice.ts      # messages, draftInput, isLoading, streamingContent
             └── components/
-                ├── Dashboard.tsx      # MF export — shellMode prop + double-Provider (see below)
-                ├── DashboardContent.tsx # inner component, reads Redux; receives shellMode
-                ├── ThreadSidebar.tsx  # inert wrapper, CSS sidebar (not Carbon SideNav)
-                └── CondensedChat.tsx  # position:fixed, sidebar-aware right offset
+                ├── Dashboard.tsx      # MF export — shellMode prop + double-Provider (Redux + QueryClient)
+                ├── DashboardContent.tsx # inner: header + contained tabs + side panel toggle
+                ├── Dashboard.css      # shell-mode flex chain, sidebar margin, Carbon tab overrides
+                ├── <Name>SidePanel.tsx   # right-rail panel: Sessions tab + Chat tab (lean-canvas pattern)
+                └── <Name>SidePanel.css   # fixed 320px panel with slide transition + inert when collapsed
+                ├── panels/            # one component per dashboard tab
 ```
 
 > **Shell MF integration invariant (proven pattern — cv-builder PR #103, BlogEngine PR #22, TripPlanner PR #13):**
@@ -93,6 +99,60 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
 > Must be self-declared in the remote bundle because `@carbon/react`'s shared chunk is replaced by the
 > host singleton and may not include these rules. See `shell-mf-integration.md` for the exact rule set.
 
+### Dashboard UI pattern (proven in cv-builder, lean-canvas, gastown-pilot)
+
+Every Frame OS `langgraph-app` browser-app must ship with the following UI on day one.
+Omitting any of these causes a visually broken or inconsistent experience in the shell.
+
+**1. Dashboard header** — always visible (including in shellMode):
+```tsx
+<div className="<name>-dashboard-header">
+  <Heading className="page-header"><Display Name> Dashboard</Heading>
+  <div className="<name>-header-actions">
+    <Tooltip align="bottom-right" label={sidebarExpanded ? 'Close panel' : 'Sessions & Chat'}>
+      <button className="sidebar-toggle-btn" onClick={toggle} aria-label="Toggle sessions / chat panel">
+        {sidebarExpanded ? <Close size={20} /> : <Menu size={20} />}
+      </button>
+    </Tooltip>
+  </div>
+</div>
+```
+
+**2. Contained Carbon tabs** — `contained` prop on TabList is required for filled tab bar:
+```tsx
+<Tabs selectedIndex={idx} onChange={handler}>
+  <TabList aria-label="<Name> tabs" contained>
+    {tabs.map(tab => <Tab key={tab.slug}>{tab.label}</Tab>)}
+  </TabList>
+  <TabPanels>{tabs.map(tab => <TabPanel key={tab.slug}>{renderContent(tab)}</TabPanel>)}</TabPanels>
+</Tabs>
+```
+
+**3. Dashboard.css** — shell-mode flex chain (identical across all apps):
+```css
+.<name>-dashboard-wrapper { flex:1; min-height:0; margin:36px 72px; display:flex; flex-direction:column; transition:margin-right 0.3s ease; }
+.<name>-dashboard-wrapper.with-sidebar { margin-right: calc(320px + 2rem); }
+.<name>-dashboard-wrapper.shell-mode { margin-top: 4.5rem; }
+.<name>-dashboard-wrapper.shell-mode .cds--tabs { flex-shrink:0; flex-direction:column; }
+.<name>-dashboard-wrapper.shell-mode .cds--tabs--contained .cds--tab--list { display:flex; background-color:var(--cds-layer-accent-01,#393939); }
+.<name>-dashboard-wrapper.shell-mode .cds--tabs--contained .cds--tabs__nav-item { flex:1 0 auto; }
+.<name>-dashboard-wrapper.shell-mode .cds--tab-panels { flex:1; min-height:0; overflow:hidden; }
+.<name>-dashboard-wrapper.shell-mode .cds--tab-content { max-height:none; height:100%; overflow-y:auto; }
+```
+
+**4. Right-rail side panel** (Sessions + Chat, lean-canvas pattern — no condensed chat overlay):
+- Fixed 320px panel, `right:1rem`, slides via `translateX(calc(100% + 1rem))`
+- `inert` attribute when collapsed (removes from focus order)
+- Two tabs: Sessions (thread list, +add, rename, delete) + Chat (context bar, message tiles, TextArea input)
+- Dashboard wrapper adds `margin-right: calc(320px + 2rem)` via `.with-sidebar` class
+
+**5. Redux store** — `store/store.ts` with `threadsSlice` + `chatSlice`:
+- `threadsSlice`: threads array, activeThreadId, sidebarExpanded, activePanelTab ('sessions'|'chat')
+- `chatSlice`: messages array, draftInput, isLoading, streamingContent
+- `Dashboard.tsx` wraps in `<Provider store={store}>` + `<QueryClientProvider>`
+
+**6. Smoke test** — `packages/shared/src/__tests__/types.test.ts` must exist so `pnpm test` passes.
+
 ### Root `package.json`
 
 ```json
@@ -101,6 +161,7 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
   "private": true,
   "scripts": {
     "build": "pnpm -r build",
+    "dev:all": "concurrently -n api,app -c blue,green \"pnpm --filter @<org>/<name>-api dev\" \"pnpm --filter @<org>/<name>-browser-app dev\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -109,6 +170,7 @@ Full-stack web application. Covers the cv-builder, TripPlanner, and BlogEngine f
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "@types/node": "^22.0.0",
+    "concurrently": "^9.0.0",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }
@@ -124,6 +186,9 @@ packages:
 
 ### `tsconfig.base.json`
 
+> **CRITICAL FIX (gastown-pilot 2026-03-18):** `module: "NodeNext"` + `moduleResolution: "bundler"` is
+> an INVALID combination — tsc rejects it. Use `module: "ES2022"` with `moduleResolution: "bundler"`.
+
 ```json
 {
   "compilerOptions": {
@@ -131,11 +196,30 @@ packages:
     "esModuleInterop": true,
     "moduleResolution": "bundler",
     "target": "ES2022",
-    "module": "NodeNext",
+    "module": "ES2022",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "jsx": "react-jsx"
   }
+}
+```
+
+### `packages/api/tsconfig.json` override
+
+> The api package is a standalone server, not a library consumed by other packages.
+> `declaration: true` inherited from base causes TS2742 errors with Express router types.
+
+```json
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": ["src"]
 }
 ```
 
@@ -189,17 +273,32 @@ export default defineConfig({
 
 ### `packages/browser-app` key dependencies
 
+> **CRITICAL (gastown-pilot 2026-03-18):** `@carbon/styles` and `sass` must be explicit deps.
+> `@carbon/styles/css/styles.css` is imported in `main.tsx` — without the explicit dep, pnpm strict
+> hoisting fails to resolve it and vite build errors with "failed to resolve import".
+
 ```json
 {
   "dependencies": {
     "@<org>/<name>-shared": "workspace:*",
     "@carbon/react": "^1.71.0",
+    "@carbon/icons-react": "^11.0.0",
+    "@carbon/styles": "^1.71.0",
+    "@tanstack/react-query": "^5.0.0",
+    "@reduxjs/toolkit": "^2.0.0",
+    "react-redux": "^9.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.0",
-    "vite": "^5.4.0"
+    "@originjs/vite-plugin-federation": "^1.3.0",
+    "vite": "^5.4.0",
+    "vite-plugin-css-injected-by-js": "^3.5.0",
+    "sass": "^1.98.0",
+    "typescript": "^5.7.0"
   }
 }
 ```
