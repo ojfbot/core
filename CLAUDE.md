@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
 
-## Commands
+## Skills
+
+> **Note:** `.claude/commands/` has been renamed to `.claude/skills/` across all repos (see ADR-0021–0026). References below use the current `skills` convention.
 
 ```bash
 # Install commands + domain-knowledge into any sibling ojfbot repo
@@ -71,6 +73,7 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | Command | Purpose |
 |---------|---------|
 | `/scaffold-app` | Scaffold a brand-new application from a canonical template — creates files on disk |
+| `/scaffold-frame-app` | Scaffold a new Frame sub-app (Module Federation remote) with 28-item validation checklist covering shell registration, Vercel deployment, MF config, and Carbon tokens |
 
 Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLite), `browser-extension` (Vite + 5-package extension), `python-scraper` (Pydantic + httpx + SQLite FTS5 + MCP). The template specs live in `domain-knowledge/app-templates.md`.
 
