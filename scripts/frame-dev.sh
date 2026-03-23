@@ -101,6 +101,15 @@ case "$CMD" in
       (cd "$REPOS/gastown-pilot" && pnpm --filter "@ojfbot/gastown-pilot-api" dev \
         >> "$LOGDIR/gastown-api.log" 2>&1 &)
     fi
+    start_subapp "seh-study" "seh-study" "@ojfbot/seh-study-browser-app" 3030
+    # seh-study API
+    if port_up 3031; then
+      printf "  ✓  %-14s  :3031  already running\n" "seh-study-api"
+    else
+      printf "  ▶  %-14s  :3031  starting...\n" "seh-study-api"
+      (cd "$REPOS/seh-study" && pnpm --filter "@ojfbot/seh-study-api" dev \
+        >> "$LOGDIR/seh-study-api.log" 2>&1 &)
+    fi
     # core-reader preview needs VITE_CORE_READER_API_URL baked into the build so
     # API calls resolve to :3016 instead of falling through to the shell at :4000.
     if port_up 3015; then
@@ -141,6 +150,8 @@ case "$CMD" in
     stop_port "purefoy-api"  3021
     stop_port "gastown-pilot" 3017
     stop_port "gastown-api"  3018
+    stop_port "seh-study"    3030
+    stop_port "seh-study-api" 3031
     stop_port "core-reader"  3015
     stop_port "core-reader-api" 3016
     echo ""
@@ -160,6 +171,8 @@ case "$CMD" in
     status_port "purefoy-api"  3021
     status_port "gastown-pilot" 3017
     status_port "gastown-api"  3018
+    status_port "seh-study"    3030
+    status_port "seh-study-api" 3031
     status_port "core-reader"  3015
     status_port "core-reader-api" 3016
     echo ""
