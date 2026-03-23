@@ -29,7 +29,8 @@ frame.jim.software (shell — port 4000)
   ├── blogengine remote   (blog.jim.software       — ports 3005/3006)
   ├── tripplanner remote  (trips.jim.software      — ports 3010/3011)
   ├── purefoy remote      (purefoy.jim.software)
-  └── core-reader remote  (core-reader.jim.software — ports 3015/3016)
+  ├── core-reader remote  (core-reader.jim.software — ports 3015/3016)
+  └── seh-study remote    (seh-study.jim.software  — ports 3030/3031)
 
 frame-agent (port 4001)
   Single LLM gateway for the entire cluster
@@ -83,6 +84,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
 | gastown-pilot | React/Vite, Express, LangGraph, Carbon DS, React Query | 3017/3018 | Scaffolded 2026-03-18 — MF remote, 6-tab Gas Town dashboard, 12 panel stubs, 3 data adapters (ADR-0027/0028) | All data sources stubbed; shell registration pending; gt CLI + Dolt not wired |
+| seh-study | React/Vite, Express, Carbon DS, Leitner SR | 3030/3031 | Scaffolded 2026-03-22 — MF remote, 3-tab dashboard (Study/Browse/Progress), 238 NASA SEH glossary terms, Leitner 5-box spaced repetition | Shell registration complete; content + SR engine pending |
 | purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
 
 ---
