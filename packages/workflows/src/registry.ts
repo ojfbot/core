@@ -4,7 +4,7 @@ import { summarizeWorkflow } from "./workflows/summarize.js";
 import { workbenchWorkflow } from "./workflows/workbench.js";
 import { fileBackedWorkflow } from "./fileBackedWorkflow.js";
 
-// File-backed workflows: prompt lives in .claude/commands/<name>/<name>.md
+// File-backed workflows: prompt lives in .claude/skills/<name>/<name>.md
 // Each skill is a directory: <name>.md + knowledge/ (JIT reference) + scripts/ (deterministic utils)
 // Single source of truth — updating the .md updates both Claude Code and the CLI.
 const fileBacked: WorkflowRegistry = {
