@@ -86,6 +86,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | gastown-pilot | React/Vite, Express, LangGraph, Carbon DS, React Query | 3017/3018 | Scaffolded 2026-03-18 — MF remote, 6-tab Gas Town dashboard, 12 panel stubs, 3 data adapters (ADR-0027/0028) | All data sources stubbed; shell registration pending; gt CLI + Dolt not wired |
 | seh-study | React/Vite, Express, Carbon DS, Leitner SR | 3030/3031 | Scaffolded 2026-03-22 — MF remote, 3-tab dashboard (Study/Browse/Progress), 238 NASA SEH glossary terms, Leitner 5-box spaced repetition | Shell registration complete; content + SR engine pending |
 | purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
+| frame-ui-components | Shared React component library (Carbon DS) | — | All 9 sub-apps consuming | Storybook stories for 4 of 7 components missing (ADR-0030) |
 
 ---
 
@@ -145,6 +146,8 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 **K8s namespace:** `frame`. Ingress routes `frame.jim.software` (not `app.jim.software` — that subdomain was changed). frame-agent endpoint: `frame.jim.software/frame-api`. NOTE: K8s is Layer 2 (future) — see ADR-0014. Current live deployment is Vercel (Layer 1 CDN).
 
 **Package manager:** pnpm everywhere. Node pinned at v24.11.1 via `.nvmrc`. Use `fnm use` to switch.
+
+**Shared UI component library (ADR-0030):** `@ojfbot/frame-ui-components` is the single source of truth for 7 shared components used by all 9 sub-apps: DashboardLayout, ChatShell, ChatMessage, ThreadSidebar, MarkdownMessage, BadgeButton, ErrorBoundary. Consumed as a source-dependency (`file:../../../frame-ui-components`). Components are pure/prop-driven — no Redux. Each app creates `*Connected.tsx` wrappers that wire Redux state to props (extends ADR-0029 pattern). Styles imported per-component: `import '@ojfbot/frame-ui-components/styles/chat-shell'`. Also exports action type system (`BadgeAction`, `Action` union, factory functions like `createSimpleBadge`, `getChatMessage`). Canonical export list: `frame-ui-components/src/index.ts`.
 
 ---
 
@@ -280,3 +283,4 @@ Branch protection: All 4 repos (shell, cv-builder, blogengine, TripPlanner) have
 | Deployment topology | `core/decisions/adr/0013-safe-demo-deployment.md` + `0014-layered-deployment-architecture.md` |
 | /techdebt command | `core/.claude/skills/techdebt.md` |
 | MrPlug AI call (to migrate) | `MrPlug/src/content/index.tsx` + `MrPlug/src/background/index.ts` |
+| Shared UI components | `frame-ui-components/src/index.ts` + `core/decisions/adr/0030-shared-frame-ui-components-library.md` |
