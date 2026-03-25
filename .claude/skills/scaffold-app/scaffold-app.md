@@ -72,10 +72,11 @@ git commit -m "chore: initial scaffold"
 After the project skeleton is created, the new repo must be registered in fleet-wide systems. Output each registration as a concrete action with the exact file and line to edit:
 
 1. **daily-logger sweep** — Add the repo name to the `REPOS` array in `daily-logger/src/collect-context.ts` with a comment describing the app's role. Without this, the daily article generator will not pick up any commits, PRs, or issues from the new repo.
-2. **Shell production remote** (Frame OS sub-apps only) — Add `VITE_REMOTE_<NAME>=https://<slug>.jim.software` to `shell/.env.production` so the Module Federation host resolves the remote in production rather than falling back to localhost.
-3. **Security scan workflow** — Copy the fleet-standard TruffleHog security scan workflow into `.github/workflows/security-scan.yml`. Use any existing fleet repo as the canonical source.
-4. **`frame-ui-components` CI clone** (if the app consumes shared components) — Add the `git clone https://github.com/ojfbot/frame-ui-components` step before `pnpm install` in CI so the `file:../frame-ui-components` dep resolves.
-5. **`@carbon/styles` peer dep** (if the app uses `frame-ui-components`) — Add `@carbon/styles` as an explicit dependency in the app's `package.json` (peer dep gap in `frame-ui-components` until patched upstream).
+2. **daily-logger SYSTEM_PROMPT** — Add a bullet describing the new repo to the "Additional repos" list in the `SYSTEM_PROMPT` constant in `daily-logger/src/generate-article.ts`. Without this, the article generator sweeps the repo's commits but Claude has no context about what the app is — it will either ignore the activity or mischaracterise it. Include the app's purpose and its relationship to Frame.
+3. **Shell production remote** (Frame OS sub-apps only) — Add `VITE_REMOTE_<NAME>=https://<slug>.jim.software` to `shell/.env.production` so the Module Federation host resolves the remote in production rather than falling back to localhost.
+4. **Security scan workflow** — Copy the fleet-standard TruffleHog security scan workflow into `.github/workflows/security-scan.yml`. Use any existing fleet repo as the canonical source.
+5. **`frame-ui-components` CI clone** (if the app consumes shared components) — Add the `git clone https://github.com/ojfbot/frame-ui-components` step before `pnpm install` in CI so the `file:../frame-ui-components` dep resolves.
+6. **`@carbon/styles` peer dep** (if the app uses `frame-ui-components`) — Add `@carbon/styles` as an explicit dependency in the app's `package.json` (peer dep gap in `frame-ui-components` until patched upstream).
 
 > **Why this step exists:** `seh-study` shipped 15 commits in one day and the daily-logger missed all of them because the repo was never added to the sweep. This checklist prevents that class of omission for every future app.
 
