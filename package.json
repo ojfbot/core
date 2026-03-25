@@ -1,6 +1,7 @@
 {
   "name": "core-workflow-framework",
   "private": true,
+  "packageManager": "pnpm@9.15.4",
   "version": "0.1.0",
   "description": "Unified slash-command workflow framework for CLI and VS Code",
   "scripts": {
