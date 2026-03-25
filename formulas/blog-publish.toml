@@ -1,0 +1,63 @@
+formula = "blog-publish"
+type = "workflow"
+version = 1
+description = "End-to-end blog post publishing: research → outline → draft → edit → publish"
+
+[vars.topic]
+description = "Blog post topic or title"
+required = true
+
+[vars.target_audience]
+description = "Intended audience for the post"
+required = false
+default = "developers"
+
+[[steps]]
+id = "research"
+title = "Research {{topic}}"
+needs = []
+acceptance_criteria = [
+  "3+ credible sources identified",
+  "Key facts and quotes captured",
+  "Competitor coverage surveyed",
+]
+
+[[steps]]
+id = "outline"
+title = "Write outline for {{topic}}"
+needs = ["research"]
+acceptance_criteria = [
+  "H1 + H2 structure defined",
+  "Each section has a one-sentence summary",
+  "Estimated word count per section",
+]
+
+[[steps]]
+id = "draft"
+title = "Write full draft"
+needs = ["outline"]
+acceptance_criteria = [
+  "All sections filled in",
+  "No placeholder text remaining",
+  "Word count within 20% of target",
+]
+
+[[steps]]
+id = "edit"
+title = "Edit and proofread"
+needs = ["draft"]
+acceptance_criteria = [
+  "Spelling and grammar checked",
+  "Tone consistent throughout",
+  "All facts verified against research sources",
+]
+
+[[steps]]
+id = "publish"
+title = "Publish to BlogEngine"
+needs = ["edit"]
+acceptance_criteria = [
+  "Post created via POST /api/posts",
+  "Slug and metadata set",
+  "Published status confirmed",
+]

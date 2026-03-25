@@ -1,0 +1,49 @@
+formula = "maintenance-patrol"
+type = "patrol"
+version = 1
+description = """
+Automated bead maintenance wisp. Runs on a schedule against the local BeadStore.
+Archive stale closed beads, clear orphaned hooks, rebuild prefix indexes.
+This formula is a wisp — ephemeral, not persisted to git. The core-reader
+witness agent pours it on schedule (configurable via MAINTENANCE_SCHEDULE_HOURS).
+"""
+
+[vars.threshold_days]
+description = "Days a bead must be in closed state before archiving"
+required = false
+default = "30"
+
+[vars.dry_run]
+description = "If 'true', log actions without writing to BeadStore"
+required = false
+default = "false"
+
+[[steps]]
+id = "archive-stale"
+title = "Archive beads closed for more than {{threshold_days}} days"
+needs = []
+acceptance_criteria = [
+  "All beads in 'closed' state for >threshold_days have status set to 'archived'",
+  "closed_at timestamp preserved on archived beads",
+  "Count of archived beads logged",
+]
+
+[[steps]]
+id = "orphan-check"
+title = "Clear orphaned hook pointers"
+needs = []
+acceptance_criteria = [
+  "All AgentBeads with labels.hook pointing to missing or archived beads are cleared",
+  "labels.hook removed from affected AgentBeads",
+  "Count of orphaned hooks cleared logged",
+]
+
+[[steps]]
+id = "index-rebuild"
+title = "Rebuild prefix directory indexes"
+needs = ["archive-stale", "orphan-check"]
+acceptance_criteria = [
+  "All prefix directories under ~/.beads/ verified readable",
+  "Corrupted or unreadable JSON files logged (not deleted)",
+  "Total bead count by prefix reported",
+]
