@@ -47,8 +47,11 @@ Include a body when:
 - The *why* is not obvious from the summary
 - There are multiple related changes bundled in one commit
 - The change has non-obvious side effects
+- **The commit is part of a larger feature or initiative** — name what it contributes to
 
 Keep body lines ≤72 characters. Separate summary from body with a blank line.
+
+When a sequence of commits builds toward a single feature, each body should reference that feature by name. This creates a traceable narrative thread that helps both human reviewers and automated consumers (like daily-logger) understand which commits form a coherent story.
 
 ## Examples
 
@@ -72,6 +75,39 @@ Update stuff
 WIP
 Fix bug
 cleanup
+```
+
+## Downstream narrative signal
+
+Commit messages in ojfbot repos are consumed by `daily-logger`, which generates daily development blog articles from the last 24h of commits. Good commit messages help daily-logger identify the day's headline stories rather than producing dry changelogs.
+
+**What helps daily-logger:**
+- Body text that names the feature or initiative the commit belongs to
+- Consistent scope across related commits (e.g., all commits for a dashboard feature use scope `dashboard`)
+- Commit type sequences that tell a story: `feat(dashboard): add accordion` → `feat(dashboard): add popover` → `fix(dashboard): capture hover target` → `docs(dashboard): ADR-0036`
+
+**What doesn't help:**
+- Generic bodies like "cleanup" or "various fixes"
+- Missing bodies on feat commits that are part of a multi-commit feature
+- Inconsistent scopes across commits that belong to the same feature
+
+**Example: multi-commit feature with narrative signal**
+```
+feat(dashboard): add collapsible accordion for decisions page
+
+Part of the daily-logger interactive dashboard initiative. Decisions
+were previously a flat list; this adds expand/collapse behavior
+grouped by pillar, enabling structured decision data from ADR-0036
+to drive a richer browsing experience.
+```
+
+```
+fix(dashboard): capture hover target before setTimeout in popover
+
+Part of the daily-logger interactive dashboard initiative. The
+popover close handler lost its reference to the hovered DOM target
+when the event fired after the setTimeout callback registered,
+causing immediate dismissal on hover.
 ```
 
 ## Branch-specific behavior
