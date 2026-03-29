@@ -61,7 +61,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 docs/                 Human-readable documentation
-  adr/                Architecture Decision Records (incl. ADR-0016 FrameBead, ADR-0017 singleton enforcement, ADR-0018 cv-builder slug split, ADR-0019 fan-out isolation, ADR-0021–0030)
+  adr/                Architecture Decision Records (incl. ADR-0016 FrameBead, ADR-0017 singleton enforcement, ADR-0018 cv-builder slug split, ADR-0019 fan-out isolation, ADR-0021–0034)
   okr/                Objectives and Key Results (technical track)
 personal-knowledge/   Career context (not tracked publicly)
 ```
