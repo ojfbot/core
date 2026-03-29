@@ -2,7 +2,12 @@
 
 **Repo:** `../daily-logger` (sibling of core, at `/Users/yuri/ojfbot/daily-logger`)
 **Purpose:** Automated daily development blog for the Frame OS project. 4-phase pipeline → expert council review → GitHub Pages publish.
-**Stack:** TypeScript, tsx, Anthropic SDK (`@anthropic-ai/sdk`), `gh` CLI, Jekyll (GitHub Pages)
+**Stack:** TypeScript, tsx, Anthropic SDK (`@anthropic-ai/sdk`), `gh` CLI, esbuild (frontend), Jekyll (GitHub Pages)
+
+### Active ADRs
+
+- **ADR-0031** (`daily-logger/decisions/adr/0031-universal-code-reference-popovers.md`) — Extend the commit popover prototype to all 9 inline code reference types (commits, components, files, packages, commands, config keys, env vars, endpoints, directories). Adds `CodeReferenceSchema` to the article schema, a backfill script for existing articles, and a unified popover component.
+- **ADR-0032** (`core/decisions/adr/0032-daily-logger-react-vercel-migration.md`) — Migrate the frontend from Jekyll + vanilla TypeScript to Vite + React + Vercel, following the fleet's Module Federation remote pattern. GitHub Pages remains as a static fallback. Phased: A) React SPA on Vercel, B) Module Federation remote for Shell, C) Jekyll fallback with banner.
 
 ---
 
@@ -150,6 +155,26 @@ role: Principal Cloud Architect, Enterprise IT (25yr career — oil & gas, chemi
 `pnpm report` → `src/report.ts` → `src/generate-report.ts`
 Generates addressed memos per persona (separate from the daily article).
 Writes `_reports/{date}-{persona-slug}.md`. Not synthesized — direct memo per persona.
+
+---
+
+## Frontend (interactive dashboard)
+
+`src/frontend/` — vanilla TypeScript bundled by esbuild → `assets/js/app.js` (21KB).
+
+| Module | Purpose |
+|--------|---------|
+| `app.ts` | Entry point — hydrates Jekyll HTML with client-side data |
+| `data.ts` | Fetches `api/*.json` with typed generic `fetchJSON<T>()` |
+| `filter.ts` | Tag/type filter state (`Map<string, Set<string>>`) + URL hash sync |
+| `render.ts` | DOM rendering: metrics bar, filter bar, entry list, sidebar |
+| `search.ts` | Client-side full-text search across articles |
+| `theme.ts` | Dark/light theme toggle with localStorage persistence |
+| `popover.ts` | Commit hash hover popovers (GitHub API + sessionStorage cache) |
+| `types.ts` | Frontend interfaces re-exporting backend Zod types |
+
+**Build:** `pnpm build:frontend` → `tsx src/build-frontend.ts` → esbuild bundle.
+**Type check:** `pnpm type-check` checks both `tsconfig.json` (backend) and `tsconfig.frontend.json` (browser).
 
 ---
 
