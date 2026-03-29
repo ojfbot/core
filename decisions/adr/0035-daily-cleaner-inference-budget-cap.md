@@ -3,8 +3,8 @@
 Date: 2026-03-29
 Status: Proposed
 OKR: 2026-Q1 / O2 / KR5 (operational cost governance)
-Commands affected: /sweep, /techdebt
-Repos affected: daily-logger, GroupThink, all fleet repos processed by the cleaner pipeline
+Commands affected: N/A (GitHub Actions workflow: daily-cleaner.yml)
+Repos affected: daily-logger (cleaner processes fleet repos at runtime, but code changes are only in daily-logger)
 Linked: ADR-0033 (confidence threshold policy)
 
 ---
