@@ -80,7 +80,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ✅ — PR #27 open (Phase 1) |
 | lean-canvas | React/Vite, Express, LangGraph, Carbon DS | 3025/3026 | Scaffolded 2026-03-17 — MF remote, 9-section AI canvas, frame-agent routing | shell registration in progress |
 | core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
-| daily-logger | Node/Jekyll → GitHub Pages | — | Running daily, articles publishing | Phase 9 POST pipeline to BlogEngine not yet built |
+| daily-logger | Node/React+Vite+Vercel, Jekyll fallback | — | Running daily at log.jim.software; v2 JSON API + React SPA live | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
 | gastown-pilot | React/Vite, Express, LangGraph, Carbon DS, React Query | 3017/3018 | Scaffolded 2026-03-18 — MF remote, 6-tab Gas Town dashboard, 12 panel stubs, 3 data adapters (ADR-0027/0028) | All data sources stubbed; shell registration pending; gt CLI + Dolt not wired |
