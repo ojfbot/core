@@ -72,6 +72,64 @@ Check `conclusion == "success"` on the most recent relevant run.
 
 ---
 
+## Structured API verification (when `read-api-context.js` data available)
+
+### `decisions[]` verification
+For each `DecisionEntry` in `latestEntry.decisions[]`:
+```bash
+git -C $HOME/ojfbot/<decision.repo> log --oneline -10 | grep -i "<keywords from decision.title>"
+```
+Check: the referenced repo has recent commits plausibly related to the decision.
+If `decision.repo` does not match any known repo directory, flag as inconsistent.
+
+### `actions[]` verification
+For each action in `latestEntry.actions[]`:
+```bash
+ls .claude/skills/<command-without-slash>/<command-without-slash>.md
+```
+Check: the `command` field maps to a valid skill. If the skill doesn't exist,
+flag the action — it may reference a deprecated or misnamed command.
+
+Also verify the target `repo` directory exists:
+```bash
+ls -d $HOME/ojfbot/<action.repo>
+```
+
+### `codeReferences[]` verification (from `api/articles/<date>.json`)
+When per-article JSON is available, verify a sample of code references:
+
+**Commits:**
+```bash
+git -C $HOME/ojfbot/<ref.repo> cat-file -t <ref.text> 2>/dev/null
+```
+Check: returns `commit`. If it fails, the SHA may be truncated or from
+a force-pushed branch.
+
+**Files:**
+```bash
+ls $HOME/ojfbot/<ref.repo>/<ref.path>
+```
+
+**Components (PascalCase):**
+```bash
+grep -r "<ref.text>" $HOME/ojfbot/<ref.repo>/packages/ --include="*.tsx" -l | head -3
+```
+
+### API staleness check
+```bash
+node -e "const e=require('$HOME/ojfbot/daily-logger/api/entries.json'); console.log(e[0].date)"
+```
+Compare against latest `_articles/*.md` filename. If the API date is older,
+`build-api` has not been run since the last article was written — API data
+is stale and markdown fallback should be preferred.
+
+### Article status check
+If `latestEntry.status === "draft"`, all claims must carry a `[DRAFT]` caveat.
+Draft articles are AI-generated and have not been human-reviewed — accuracy
+is lower confidence. If `status === "rejected"`, skip to the previous entry.
+
+---
+
 ## Common failure modes
 
 | Failure mode | How it appears in the post | How to detect |
@@ -86,6 +144,10 @@ Check `conclusion == "success"` on the most recent relevant run.
 | File claimed extracted but absent | "Header.tsx extracted to packages/ui/" but file doesn't exist | `ls packages/ui/src/components/Header.tsx` |
 | Story claimed missing but exists | "stories outstanding" when .stories.tsx already present | `ls packages/ui/src/components/*.stories.tsx` |
 | Fix claimed landed but still WIP | "hasCrossDomainSignal fix shipped" but repo on feature branch with uncommitted changes | Check sync-repos status + `git log origin/main \| grep <hash>` |
+| API data stale | `entries[0].date` is older than latest `_articles/*.md` | Compare API date vs filesystem; prefer markdown if stale |
+| Draft article treated as ground truth | `status === "draft"` but claims stated without qualification | Always add `[DRAFT]` caveat; do not treat as verified |
+| Action references invalid skill | `command: "/foo"` but no `.claude/skills/foo/` exists | Check skill directory exists before including in day plan |
+| Decision attributed to wrong repo | `decision.repo` doesn't match commit history | Cross-reference `git log` in stated repo |
 
 ---
 
