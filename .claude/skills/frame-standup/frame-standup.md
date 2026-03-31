@@ -33,8 +33,8 @@ area (e.g. "focus:shell" to prioritize shell work in the output)
 2. **Options first, prompts on demand** — present action choices as
    interactive buttons; only expand to a full prompt when the user selects
    an option. Generating all prompts upfront is waste.
-3. **Priority is derived from the 26-day plan** — read `tbcony-job-target.md`
-   to rank actions against the deadline. Urgency is not guesswork.
+3. **Priority is derived from active deadlines** — check `personal-knowledge/`
+   for job targets and milestones to rank actions. Urgency is not guesswork.
 4. **One claim per finding** — audit findings are concrete: "daily-logger
    says X; actual state is Y." Not vague summaries.
 5. **Scripts don't consume context** — git sync and post discovery are scripts,
