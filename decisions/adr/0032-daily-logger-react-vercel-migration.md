@@ -1,7 +1,7 @@
 # ADR-0032: Daily-Logger React + Vercel Migration
 
 Date: 2026-03-28
-Status: Proposed
+Status: Accepted
 OKR: 2026-Q1 / O1 / KR1 (fleet alignment)
 Commands affected: /scaffold-frame-app, /sweep, /validate
 Repos affected: daily-logger, shell, core, landing
