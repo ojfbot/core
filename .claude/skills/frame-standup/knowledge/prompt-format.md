@@ -14,7 +14,9 @@ receiving it has no access to the current session.
 **Tags:** `[repo:<repo-name>]` `[phase:<phase-number>]` `[type:<work-type>]` `[priority:P0|P1|P2]`
 **Command:** `/<framework-command>`
 **Context:** <URL to daily-logger post that surfaced this action>
-**Deadline pressure:** <days remaining to March 25> days to application target
+**Activity context:** <activityType> day · <N> open actions · <N> recently closed
+**Active tags:** <top 3 typed tags from latest daily-logger entry>
+**Deadline pressure:** <days remaining to active deadline, if any>
 
 **Working directory:** `~/ojfbot/<repo-name>`
 
@@ -62,23 +64,30 @@ Roadmap phase number from `frame-os-context.md`:
 | `techdebt` | `/techdebt` scan or apply |
 | `ci` | GitHub Actions, test pipeline, visual regression |
 | `docs` | README, domain-knowledge, handoff |
+| `cleanup` | Stale TODOs, unused imports, dead code removal |
+| `portfolio` | Landing page, job applications, personal branding |
+| `landing` | Landing page (jim.software) features |
 
 ### `[priority:]`
 | Value | Meaning |
 |-------|---------|
-| `P0` | Blocks hero demo OR blocks the application deadline |
-| `P1` | Scheduled this week in the 26-day plan, currently unblocked |
-| `P2` | Useful, can slip 1–2 days without jeopardising the plan |
+| `P0` | Blocks an active deadline or demo |
+| `P1` | Scheduled this week, currently unblocked |
+| `P2` | Useful, can slip 1–2 days |
 
 ---
 
 ## Context URL conventions
 
-Daily-logger post URLs follow Jekyll format:
-`https://log.jim.software/<year>/<month>/<day>/<slug>`
+Daily-logger post URLs follow the React SPA format (Vercel):
+`https://log.jim.software/articles/<YYYY-MM-DD>`
 
 The `find-latest-post.js` script derives the URL automatically. Always include
 it so the spawned agent can read the full context that motivated the action.
+
+When structured API data is available (from `read-api-context.js`), also
+include key context fields in the prompt body rather than relying solely on
+the URL — the spawned agent may not have web access.
 
 For actions motivated by an ADR rather than the daily-logger, use:
 `file://$HOME/ojfbot/core/decisions/adr/<filename>.md`
