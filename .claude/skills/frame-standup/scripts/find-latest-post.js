@@ -28,16 +28,8 @@ function run(cmd, opts = {}) {
   return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], ...opts }).trim();
 }
 
-function deriveUrl(date, title) {
-  const [year, month, day] = date.split('-');
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 60);
-  return `${BASE_URL}/${year}/${month}/${day}/${slug}`;
+function deriveUrl(date) {
+  return `${BASE_URL}/articles/${date}`;
 }
 
 function extractTitle(content, fallback) {
@@ -95,7 +87,7 @@ try {
   }
 
   const title = extractTitle(content, latestDate);
-  const url = deriveUrl(latestDate, title);
+  const url = deriveUrl(latestDate);
 
   const result = { date: latestDate, filePath, title, url, onOriginMain };
 
