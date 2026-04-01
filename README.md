@@ -13,7 +13,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 - **Cross-repo installation** — `install-agents.sh` symlinks skills + domain knowledge into sibling repos
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
 - **Architecture Decision Records** — 36+ ADRs documenting every significant decision across the ecosystem
-
+- **Architecture Decision Records** — 38+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
 | Layer | Technology |
@@ -81,7 +81,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0036)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0038)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
