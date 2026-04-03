@@ -4,6 +4,17 @@
 
 Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application OS built as both a live product and an engineering portfolio. This repo is the shared development infrastructure that powers all Frame OS projects.
 
+### Why this exists
+
+Every repo in the Frame OS ecosystem needs the same development workflows — planning, scaffolding, validating, deploying, investigating. Instead of duplicating scripts or publishing packages, this is a portable framework that installs into any sibling repo via symlink. One `install-agents.sh` call gives any project the full lifecycle toolkit with zero build step and instant propagation.
+
+### Design decisions
+
+- **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
+- **Symlink installation over package publishing** — zero build step, instant propagation across 13 repos
+- **34 ADRs** — every significant decision documented with context, alternatives considered, and rationale
+- **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
+
 ## Features
 
 - **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, and more
