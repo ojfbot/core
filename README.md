@@ -12,7 +12,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across 13 repos
-- **34 ADRs** — every significant decision documented with context, alternatives considered, and rationale
+- **38+ ADRs** — every significant decision documented with context, alternatives considered, and rationale
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
@@ -23,7 +23,6 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 - **VS Code extension** — run any slash command from the editor
 - **Cross-repo installation** — `install-agents.sh` symlinks skills + domain knowledge into sibling repos
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
-- **Architecture Decision Records** — 36+ ADRs documenting every significant decision across the ecosystem
 - **Architecture Decision Records** — 38+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
@@ -43,7 +42,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 |---|---|
 | Understand what this project is and how it's structured | [docs/architecture.md](docs/architecture.md) |
 | See why decisions were made the way they were | [decisions/adr/](decisions/adr/) |
-| Understand current priorities | [decisions/okr/2026-q1.md](decisions/okr/2026-q1.md) |
+| Understand current priorities | [decisions/okr/2026-q2.md](decisions/okr/2026-q2.md) |
 | Set up and start using commands | [docs/getting-started.md](docs/getting-started.md) |
 | Find the right command for a task | [docs/commands.md](docs/commands.md) |
 
@@ -92,7 +91,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0038)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0038+)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
@@ -143,7 +142,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [lean-canvas](https://github.com/ojfbot/lean-canvas) | AI-powered lean canvas business model tool |
 | [gastown-pilot](https://github.com/ojfbot/gastown-pilot) | Multi-agent coordination dashboard |
 | [seh-study](https://github.com/ojfbot/seh-study) | NASA SEH spaced repetition study tool |
-| [daily-logger](https://github.com/ojfbot/daily-logger) | Automated daily dev blog pipeline |
+| [daily-logger](https://github.com/ojfbot/daily-logger) | Automated daily dev blog pipeline (Vercel serverless) |
 | [purefoy](https://github.com/ojfbot/purefoy) | Roger Deakins cinematography knowledge base |
 | [MrPlug](https://github.com/ojfbot/MrPlug) | Chrome extension for AI UI feedback |
 | [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) |
