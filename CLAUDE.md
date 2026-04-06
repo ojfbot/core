@@ -173,6 +173,47 @@ Three Claude Code hooks power skill observability across the Frame OS cluster (s
 
 **Install:** `install-agents.sh` deploys hooks to sibling repos (section 6) and merges hook config into `.claude/settings.json`. The suggest-skill hook is installed at user level (`~/.claude/settings.json`) once.
 
+## Claude Code configuration
+
+This repo uses Claude Code's full feature surface beyond skills:
+
+### Reusable prompts (`.claude/prompts/`)
+
+Lightweight, composable prompts for recurring patterns that don't need a full skill directory. Invoked inline via prompt picker, complementing the 34 skills.
+
+| Prompt | Purpose |
+|--------|---------|
+| `code-review.md` | TS quality checklist — types, errors, tests, security |
+| `commit-message.md` | Conventional commit format with scope |
+| `adr-review.md` | ADR completeness check (context, decision, consequences) |
+| `type-safety-audit.md` | Audit for `any`, loose records, missing unions |
+| `security-scan.md` | OWASP top-10 scan for files/diffs |
+| `explain-for-pr.md` | Generate PR description from branch changes |
+
+### MCP servers (`.claude/.mcp.json`)
+
+Project-level MCP servers available to all sessions in this repo:
+
+| Server | Purpose |
+|--------|---------|
+| `notion` | Read/write Notion docs — project documentation, roadmap sync |
+| `github` | Typed PR/issue/repo access — richer than `gh` CLI for audit workflows |
+
+### Hooks (`.claude/settings.json`)
+
+| Hook | Event | Behavior |
+|------|-------|----------|
+| Auto-format | `PostToolUse` on `Write\|Edit` | Runs `prettier --write` on `.ts` files after every edit |
+
+### Permissions
+
+- **Deny rules**: Blocks editing `.env*`, `*.pem`, `*credentials*`, and running `rm -rf`
+- **Allow list**: Scoped to install scripts, builds, tests, GitHub CLI, git operations
+
+### Memory system
+
+Persistent file-based memory at project scope (`.claude/projects/`) tracks user preferences, feedback, project context, and references across sessions. Index in `MEMORY.md`.
+
 ## Domain knowledge
 
 `domain-knowledge/` contains reference files read by commands when context is needed:
