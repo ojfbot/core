@@ -18,6 +18,8 @@
 #   4. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
 #      Adds decisions/core/ → core/decisions/ symlink for cluster-wide access
 #   5. Symlinks personal-knowledge/tbcony-job-target.md if present (local file, gitignored)
+#   6. Symlinks scripts/hooks/ and merges hook config into .claude/settings.json
+#      Also installs user-level suggest-skill hook (once) into ~/.claude/settings.json
 #
 # Symlinks are relative so they survive path changes. All ojfbot repos are assumed
 # to be siblings under the same parent directory.
@@ -271,7 +273,72 @@ if [[ -f "$PERSONAL_SRC" ]]; then
   echo ""
 fi
 
-# ── 6. Summary ────────────────────────────────────────────────────────────────
+# ── 6. Hooks (scripts/hooks/) ────────────────────────────────────────────────
+echo "── Hooks (scripts/hooks/)"
+if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
+  mkdir -p "$TARGET/scripts/hooks"
+  for hook_script in "$CORE_DIR/scripts/hooks"/*.sh; do
+    [[ -f "$hook_script" ]] || continue
+    name="$(basename "$hook_script")"
+    link_file "$TARGET/scripts/hooks/$name" "$hook_script"
+  done
+  echo ""
+
+  # Merge PostToolUse Skill logger hook into target's .claude/settings.json
+  TARGET_SETTINGS="$TARGET/.claude/settings.json"
+  if [[ -f "$TARGET_SETTINGS" ]]; then
+    # Check if Skill telemetry hook is already configured
+    if ! grep -q '"Skill"' "$TARGET_SETTINGS" 2>/dev/null; then
+      echo "  Adding Skill telemetry hook to .claude/settings.json..."
+      # Use jq to merge the hook (requires existing hooks.PostToolUse array)
+      if jq -e '.hooks.PostToolUse' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        # PostToolUse array exists — append to it
+        jq '.hooks.PostToolUse += [{"matcher":"Skill","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/log-skill.sh\"","async":true}]}]' \
+          "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      elif jq -e '.hooks' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        # hooks object exists but no PostToolUse — add it
+        jq '.hooks.PostToolUse = [{"matcher":"Skill","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/log-skill.sh\"","async":true}]}]' \
+          "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      else
+        # No hooks at all — add the whole block
+        jq '. + {"hooks":{"PostToolUse":[{"matcher":"Skill","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/log-skill.sh\"","async":true}]}]}}' \
+          "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      fi
+      echo "  done."
+    else
+      echo "  Skill hook already configured."
+    fi
+  fi
+else
+  echo "  (no hooks directory in core — skipping)"
+fi
+echo ""
+
+# Install user-level suggest-skill hook (once, not per-repo)
+USER_SETTINGS="${HOME}/.claude/settings.json"
+SUGGEST_HOOK="$CORE_DIR/scripts/hooks/suggest-skill.sh"
+if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
+  if ! grep -q "suggest-skill.sh" "$USER_SETTINGS" 2>/dev/null; then
+    echo "── User-level hook (suggest-skill.sh)"
+    if jq -e '.hooks.UserPromptSubmit' "$USER_SETTINGS" >/dev/null 2>&1; then
+      jq --arg cmd "$SUGGEST_HOOK" \
+        '.hooks.UserPromptSubmit += [{"hooks":[{"type":"command","command":$cmd}]}]' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+      jq --arg cmd "$SUGGEST_HOOK" \
+        '.hooks.UserPromptSubmit = [{"hooks":[{"type":"command","command":$cmd}]}]' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    else
+      jq --arg cmd "$SUGGEST_HOOK" \
+        '. + {"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":$cmd}]}]}}' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    fi
+    echo "  Added suggest-skill.sh to ~/.claude/settings.json"
+    echo ""
+  fi
+fi
+
+# ── 7. Summary ────────────────────────────────────────────────────────────────
 echo "Done."
 echo "  Created/updated: $CREATED"
 echo "  Skipped (already linked): $SKIPPED"

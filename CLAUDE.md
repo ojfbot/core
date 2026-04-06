@@ -152,6 +152,22 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 | `src/workflows/techdebt/schema.ts` | `TechDebtIncident`, `TechDebtProposal` types |
 | `src/workflows/techdebt.ts` | `/techdebt` handler (scan / propose / apply modes) |
 
+## Skill telemetry and hooks
+
+Three Claude Code hooks power skill observability across the Frame OS cluster (see ADR-0037):
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `scripts/hooks/log-skill.sh` | PostToolUse (Skill) | Logs every skill invocation to `~/.claude/skill-telemetry.jsonl` (async) |
+| `scripts/hooks/suggest-skill.sh` | UserPromptSubmit | Matches prompt against `skill-catalog.json` triggers, injects skill suggestions |
+| `scripts/hooks/pr-skill-audit.sh` | Standalone / GitHub Action | Analyzes PR diff to suggest relevant skills; cross-references telemetry for missed opportunities |
+
+**Telemetry:** `~/.claude/skill-telemetry.jsonl` — central JSONL store. Each line: `{ts, skill, args, repo, session_id, source}`.
+
+**GitHub Action:** `.github/workflows/claude-skill-audit.yml` — runs heuristic skill audit on every PR and posts a comment.
+
+**Install:** `install-agents.sh` deploys hooks to sibling repos (section 6) and merges hook config into `.claude/settings.json`. The suggest-skill hook is installed at user level (`~/.claude/settings.json`) once.
+
 ## Domain knowledge
 
 `domain-knowledge/` contains reference files read by commands when context is needed:
