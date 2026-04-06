@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "notion": {
+      "type": "url",
+      "url": "https://mcp.anthropic.com/notion"
+    },
+    "github": {
+      "type": "url",
+      "url": "https://mcp.anthropic.com/github"
+    }
+  }
+}
