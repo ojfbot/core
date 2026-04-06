@@ -64,7 +64,13 @@ export class FilesystemBeadStore implements BeadStore {
     try {
       const raw = await fs.readFile(this.beadPath(id), 'utf-8');
       return JSON.parse(raw) as FrameBead;
-    } catch {
+    } catch (err: unknown) {
+      // File not found is expected — return null
+      if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return null;
+      }
+      // Parse errors or permission issues should surface
+      console.error(`[BeadStore] failed to read bead ${id}:`, err);
       return null;
     }
   }
