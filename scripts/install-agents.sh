@@ -286,6 +286,12 @@ if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
 
   # Merge PostToolUse Skill logger hook into target's .claude/settings.json
   TARGET_SETTINGS="$TARGET/.claude/settings.json"
+  if [[ ! -f "$TARGET_SETTINGS" ]]; then
+    # Create minimal settings.json with just the hook config
+    echo '{"permissions":{},"hooks":{"PostToolUse":[{"matcher":"Skill","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/log-skill.sh\"","async":true}]}]}}' \
+      | jq '.' > "$TARGET_SETTINGS"
+    echo "  Created .claude/settings.json with Skill telemetry hook."
+  fi
   if [[ -f "$TARGET_SETTINGS" ]]; then
     # Check if Skill telemetry hook is already configured
     if ! grep -q '"Skill"' "$TARGET_SETTINGS" 2>/dev/null; then
