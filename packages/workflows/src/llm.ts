@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const DEFAULT_MODEL = "claude-sonnet-4-5";
 const DEFAULT_MAX_TOKENS = 8192;
+const DEFAULT_TIMEOUT_MS = 120_000;
 
 let _client: Anthropic | undefined;
 
@@ -22,15 +23,18 @@ function getClient(): Anthropic {
 export async function callClaude(
   system: string,
   user: string,
-  opts: { maxTokens?: number; model?: string } = {}
+  opts: { maxTokens?: number; model?: string; timeoutMs?: number } = {}
 ): Promise<string> {
   const client = getClient();
-  const response = await client.messages.create({
-    model: opts.model ?? DEFAULT_MODEL,
-    max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
-    system,
-    messages: [{ role: "user", content: user }],
-  });
+  const response = await client.messages.create(
+    {
+      model: opts.model ?? DEFAULT_MODEL,
+      max_tokens: opts.maxTokens ?? DEFAULT_MAX_TOKENS,
+      system,
+      messages: [{ role: "user", content: user }],
+    },
+    { timeout: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS },
+  );
 
   const block = response.content[0];
   if (!block || block.type !== "text") {

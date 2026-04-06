@@ -40,8 +40,8 @@ export class FrameEventBus {
     for (const handler of this.handlers) {
       try {
         handler(event);
-      } catch {
-        // Subscribers must not crash the emitter
+      } catch (err) {
+        console.error(`[EventBus] subscriber threw on ${event.type}:`, err);
       }
     }
   }
