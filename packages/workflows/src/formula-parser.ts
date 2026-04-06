@@ -75,8 +75,8 @@ function validateFormula(raw: Record<string, unknown>, label: string): Formula {
     formula: raw['formula'] as string,
     type: raw['type'] as FormulaType,
     version: raw['version'] as number,
-    description: typeof raw['description'] === 'string' ? raw['description'] : undefined,
-    vars: Object.keys(vars).length > 0 ? vars : undefined,
+    ...(typeof raw['description'] === 'string' && { description: raw['description'] }),
+    ...(Object.keys(vars).length > 0 && { vars }),
     steps,
   };
 }
@@ -111,8 +111,8 @@ function validateStep(raw: unknown, label: string): FormulaStep {
     id: s['id'] as string,
     title: s['title'] as string,
     needs,
-    acceptance_criteria: acceptance_criteria.length > 0 ? acceptance_criteria : undefined,
-    parallel: typeof s['parallel'] === 'boolean' ? s['parallel'] : undefined,
+    ...(acceptance_criteria.length > 0 && { acceptance_criteria }),
+    ...(typeof s['parallel'] === 'boolean' && { parallel: s['parallel'] }),
   };
 }
 
@@ -126,8 +126,8 @@ function validateVar(raw: unknown, label: string): FormulaVar {
   }
   return {
     description: v['description'] as string,
-    required: typeof v['required'] === 'boolean' ? v['required'] : undefined,
-    default: typeof v['default'] === 'string' ? v['default'] : undefined,
+    ...(typeof v['required'] === 'boolean' && { required: v['required'] }),
+    ...(typeof v['default'] === 'string' && { default: v['default'] }),
   };
 }
 

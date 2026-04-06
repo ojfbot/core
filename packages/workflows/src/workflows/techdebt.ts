@@ -90,7 +90,7 @@ Output ONLY the JSON object for TechDebtProposal. No markdown, no explanation.`;
   let proposal: TechDebtProposal;
   try {
     proposal = JSON.parse(cleaned) as TechDebtProposal;
-  } catch (err) {
+  } catch {
     throw new Error(`Failed to parse TechDebtProposal JSON from Claude response.\nRaw:\n${raw}`);
   }
 
