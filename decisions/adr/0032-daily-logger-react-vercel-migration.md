@@ -87,10 +87,8 @@ daily-logger/
 │   ├── collect-context.ts
 │   ├── generate-article.ts
 │   ├── build-api.ts
-│   ├── build-frontend.ts      # DEPRECATED after Phase A (replaced by Vite)
 │   └── schema.ts
 ├── _articles/                 # Source of truth (markdown)
-├── _layouts/                  # Jekyll fallback templates
 ├── api/                       # Static JSON API (generated)
 ├── pnpm-workspace.yaml
 ├── vercel.json
