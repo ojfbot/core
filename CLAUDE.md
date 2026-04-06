@@ -17,6 +17,11 @@ pnpm install                    # install all workspace dependencies
 pnpm build                      # compile all packages
 pnpm test                       # run vitest
 pnpm test:watch                 # vitest watch mode
+pnpm lint                       # ESLint (typescript-eslint)
+pnpm lint:fix                   # ESLint with auto-fix
+pnpm format                     # Prettier format all TS files
+pnpm format:check               # Prettier check (CI-friendly)
+pnpm typecheck                  # tsc --noEmit
 
 pnpm --filter @core/workflows build   # build one package
 pnpm vitest run packages/workflows/src/__tests__/parseCommand.test.ts

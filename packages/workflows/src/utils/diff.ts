@@ -74,7 +74,7 @@ function parseHunks(diffLines: string[]): Hunk[] {
 
 function applyHunk(lines: string[], hunk: Hunk): void {
   // oldStart is 1-based; convert to 0-based index
-  let pos = hunk.oldStart - 1;
+  const pos = hunk.oldStart - 1;
   const removals: number[] = [];
   const insertions: Array<{ at: number; content: string }> = [];
 
