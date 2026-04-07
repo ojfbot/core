@@ -97,9 +97,8 @@ if [[ -f "$DEDUP_FILE" ]]; then
   fi
 fi
 
-# Write dedup state
-echo "$BEST_SKILL" > "$DEDUP_FILE"
-date +%s >> "$DEDUP_FILE"
+# Write dedup state (atomic: single write to avoid race conditions)
+printf '%s\n%s\n' "$BEST_SKILL" "$(date +%s)" > "$DEDUP_FILE"
 
 # Output suggestion as additionalContext
 jq -nc \

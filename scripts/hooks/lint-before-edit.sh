@@ -64,7 +64,12 @@ VIOLATION_COUNT=$(echo "$LINT_OUTPUT" | jq '[.[].messages | length] | add // 0')
 # Cache pre-edit count for delta check in lint-after-edit.sh
 CACHE_DIR="/tmp/claude-lint-cache-${SESSION_ID:-default}"
 mkdir -p "$CACHE_DIR"
-CACHE_KEY=$(echo "$FILE_PATH" | md5sum 2>/dev/null | cut -d' ' -f1 || echo "$FILE_PATH" | md5 2>/dev/null)
+if command -v md5sum &>/dev/null; then
+  CACHE_KEY=$(echo "$FILE_PATH" | md5sum | cut -d' ' -f1)
+else
+  # macOS: md5 outputs "MD5 (...) = hash" or with -q just the hash
+  CACHE_KEY=$(echo "$FILE_PATH" | md5 -q 2>/dev/null || echo "$FILE_PATH" | md5sum | cut -d' ' -f1)
+fi
 echo "$VIOLATION_COUNT" > "$CACHE_DIR/$CACHE_KEY"
 
 # No violations — nothing to inject
