@@ -57,3 +57,7 @@ What was changed, what stubs were created, and what still needs a human to fill 
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/adr` to document architecture decisions alongside docs.
+- If preparing for handoff, run `/handoff` to generate runbooks.

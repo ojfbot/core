@@ -148,3 +148,7 @@ Confidence: High / Medium / Low
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/doc-refactor` to update application materials based on audit findings.
+- Run `/validate` to verify resume formatting and completeness.

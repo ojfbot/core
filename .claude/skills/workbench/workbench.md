@@ -76,3 +76,7 @@ Report: which command ran, repos included, how to navigate.
 ---
 
 $ARGUMENTS
+
+## See Also
+- If starting a new project, run `/scaffold` to generate the initial skeleton.
+- Run `/setup-ci-cd` to configure CI for any new repos in the workbench.

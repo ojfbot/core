@@ -114,3 +114,7 @@ PASS | PASS WITH NOTES | BLOCKED
 ---
 
 $ARGUMENTS
+
+## See Also
+- If coverage gaps are found, run `/test-expand` to add missing tests.
+- If security concerns are flagged, run `/hardening` for a deeper review.

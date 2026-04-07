@@ -82,3 +82,7 @@ If `--comment`: output only the Summary section as a standalone GitHub PR commen
 ---
 
 $ARGUMENTS
+
+## See Also
+- If the review finds coverage gaps, run `/test-expand` to add missing tests.
+- If documentation is outdated, run `/doc-refactor` to update it.

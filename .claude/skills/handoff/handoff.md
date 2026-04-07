@@ -40,3 +40,7 @@ Understand entry points, data flows, and failure modes from the actual implement
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/doc-refactor` to ensure documentation is current before handoff.
+- Run `/observe` to verify monitoring is in place before transferring ownership.

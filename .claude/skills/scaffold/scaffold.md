@@ -56,3 +56,7 @@ Files created/modified, what still needs implementation, open questions from the
 ---
 
 $ARGUMENTS
+
+## See Also
+- After scaffolding, run `/setup-ci-cd` to configure CI/CD for the new module.
+- Run `/test-expand` to add initial test stubs for scaffolded code.

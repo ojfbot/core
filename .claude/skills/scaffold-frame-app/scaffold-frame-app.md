@@ -194,3 +194,7 @@ Report validation results table (28 items), then output:
 ---
 
 $ARGUMENTS
+
+## See Also
+- After scaffolding, run `/setup-ci-cd` to add a CI pipeline.
+- Run `/workbench` to configure the dev environment for the new app.

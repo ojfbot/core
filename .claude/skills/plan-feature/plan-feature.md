@@ -82,3 +82,8 @@ If `--format=github-issue`: output a GitHub issue title + body only, formatted f
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/scaffold` if the plan requires a new module or package.
+- Run `/adr` to document architecture decisions made during planning.
+- Run `/test-expand` to plan test coverage alongside the feature spec.
