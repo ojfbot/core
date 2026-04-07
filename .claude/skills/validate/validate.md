@@ -51,6 +51,18 @@ For each acceptance criterion: PASS / FAIL / UNTESTED.
 
 Detect which frameworks are in use from CLAUDE.md and domain-knowledge/ files.
 
+### Step 4.5: Automated lint check
+
+If the project has `@frame/eslint-plugin` installed (check for `eslint.config.js` at root):
+
+1. Run `pnpm exec eslint --format json <changed-files>` on all files in the diff or working tree changes.
+2. Cross-reference findings against the invariant checks above.
+3. Any `error`-severity finding from `@frame/*` rules is **auto-blocking** (same as auth failures).
+4. Any `warn`-severity finding is noted as PASS WITH NOTES.
+5. If findings map to TECHDEBT.md items, note the connection (e.g., `@frame/no-untyped-schema-fields` → TD-002/TD-003).
+
+If `@frame/eslint-plugin` is not installed, skip this step and note: "No automated lint — consider installing @frame/eslint-plugin."
+
 ### Step 5: Check for regressions
 
 Identify callers of changed code and flag any that may behave differently.
