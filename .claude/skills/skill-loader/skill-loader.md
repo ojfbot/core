@@ -84,3 +84,7 @@ For skills currently installed that are NOT relevant:
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/techdebt` to track skill quality debt across the catalog.
+- Run `/doc-refactor` to update skill documentation.

@@ -72,3 +72,7 @@ If `--write`: actual test file additions using the repo's test framework.
 ---
 
 $ARGUMENTS
+
+## See Also
+- After adding tests, run `/validate` to verify the quality gate passes.
+- If tests reveal observability gaps, run `/observe` to add monitoring.

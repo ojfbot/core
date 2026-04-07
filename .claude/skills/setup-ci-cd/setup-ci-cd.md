@@ -53,3 +53,7 @@ What was created, what was skipped (already existed), manual steps needed (GitHu
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/hardening` to review the CI pipeline for security gaps.
+- Run `/validate` to verify the CI configuration works end-to-end.

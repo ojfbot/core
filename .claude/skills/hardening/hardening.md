@@ -62,3 +62,7 @@ Effort: S (< 1h) | M (half day) | L (> 1 day)
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/techdebt` to track security debt items from the audit.
+- Run `/setup-ci-cd` to add security checks to the CI pipeline.

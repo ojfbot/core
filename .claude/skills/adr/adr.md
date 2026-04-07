@@ -99,3 +99,7 @@ Write the updated `decisions/README.md` if any changes were made. Report what ch
 
 After any write operation:
 > Remember the 3-places rule: if this ADR captures a corrected mistake, also update the relevant `knowledge/` file and `memory/MEMORY.md`.
+
+## See Also
+- Run `/doc-refactor` to update documentation reflecting the decision.
+- Run `/plan-feature` to plan implementation of the decided approach.

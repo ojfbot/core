@@ -78,3 +78,7 @@ Last updated: YYYY-MM-DD
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/investigate` for deep-dive root cause analysis on debt items.
+- Run `/test-expand` to add test coverage for areas with known debt.

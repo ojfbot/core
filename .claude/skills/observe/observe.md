@@ -72,3 +72,7 @@ Read `CLAUDE.md` to understand the project. For OJF projects, read the relevant 
 ---
 
 $ARGUMENTS
+
+## See Also
+- Run `/hardening` to secure observability endpoints and dashboards.
+- If monitoring reveals recurring issues, run `/techdebt` to track them.

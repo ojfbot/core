@@ -74,3 +74,7 @@ Key invariants:
 ---
 
 $ARGUMENTS
+
+## See Also
+- If the audit finds debt items, run `/techdebt` to track them.
+- Run `/observe` to monitor retrieval quality after changes.

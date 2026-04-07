@@ -101,3 +101,7 @@ After completing the investigation:
 ---
 
 $ARGUMENTS
+
+## See Also
+- If root cause analysis reveals systemic issues, run `/techdebt` to log them.
+- Run `/test-expand` to add regression tests for the bug.
