@@ -109,6 +109,24 @@ heuristic_audit() {
     SUGGESTED_SKILLS+=("/hardening")
     REASONS+=("Security-sensitive files modified")
   fi
+
+  # Rule: ESLint config or plugin changes
+  if echo "$files_changed" | grep -qE 'eslint|lint'; then
+    SUGGESTED_SKILLS+=("/lint-audit")
+    REASONS+=("ESLint configuration or rules modified — verify with lint audit")
+  fi
+
+  # Rule: schema/model changes without test updates
+  if echo "$files_changed" | grep -qE 'models/|schemas/' && ! echo "$files_changed" | grep -qE '\.test\.|\.spec\.|__tests__'; then
+    SUGGESTED_SKILLS+=("/test-expand")
+    REASONS+=("Schema/model files changed without corresponding test updates")
+  fi
+
+  # Rule: TECHDEBT.md modified — verify proposed fixes
+  if echo "$files_changed" | grep -q 'TECHDEBT.md'; then
+    SUGGESTED_SKILLS+=("/techdebt")
+    REASONS+=("TECHDEBT.md modified — verify debt items are properly tracked")
+  fi
 }
 
 # ─── Local telemetry analysis ────────────────────────────────────────────────

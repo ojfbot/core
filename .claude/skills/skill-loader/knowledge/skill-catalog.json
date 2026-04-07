@@ -1,6 +1,6 @@
 {
-  "version": "1.0",
-  "updated": "2026-03-08",
+  "version": "1.1",
+  "updated": "2026-04-06",
   "skills": [
     {
       "name": "plan-feature",
@@ -626,6 +626,30 @@
         "how does the council work",
         "explain the council of experts",
         "article pipeline"
+      ]
+    },
+    {
+      "name": "lint-audit",
+      "tier": 2,
+      "phase": "quality-gate",
+      "tags": [
+        "lint",
+        "eslint",
+        "quality",
+        "audit",
+        "code-quality",
+        "techdebt"
+      ],
+      "description": "Run @frame/eslint-plugin rules + artifact scanner, cross-reference with TECHDEBT.md, produce structured quality report.",
+      "triggers": [
+        "lint-audit",
+        "lint audit",
+        "lint check",
+        "run linter",
+        "quality scan",
+        "check code quality",
+        "lint report",
+        "what lint issues do we have"
       ]
     },
     {

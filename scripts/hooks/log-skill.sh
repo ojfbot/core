@@ -6,32 +6,26 @@
 #
 # Install: Add to .claude/settings.json PostToolUse hooks with matcher "Skill"
 # Runs async (never blocks the session).
+#
+# NOTE: The catch-all log-tool-use.sh also captures skill invocations
+# in tool-telemetry.jsonl. This script provides skill-specific telemetry
+# with richer fields (skill name, args, source).
 set -euo pipefail
 
-TELEMETRY_FILE="${HOME}/.claude/skill-telemetry.jsonl"
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HOOK_DIR/_lib.sh"
 
-# Read hook input from stdin
-INPUT=$(cat)
+read_hook_input
 
-# Extract fields from hook JSON
-SKILL=$(echo "$INPUT" | jq -r '.tool_input.skill // empty')
-ARGS=$(echo "$INPUT" | jq -r '.tool_input.args // empty')
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
-CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+# Extract skill name — try tool_input.skill first, then tool_input.args
+SKILL="$TOOL_INPUT_SKILL"
+ARGS="$TOOL_INPUT_ARGS"
 
-# Skip if no skill name (shouldn't happen but be safe)
-if [[ -z "$SKILL" ]]; then
-  exit 0
-fi
+# Skip if no skill name
+[[ -z "$SKILL" ]] && exit 0
 
-# Derive repo name from git toplevel, fallback to directory basename
-REPO=""
-if [[ -n "$CWD" ]]; then
-  REPO=$(basename "$(git -C "$CWD" rev-parse --show-toplevel 2>/dev/null || echo "$CWD")")
-fi
+TIMESTAMP=$(iso_now)
 
-# Build JSONL line and append atomically (single echo < PIPE_BUF = safe)
-TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 LINE=$(jq -nc \
   --arg ts "$TIMESTAMP" \
   --arg event "skill:invoked" \
@@ -39,8 +33,9 @@ LINE=$(jq -nc \
   --arg args "$ARGS" \
   --arg repo "$REPO" \
   --arg cwd "$CWD" \
-  --arg session_id "$SESSION_ID" \
+  --arg sid "$SESSION_ID" \
+  --arg tool "$TOOL_NAME" \
   --arg source "interactive" \
-  '{ts: $ts, event: $event, skill: $skill, args: $args, repo: $repo, cwd: $cwd, session_id: $session_id, source: $source}')
+  '{ts:$ts, event:$event, skill:$skill, args:$args, tool_name:$tool, repo:$repo, cwd:$cwd, session_id:$sid, source:$source}')
 
-echo "$LINE" >> "$TELEMETRY_FILE"
+log_telemetry "$SKILL_TELEMETRY_FILE" "$LINE"
