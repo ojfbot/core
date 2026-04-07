@@ -11,8 +11,8 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 ### Design decisions
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
-- **Symlink installation over package publishing** — zero build step, instant propagation across 13 repos
-- **38+ ADRs** — every significant decision documented with context, alternatives considered, and rationale
+- **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos
+- **36+ ADRs** — every significant decision documented with context, alternatives considered, and rationale
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
@@ -23,7 +23,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 - **VS Code extension** — run any slash command from the editor
 - **Cross-repo installation** — `install-agents.sh` symlinks skills + domain knowledge into sibling repos
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
-- **Architecture Decision Records** — 38+ ADRs documenting every significant decision across the ecosystem
+- **Architecture Decision Records** — 36+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
 | Layer | Technology |
@@ -32,7 +32,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 | CLI | `@core/cli` (`core-workflow` binary) |
 | Editor | VS Code extension (`core.runSlashCommand`) |
 | Testing | Vitest |
-| Build | pnpm workspaces, TypeScript compiler |
+| Build | pnpm workspaces, TypeScript compiler (`tsc --noEmit` CI gate) |
 
 ---
 
@@ -91,7 +91,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0038+)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0036+)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
