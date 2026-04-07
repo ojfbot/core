@@ -653,6 +653,32 @@
       ]
     },
     {
+      "name": "resume-audit",
+      "tier": 2,
+      "phase": "quality-gate",
+      "tags": [
+        "resume",
+        "audit",
+        "gap-analysis",
+        "job-match",
+        "application",
+        "hiring"
+      ],
+      "description": "Structured audit of resume vs. job description with adversarial gap probing, gap classification (True/Framing/Adjacent), and tuning knobs for improvement.",
+      "triggers": [
+        "resume-audit",
+        "audit this resume",
+        "resume audit",
+        "gap analysis",
+        "match score",
+        "check resume against job",
+        "how well does my resume match",
+        "is my resume ready",
+        "pre-submission check",
+        "hiring manager sniff test"
+      ]
+    },
+    {
       "name": "adr",
       "tier": 1,
       "phase": "any",
