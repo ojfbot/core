@@ -49,7 +49,11 @@ POST_COUNT=$(echo "$LINT_OUTPUT" | jq '[.[].messages | length] | add // 0')
 
 # Read pre-edit count from cache
 CACHE_DIR="/tmp/claude-lint-cache-${SESSION_ID:-default}"
-CACHE_KEY=$(echo "$FILE_PATH" | md5sum 2>/dev/null | cut -d' ' -f1 || echo "$FILE_PATH" | md5 2>/dev/null)
+if command -v md5sum &>/dev/null; then
+  CACHE_KEY=$(echo "$FILE_PATH" | md5sum | cut -d' ' -f1)
+else
+  CACHE_KEY=$(echo "$FILE_PATH" | md5 -q 2>/dev/null || echo "$FILE_PATH" | md5sum | cut -d' ' -f1)
+fi
 PRE_COUNT=0
 if [[ -f "$CACHE_DIR/$CACHE_KEY" ]]; then
   PRE_COUNT=$(cat "$CACHE_DIR/$CACHE_KEY")
