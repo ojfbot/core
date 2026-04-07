@@ -14,14 +14,25 @@ set -euo pipefail
 # Defaults
 MODE="both"
 PR_NUMBER=""
+FORMAT="markdown"
 REPORT_FILE="/tmp/skill-audit-report.md"
-TELEMETRY_FILE="${HOME}/.claude/skill-telemetry.jsonl"
+SKILL_TELEMETRY_FILE="${HOME}/.claude/skill-telemetry.jsonl"
+TOOL_TELEMETRY_FILE="${HOME}/.claude/tool-telemetry.jsonl"
+SESSION_TELEMETRY_FILE="${HOME}/.claude/session-telemetry.jsonl"
+
+# Allow override via TELEMETRY_DIR env var (for CI)
+if [[ -n "${TELEMETRY_DIR:-}" ]]; then
+  SKILL_TELEMETRY_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
+  TOOL_TELEMETRY_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
+  SESSION_TELEMETRY_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
+fi
 
 # Parse arguments
 for arg in "$@"; do
   case "$arg" in
     --pr=*) PR_NUMBER="${arg#*=}" ;;
     --mode=*) MODE="${arg#*=}" ;;
+    --format=*) FORMAT="${arg#*=}" ;;
   esac
 done
 
@@ -134,35 +145,101 @@ heuristic_audit() {
 local_audit() {
   USED_SKILLS=()
 
-  if [[ ! -f "$TELEMETRY_FILE" ]]; then
-    return
-  fi
-
   # Get PR creation time range from commits
-  local first_commit_ts
-  first_commit_ts=$(gh pr view "$PR_NUMBER" --json commits -q '.commits[0].committedDate' 2>/dev/null || echo "")
-  local last_commit_ts
-  last_commit_ts=$(gh pr view "$PR_NUMBER" --json commits -q '.commits[-1].committedDate' 2>/dev/null || echo "")
+  PR_FIRST_COMMIT_TS=$(gh pr view "$PR_NUMBER" --json commits -q '.commits[0].committedDate' 2>/dev/null || echo "")
+  PR_LAST_COMMIT_TS=$(gh pr view "$PR_NUMBER" --json commits -q '.commits[-1].committedDate' 2>/dev/null || echo "")
 
-  if [[ -z "$first_commit_ts" || -z "$last_commit_ts" ]]; then
+  if [[ -z "$PR_FIRST_COMMIT_TS" || -z "$PR_LAST_COMMIT_TS" ]]; then
     return
   fi
 
-  # Filter telemetry for this repo within the commit time range
-  # Widen window: 1 day before first commit to 1 hour after last commit
-  while IFS= read -r line; do
-    skill=$(echo "$line" | jq -r '.skill // empty')
-    if [[ -n "$skill" ]]; then
-      USED_SKILLS+=("/$skill")
-    fi
-  done < <(jq -c --arg repo "$REPO" --arg from "$first_commit_ts" --arg to "$last_commit_ts" \
-    'select(.repo == $repo and .ts >= $from and .ts <= $to)' \
-    "$TELEMETRY_FILE" 2>/dev/null || true)
+  # Primary source: skill-telemetry.jsonl
+  if [[ -f "$SKILL_TELEMETRY_FILE" && -s "$SKILL_TELEMETRY_FILE" ]]; then
+    while IFS= read -r line; do
+      skill=$(echo "$line" | jq -r '.skill // empty')
+      if [[ -n "$skill" ]]; then
+        USED_SKILLS+=("/$skill")
+      fi
+    done < <(jq -c --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+      'select(.repo == $repo and .ts >= $from and .ts <= $to)' \
+      "$SKILL_TELEMETRY_FILE" 2>/dev/null || true)
+  fi
+
+  # Fallback: extract skills from tool-telemetry.jsonl (catch-all logger)
+  if [[ ${#USED_SKILLS[@]} -eq 0 && -f "$TOOL_TELEMETRY_FILE" && -s "$TOOL_TELEMETRY_FILE" ]]; then
+    while IFS= read -r line; do
+      skill=$(echo "$line" | jq -r '.skill // empty')
+      if [[ -n "$skill" ]]; then
+        USED_SKILLS+=("/$skill")
+      fi
+    done < <(jq -c --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+      'select(.repo == $repo and .ts >= $from and .ts <= $to and .skill != "" and .skill != null)' \
+      "$TOOL_TELEMETRY_FILE" 2>/dev/null || true)
+  fi
 
   # Deduplicate
   if [[ ${#USED_SKILLS[@]} -gt 0 ]]; then
     USED_SKILLS=($(printf '%s\n' "${USED_SKILLS[@]}" | sort -u))
   fi
+}
+
+# ─── Tool usage summary ────────────────────────────────────────────────────────
+
+tool_summary() {
+  TOOL_COUNTS=""
+  TOTAL_TOOL_CALLS=0
+
+  if [[ ! -f "$TOOL_TELEMETRY_FILE" || ! -s "$TOOL_TELEMETRY_FILE" ]]; then
+    return
+  fi
+  if [[ -z "$PR_FIRST_COMMIT_TS" || -z "$PR_LAST_COMMIT_TS" ]]; then
+    return
+  fi
+
+  TOOL_COUNTS=$(jq -c --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    'select(.repo == $repo and .ts >= $from and .ts <= $to) | .tool_name' \
+    "$TOOL_TELEMETRY_FILE" 2>/dev/null | sort | uniq -c | sort -rn | head -8 || true)
+
+  TOTAL_TOOL_CALLS=$(echo "$TOOL_COUNTS" | awk '{s+=$1} END {print s+0}')
+}
+
+# ─── Session summary ───────────────────────────────────────────────────────────
+
+session_summary() {
+  SESSION_COUNT=0
+
+  if [[ ! -f "$SESSION_TELEMETRY_FILE" || ! -s "$SESSION_TELEMETRY_FILE" ]]; then
+    return
+  fi
+  if [[ -z "$PR_FIRST_COMMIT_TS" || -z "$PR_LAST_COMMIT_TS" ]]; then
+    return
+  fi
+
+  SESSION_COUNT=$(jq -r --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    'select(.repo == $repo and .ts >= $from and .ts <= $to) | .session_id' \
+    "$SESSION_TELEMETRY_FILE" 2>/dev/null | sort -u | wc -l | tr -d ' ' || echo "0")
+}
+
+# ─── Lint summary ──────────────────────────────────────────────────────────────
+
+lint_summary() {
+  LINT_FIXED=0
+  LINT_REGRESSIONS=0
+
+  if [[ ! -f "$TOOL_TELEMETRY_FILE" || ! -s "$TOOL_TELEMETRY_FILE" ]]; then
+    return
+  fi
+  if [[ -z "$PR_FIRST_COMMIT_TS" || -z "$PR_LAST_COMMIT_TS" ]]; then
+    return
+  fi
+
+  LINT_FIXED=$(jq --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    '[select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:fixed") | .violations_fixed] | add // 0' \
+    "$TOOL_TELEMETRY_FILE" 2>/dev/null || echo "0")
+
+  LINT_REGRESSIONS=$(jq --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    '[select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:regression") | .new_violations] | add // 0' \
+    "$TOOL_TELEMETRY_FILE" 2>/dev/null || echo "0")
 }
 
 # ─── Generate report ─────────────────────────────────────────────────────────
@@ -185,6 +262,21 @@ generate_report() {
       echo ""
     fi
 
+    # Session context (light — just how many sessions went into this PR)
+    if [[ "$SESSION_COUNT" -gt 0 ]]; then
+      echo "**Sessions**: $SESSION_COUNT"
+      echo ""
+    fi
+
+    # Lint summary (if any lint events)
+    if [[ "$LINT_FIXED" -gt 0 || "$LINT_REGRESSIONS" -gt 0 ]]; then
+      echo "### Lint activity"
+      echo ""
+      echo "- Violations fixed: **$LINT_FIXED**"
+      echo "- Regressions introduced: **$LINT_REGRESSIONS**"
+      echo ""
+    fi
+
     if [[ "$MODE" == "heuristic" || "$MODE" == "both" ]]; then
       echo "### Recommended skills (based on diff analysis)"
       echo ""
@@ -199,7 +291,7 @@ generate_report() {
     fi
 
     if [[ "$MODE" == "both" && ${#SUGGESTED_SKILLS[@]} -gt 0 && ${#USED_SKILLS[@]} -ge 0 ]]; then
-      echo "### Missed opportunities"
+      echo "### Coverage"
       echo ""
       local missed=0
       for suggested in "${SUGGESTED_SKILLS[@]}"; do
@@ -216,7 +308,7 @@ generate_report() {
         fi
       done
       if [[ $missed -eq 0 ]]; then
-        echo "_All recommended skills were used._"
+        echo "_All recommended skills were used._ ✓"
       fi
       echo ""
     fi
@@ -228,15 +320,51 @@ generate_report() {
   cat "$REPORT_FILE"
 }
 
+# ─── JSON output ─────────────────────────────────────────────────────────────
+
+generate_json_report() {
+  jq -nc \
+    --arg pr "$PR_NUMBER" \
+    --arg repo "$REPO" \
+    --argjson tool_calls "$TOTAL_TOOL_CALLS" \
+    --argjson sessions "$SESSION_COUNT" \
+    --argjson lint_fixed "$LINT_FIXED" \
+    --argjson lint_regressions "$LINT_REGRESSIONS" \
+    --argjson used_skills "$(printf '%s\n' "${USED_SKILLS[@]:-}" | jq -R . | jq -s .)" \
+    --argjson suggested_skills "$(printf '%s\n' "${SUGGESTED_SKILLS[@]:-}" | jq -R . | jq -s .)" \
+    --argjson tool_breakdown "$(echo "${TOOL_COUNTS:-}" | awk '{print $2, $1}' | tr -d '"' | jq -Rn '[inputs | split(" ") | {(.[0]): (.[1] | tonumber)}] | add // {}')" \
+    '{
+      pr: $pr,
+      repo: $repo,
+      skills_used: $used_skills,
+      skills_suggested: $suggested_skills,
+      tool_calls: $tool_calls,
+      sessions: $sessions,
+      lint_fixed: $lint_fixed,
+      lint_regressions: $lint_regressions,
+      tool_breakdown: $tool_breakdown
+    }'
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 SUGGESTED_SKILLS=()
 REASONS=()
 USED_SKILLS=()
+PR_FIRST_COMMIT_TS=""
+PR_LAST_COMMIT_TS=""
+TOOL_COUNTS=""
+TOTAL_TOOL_CALLS=0
+SESSION_COUNT=0
+LINT_FIXED=0
+LINT_REGRESSIONS=0
 
 case "$MODE" in
   local)
     local_audit
+    tool_summary
+    session_summary
+    lint_summary
     ;;
   heuristic)
     heuristic_audit
@@ -244,6 +372,9 @@ case "$MODE" in
   both)
     heuristic_audit
     local_audit
+    tool_summary
+    session_summary
+    lint_summary
     ;;
   *)
     echo "Unknown mode: $MODE" >&2
@@ -251,4 +382,11 @@ case "$MODE" in
     ;;
 esac
 
-generate_report
+case "$FORMAT" in
+  json)
+    generate_json_report
+    ;;
+  markdown|*)
+    generate_report
+    ;;
+esac
