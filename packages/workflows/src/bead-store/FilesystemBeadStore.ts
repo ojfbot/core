@@ -174,7 +174,7 @@ export class FilesystemBeadStore implements BeadStore {
     watcher.on('add', (p) => handleFile(p, 'created'));
     watcher.on('change', (p) => handleFile(p, 'updated'));
 
-    return () => { watcher.close(); };
+    return () => watcher.close();
   }
 
   private async appendEventLog(event: FrameEvent): Promise<void> {

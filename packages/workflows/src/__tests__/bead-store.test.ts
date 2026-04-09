@@ -148,7 +148,7 @@ describe('FilesystemBeadStore', () => {
       await store.create(makeADRBead({ id: 'core-adr-0010' }));
 
       await new Promise((r) => setTimeout(r, 500));
-      unsub();
+      await unsub();
 
       expect(events).toContain('created');
     });
@@ -163,7 +163,7 @@ describe('FilesystemBeadStore', () => {
       await new Promise((r) => setTimeout(r, 200));
       await store.update('core-adr-0020', { title: 'New Title' });
       await new Promise((r) => setTimeout(r, 500));
-      unsub();
+      await unsub();
 
       expect(events).toContain('updated');
     });
