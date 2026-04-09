@@ -81,7 +81,7 @@ export interface BeadStore {
   /**
    * Watch for bead events matching filter. Returns an unsubscribe function.
    */
-  watch(filter: BeadFilter, cb: (event: BeadEvent) => void): () => void;
+  watch(filter: BeadFilter, cb: (event: BeadEvent) => void): () => Promise<void>;
 }
 
 // ── Prefix routing ───────────────────────────────────────────────────────────
