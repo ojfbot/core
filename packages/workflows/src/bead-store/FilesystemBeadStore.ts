@@ -145,7 +145,7 @@ export class FilesystemBeadStore implements BeadStore {
     );
   }
 
-  watch(filter: BeadFilter, cb: (event: BeadEvent) => void): () => void {
+  watch(filter: BeadFilter, cb: (event: BeadEvent) => void): () => Promise<void> {
     const watchDir = filter.prefix
       ? path.join(this.root, filter.prefix)
       : this.root;
