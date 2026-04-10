@@ -59,6 +59,16 @@ Output a compact status table. Flag any repo that is still behind after the
 pull attempt, has uncommitted changes, or returned an error. Do not proceed
 on repos with sync errors.
 
+### Step 1.5 — Check for diagram input (optional)
+
+If `$ARGUMENTS` contains an image reference or if `/diagram-intake` was run
+earlier in this session, load the structured diagram priorities as the primary
+planning input. Diagram priorities override daily-logger suggested actions
+for ranking purposes, but the daily-logger audit (Step 3) still runs to
+validate claims and surface context.
+
+If no diagram input is present, skip to Step 2.
+
 ### Step 2 — Load daily-logger context (API-first)
 
 **Primary path — structured API:**
@@ -101,6 +111,21 @@ node .claude/skills/frame-standup/scripts/find-latest-post.js --json
 
 Read the file at `filePath` for the full narrative. The structured API
 provides typed data; the markdown provides the "why" behind claims.
+
+### Step 2.5 — Load per-app standup extensions
+
+```bash
+node .claude/skills/frame-standup/scripts/read-app-standup.js --json
+# Returns: Array of { repo, found, blockers[], priorities[], openWork[], context }
+```
+
+For each repo with a standup extension (`found: true`):
+- Merge blockers into P0 considerations (blockers from standup override P1/P2)
+- Cross-reference priorities against daily-logger claims
+- Surface open work (WIP branches) alongside sync status from Step 1
+- Include the `context` field as supplementary planning input
+
+Repos without a standup.md are silently skipped — this is expected and normal.
 
 ### Step 3 — Audit the post
 
@@ -181,24 +206,40 @@ When open action backlog contains stale items (> 7 days), append them:
 
 Always include "All P0 + P1 items" as a final option.
 
-### Step 7 — Expand selected options
+### Step 7 — Expand selected options and offer orchestration
 
-For each selected option, invoke the appropriate framework command with
-rich context gathered in Steps 2–4:
+For each selected option, generate a **Layer 1 orchestrator prompt** suitable
+for `/orchestrate` consumption. The prompt format extends the canonical
+structure from `knowledge/prompt-format.md`:
 
-- Pass the daily-logger post URL as explicit context
-- Pass the relevant reference file paths (architecture docs, parallel
-  implementations, ADRs)
-- Pass the roadmap phase and priority
-- If structured API data is available, include in the prompt:
-  - Activity context: `<activityType> day · <N> open actions · <N> recently closed`
-  - Active tags: top 3 typed tags from the latest entry
+> **Load `knowledge/prompt-format.md`** for the base canonical structure.
+> **Load `knowledge/orchestration-prompts.md`** for the Layer 1/2/3 templates.
 
-The framework skill generates a fully structured, self-contained prompt.
-For actions that don't map to an existing framework command:
+Each Layer 1 prompt contains:
+- The app's priorities (from Step 5, refined by diagram/standup input)
+- Context file pointers (architecture doc, standup.md, CLAUDE.md)
+- The daily-logger post URL and activity context
+- The roadmap phase and priority level
+- The specificity level of each goal (high/medium/low from diagram intake)
 
-> **Load `knowledge/prompt-format.md`** to generate a custom structured
-> prompt following the canonical tag + reference file format.
+After generating prompts, present the user with execution mode options:
+
+```
+How should these priorities be executed?
+  [plan-only]        — Decompose into tasks, review before any code
+  [plan+execute]     — Full pipeline: plan → decompose → implement → PR
+  [execute-selected] — Pick specific tasks from decomposition to implement
+```
+
+For `plan-only`: Spawn one Agent (type: Plan) per app with the Layer 1 prompt.
+Report the task decomposition for user review.
+
+For `plan+execute` or `execute-selected`: Invoke `/orchestrate` with the
+Layer 1 prompts. The orchestrator handles Layer 2 decomposition and Layer 3
+execution (see `/orchestrate` skill).
+
+If `/orchestrate` is not yet available, fall back to the existing behavior:
+invoke the appropriate framework command directly with rich context.
 
 ---
 
@@ -209,10 +250,16 @@ For actions that don't map to an existing framework command:
 Activity: <activityType> · Article status: <draft|accepted> · Stale: <N> day(s)
 Open actions backlog: <N> (<repo1>: N, <repo2>: N, ...)
 Recently closed: <N> in last 7 days
+Diagram input: yes/no
+Standup extensions: <N> repos with .claude/standup.md
 
 ### Repo sync
 | Repo | Branch | Status |
 |------|--------|--------|
+
+### Standup extensions (if any)
+| Repo | Blockers | Priorities | Open work |
+|------|----------|------------|-----------|
 
 ### Daily-logger audit — "<title>"
 Post: https://log.jim.software/articles/<date>
@@ -223,7 +270,7 @@ Verdict: ACCURATE | PARTIALLY ACCURATE | STALE
 
 ### Today
 
-P0  <title> · <repo> · /<command>
+P0  <title> · <repo> · /<command> · specificity: high|medium|low
 P0  ...
 P1  ...
 P2  ...
@@ -231,7 +278,7 @@ P2  ...
 [STALE] <title> · <repo> · /<command> (from <sourceDate>)
 ```
 
-Then: `AskUserQuestion` (multiSelect) → user picks → expand with framework skill.
+Then: `AskUserQuestion` (multiSelect) → user picks → choose execution mode → expand/orchestrate.
 
 ## Postflight
 

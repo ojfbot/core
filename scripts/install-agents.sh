@@ -344,7 +344,37 @@ if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
   fi
 fi
 
-# ── 7. Summary ────────────────────────────────────────────────────────────────
+# ── 7. Standup extension template ─────────────────────────────────────────────
+# Creates a template .claude/standup.md if one does not exist.
+# Never overwrites an existing standup.md — each repo owns its own.
+STANDUP_FILE="$TARGET/.claude/standup.md"
+if [[ ! -f "$STANDUP_FILE" ]]; then
+  echo "── Standup extension template"
+  cat > "$STANDUP_FILE" << 'STANDUP_EOF'
+# Standup Extension — REPO_NAME
+
+## Current blockers
+- (none)
+
+## This week's priorities
+- P1: (update with this week's priorities)
+
+## Open work
+- [ ] (update with current tasks)
+
+## Context for today
+(free-form notes for /frame-standup planning context)
+STANDUP_EOF
+  sed -i '' "s/REPO_NAME/$REPO_NAME/" "$STANDUP_FILE"
+  echo "  created: .claude/standup.md (template — edit with app-specific context)"
+  CREATED=$((CREATED + 1))
+  echo ""
+else
+  echo "── Standup extension: .claude/standup.md already exists (not overwritten)"
+  echo ""
+fi
+
+# ── 8. Summary ────────────────────────────────────────────────────────────────
 echo "Done."
 echo "  Created/updated: $CREATED"
 echo "  Skipped (already linked): $SKIPPED"
