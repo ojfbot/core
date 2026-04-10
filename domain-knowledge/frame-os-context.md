@@ -63,7 +63,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 ### Track B — Pitching the engineer
 
-- **Visual regression CI** — every UI change runs screenshot diffs against baseline. PRs block on regression. cv-builder has this live and passing.
+- **Visual regression CI** — every UI change runs screenshot diffs against baseline. PRs block on regression. All repos have `packages/browser-automation/` with CI workflows (Docker-based visual regression; cv-builder is the most mature).
 - **MrPlug + /techdebt loop** — Chrome extension runs AI UI/UX analysis on live UIs → structured `/techdebt` payload → core `/techdebt propose` generates patches → `/techdebt apply` ships improvements.
 - **daily-logger** — Claude auto-commits a dev log to `log.jim.software` daily, sweeping all ojfbot repos. Passive proof of sustained output.
 - **core** — 30 slash commands systematizing the entire workflow. `/techdebt` is the keystone.
@@ -75,18 +75,18 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | Repo | Tech | Port(s) | Status | Key gap |
 |------|------|---------|--------|---------|
 | cv-builder (display: "Resume Builder") | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
-| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal (ADR-0011), Vercel live at frame.jim.software | ShellHeader uses bare input (not Carbon component); light mode tokens incomplete |
+| shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal decomposed (ADR-0011), Vercel live at frame.jim.software | Light mode tokens incomplete; visual parity with sub-apps pending |
 | BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ✅ — PR #27 open (Phase 1) |
 | lean-canvas | React/Vite, Express, LangGraph, Carbon DS | 3025/3026 | Scaffolded 2026-03-17 — MF remote, 9-section AI canvas, frame-agent routing | shell registration in progress |
-| core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Planned — ADR-0010 | Not scaffolded; reads core repo filesystem via CORE_REPO_PATH |
+| core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Live — scaffolded, MF integrated, Vercel deployed (ADR-0010/0014). Commands + ADRs tabs serving | Phase 2C tabs (OKRs, Roadmap, Docs) pending |
 | daily-logger | Node/React+Vite+Vercel, Jekyll fallback | — | Running daily at log.jim.software; v2 JSON API + React SPA live | Phase 9 POST pipeline to BlogEngine not yet built |
 | core | TypeScript, 30 slash commands | — | Active, public | /techdebt not wired to MrPlug; ADR-0007 accepted 2026-02-27 |
 | MrPlug | Chrome extension MV3, React, Vite/CRXJS | — | Functional, builds clean | AI call in content script (security — Phase 2B), no /techdebt integration (Phase 5), 906KB bundle |
 | gastown-pilot | React/Vite, Express, LangGraph, Carbon DS, React Query | 3017/3018 | Scaffolded 2026-03-18 — MF remote, 6-tab Gas Town dashboard, 12 panel stubs, 3 data adapters (ADR-0027/0028) | All data sources stubbed; shell registration pending; gt CLI + Dolt not wired |
 | seh-study | React/Vite, Express, Carbon DS, Leitner SR | 3030/3031 | Scaffolded 2026-03-22 — MF remote, 3-tab dashboard (Study/Browse/Progress), 238 NASA SEH glossary terms, Leitner 5-box spaced repetition | Shell registration complete; content + SR engine pending |
 | purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
-| frame-ui-components | Shared React component library (Carbon DS) | — | All 9 sub-apps consuming | Storybook stories for 4 of 7 components missing (ADR-0030) |
+| frame-ui-components | Shared React component library (Carbon DS) | — | Published on npm as `@ojfbot/frame-ui-components ^1.0.1`. All 9 sub-apps consuming via npm (migrated from `file:` path 2026-04-10) | Storybook stories for 4 of 7 components missing (ADR-0030) |
 
 ---
 
@@ -100,7 +100,8 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 - `packages/shell-app/src/App.tsx` — root layout: Carbon Header + SideNav + AppFrame; Redux themeSlice; useEffect syncs theme class to `<html>`
 - `packages/shell-app/src/components/` — AppFrame.tsx, AppSwitcher.tsx, ShellHeader.tsx (⌘K focus, chat input), HomeScreen.tsx (instance-aware launcher)
 - `packages/shell-app/src/store/` — index.ts, hooks.ts, slices/appRegistrySlice.ts, slices/chatSlice.ts, slices/themeSlice.ts (toggleTheme, selectIsDark), slices/settingsSlice.ts (typed per-app settings + AppCapabilityManifest isolation — ADR-0011)
-- `packages/shell-app/src/components/SettingsModal.tsx` — multi-panel settings (ADR-0011): tab bar with auto-jump to active app, search bar, Carbon ComposedModal, localStorage persistence
+- `packages/shell-app/src/components/SettingsModalConnected.tsx` — thin connector wiring Redux to the decomposed SettingsModal
+- `packages/ui/src/components/settings-modal/` — decomposed SettingsModal (ADR-0011): `SettingsModal.tsx` (composition), `SettingsPanel.tsx` (presenter), `useSettingsModal.ts` (hook). Tab bar with auto-jump, search, Carbon ComposedModal, localStorage persistence
 - `packages/shell-app/src/remotes/settings-loaders.ts` — MF lazy loaders for sub-app Settings panels + SETTINGS_META search registry
 - `packages/shell-app/src/api/` — frame-agent-client.ts
 - `packages/shell-app/src/styles/carbon.scss` — selective Carbon SCSS imports (191KB vs 600KB monolith)
@@ -110,14 +111,13 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 - `.github/workflows/` — Claude Code Review on PR; CI (type-check + build on PR and main push); Deploy to Vercel on push to main
 
 ### MISSING / next gaps:
-- CI: visual regression tests (shell not yet covered; cv-builder has this)
-- **Shell visual**: ShellHeader uses bare `<input>` (not Carbon `<TextInput>`); light mode tokens incomplete; visual language does not match cv-builder
-- **TripPlanner GET /api/tools**: not yet implemented (Phase 1)
-- **BlogEngine GET /api/tools**: exists but routes all tools to `POST /api/v2/chat` — diverges from ADR-0007 contract (Phase 1 fix needed)
+- CI: visual regression Dockerfiles not yet created (browser-automation CI workflows exist but Docker steps are non-blocking placeholders)
+- **Shell visual**: light mode tokens incomplete; visual parity with sub-apps pending
+- **TripPlanner GET /api/tools**: not yet implemented (Phase 1B)
+- **BlogEngine GET /api/tools**: exists but routes all tools to `POST /api/v2/chat` — diverges from ADR-0007 contract (Phase 1B fix needed)
 - **MetaOrchestrator dynamic discovery**: currently hardcodes tool knowledge; should fetch from GET /api/tools at startup (Phase 2, per ADR-0007)
 - `spawnInstance` wired to frame-agent NL signal (Phase 4)
 - AppRegistry persistence to localStorage
-- core-reader remote: not yet scaffolded (Phase 1A)
 
 ---
 
@@ -147,19 +147,24 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 
 **Package manager:** pnpm everywhere. Node pinned at v24.11.1 via `.nvmrc`. Use `fnm use` to switch.
 
-**Shared UI component library (ADR-0030):** `@ojfbot/frame-ui-components` is the single source of truth for 7 shared components used by all 9 sub-apps: DashboardLayout, ChatShell, ChatMessage, ThreadSidebar, MarkdownMessage, BadgeButton, ErrorBoundary. Consumed as a source-dependency (`file:../../../frame-ui-components`). Components are pure/prop-driven — no Redux. Each app creates `*Connected.tsx` wrappers that wire Redux state to props (extends ADR-0029 pattern). Styles imported per-component: `import '@ojfbot/frame-ui-components/styles/chat-shell'`. Also exports action type system (`BadgeAction`, `Action` union, factory functions like `createSimpleBadge`, `getChatMessage`). Canonical export list: `frame-ui-components/src/index.ts`.
+**Shared UI component library (ADR-0030):** `@ojfbot/frame-ui-components` is the single source of truth for 7 shared components used by all 9 sub-apps: DashboardLayout, ChatShell, ChatMessage, ThreadSidebar, MarkdownMessage, BadgeButton, ErrorBoundary. Published on npm at `^1.0.1` (migrated from `file:` path 2026-04-10). CI resolves from npm; local dev uses a Vite `resolve.alias` pointing at source for iteration without publish cycles. Components are pure/prop-driven — no Redux. Each app creates `*Connected.tsx` wrappers that wire Redux state to props (extends ADR-0029 pattern). Styles imported per-component: `import '@ojfbot/frame-ui-components/styles/chat-shell'`. Also exports action type system (`BadgeAction`, `Action` union, factory functions like `createSimpleBadge`, `getChatMessage`). Canonical export list: `frame-ui-components/src/index.ts`.
 
 ---
 
-## CI status — cv-builder (the most mature repo)
+## CI status
 
-All gates currently passing on main:
+**cv-builder** (most mature):
 - Browser Automation Tests (visual regression + UI tests) ✅
 - Security Scan (TruffleHog + API key scan + dist check) ✅
 - Audit Dependencies ✅
 - Verify Clean Install + type-check + build ✅
 - Claude Code Review — runs on PRs
 - blog-post-proposer workflow — only fires on actual PR events (fixed false-trigger bug)
+
+**Fleet-wide** (all repos as of 2026-04-10):
+- Browser Automation CI workflows deployed to all repos via `packages/browser-automation/`
+- Docker-based visual regression steps use `continue-on-error: true` (Dockerfiles not yet created — CI passes but tests are placeholder)
+- `pnpm install --frozen-lockfile` enforced in all repo CI
 
 ---
 
@@ -245,12 +250,12 @@ CORS_ORIGIN=http://localhost:4000
 - Do not commit `env.json`, `.env.local`, `dist/`, `node_modules/` — TruffleHog will block the PR
 - Do not create helpers or abstractions for one-time operations
 - Do not add error handling for scenarios that can't happen — trust the framework
-- Do not push to main without a PR — all 4 repos have GitHub Rulesets enforcing PR-required, rebase-only merge
+- Do not push to main without a PR — all repos have GitHub Rulesets enforcing PR-required, rebase-only merge
 - Do not use `vite dev` for sub-apps in MF local dev — `remoteEntry.js` only generates on `vite build`. Use `vite preview` for sub-apps.
 
 ---
 
-## Live deployment state — 2026-03-03
+## Live deployment state — 2026-04-10
 
 Layer 1 (Vercel CDN) is live (ADR-0013/ADR-0014):
 
@@ -260,11 +265,11 @@ Layer 1 (Vercel CDN) is live (ADR-0013/ADR-0014):
 | cv.jim.software | cv-builder browser-app | ✅ Live |
 | blog.jim.software | blogengine browser-app | ✅ Live |
 | trips.jim.software | tripplanner browser-app | ✅ Live |
-| core-reader.jim.software (or /api route) | core-reader browser-app + API | ✅ Live (ADR-0014) |
+| core-reader.jim.software | core-reader browser-app + API | ✅ Live (ADR-0014) |
 
-Layer 2 (Express APIs + frame-agent) NOT YET deployed — all 4 apps run in UI wireframe mode (ADR-0013). LLM chat returns offline state gracefully.
+Layer 2 (Express APIs + frame-agent) NOT YET deployed — all apps run in UI wireframe mode (ADR-0013). LLM chat returns offline state gracefully.
 
-Branch protection: All 4 repos (shell, cv-builder, blogengine, TripPlanner) have GitHub Rulesets — PR required, rebase-only merge on default branch.
+Branch protection: All repos have GitHub Rulesets — PR required, rebase-only merge on default branch.
 
 ---
 
