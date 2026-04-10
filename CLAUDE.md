@@ -64,8 +64,10 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | Command | Purpose |
 |---------|---------|
 | `/workbench` | Launch / stop / inspect the 6-tile tmux multi-repo development workbench |
-| `/frame-standup` | Sync repos, audit latest daily-logger post, present interactive prioritized day plan |
+| `/frame-standup` | Sync repos, audit daily-logger, load standup extensions + diagram input, present prioritized day plan with orchestration dispatch |
 | `/frame-dev` | Start/stop/status all Frame OS dev servers; outputs clickable URL guide |
+| `/diagram-intake` | Read hand-drawn priority diagram, map to canonical repos, output structured per-app goals |
+| `/orchestrate` | Progressive decomposition engine: plan → decompose → execute via 4-layer agent pipeline |
 
 ### Frame alignment (Gas Town / Paperclip / Wasteland)
 
