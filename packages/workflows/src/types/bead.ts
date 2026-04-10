@@ -22,7 +22,9 @@ export type BeadType =
   | 'hook'
   | 'mail'
   | 'molecule'
-  | 'convoy';
+  | 'convoy'
+  | 'session'
+  | 'pr';
 
 export type BeadStatus = 'created' | 'live' | 'closed' | 'archived';
 
