@@ -12,7 +12,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos
-- **36+ ADRs** — every significant decision documented with context, alternatives considered, and rationale
+- **36+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
@@ -135,7 +135,9 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 |------|-------------|
 | [shell](https://github.com/ojfbot/shell) | Module Federation host + frame-agent LLM gateway |
 | **core** | **Workflow framework — 30+ slash commands + TypeScript engine (this repo)** |
+| [FrameBus](https://github.com/ojfbot/FrameBus) | Event bus with ADR-0013, Playwright e2e |
 | [cv-builder](https://github.com/ojfbot/cv-builder) | AI-powered resume builder with LangGraph agents |
+| [gcgcca](https://github.com/ojfbot/gcgcca) | Pydantic + TypeScript type bridge |
 | [blogengine](https://github.com/ojfbot/BlogEngine) | AI blog content creation platform |
 | [TripPlanner](https://github.com/ojfbot/TripPlanner) | AI trip planner with 11-phase pipeline |
 | [core-reader](https://github.com/ojfbot/core-reader) | Documentation viewer for the core framework |
