@@ -45,7 +45,7 @@ where each layer narrows context and increases specialization.
 
 ## Workflow
 
-### Step 1 — Parse input and identify mode
+### Step 1 — Parse input, identify mode, create convoy
 
 Parse `$ARGUMENTS` to determine:
 - **Mode:** `plan-only`, `plan+execute`, or `execute-selected`
@@ -54,6 +54,30 @@ Parse `$ARGUMENTS` to determine:
 
 If the input is a raw Layer 1 prompt (from `/frame-standup`), extract the
 app name and priorities from the prompt structure.
+
+**Convoy tracking:** If mode is `plan+execute` or `execute-selected`, create
+a convoy bead to track this orchestration run:
+
+1. Find the session bead ID (created by bead-session.sh when this skill was invoked):
+   ```bash
+   SESSION_BEAD_ID=$(cat "$(ls -t /tmp/claude-bead-session-* 2>/dev/null | head -1)" 2>/dev/null || echo "")
+   ```
+
+2. Create the convoy:
+   ```bash
+   CONVOY_RESULT=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-create \
+     --title="orchestrate: <MODE> <APP>" \
+     --session-bead-id="$SESSION_BEAD_ID" 2>/dev/null || echo '{}')
+   ```
+
+3. Extract convoy ID and write to temp file (shell state doesn't persist
+   between Bash tool calls):
+   ```bash
+   echo "$CONVOY_RESULT" | jq -r '.id // empty' > /tmp/convoy-orchestrate-current
+   ```
+
+If Dolt is unreachable, the convoy ID file will be empty — proceed without
+convoy tracking. All subsequent convoy commands silently degrade.
 
 ### Step 2 — Spawn Layer 1 orchestrator(s)
 
@@ -147,6 +171,32 @@ worktree isolation.
 
 > **Load `knowledge/context-budgets.md`** for what context Layer 3 receives.
 
+**Per-task convoy slot:** Before spawning each Layer 3 agent, create a task
+bead and register it as a convoy slot:
+
+```bash
+CONVOY_ID=$(cat /tmp/convoy-orchestrate-current 2>/dev/null || echo "")
+if [[ -n "$CONVOY_ID" ]]; then
+  # 1. Create a live task bead for this agent's work
+  TASK_RESULT=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" task-create \
+    --title="<TASK_TITLE>" --repo="<REPO>" --convoy-id="$CONVOY_ID" 2>/dev/null || echo '{}')
+  TASK_BEAD_ID=$(echo "$TASK_RESULT" | jq -r '.id // empty')
+
+  if [[ -n "$TASK_BEAD_ID" ]]; then
+    # 2. Add as convoy slot (pending)
+    node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-add-slot \
+      --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" --agent-id="worktree-<N>" 2>/dev/null || true
+
+    # 3. Mark slot active (agent is about to start)
+    node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-update-slot \
+      --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" --slot-status=active 2>/dev/null || true
+  fi
+fi
+```
+
+Replace `<TASK_TITLE>`, `<REPO>`, and `<N>` with the actual task title,
+target repo, and agent index.
+
 The Layer 3 agent:
 1. Enters a git worktree (isolated branch)
 2. Makes the exact changes described in its prompt
@@ -156,12 +206,37 @@ The Layer 3 agent:
 **Parallelism:** All independent Layer 3 agents run simultaneously in
 separate worktrees. This is the maximum concurrency point.
 
-### Step 6 — Report results
+**After each Layer 3 agent completes**, update its convoy slot:
+
+```bash
+CONVOY_ID=$(cat /tmp/convoy-orchestrate-current 2>/dev/null || echo "")
+if [[ -n "$CONVOY_ID" && -n "$TASK_BEAD_ID" ]]; then
+  # Use "done" if agent succeeded (PR created, tests pass), "failed" if errored
+  node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-update-slot \
+    --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" \
+    --slot-status="<done_or_failed>" 2>/dev/null || true
+fi
+```
+
+### Step 6 — Finalize convoy and report results
+
+**Finalize convoy:** After all agents complete, close the convoy bead:
+
+```bash
+CONVOY_ID=$(cat /tmp/convoy-orchestrate-current 2>/dev/null || echo "")
+if [[ -n "$CONVOY_ID" ]]; then
+  FINAL=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-finalize \
+    --convoy-id="$CONVOY_ID" 2>/dev/null || echo '{}')
+  CONVOY_STATUS=$(echo "$FINAL" | jq -r '.final_status // "unknown"')
+fi
+```
 
 After all agents complete, produce a summary:
 
 ```
 ## Orchestration Results — <app-name>
+
+Convoy: <CONVOY_ID> — <CONVOY_STATUS>
 
 ### Completed
 - Task 1.1: <title> → PR #N (tests: pass)
