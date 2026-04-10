@@ -277,7 +277,7 @@ fi
 echo "── Hooks (scripts/hooks/)"
 if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
   mkdir -p "$TARGET/scripts/hooks"
-  for hook_script in "$CORE_DIR/scripts/hooks"/*.sh; do
+  for hook_script in "$CORE_DIR/scripts/hooks"/*.sh "$CORE_DIR/scripts/hooks"/*.mjs; do
     [[ -f "$hook_script" ]] || continue
     name="$(basename "$hook_script")"
     link_file "$TARGET/scripts/hooks/$name" "$hook_script"
@@ -313,6 +313,24 @@ if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
       echo "  done."
     else
       echo "  Skill hook already configured."
+    fi
+
+    # Merge bead-session hook into target's settings.json (Skill + Bash matchers)
+    if ! grep -q 'bead-session.sh' "$TARGET_SETTINGS" 2>/dev/null; then
+      echo "  Adding bead-session hook to .claude/settings.json..."
+      # Append bead-session.sh to the existing Skill matcher's hooks array
+      if jq -e '.hooks.PostToolUse[] | select(.matcher == "Skill")' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        jq '(.hooks.PostToolUse[] | select(.matcher == "Skill") | .hooks) += [{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/bead-session.sh\""}]' \
+          "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      fi
+      # Add Bash matcher for bead-session.sh (commit/PR tracking)
+      if jq -e '.hooks.PostToolUse' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        jq '.hooks.PostToolUse += [{"matcher":"Bash","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/bead-session.sh\""}]}]' \
+          "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      fi
+      echo "  done."
+    else
+      echo "  Bead-session hook already configured."
     fi
   fi
 else

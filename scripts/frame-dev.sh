@@ -160,6 +160,8 @@ case "$CMD" in
     echo ""
     echo "Frame OS server status"
     echo "────────────────────────────────────────────────────────────────"
+    status_port "dolt"         3307
+    echo "  ─── app servers ───"
     status_port "shell"        4000
     status_port "frame-agent"  4001
     status_port "resume-builder" 3000
