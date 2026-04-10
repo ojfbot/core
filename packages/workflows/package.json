@@ -18,9 +18,11 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.30.0",
     "chokidar": "^5.0.0",
+    "mysql2": "^3.22.0",
     "smol-toml": "^1.6.0"
   },
   "devDependencies": {
+    "@types/mysql": "^2.15.27",
     "@types/node": "^22.0.0",
     "typescript": "^5.5.0"
   }

@@ -4,6 +4,8 @@ export * from "./types/agent-bead.js";
 export * from "./types/hook.js";
 export * from "./types/molecule.js";
 export { FilesystemBeadStore, DEFAULT_BEADS_ROOT } from "./bead-store/FilesystemBeadStore.js";
+export { DoltBeadStore } from "./bead-store/DoltBeadStore.js";
+export type { DoltBeadStoreOptions } from "./bead-store/DoltBeadStore.js";
 export { initAgent, closeAgent, startHeartbeat } from "./agent-lifecycle.js";
 export { runPrimeNode } from "./prime-node.js";
 export { sling, nudge, clearNudge } from "./sling.js";
