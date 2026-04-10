@@ -380,6 +380,51 @@ async function run() {
         break;
       }
 
+      case 'convoy-status': {
+        const convoyId = args['convoy-id'];
+        // If no --convoy-id, show all active convoys
+        if (!convoyId) {
+          const [rows] = await pool.execute(
+            "SELECT id, title, status, labels, created_at, updated_at FROM beads WHERE type = 'convoy' AND status = 'live' ORDER BY created_at DESC",
+          );
+          if (rows.length === 0) {
+            console.log('\n  No active convoys\n');
+            break;
+          }
+          console.log('');
+          for (const row of rows) {
+            const labels = typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels;
+            printConvoyStatus(row.id, row.title, labels);
+          }
+          break;
+        }
+
+        const [rows] = await pool.execute(
+          'SELECT id, title, status, labels, created_at, updated_at, closed_at FROM beads WHERE id = ?',
+          [convoyId],
+        );
+        if (rows.length === 0) { console.error('Convoy not found'); process.exit(1); }
+        const row = rows[0];
+        const labels = typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels;
+
+        // Also fetch task bead titles for slot display
+        const slots = JSON.parse(labels.slots || '[]');
+        const beadIds = slots.map((s) => s.beadId);
+        let taskTitles = {};
+        if (beadIds.length > 0) {
+          const placeholders = beadIds.map(() => '?').join(',');
+          const [taskRows] = await pool.execute(
+            `SELECT id, title FROM beads WHERE id IN (${placeholders})`,
+            beadIds,
+          );
+          for (const t of taskRows) taskTitles[t.id] = t.title;
+        }
+
+        console.log('');
+        printConvoyStatus(row.id, row.title, labels, taskTitles, row.status, row.closed_at);
+        break;
+      }
+
       case 'active-sessions': {
         const [rows] = await pool.execute(
           "SELECT id, title, labels, created_at FROM beads WHERE type = 'session' AND status = 'live' ORDER BY created_at DESC",
@@ -396,6 +441,39 @@ async function run() {
   } finally {
     await pool.end();
   }
+}
+
+function printConvoyStatus(id, title, labels, taskTitles = {}, beadStatus = 'live', closedAt = null) {
+  const slots = JSON.parse(labels.slots || '[]');
+  const counts = { done: 0, active: 0, pending: 0, failed: 0 };
+  for (const s of slots) counts[s.status] = (counts[s.status] || 0) + 1;
+  const total = slots.length;
+  const pct = total > 0 ? Math.round((counts.done / total) * 100) : 0;
+  const barLen = 30;
+  const filled = Math.round((counts.done / Math.max(total, 1)) * barLen);
+  const active = Math.round((counts.active / Math.max(total, 1)) * barLen);
+  const bar = '█'.repeat(filled) + '▓'.repeat(active) + '░'.repeat(Math.max(0, barLen - filled - active));
+
+  const status = labels.convoy_status || 'unknown';
+  const statusIcon = { forming: '○', active: '◑', completed: '●', failed: '✗' }[status] || '?';
+
+  console.log(`  ${statusIcon}  ${title}`);
+  console.log(`     ${id}${beadStatus === 'closed' ? ' (closed)' : ''}`);
+  console.log(`     [${bar}] ${counts.done}/${total} done  ${pct}%`);
+  if (counts.active > 0) console.log(`     ▶ ${counts.active} running`);
+  if (counts.pending > 0) console.log(`     ⏳ ${counts.pending} pending`);
+  if (counts.failed > 0) console.log(`     ✗ ${counts.failed} failed`);
+
+  if (slots.length > 0 && Object.keys(taskTitles).length > 0) {
+    console.log('     ───');
+    for (const s of slots) {
+      const icon = { done: '✓', active: '▶', pending: '·', failed: '✗' }[s.status] || '?';
+      const name = taskTitles[s.beadId] || s.beadId;
+      const agent = s.agentId ? ` (${s.agentId})` : '';
+      console.log(`     ${icon}  ${name}${agent}`);
+    }
+  }
+  console.log('');
 }
 
 async function doltCommit(pool, message) {
