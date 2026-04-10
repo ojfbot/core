@@ -4,6 +4,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
 
+## Ecosystem
+
+| Repo | Port(s) | Description | Phase | Status |
+|------|---------|-------------|-------|--------|
+| shell | 4000, 4001 | MF host compositor + frame-agent LLM gateway | 1.5 | active |
+| cv-builder | 3000, 3001 | AI resume builder, MF remote | 1B | active |
+| blogengine | 3005, 3006 | AI blog dashboard, Notion integration | 1B | active |
+| TripPlanner | 3010, 3011 | AI trip planner, 11-phase SSE pipeline | 1B | active |
+| lean-canvas | 3025, 3026 | 9-section AI business canvas | scaffold | active |
+| purefoy | 3020, 3021 | Roger Deakins cinematography RAG | — | active |
+| gastown-pilot | 3017, 3018 | Gas Town 6-tab dashboard, bead adapters | scaffold | active |
+| seh-study | 3030, 3031 | NASA SEH glossary, Leitner spaced repetition | scaffold | active |
+| core-reader | 3015, 3016 | Core repo browser, commands + ADRs tabs | 1A | active |
+| core | — | Workflow engine, 34 slash commands | — | active |
+| daily-logger | — | Auto-committed dev log at log.jim.software | — | active |
+| mrplug | — | Chrome extension MV3, AI UI/UX analysis | 2B | active |
+| frame-ui-components | — | Shared Carbon DS component library | — | active |
+| landing | — | Personal portfolio landing page | — | active |
+
 ## Skills
 
 > **Note:** `.claude/commands/` has been renamed to `.claude/skills/` across all repos (see ADR-0021–0026). References below use the current `skills` convention.
