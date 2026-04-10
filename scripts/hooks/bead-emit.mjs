@@ -9,6 +9,13 @@
  *   node bead-emit.mjs task-done --title="decompose StudyPanel" --session-id=abc123 --repo=seh-study
  *   node bead-emit.mjs pr-created --repo=seh-study --pr=13 --session-id=abc123
  *
+ * Convoy commands (for /orchestrate integration):
+ *   node bead-emit.mjs task-create --title="Add endpoint" --repo=cv-builder --convoy-id=hq-convoy-ab12
+ *   node bead-emit.mjs convoy-create --title="orchestrate: plan+execute TripPlanner" --session-bead-id=hq-session-ab12
+ *   node bead-emit.mjs convoy-add-slot --convoy-id=hq-convoy-ab12 --bead-id=cv-task-ef56 --agent-id=worktree-1
+ *   node bead-emit.mjs convoy-update-slot --convoy-id=hq-convoy-ab12 --bead-id=cv-task-ef56 --slot-status=done
+ *   node bead-emit.mjs convoy-finalize --convoy-id=hq-convoy-ab12
+ *
  * Connects to Dolt sql-server on port 3307. Synchronous — hook waits for
  * completion (~200ms) to guarantee bead exists before next action.
  */
@@ -202,6 +209,177 @@ async function run() {
         break;
       }
 
+      case 'task-create': {
+        const id = `${args.prefix ?? (args.repo ? args.repo.slice(0, 4) : 'hq')}-task-${crypto.randomBytes(4).toString('hex')}`;
+        const now = new Date().toISOString();
+        const refs = [];
+        if (args['convoy-id']) refs.push(args['convoy-id']);
+        if (args['session-id']) {
+          const [rows] = await pool.execute(
+            "SELECT id FROM beads WHERE type = 'session' AND JSON_EXTRACT(labels, '$.session_id') = ? LIMIT 1",
+            [args['session-id']],
+          );
+          if (rows.length > 0) refs.push(rows[0].id);
+        }
+
+        await pool.execute(
+          `INSERT INTO beads (id, type, status, title, body, labels, actor, refs, created_at, updated_at)
+           VALUES (?, 'task', 'live', ?, '', ?, 'claude-code', ?, ?, ?)`,
+          [
+            id,
+            args.title ?? 'Task created',
+            JSON.stringify({ repo: args.repo ?? '', session_id: args['session-id'] ?? '' }),
+            JSON.stringify(refs),
+            now, now,
+          ],
+        );
+        await doltCommit(pool, `task:create ${id}`);
+        console.log(JSON.stringify({ id, status: 'created' }));
+        break;
+      }
+
+      case 'convoy-create': {
+        const id = `hq-convoy-${crypto.randomBytes(4).toString('hex')}`;
+        const now = new Date().toISOString();
+        const refs = [];
+        if (args['session-bead-id']) refs.push(args['session-bead-id']);
+
+        await pool.execute(
+          `INSERT INTO beads (id, type, status, title, body, labels, actor, refs, created_at, updated_at)
+           VALUES (?, 'convoy', 'live', ?, '', ?, 'claude-code', ?, ?, ?)`,
+          [
+            id,
+            args.title ?? 'Convoy',
+            JSON.stringify({ convoy_status: 'forming', slots: '[]' }),
+            JSON.stringify(refs),
+            now, now,
+          ],
+        );
+
+        // Link convoy back to session bead
+        if (args['session-bead-id']) {
+          try {
+            const [rows] = await pool.execute(
+              'SELECT labels FROM beads WHERE id = ?',
+              [args['session-bead-id']],
+            );
+            if (rows.length > 0) {
+              const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : rows[0].labels;
+              labels.convoy_id = id;
+              await pool.execute(
+                'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+                [JSON.stringify(labels), now, args['session-bead-id']],
+              );
+            }
+          } catch { /* best effort */ }
+        }
+
+        await doltCommit(pool, `convoy:create ${id}`);
+        console.log(JSON.stringify({ id, status: 'created' }));
+        break;
+      }
+
+      case 'convoy-add-slot': {
+        const convoyId = args['convoy-id'];
+        if (!convoyId) { console.error('--convoy-id required'); process.exit(1); }
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+
+        const [rows] = await pool.execute(
+          'SELECT labels FROM beads WHERE id = ? AND type = ?',
+          [convoyId, 'convoy'],
+        );
+        if (rows.length === 0) { console.error('Convoy not found'); process.exit(1); }
+
+        const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : rows[0].labels;
+        const slots = JSON.parse(labels.slots || '[]');
+
+        // Idempotent — skip if already in slots
+        if (slots.some((s) => s.beadId === beadId)) {
+          console.log(JSON.stringify({ convoy_id: convoyId, slot_count: slots.length, status: 'already_exists' }));
+          break;
+        }
+
+        const newSlot = { beadId, status: 'pending' };
+        if (args['agent-id']) newSlot.agentId = args['agent-id'];
+        slots.push(newSlot);
+
+        labels.slots = JSON.stringify(slots);
+        if (labels.convoy_status === 'forming') labels.convoy_status = 'active';
+
+        await pool.execute(
+          'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+          [JSON.stringify(labels), new Date().toISOString(), convoyId],
+        );
+        await doltCommit(pool, `convoy:add-slot ${beadId} → ${convoyId}`);
+        console.log(JSON.stringify({ convoy_id: convoyId, slot_count: slots.length, status: 'added' }));
+        break;
+      }
+
+      case 'convoy-update-slot': {
+        const convoyId = args['convoy-id'];
+        if (!convoyId) { console.error('--convoy-id required'); process.exit(1); }
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+        const slotStatus = args['slot-status'];
+        if (!slotStatus) { console.error('--slot-status required'); process.exit(1); }
+
+        const [rows] = await pool.execute(
+          'SELECT labels FROM beads WHERE id = ? AND type = ?',
+          [convoyId, 'convoy'],
+        );
+        if (rows.length === 0) { console.error('Convoy not found'); process.exit(1); }
+
+        const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : rows[0].labels;
+        const slots = JSON.parse(labels.slots || '[]');
+        const slot = slots.find((s) => s.beadId === beadId);
+        if (!slot) { console.error('Slot not found'); process.exit(1); }
+
+        slot.status = slotStatus;
+        labels.slots = JSON.stringify(slots);
+
+        await pool.execute(
+          'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+          [JSON.stringify(labels), new Date().toISOString(), convoyId],
+        );
+        await doltCommit(pool, `convoy:slot-update ${beadId} → ${slotStatus}`);
+        console.log(JSON.stringify({ convoy_id: convoyId, bead_id: beadId, slot_status: slotStatus }));
+        break;
+      }
+
+      case 'convoy-finalize': {
+        const convoyId = args['convoy-id'];
+        if (!convoyId) { console.error('--convoy-id required'); process.exit(1); }
+
+        const [rows] = await pool.execute(
+          'SELECT labels FROM beads WHERE id = ? AND type = ?',
+          [convoyId, 'convoy'],
+        );
+        if (rows.length === 0) { console.error('Convoy not found'); process.exit(1); }
+
+        const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : rows[0].labels;
+        const slots = JSON.parse(labels.slots || '[]');
+
+        const hasFailed = slots.some((s) => s.status === 'failed');
+        const allSettled = slots.every((s) => s.status === 'done' || s.status === 'failed');
+
+        const finalStatus = hasFailed ? 'failed' : allSettled ? 'completed' : 'active';
+        labels.convoy_status = finalStatus;
+        labels.slots = JSON.stringify(slots);
+
+        const now = new Date().toISOString();
+        const closedAt = finalStatus !== 'active' ? now : null;
+        const beadStatus = finalStatus !== 'active' ? 'closed' : 'live';
+
+        await pool.execute(
+          'UPDATE beads SET status = ?, labels = ?, updated_at = ?, closed_at = ? WHERE id = ?',
+          [beadStatus, JSON.stringify(labels), now, closedAt, convoyId],
+        );
+        await doltCommit(pool, `convoy:finalize ${convoyId} → ${finalStatus}`);
+        console.log(JSON.stringify({ convoy_id: convoyId, final_status: finalStatus }));
+        break;
+      }
+
       case 'active-sessions': {
         const [rows] = await pool.execute(
           "SELECT id, title, labels, created_at FROM beads WHERE type = 'session' AND status = 'live' ORDER BY created_at DESC",
@@ -212,7 +390,7 @@ async function run() {
 
       default:
         console.error(`Unknown command: ${command}`);
-        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|pr-created|active-sessions>');
+        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|active-sessions>');
         process.exit(1);
     }
   } finally {
