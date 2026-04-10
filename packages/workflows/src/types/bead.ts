@@ -96,6 +96,9 @@ export const BEAD_PREFIX_MAP: Record<string, string> = {
   'blog': 'blog',
   'trip': 'trip',
   'pure': 'pure',
+  'seh':  'seh',
+  'lean': 'lean',
+  'gt':   'gt',
   'hq':   'hq',
 } as const;
 
