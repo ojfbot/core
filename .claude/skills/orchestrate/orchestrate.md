@@ -123,6 +123,25 @@ agents simultaneously. Dependent tasks wait for their prerequisites.
 
 ### Step 5 — Execute Layer 3 agents
 
+**Pre-flight: session conflict check**
+
+Before spawning agents, query active Claude sessions:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" active-sessions 2>/dev/null || echo '{"sessions":[]}'
+```
+
+If any active session's `repos_touched` overlaps with the repos this
+orchestration targets, warn the user:
+
+> **Conflict risk:** Session `<id>` is active in `<repo>` (started `<time>`).
+> Proceeding with parallel agents in the same repo may cause merge conflicts.
+
+Present options via AskUserQuestion: `[proceed anyway]` `[skip conflicting repo]` `[abort]`
+
+If no active sessions or no overlap, proceed silently. If Dolt is
+unreachable, skip this check — best-effort only.
+
 For each Layer 3 prompt from Step 4, spawn an execution Agent with
 worktree isolation.
 

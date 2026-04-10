@@ -44,6 +44,29 @@ area (e.g. "focus:shell" to prioritize shell work in the output)
 
 ## Workflow
 
+### Step 0.5 — Check active sessions
+
+Query the Dolt bead store for concurrent Claude Code sessions:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" active-sessions 2>/dev/null || echo '{"sessions":[]}'
+```
+
+If `sessions` is non-empty, output a warning:
+
+```
+### Active Claude sessions detected
+
+| Session | Skill | Started | Repos touched |
+|---------|-------|---------|---------------|
+```
+
+Note: "These sessions may be working on overlapping repos. Coordinate
+before modifying shared files."
+
+If Dolt is unreachable (command fails or returns empty), skip silently —
+this is a best-effort check. Do not block the standup on this.
+
 ### Step 1 — Sync all repos
 
 ```bash
