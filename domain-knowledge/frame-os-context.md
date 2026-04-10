@@ -76,7 +76,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 |------|------|---------|--------|---------|
 | cv-builder (display: "Resume Builder") | React/Vite, Express, LangGraph, pnpm monorepo | 3000/3001 | Most active, CI green | Has GET /api/tools ✅; Module Federation remote ✅ (Dashboard + Settings exposed) |
 | shell | Vite Module Federation host, K8s manifests, Redux | 4000/4001 | Phase 1 shipped — shell renders, Carbon chrome, dark/light mode, HomeScreen, SettingsModal decomposed (ADR-0011), Vercel live at frame.jim.software | Light mode tokens incomplete; visual parity with sub-apps pending |
-| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools exists ✅ but all tools route to POST /api/v2/chat (diverges from ADR-0007 contract) |
+| BlogEngine | React/Vite, Express, LangGraph, Notion | 3005/3006 | Agent graph + JWT auth shipped. Module Federation configured, exposes Dashboard + Settings ✅ | GET /api/tools ✅ (ADR-0007 compliant — 6 tools with distinct endpoints + JSON Schema inputs) |
 | TripPlanner | React/Vite, Express, LangGraph, SQLite | 3010/3011 | Module Federation remote ✅ (Dashboard + Settings exposed) | GET /api/tools ✅ (ADR-0007 compliant) |
 | lean-canvas | React/Vite, Express, LangGraph, Carbon DS | 3025/3026 | Scaffolded 2026-03-17 — MF remote, 9-section AI canvas, frame-agent routing | shell registration in progress |
 | core-reader | React/Vite, Express, LangGraph, chokidar | 3015/3016 | Live — scaffolded, MF integrated, Vercel deployed (ADR-0010/0014). Commands + ADRs tabs serving | Phase 2C tabs (OKRs, Roadmap, Docs) pending |
@@ -113,8 +113,7 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 ### MISSING / next gaps:
 - CI: visual regression Dockerfiles not yet created (browser-automation CI workflows exist but Docker steps are non-blocking placeholders)
 - **Shell visual**: light mode tokens incomplete; visual parity with sub-apps pending
-- **~~TripPlanner GET /api/tools~~**: ✅ implemented (ADR-0007 compliant, 8 tools + data endpoints)
-- **BlogEngine GET /api/tools**: exists but routes all tools to `POST /api/v2/chat` — diverges from ADR-0007 contract (Phase 1B fix needed)
+- **~~Phase 1B /api/tools~~**: ✅ All three done — cv-builder, TripPlanner (8 tools), BlogEngine (6 tools with JSON Schema inputs)
 - **MetaOrchestrator dynamic discovery**: currently hardcodes tool knowledge; should fetch from GET /api/tools at startup (Phase 2, per ADR-0007)
 - `spawnInstance` wired to frame-agent NL signal (Phase 4)
 - AppRegistry persistence to localStorage
@@ -186,8 +185,8 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 |-------|------|---------|--------|
 | 0 | App.tsx + main.tsx + index.html in shell-app | shell | ✅ Complete |
 | 1A | CoreReader Phase 1 — scaffold repo, read-only Commands + ADRs tabs, Shell MF integration (**fast-tracked**) | core-reader, shell | ✅ Complete — repo live, Commands + ADRs tabs serving, Shell MF singleton ✅, Vercel deployed (ADR-0014) |
-| 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on TripPlanner; BlogEngine tools fix | cv-builder, TripPlanner, BlogEngine | MF ✅ all three; GET /api/tools: cv-builder ✅, tripplanner ✅, blogengine ⚠️ (partial — routes all to POST /api/v2/chat) |
-| 1 ship | All 1A + 1B work ships together as a single milestone | — | Partial — MF live, tools/CoreReader gap remains |
+| 1B | Module Federation for cv-builder + TripPlanner; GET /api/tools on all three | cv-builder, TripPlanner, BlogEngine | ✅ Complete — MF ✅ all three; GET /api/tools: cv-builder ✅, tripplanner ✅ (8 tools), blogengine ✅ (6 tools, JSON Schema inputs) |
+| 1 ship | All 1A + 1B work ships together as a single milestone | — | ✅ Complete — MF live, all /api/tools endpoints implemented, CoreReader live |
 | 1.5 | Shell visual foundations — ShellHeader Carbon component, light mode tokens, visual parity with sub-apps | shell | Partial — ShellHeader Carbon TextInput ✅; `@ojfbot/shell` Phase 1 extraction scaffold ✅; light mode tokens + full visual parity pending |
 | 2 | classify() quality audit + routing UX; thread resumption synthesis; MetaOrchestrator → dynamic GET /api/tools fetch | shell/frame-agent | Partial — cross-domain keyword co-presence detection fixed ✅; thread resumption + dynamic `/api/tools` fetch pending |
 | 2B | MrPlug: AI → background service worker | MrPlug | Not started |
