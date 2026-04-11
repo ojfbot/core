@@ -11,8 +11,8 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 ### Design decisions
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
-- **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos
-- **36+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol)
+- **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos (shared UI components use [npm publishing](https://github.com/ojfbot/frame-ui-components) with Vite alias for local dev)
+- **43+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
@@ -23,7 +23,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 - **VS Code extension** — run any slash command from the editor
 - **Cross-repo installation** — `install-agents.sh` symlinks skills + domain knowledge into sibling repos
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
-- **Architecture Decision Records** — 36+ ADRs documenting every significant decision across the ecosystem
+- **Architecture Decision Records** — 43+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
 | Layer | Technology |
@@ -91,7 +91,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0036+)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0043+)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
@@ -147,4 +147,4 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [daily-logger](https://github.com/ojfbot/daily-logger) | Automated daily dev blog pipeline (Vercel serverless) |
 | [purefoy](https://github.com/ojfbot/purefoy) | Roger Deakins cinematography knowledge base |
 | [MrPlug](https://github.com/ojfbot/MrPlug) | Chrome extension for AI UI feedback |
-| [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) |
+| [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) — published to npm as `@ojfbot/frame-ui-components` |
