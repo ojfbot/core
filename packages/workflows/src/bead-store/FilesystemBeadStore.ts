@@ -3,7 +3,7 @@
  *
  * Stores FrameBeads as JSON files under <root>/<prefix>/<id>.json.
  * Default root: ~/.beads/  (pass a custom root in tests or alternate configs)
- * Uses chokidar to power the watch() subscription API.
+ * Uses the shared eventBus to power the watch() subscription API.
  *
  * Directory layout:
  *   ~/.beads/
@@ -19,7 +19,6 @@ import fs from 'fs/promises';
 import fsSync from 'fs';
 import path from 'path';
 import os from 'os';
-import chokidar from 'chokidar';
 import type {
   BeadStore,
   BeadFilter,
@@ -146,35 +145,25 @@ export class FilesystemBeadStore implements BeadStore {
   }
 
   watch(filter: BeadFilter, cb: (event: BeadEvent) => void): () => Promise<void> {
-    const watchDir = filter.prefix
-      ? path.join(this.root, filter.prefix)
-      : this.root;
+    // Use the eventBus — all mutations (create/update/close) already emit events
+    // through it. This avoids chokidar's file-watcher overhead, EMFILE limits,
+    // and async-readiness race conditions.
+    const unsub = eventBus.on((event) => {
+      if (!event.type.startsWith('bead:')) return;
+      const kind = event.type.replace('bead:', '') as BeadEvent['kind'];
+      if (!['created', 'updated', 'closed'].includes(kind)) return;
 
-    // chokidar v4+ dropped glob support — watch the directory, filter files via `ignored`
-    const watcher = chokidar.watch(watchDir, {
-      persistent: true,
-      ignoreInitial: true,
-      depth: filter.prefix ? 0 : 1,
-      ignored: (_p: string, stats?: { isFile?: () => boolean }) =>
-        stats?.isFile?.() === true && !_p.endsWith('.json'),
+      const beadId = event.bead_id;
+      if (!beadId) return;
+
+      this.get(beadId).then((bead) => {
+        if (!bead) return;
+        if (!matchesFilter(bead, filter)) return;
+        cb({ kind, bead });
+      }).catch(() => { /* silently ignore */ });
     });
 
-    const handleFile = async (filePath: string, kind: 'created' | 'updated') => {
-      try {
-        const raw = await fs.readFile(filePath, 'utf-8');
-        const bead = JSON.parse(raw) as FrameBead;
-        if (matchesFilter(bead, filter)) {
-          cb({ kind, bead });
-        }
-      } catch {
-        // file may have been removed between watch event and read
-      }
-    };
-
-    watcher.on('add', (p) => handleFile(p, 'created'));
-    watcher.on('change', (p) => handleFile(p, 'updated'));
-
-    return () => watcher.close();
+    return async () => { unsub(); };
   }
 
   private async appendEventLog(event: FrameEvent): Promise<void> {

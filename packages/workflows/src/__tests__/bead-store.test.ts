@@ -137,17 +137,13 @@ describe('FilesystemBeadStore', () => {
 
   describe('watch', () => {
     it('fires callback with created event when a new bead is written', async () => {
-      // Pre-create the subdirectory so chokidar watches it before the file lands
-      await fs.mkdir(path.join(tmpDir, 'core'), { recursive: true });
-
       const events: string[] = [];
       const unsub = store.watch({ type: 'adr' }, (e) => events.push(e.kind));
 
-      // Give chokidar time to attach before writing
-      await new Promise((r) => setTimeout(r, 200));
       await store.create(makeADRBead({ id: 'core-adr-0010' }));
 
-      await new Promise((r) => setTimeout(r, 500));
+      // The eventBus handler does an async get() — let the microtask settle
+      await new Promise((r) => setTimeout(r, 50));
       await unsub();
 
       expect(events).toContain('created');
@@ -159,10 +155,9 @@ describe('FilesystemBeadStore', () => {
       const events: string[] = [];
       const unsub = store.watch({ type: 'adr' }, (e) => events.push(e.kind));
 
-      // Give chokidar a moment to attach the watcher before we write
-      await new Promise((r) => setTimeout(r, 200));
       await store.update('core-adr-0020', { title: 'New Title' });
-      await new Promise((r) => setTimeout(r, 500));
+
+      await new Promise((r) => setTimeout(r, 50));
       await unsub();
 
       expect(events).toContain('updated');
