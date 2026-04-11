@@ -729,6 +729,30 @@
         "record this architecture decision",
         "document architecture decisions"
       ]
+    },
+    {
+      "name": "init",
+      "tier": 0,
+      "phase": "orientation",
+      "tags": [
+        "init",
+        "session",
+        "setup",
+        "environment",
+        "context",
+        "orientation"
+      ],
+      "description": "Session initializer — load environment context, check services, show active sessions, suggest skills. Run at the start of any session for full situational awareness.",
+      "triggers": [
+        "init",
+        "initialize",
+        "start session",
+        "set up",
+        "what should I work on",
+        "get started",
+        "orient me",
+        "what's going on"
+      ]
     }
   ]
 }

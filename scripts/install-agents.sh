@@ -338,8 +338,34 @@ else
 fi
 echo ""
 
-# Install user-level suggest-skill hook (once, not per-repo)
+# Install user-level hooks (once, not per-repo)
 USER_SETTINGS="${HOME}/.claude/settings.json"
+
+# session-init.sh — creates session bead on first user message (Tier 0 initializer)
+SESSION_INIT_HOOK="$CORE_DIR/scripts/hooks/session-init.sh"
+if [[ -f "$SESSION_INIT_HOOK" && -f "$USER_SETTINGS" ]]; then
+  if ! grep -q "session-init.sh" "$USER_SETTINGS" 2>/dev/null; then
+    echo "── User-level hook (session-init.sh)"
+    if jq -e '.hooks.UserPromptSubmit' "$USER_SETTINGS" >/dev/null 2>&1; then
+      # Prepend to UserPromptSubmit array (session-init should run first)
+      jq --arg cmd "$SESSION_INIT_HOOK" \
+        '.hooks.UserPromptSubmit = [{"hooks":[{"type":"command","command":$cmd}]}] + .hooks.UserPromptSubmit' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+      jq --arg cmd "$SESSION_INIT_HOOK" \
+        '.hooks.UserPromptSubmit = [{"hooks":[{"type":"command","command":$cmd}]}]' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    else
+      jq --arg cmd "$SESSION_INIT_HOOK" \
+        '. + {"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":$cmd}]}]}}' \
+        "$USER_SETTINGS" > "${USER_SETTINGS}.tmp" && mv "${USER_SETTINGS}.tmp" "$USER_SETTINGS"
+    fi
+    echo "  Added session-init.sh to ~/.claude/settings.json"
+    echo ""
+  fi
+fi
+
+# suggest-skill.sh — suggests relevant skills based on prompt content
 SUGGEST_HOOK="$CORE_DIR/scripts/hooks/suggest-skill.sh"
 if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
   if ! grep -q "suggest-skill.sh" "$USER_SETTINGS" 2>/dev/null; then

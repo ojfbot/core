@@ -80,8 +80,19 @@ while IFS= read -r skill_json; do
   fi
 done < <(jq -c '.skills[]' "$CATALOG")
 
-# No match found
+# No match found — suggest /init if this is the first prompt in the session
 if [[ $BEST_COUNT -eq 0 || -z "$BEST_SKILL" ]]; then
+  # Check if this is the first prompt (dedup file doesn't exist yet for this session)
+  if [[ ! -f "$DEDUP_FILE" ]]; then
+    # Write dedup state so we don't suggest init again
+    printf '%s\n%s\n' "init" "$(date +%s)" > "$DEDUP_FILE"
+    jq -nc '{
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: "[Skill suggestion] No specific skill matched. Consider running /init to load environment context, check services, and see active sessions."
+      }
+    }'
+  fi
   exit 0
 fi
 
