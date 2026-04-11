@@ -58,7 +58,7 @@ async function run() {
            VALUES (?, 'session', 'live', ?, '', ?, 'claude-code', '[]', ?, ?)`,
           [
             id,
-            `Claude session: ${args.skill ?? 'interactive'}`,
+            `Claude session: ${args.skill && args.skill !== 'none' ? args.skill : 'interactive'}`,
             JSON.stringify({
               session_id: args['session-id'] ?? '',
               skill_invoked: args.skill ?? '',
@@ -99,10 +99,23 @@ async function run() {
         if (args['pr-count']) {
           labels.pr_count = args['pr-count'];
         }
+        if (args.skill) {
+          labels.skill_invoked = args.skill;
+        }
 
+        const updateFields = ['labels = ?', 'updated_at = ?'];
+        const updateParams = [JSON.stringify(labels), new Date().toISOString()];
+
+        // Update title when skill is set (upgrades "interactive" → skill name)
+        if (args.skill) {
+          updateFields.push('title = ?');
+          updateParams.push(`Claude session: ${args.skill}`);
+        }
+
+        updateParams.push(bead.id);
         await pool.execute(
-          'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
-          [JSON.stringify(labels), new Date().toISOString(), bead.id],
+          `UPDATE beads SET ${updateFields.join(', ')} WHERE id = ?`,
+          updateParams,
         );
         await doltCommit(pool, `session:update ${bead.id}`);
         console.log(JSON.stringify({ id: bead.id, status: 'updated' }));
@@ -427,9 +440,122 @@ async function run() {
 
       case 'active-sessions': {
         const [rows] = await pool.execute(
-          "SELECT id, title, labels, created_at FROM beads WHERE type = 'session' AND status = 'live' ORDER BY created_at DESC",
+          "SELECT id, title, labels, created_at FROM beads WHERE (type = 'session' OR type = 'agent') AND status = 'live' ORDER BY created_at DESC",
         );
         console.log(JSON.stringify({ sessions: rows }));
+        break;
+      }
+
+      // ── Agent commands (A2/A3 bridge) ────────────────────────────────────
+
+      case 'agent-create': {
+        const role = args.role ?? 'worker';
+        const app = args.app ?? 'core';
+        const sessionId = args['session-id'] ?? '';
+        const reportsTo = args['reports-to'] ?? '';
+        const prefix = app.slice(0, 4).toLowerCase();
+
+        // Check for an existing idle agent bead for this app+role
+        const [existing] = await pool.execute(
+          "SELECT id, labels FROM beads WHERE type = 'agent' AND status = 'live' AND JSON_EXTRACT(labels, '$.role') = ? AND JSON_EXTRACT(labels, '$.app') = ? AND JSON_EXTRACT(labels, '$.agent_status') = 'idle'",
+          [role, app],
+        );
+        const existingBeads = existing;
+
+        if (existingBeads.length > 0) {
+          // Resume existing agent
+          const bead = existingBeads[0];
+          const labels = typeof bead.labels === 'string' ? JSON.parse(bead.labels) : bead.labels;
+          labels.agent_status = 'active';
+          labels.session_id = sessionId;
+          const now = new Date().toISOString();
+          await pool.execute(
+            'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+            [JSON.stringify(labels), now, bead.id],
+          );
+          await doltCommit(pool, `agent:resume ${bead.id}`);
+          console.log(JSON.stringify({ id: bead.id, status: 'resumed', role, app }));
+        } else {
+          // Create new agent bead
+          const suffix = reportsTo ? `-${crypto.randomBytes(2).toString('hex')}` : '';
+          const id = `${prefix}-agent-${role}${suffix}`;
+          const now = new Date().toISOString();
+          const labels = {
+            role,
+            app,
+            agent_status: 'active',
+            session_id: sessionId,
+          };
+          if (reportsTo) labels.reports_to = reportsTo;
+
+          await pool.execute(
+            `INSERT INTO beads (id, type, status, title, body, labels, actor, refs, created_at, updated_at)
+             VALUES (?, 'agent', 'live', ?, '', ?, 'claude-code', '[]', ?, ?)`,
+            [
+              id,
+              `${role} agent: ${app}`,
+              JSON.stringify(labels),
+              now,
+              now,
+            ],
+          );
+          await doltCommit(pool, `agent:create ${id}`);
+          console.log(JSON.stringify({ id, status: 'created', role, app }));
+        }
+        break;
+      }
+
+      case 'agent-idle': {
+        const agentId = args['agent-id'];
+        if (!agentId) { console.error('--agent-id required'); process.exit(1); }
+
+        const [rows] = await pool.execute(
+          'SELECT id, labels FROM beads WHERE id = ? AND type = ?',
+          [agentId, 'agent'],
+        );
+        const beads = rows;
+        if (beads.length === 0) { console.error(`Agent bead not found: ${agentId}`); process.exit(1); }
+
+        const bead = beads[0];
+        const labels = typeof bead.labels === 'string' ? JSON.parse(bead.labels) : bead.labels;
+        labels.agent_status = 'idle';
+        labels.last_session = new Date().toISOString();
+
+        const now = new Date().toISOString();
+        await pool.execute(
+          'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+          [JSON.stringify(labels), now, agentId],
+        );
+        await doltCommit(pool, `agent:idle ${agentId}`);
+        console.log(JSON.stringify({ id: agentId, status: 'idle' }));
+        break;
+      }
+
+      case 'agent-sling': {
+        const agentId = args['agent-id'];
+        const beadId = args['bead-id'];
+        if (!agentId || !beadId) { console.error('--agent-id and --bead-id required'); process.exit(1); }
+
+        const [rows] = await pool.execute(
+          'SELECT id, labels FROM beads WHERE id = ? AND type = ?',
+          [agentId, 'agent'],
+        );
+        const beads = rows;
+        if (beads.length === 0) { console.error(`Agent bead not found: ${agentId}`); process.exit(1); }
+
+        const bead = beads[0];
+        const labels = typeof bead.labels === 'string' ? JSON.parse(bead.labels) : bead.labels;
+        labels.hook = beadId;
+        labels.hook_slung_at = new Date().toISOString();
+        labels.hook_approval_status = 'none';
+
+        const now = new Date().toISOString();
+        await pool.execute(
+          'UPDATE beads SET hook = ?, labels = ?, updated_at = ? WHERE id = ?',
+          [beadId, JSON.stringify(labels), now, agentId],
+        );
+        await doltCommit(pool, `agent:sling ${beadId} → ${agentId}`);
+        console.log(JSON.stringify({ agentId, beadId, status: 'slung' }));
         break;
       }
 

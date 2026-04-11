@@ -171,31 +171,49 @@ worktree isolation.
 
 > **Load `knowledge/context-budgets.md`** for what context Layer 3 receives.
 
-**Per-task convoy slot:** Before spawning each Layer 3 agent, create a task
-bead and register it as a convoy slot:
+**Per-task agent + convoy slot:** Before spawning each Layer 3 agent, create
+a child AgentBead (with `reports_to` pointing to the orchestrator), a task
+bead, and register the task as a convoy slot:
 
 ```bash
 CONVOY_ID=$(cat /tmp/convoy-orchestrate-current 2>/dev/null || echo "")
+PARENT_AGENT_ID=$(cat "$(ls -t /tmp/claude-bead-session-* 2>/dev/null | head -1)" 2>/dev/null || echo "")
+BEAD_EMIT="$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs"
+
 if [[ -n "$CONVOY_ID" ]]; then
-  # 1. Create a live task bead for this agent's work
-  TASK_RESULT=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" task-create \
+  # 1. Create a child worker agent for this worktree
+  AGENT_RESULT=$(node "$BEAD_EMIT" agent-create \
+    --role=worker --app="<REPO>" --session-id="worktree-<N>" \
+    --reports-to="$PARENT_AGENT_ID" 2>/dev/null || echo '{}')
+  CHILD_AGENT_ID=$(echo "$AGENT_RESULT" | jq -r '.id // empty')
+
+  # 2. Create a live task bead for this agent's work
+  TASK_RESULT=$(node "$BEAD_EMIT" task-create \
     --title="<TASK_TITLE>" --repo="<REPO>" --convoy-id="$CONVOY_ID" 2>/dev/null || echo '{}')
   TASK_BEAD_ID=$(echo "$TASK_RESULT" | jq -r '.id // empty')
 
   if [[ -n "$TASK_BEAD_ID" ]]; then
-    # 2. Add as convoy slot (pending)
-    node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-add-slot \
-      --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" --agent-id="worktree-<N>" 2>/dev/null || true
+    # 3. Sling the task onto the child agent's hook
+    if [[ -n "$CHILD_AGENT_ID" ]]; then
+      node "$BEAD_EMIT" agent-sling \
+        --agent-id="$CHILD_AGENT_ID" --bead-id="$TASK_BEAD_ID" 2>/dev/null || true
+    fi
 
-    # 3. Mark slot active (agent is about to start)
-    node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-update-slot \
+    # 4. Add as convoy slot (pending)
+    node "$BEAD_EMIT" convoy-add-slot \
+      --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" \
+      --agent-id="${CHILD_AGENT_ID:-worktree-<N>}" 2>/dev/null || true
+
+    # 5. Mark slot active (agent is about to start)
+    node "$BEAD_EMIT" convoy-update-slot \
       --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" --slot-status=active 2>/dev/null || true
   fi
 fi
 ```
 
 Replace `<TASK_TITLE>`, `<REPO>`, and `<N>` with the actual task title,
-target repo, and agent index.
+target repo, and agent index. The child agent's `reports_to` creates the
+Gas Town supervision chain (see ADR-0043).
 
 The Layer 3 agent:
 1. Enters a git worktree (isolated branch)
@@ -206,15 +224,22 @@ The Layer 3 agent:
 **Parallelism:** All independent Layer 3 agents run simultaneously in
 separate worktrees. This is the maximum concurrency point.
 
-**After each Layer 3 agent completes**, update its convoy slot:
+**After each Layer 3 agent completes**, update its convoy slot and idle the
+child agent:
 
 ```bash
 CONVOY_ID=$(cat /tmp/convoy-orchestrate-current 2>/dev/null || echo "")
+BEAD_EMIT="$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs"
 if [[ -n "$CONVOY_ID" && -n "$TASK_BEAD_ID" ]]; then
   # Use "done" if agent succeeded (PR created, tests pass), "failed" if errored
-  node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" convoy-update-slot \
+  node "$BEAD_EMIT" convoy-update-slot \
     --convoy-id="$CONVOY_ID" --bead-id="$TASK_BEAD_ID" \
     --slot-status="<done_or_failed>" 2>/dev/null || true
+
+  # Idle the child agent (it completed its work)
+  if [[ -n "$CHILD_AGENT_ID" ]]; then
+    node "$BEAD_EMIT" agent-idle --agent-id="$CHILD_AGENT_ID" 2>/dev/null || true
+  fi
 fi
 ```
 
