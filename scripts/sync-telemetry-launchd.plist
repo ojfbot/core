@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ojfbot.sync-telemetry</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuri/ojfbot/core/scripts/sync-telemetry.sh</string>
+        <string>--since=48h</string>
+    </array>
+
+    <!-- Run at 03:30 CDT (08:30 UTC) — 30min before daily-logger cron at 09:00 UTC -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/sync-telemetry.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/sync-telemetry.err</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuri/ojfbot/core</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>/Users/yuri</string>
+    </dict>
+</dict>
+</plist>
