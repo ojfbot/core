@@ -58,9 +58,10 @@ echo "Syncing telemetry since $CUTOFF (--since=$SINCE)"
 TOOL_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
 SKILL_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
 SESSION_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
+SUGGESTION_FILE="$TELEMETRY_DIR/suggestion-telemetry.jsonl"
 
 has_data=false
-for f in "$TOOL_FILE" "$SKILL_FILE" "$SESSION_FILE"; do
+for f in "$TOOL_FILE" "$SKILL_FILE" "$SESSION_FILE" "$SUGGESTION_FILE"; do
   if [[ -f "$f" && -s "$f" ]]; then
     has_data=true
     break
@@ -81,7 +82,8 @@ filter_jsonl() {
   local src="$1"
   local dst="$2"
   if [[ -f "$src" && -s "$src" ]]; then
-    jq -c --arg cutoff "$CUTOFF" 'select(.ts >= $cutoff)' "$src" > "$dst" 2>/dev/null || true
+    # Filter by timestamp and strip input_summary (may contain secrets from Bash commands)
+    jq -c --arg cutoff "$CUTOFF" 'select(.ts >= $cutoff) | del(.input_summary)' "$src" > "$dst" 2>/dev/null || true
     local count
     count=$(wc -l < "$dst" | tr -d ' ')
     echo "  $(basename "$src"): $count entries (after filtering)"
@@ -91,9 +93,10 @@ filter_jsonl() {
   fi
 }
 
-filter_jsonl "$TOOL_FILE"    "$TMPDIR/tool-telemetry.jsonl"
-filter_jsonl "$SKILL_FILE"   "$TMPDIR/skill-telemetry.jsonl"
-filter_jsonl "$SESSION_FILE" "$TMPDIR/session-telemetry.jsonl"
+filter_jsonl "$TOOL_FILE"       "$TMPDIR/tool-telemetry.jsonl"
+filter_jsonl "$SKILL_FILE"      "$TMPDIR/skill-telemetry.jsonl"
+filter_jsonl "$SESSION_FILE"    "$TMPDIR/session-telemetry.jsonl"
+filter_jsonl "$SUGGESTION_FILE" "$TMPDIR/suggestion-telemetry.jsonl"
 
 # Add metadata
 jq -nc \
@@ -151,6 +154,7 @@ fi
 cp "$TMPDIR"/tool-telemetry.jsonl .
 cp "$TMPDIR"/skill-telemetry.jsonl .
 cp "$TMPDIR"/session-telemetry.jsonl .
+cp "$TMPDIR"/suggestion-telemetry.jsonl .
 cp "$TMPDIR"/sync-metadata.json .
 
 # Commit and push
