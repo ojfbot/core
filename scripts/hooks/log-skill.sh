@@ -39,3 +39,23 @@ LINE=$(jq -nc \
   '{ts:$ts, event:$event, skill:$skill, args:$args, tool_name:$tool, repo:$repo, cwd:$cwd, session_id:$sid, source:$source}')
 
 log_telemetry "$SKILL_TELEMETRY_FILE" "$LINE"
+
+# Check if this skill was recently suggested in this session → close the funnel
+if [[ -f "$SUGGESTION_TELEMETRY_FILE" && -s "$SUGGESTION_TELEMETRY_FILE" ]]; then
+  # Look for a skill:suggested event matching this skill + session in the last 30 minutes
+  SUGGESTED=$(jq -r --arg sid "$SESSION_ID" --arg skill "$SKILL" \
+    'select(.session_id == $sid and .event == "skill:suggested" and .skill == $skill) | .ts' \
+    "$SUGGESTION_TELEMETRY_FILE" 2>/dev/null | tail -1)
+
+  if [[ -n "$SUGGESTED" ]]; then
+    FOLLOW_LINE=$(jq -nc \
+      --arg ts "$TIMESTAMP" \
+      --arg event "skill:suggestion-followed" \
+      --arg skill "$SKILL" \
+      --arg suggested_at "$SUGGESTED" \
+      --arg repo "$REPO" \
+      --arg sid "$SESSION_ID" \
+      '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid}')
+    log_telemetry "$SKILL_TELEMETRY_FILE" "$FOLLOW_LINE"
+  fi
+fi
