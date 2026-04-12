@@ -5,15 +5,20 @@
 # If a skill matches, injects a suggestion into Claude's context via
 # additionalContext JSON output.
 #
+# Logs all outcomes to suggestion-telemetry.jsonl for observability:
+#   skill:suggested       — a skill matched the prompt
+#   skill:suggested-init  — no match, suggested /init on first prompt
+#   skill:no-match        — no match found (and not first prompt)
+#
 # Install at USER level (~/.claude/settings.json) so it works from any repo.
 # Chains with other UserPromptSubmit hooks (e.g., mrplug-inject.sh).
 set -euo pipefail
 
-# Read hook input from stdin
-INPUT=$(cat)
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$HOOK_DIR/_lib.sh"
 
-PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // empty')
+# Read hook input via _lib.sh shared parser
+read_hook_input
 
 # Skip if no prompt or prompt is a slash command (user already invoking a skill)
 if [[ -z "$PROMPT" || "$PROMPT" =~ ^/ ]]; then
@@ -49,6 +54,9 @@ DEDUP_WINDOW=300  # seconds
 # Lowercase the prompt for case-insensitive matching
 PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 
+# Truncate prompt for telemetry (first 120 chars, no newlines)
+PROMPT_PREFIX=$(echo "$PROMPT" | tr '\n' ' ' | cut -c1-120)
+
 # Find best matching skill by checking trigger phrases
 BEST_SKILL=""
 BEST_TRIGGERS=""
@@ -80,18 +88,40 @@ while IFS= read -r skill_json; do
   fi
 done < <(jq -c '.skills[]' "$CATALOG")
 
+TIMESTAMP=$(iso_now)
+
 # No match found — suggest /init if this is the first prompt in the session
 if [[ $BEST_COUNT -eq 0 || -z "$BEST_SKILL" ]]; then
-  # Check if this is the first prompt (dedup file doesn't exist yet for this session)
   if [[ ! -f "$DEDUP_FILE" ]]; then
-    # Write dedup state so we don't suggest init again
+    # First prompt, no match — suggest /init
     printf '%s\n%s\n' "init" "$(date +%s)" > "$DEDUP_FILE"
+
+    # Log suggestion-init event
+    LINE=$(jq -nc \
+      --arg ts "$TIMESTAMP" \
+      --arg event "skill:suggested-init" \
+      --arg prompt_prefix "$PROMPT_PREFIX" \
+      --arg repo "$REPO" \
+      --arg sid "$SESSION_ID" \
+      '{ts:$ts, event:$event, skill:"init", prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
+    log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
+
     jq -nc '{
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
         additionalContext: "[Skill suggestion] No specific skill matched. Consider running /init to load environment context, check services, and see active sessions."
       }
     }'
+  else
+    # Subsequent prompt, no match — log silently
+    LINE=$(jq -nc \
+      --arg ts "$TIMESTAMP" \
+      --arg event "skill:no-match" \
+      --arg prompt_prefix "$PROMPT_PREFIX" \
+      --arg repo "$REPO" \
+      --arg sid "$SESSION_ID" \
+      '{ts:$ts, event:$event, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
+    log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
   fi
   exit 0
 fi
@@ -110,6 +140,18 @@ fi
 
 # Write dedup state (atomic: single write to avoid race conditions)
 printf '%s\n%s\n' "$BEST_SKILL" "$(date +%s)" > "$DEDUP_FILE"
+
+# Log skill:suggested event
+LINE=$(jq -nc \
+  --arg ts "$TIMESTAMP" \
+  --arg event "skill:suggested" \
+  --arg skill "$BEST_SKILL" \
+  --arg triggers "$BEST_TRIGGERS" \
+  --arg prompt_prefix "$PROMPT_PREFIX" \
+  --arg repo "$REPO" \
+  --arg sid "$SESSION_ID" \
+  '{ts:$ts, event:$event, skill:$skill, triggers:$triggers, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
+log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
 
 # Output suggestion as additionalContext
 jq -nc \
