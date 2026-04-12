@@ -72,6 +72,7 @@ TELEMETRY_DIR="${HOME}/.claude"
 SKILL_TELEMETRY_FILE="${TELEMETRY_DIR}/skill-telemetry.jsonl"
 TOOL_TELEMETRY_FILE="${TELEMETRY_DIR}/tool-telemetry.jsonl"
 SESSION_TELEMETRY_FILE="${TELEMETRY_DIR}/session-telemetry.jsonl"
+SUGGESTION_TELEMETRY_FILE="${TELEMETRY_DIR}/suggestion-telemetry.jsonl"
 
 log_telemetry() {
   local file="$1"
