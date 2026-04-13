@@ -12,16 +12,16 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos (shared UI components use [npm publishing](https://github.com/ojfbot/frame-ui-components) with Vite alias for local dev)
-- **43+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol)
+- **43+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
 
-- **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, and more
+- **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, and more
 - **Skill-directory architecture** — each command is a self-contained directory with orchestration prompt, knowledge files, and scripts
 - **TypeScript CLI** — `core-workflow` binary for CI/CD and terminal use
 - **VS Code extension** — run any slash command from the editor
-- **Cross-repo installation** — `install-agents.sh` symlinks skills + domain knowledge into sibling repos
+- **Cross-repo installation** — `install-agents.sh` and `session-init.sh` symlinks skills + domain knowledge into sibling repos (symlinks tracked in git to survive clone and branch-switch)
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
 - **Architecture Decision Records** — 43+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
@@ -84,14 +84,14 @@ Install into a sibling repo:
 ## What's in here
 
 ```
-.claude/skills/     slash commands (skill directories with knowledge/ and scripts/)
+.claude/skills/     slash commands (skill directories with knowledge/ and scripts/; catalog includes suggested_after and layer_affinity fields)
 packages/
   workflows/          @core/workflows — TypeScript workflow engine
   cli/                core-workflow binary
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0043+)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0043+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
@@ -134,7 +134,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | Repo | Description |
 |------|-------------|
 | [shell](https://github.com/ojfbot/shell) | Module Federation host + frame-agent LLM gateway |
-| **core** | **Workflow framework — 30+ slash commands + TypeScript engine (this repo)** |
+| **core** | **Workflow framework — 30+ slash commands + TypeScript engine + skill suggestion/telemetry (this repo)** |
 | [FrameBus](https://github.com/ojfbot/FrameBus) | Event bus with ADR-0013, Playwright e2e |
 | [cv-builder](https://github.com/ojfbot/cv-builder) | AI-powered resume builder with LangGraph agents |
 | [gcgcca](https://github.com/ojfbot/gcgcca) | Pydantic + TypeScript type bridge |
