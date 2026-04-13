@@ -86,6 +86,19 @@ orchestrator prompt.
 
 > **Load `knowledge/context-budgets.md`** for what context Layer 1 receives.
 
+**Skill suggestions for Layer 1:** Before building the Layer 1 prompt, run
+the suggestion engine to populate the `{{SKILL_SUGGESTIONS_L1}}` placeholder:
+
+```bash
+SKILL_SUGGESTIONS_L1=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+  --tags "<priority-tags>" --phase "<phase>" --layer=1 --format=oneline 2>/dev/null || echo "")
+```
+
+Extract `<priority-tags>` from the task's domain (e.g. "api,debug" for an API
+fix, "ui,component" for a UI task). Extract `<phase>` from the priority level
+(planning/debugging/quality-gate/release). If the engine returns empty output,
+omit the "Relevant skills" section from the prompt.
+
 The Layer 1 agent:
 1. Reads the app's architecture doc, CLAUDE.md, and standup.md
 2. For each priority, identifies discrete tasks
@@ -135,6 +148,18 @@ For each task (or selected tasks), spawn an Agent (type: Plan) with a
 Layer 2 prompt.
 
 > **Load `knowledge/context-budgets.md`** for what context Layer 2 receives.
+
+**Skill suggestions for Layer 2:** Before building each Layer 2 prompt, run
+the suggestion engine with chaining context:
+
+```bash
+SKILL_SUGGESTIONS_L2=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+  --tags "<task-tags>" --layer=2 --after="/<last-invoked-skill>" --format=oneline 2>/dev/null || echo "")
+```
+
+Use `--after` to chain from the skill that produced this task (e.g. if
+`/plan-feature` generated the priority, pass `--after=/plan-feature` so the
+engine suggests `/scaffold` or `/spec-review` as next steps).
 
 The Layer 2 agent:
 1. Reads the specific source files identified by Layer 1
@@ -214,6 +239,18 @@ fi
 Replace `<TASK_TITLE>`, `<REPO>`, and `<N>` with the actual task title,
 target repo, and agent index. The child agent's `reports_to` creates the
 Gas Town supervision chain (see ADR-0043).
+
+**Skill suggestions for Layer 3 (failure path only):** Before building each
+Layer 3 prompt, generate failure-path suggestions:
+
+```bash
+SKILL_SUGGESTIONS_L3=$(node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+  --tags "debug,test" --layer=3 --format=oneline 2>/dev/null || echo "")
+```
+
+Embed these in the `{{SKILL_SUGGESTIONS_L3_FAILURE}}` placeholder. The agent
+only surfaces these if tests fail or an error occurs — they do not appear in
+the happy path to avoid cluttering execution context.
 
 The Layer 3 agent:
 1. Enters a git worktree (isolated branch)

@@ -57,36 +57,14 @@ PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
 # Truncate prompt for telemetry (first 120 chars, no newlines)
 PROMPT_PREFIX=$(echo "$PROMPT" | tr '\n' ' ' | cut -c1-120)
 
-# Find best matching skill by checking trigger phrases
-BEST_SKILL=""
-BEST_TRIGGERS=""
+# Use the suggest-skills.mjs engine for word-overlap matching
+SUGGESTIONS=$(node "$HOOK_DIR/suggest-skills.mjs" --query="$PROMPT_LOWER" --limit=1 --format=json 2>/dev/null || echo "[]")
+BEST_SKILL=$(echo "$SUGGESTIONS" | jq -r '.[0].name // empty')
+BEST_REASON=$(echo "$SUGGESTIONS" | jq -r '.[0].reason // empty')
 BEST_COUNT=0
-
-# Extract skills and their triggers from catalog
-while IFS= read -r skill_json; do
-  SKILL_NAME=$(echo "$skill_json" | jq -r '.name')
-  MATCH_COUNT=0
-  MATCHED_TRIGGERS=""
-
-  # Check each trigger phrase
-  while IFS= read -r trigger; do
-    trigger_lower=$(echo "$trigger" | tr '[:upper:]' '[:lower:]')
-    if [[ "$PROMPT_LOWER" == *"$trigger_lower"* ]]; then
-      MATCH_COUNT=$((MATCH_COUNT + 1))
-      if [[ -n "$MATCHED_TRIGGERS" ]]; then
-        MATCHED_TRIGGERS="$MATCHED_TRIGGERS, '$trigger'"
-      else
-        MATCHED_TRIGGERS="'$trigger'"
-      fi
-    fi
-  done < <(echo "$skill_json" | jq -r '.triggers[]')
-
-  if [[ $MATCH_COUNT -gt $BEST_COUNT ]]; then
-    BEST_COUNT=$MATCH_COUNT
-    BEST_SKILL="$SKILL_NAME"
-    BEST_TRIGGERS="$MATCHED_TRIGGERS"
-  fi
-done < <(jq -c '.skills[]' "$CATALOG")
+if [[ -n "$BEST_SKILL" ]]; then
+  BEST_COUNT=1
+fi
 
 TIMESTAMP=$(iso_now)
 
@@ -146,20 +124,20 @@ LINE=$(jq -nc \
   --arg ts "$TIMESTAMP" \
   --arg event "skill:suggested" \
   --arg skill "$BEST_SKILL" \
-  --arg triggers "$BEST_TRIGGERS" \
+  --arg reason "$BEST_REASON" \
   --arg prompt_prefix "$PROMPT_PREFIX" \
   --arg repo "$REPO" \
   --arg sid "$SESSION_ID" \
-  '{ts:$ts, event:$event, skill:$skill, triggers:$triggers, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
+  '{ts:$ts, event:$event, skill:$skill, reason:$reason, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
 log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
 
 # Output suggestion as additionalContext
 jq -nc \
   --arg skill "$BEST_SKILL" \
-  --arg triggers "$BEST_TRIGGERS" \
+  --arg reason "$BEST_REASON" \
   '{
     hookSpecificOutput: {
       hookEventName: "UserPromptSubmit",
-      additionalContext: ("[Skill suggestion] Your request matches /\($skill) (triggers: \($triggers)). Consider invoking it for structured, repeatable output.")
+      additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)). Consider invoking it for structured, repeatable output.")
     }
   }'
