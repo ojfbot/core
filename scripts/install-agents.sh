@@ -388,6 +388,23 @@ if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
   fi
 fi
 
+# ── 6b. GitHub Actions workflow (claude-skill-audit.yml) ─────────────────────
+AUDIT_WORKFLOW="$CORE_DIR/.github/workflows/claude-skill-audit.yml"
+if [[ -f "$AUDIT_WORKFLOW" ]]; then
+  echo "── GitHub Actions workflow"
+  mkdir -p "$TARGET/.github/workflows"
+  TARGET_WORKFLOW="$TARGET/.github/workflows/claude-skill-audit.yml"
+  if [[ ! -f "$TARGET_WORKFLOW" ]]; then
+    cp "$AUDIT_WORKFLOW" "$TARGET_WORKFLOW"
+    echo "  copied claude-skill-audit.yml"
+    CREATED=$((CREATED + 1))
+  else
+    echo "  claude-skill-audit.yml already exists (not overwritten)"
+    SKIPPED=$((SKIPPED + 1))
+  fi
+  echo ""
+fi
+
 # ── 7. Standup extension template ─────────────────────────────────────────────
 # Creates a template .claude/standup.md if one does not exist.
 # Never overwrites an existing standup.md — each repo owns its own.

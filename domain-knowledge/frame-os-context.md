@@ -197,7 +197,7 @@ Defined in `packages/shell-app/src/store/slices/appRegistrySlice.ts`:
 | 6 | Deploy frame.jim.software via K8s (Layer 2) | shell, K8s | Layer 1 (Vercel static) ✅ live — ADR-0013/0014; Layer 2 (APIs + frame-agent) not yet deployed |
 | 7 | cv-builder tailors the actual TBC application | cv-builder | Final step |
 
-> **Gas Town (ADR-0015/0016/0017) — cross-cutting:** FrameBead universal work primitive defined; `FrameBeadLike` interface + `FilesystemBeadStore` in core-reader ✅; cv-builder `/api/beads` ✅; shell `/api/beads` aggregation pending. Not a numbered phase — runs alongside 1B–3.
+> **Gas Town (ADR-0015/0016/0017) — cross-cutting:** FrameBead universal work primitive defined; `FrameBeadLike` interface + `FilesystemBeadStore` in core-reader ✅; cv-builder `/api/beads` ✅; shell `/api/beads` aggregation ✅ (Dolt-first with `~/.beads/` filesystem fallback — code shipped, end-to-end validation pending). Not a numbered phase — runs alongside 1B–3.
 
 **Time-sensitive:** daily-logger must start running daily NOW. Every day without an entry is lost shipping signal.
 
