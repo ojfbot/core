@@ -45,8 +45,20 @@ ADR or spec), then decompose.
 **For low-specificity goals:** Produce a `/plan-feature` prompt instead of
 decomposing — the goal needs user refinement first.
 
+**Relevant skills (suggest to user if applicable):**
+{{SKILL_SUGGESTIONS_L1}}
+
 **Do not write code. Do not open PRs. Only plan and decompose.**
 ````
+
+> **Generating L1 skill suggestions:** Before building a Layer 1 prompt, the
+> orchestrator runs:
+> ```bash
+> node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+>   --tags "<priority-tags>" --phase "<phase>" --layer=1 --format=oneline
+> ```
+> and replaces `{{SKILL_SUGGESTIONS_L1}}` with the output. If the engine
+> returns nothing, omit the "Relevant skills" section entirely.
 
 ---
 
@@ -80,9 +92,20 @@ task into implementation-ready file-level instructions.
 3. Define the verification command (e.g. `pnpm vitest run <test-file>`)
 4. Output: A single Layer 3 execution prompt
 
+**Relevant skills:**
+{{SKILL_SUGGESTIONS_L2}}
+
 **Do not write code. Describe what to change with enough detail that an
 implementation agent can execute without reading architecture docs.**
 ````
+
+> **Generating L2 skill suggestions:** Before building a Layer 2 prompt, the
+> orchestrator runs:
+> ```bash
+> node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+>   --tags "<task-tags>" --layer=2 --after="/<previous-skill>" --format=oneline
+> ```
+> and replaces `{{SKILL_SUGGESTIONS_L2}}` with the output.
 
 ---
 
@@ -114,11 +137,24 @@ worktree, runs tests, and opens a PR.
 **PR title:** `<type>(<scope>): <description>`
 **PR base:** `main`
 
+**On failure — suggest these skills:**
+{{SKILL_SUGGESTIONS_L3_FAILURE}}
+
 **Do not:**
 - Change files not listed above
 - Add features beyond what is specified
 - Skip the verification step
 ````
+
+> **Generating L3 failure-path suggestions:** Before building a Layer 3 prompt,
+> the orchestrator runs:
+> ```bash
+> node "$CLAUDE_PROJECT_DIR/scripts/hooks/suggest-skills.mjs" \
+>   --tags "debug,test" --layer=3 --format=oneline
+> ```
+> and replaces `{{SKILL_SUGGESTIONS_L3_FAILURE}}` with the output. This section
+> only appears in the failure path — do not clutter the execution context with
+> suggestions the agent won't need if everything passes.
 
 ---
 
@@ -126,9 +162,9 @@ worktree, runs tests, and opens a PR.
 
 | Layer | What it receives | What it does NOT receive |
 |-------|-----------------|------------------------|
-| L1 | Architecture doc, CLAUDE.md, standup.md, priorities | Other apps, personal-knowledge, full roadmap |
-| L2 | Specific source files, ADR/spec, parallel implementation | Architecture overview, standup, roadmap |
-| L3 | Exact files to change, expected behavior, test command | Architecture docs, other tasks, roadmap |
+| L1 | Architecture doc, CLAUDE.md, standup.md, priorities, skill suggestions (phase/tag-matched) | Other apps, personal-knowledge, full roadmap |
+| L2 | Specific source files, ADR/spec, parallel implementation, skill suggestions (chained via `--after`) | Architecture overview, standup, roadmap |
+| L3 | Exact files to change, expected behavior, test command, failure-path skill suggestions | Architecture docs, other tasks, roadmap |
 
 The key principle: **each layer receives only what it needs to do its job.**
 Passing too much context dilutes focus and wastes tokens. Passing too little
