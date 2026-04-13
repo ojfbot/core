@@ -17,7 +17,7 @@ read_hook_input
 [[ -z "$TOOL_NAME" ]] && exit 0
 
 # Truncate tool input summary to avoid giant JSONL lines
-TOOL_INPUT_SUMMARY=$(echo "$HOOK_INPUT" | jq -c '.tool_input' 2>/dev/null | head -c 300)
+TOOL_INPUT_SUMMARY=$(echo "$HOOK_INPUT" | jq -c '.tool_input | tostring | .[0:300]' 2>/dev/null || echo '""')
 
 TIMESTAMP=$(iso_now)
 

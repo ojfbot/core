@@ -1,7 +1,7 @@
 # ADR-0037: Skill telemetry, intent matching, and PR audit
 
 Date: 2026-04-06
-Status: Proposed
+Status: Accepted
 OKR: 2026-Q2 / O2 / KR3
 Commands affected: all /skills, /skill-loader, /push-all
 Repos affected: core, all sibling repos (via install-agents.sh)
