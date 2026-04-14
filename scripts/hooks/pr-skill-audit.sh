@@ -233,12 +233,12 @@ lint_summary() {
     return
   fi
 
-  LINT_FIXED=$(jq --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
-    '[select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:fixed") | .violations_fixed] | add // 0' \
+  LINT_FIXED=$(jq --slurp --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    '[.[] | select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:fixed") | .violations_fixed] | add // 0' \
     "$TOOL_TELEMETRY_FILE" 2>/dev/null || echo "0")
 
-  LINT_REGRESSIONS=$(jq --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
-    '[select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:regression") | .new_violations] | add // 0' \
+  LINT_REGRESSIONS=$(jq --slurp --arg repo "$REPO" --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+    '[.[] | select(.repo == $repo and .ts >= $from and .ts <= $to and .event == "lint:regression") | .new_violations] | add // 0' \
     "$TOOL_TELEMETRY_FILE" 2>/dev/null || echo "0")
 }
 
