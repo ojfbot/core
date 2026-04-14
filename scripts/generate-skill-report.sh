@@ -100,6 +100,10 @@ fi
 if [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
   SUGGESTIONS_FOLLOWED=$(filter "$SKILL_FILE" | jq -r 'select(.event == "skill:suggestion-followed") | .ts' | wc -l | tr -d ' ')
 fi
+SUGGESTIONS_IGNORED=0
+if [[ -f "$SUGGESTION_FILE" && -s "$SUGGESTION_FILE" ]]; then
+  SUGGESTIONS_IGNORED=$(filter "$SUGGESTION_FILE" | jq -r 'select(.event == "skill:suggestion-ignored") | .ts' | wc -l | tr -d ' ')
+fi
 CONVERSION=0
 if [[ "$SUGGESTIONS_GIVEN" -gt 0 ]]; then
   CONVERSION=$(( (SUGGESTIONS_FOLLOWED * 100) / SUGGESTIONS_GIVEN ))
@@ -184,6 +188,7 @@ if [[ "$FORMAT" == "json" ]]; then
     --argjson uncatalogued_count "$UNCATALOGUED_COUNT" \
     --argjson suggestions_given "$SUGGESTIONS_GIVEN" \
     --argjson suggestions_followed "$SUGGESTIONS_FOLLOWED" \
+    --argjson suggestions_ignored "$SUGGESTIONS_IGNORED" \
     --argjson conversion "$CONVERSION" \
     --argjson quality_coverage "$QUALITY_COVERAGE" \
     --argjson edit_sessions "$EDIT_SESSIONS" \
@@ -205,6 +210,7 @@ if [[ "$FORMAT" == "json" ]]; then
       invoked_skills: $invoked_skills,
       suggestions_given: $suggestions_given,
       suggestions_followed: $suggestions_followed,
+      suggestions_ignored: $suggestions_ignored,
       suggestion_conversion_pct: $conversion,
       quality_coverage_pct: $quality_coverage,
       edit_sessions: $edit_sessions,
@@ -243,6 +249,7 @@ echo "## Suggestion Funnel"
 echo ""
 echo "- **Suggestions offered:** $SUGGESTIONS_GIVEN"
 echo "- **Suggestions followed:** $SUGGESTIONS_FOLLOWED"
+echo "- **Suggestions ignored:** $SUGGESTIONS_IGNORED"
 echo "- **Conversion rate:** ${CONVERSION}%"
 echo ""
 
