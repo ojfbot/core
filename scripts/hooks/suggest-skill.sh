@@ -47,9 +47,41 @@ if [[ ! -f "$CATALOG" ]]; then
   exit 0
 fi
 
-# Deduplication: don't suggest the same skill twice within 5 minutes
+# ── Check if previous suggestion was ignored ────────────────────────────────
+# If we suggested a skill last prompt and it wasn't followed by a
+# skill:suggestion-followed event, log skill:suggestion-ignored.
+
 DEDUP_FILE="/tmp/claude-skill-suggest-${SESSION_ID:-default}"
 DEDUP_WINDOW=300  # seconds
+
+if [[ -f "$DEDUP_FILE" && -f "$SKILL_TELEMETRY_FILE" ]]; then
+  PREV_SKILL=$(head -1 "$DEDUP_FILE" 2>/dev/null || echo "")
+  PREV_TS=$(tail -1 "$DEDUP_FILE" 2>/dev/null || echo "0")
+
+  if [[ -n "$PREV_SKILL" && "$PREV_SKILL" != "init" ]]; then
+    # Check if suggestion-followed was logged for this skill+session since PREV_TS
+    PREV_ISO=$(date -u -r "$PREV_TS" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
+    if [[ -n "$PREV_ISO" ]]; then
+      FOLLOWED=$(jq -r --arg sid "${SESSION_ID:-}" --arg skill "$PREV_SKILL" --arg since "$PREV_ISO" \
+        'select(.session_id == $sid and .event == "skill:suggestion-followed" and .skill == $skill and .ts >= $since) | .ts' \
+        "$SKILL_TELEMETRY_FILE" 2>/dev/null | head -1)
+
+      if [[ -z "$FOLLOWED" ]]; then
+        # Suggestion was ignored — log it
+        IGN_TS=$(iso_now)
+        IGN_LINE=$(jq -nc \
+          --arg ts "$IGN_TS" \
+          --arg event "skill:suggestion-ignored" \
+          --arg skill "$PREV_SKILL" \
+          --arg suggested_at "$PREV_ISO" \
+          --arg repo "$REPO" \
+          --arg sid "${SESSION_ID:-}" \
+          '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid}')
+        log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$IGN_LINE"
+      fi
+    fi
+  fi
+fi
 
 # Lowercase the prompt for case-insensitive matching
 PROMPT_LOWER=$(echo "$PROMPT" | tr '[:upper:]' '[:lower:]')
