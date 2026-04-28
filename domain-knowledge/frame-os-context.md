@@ -87,6 +87,8 @@ What we are NOT doing: theme switching, CSS brand skins, visual design demos. Th
 | seh-study | React/Vite, Express, Carbon DS, Leitner SR | 3030/3031 | Scaffolded 2026-03-22 — MF remote, 3-tab dashboard (Study/Browse/Progress), 238 NASA SEH glossary terms, Leitner 5-box spaced repetition | Shell registration complete; content + SR engine pending |
 | purefoy | Python, Roger Deakins cinematography RAG | — | Active, in-progress work on main | Not integrated into Frame yet; upstream tracking fixed 2026-02-27 |
 | frame-ui-components | Shared React component library (Carbon DS) | — | All 9 sub-apps consuming | Storybook stories for 4 of 7 components missing (ADR-0030) |
+| beaverGame (Cozy Beaver) | Vite + vanilla TS + Three.js (no React) | 5173 | Phase 0 spike shipped 2026-04-27 — world spawn (ground/pond/sky/trees), WASD beaver controller with follow camera, Playwright snap loop | Standalone (NOT a Frame app — see beaverGame ADR-0006); no HDRI yet, no CI gates yet |
+| asset-foundry | TypeScript + LangGraph + Anthropic SDK + Blender bpy | — | Phase 0 shipped 2026-04-27 — 5-node graph (WorldDesigner/AssetSculptor/MaterialArtist/SceneAssembler/Validator), 5 fixtures generating validated .glb, offline path via fixtures/ when ANTHROPIC_API_KEY unset | LLM path not yet exercised end-to-end; Blender pinned at 4.0.2 (should bump to 4.2 LTS); MCP TCP bridge stubbed |
 
 ---
 
