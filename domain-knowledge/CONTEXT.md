@@ -67,6 +67,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity).
 - `Telemetry` — `~/.claude/skill-telemetry.jsonl` (invocations) and `~/.claude/suggestion-telemetry.jsonl` (suggestions). Append-only, JSONL, user-level.
 - `WorkflowEngine` — TypeScript runtime in `packages/workflows/`. Provides `runWorkflow()` for CLI/CI use; reads the same `.claude/skills/` files via `fileBackedWorkflow`.
+- `FrameDev` — multi-app dev-server orchestrator at `scripts/frame-dev.sh`, surfaced as `/frame-dev`. Registers each runnable rig with start/stop/status semantics; logs land in `/tmp/frame-dev-logs/<app>.log`. Dispatches by `RigProfile`: frame rigs use `pnpm dev:all` (web + API), non-frame rigs declare a custom `start_cmd` (e.g. `pnpm dev` Vite for beaverGame, `pnpm gen-asset --watch`-equivalent for asset-foundry). Idempotent port-checks; safe to re-run. See ADR-0051.
 
 **Entities / value objects**
 - `Tier` (1=mandatory, 2=recommended, 3=passive), `Phase` (planning, alignment, implementation, debugging, validation, release, etc.), `Trigger` (string array matched word-overlap by suggest-skill).
@@ -89,6 +90,7 @@ The bead-and-hook protocol governing agent work, adopted from Steve Yegge's Gas 
 - `Convoy` — named group of related beads representing a feature or sprint. Tracks N/M progress.
 - `Molecule` — chain of beads representing a multi-step workflow with checkpointing. Instantiated from a `Formula` (TOML template). Compiles to a LangGraph graph in Frame.
 - `Rig` — a codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
+- `RigProfile` — categorizes a rig by integration shape: `frame` (MF remote, Carbon, frame-agent gateway — cv-builder, blogengine, tripplanner, purefoy, lean-canvas, gastown-pilot, seh-study, core-reader) or `non-frame` (standalone build-time or runtime, no MF, no frame-agent — asset-foundry, beaverGame; future Game Library will be `frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See `.claude/SKILLS.md` per non-frame rig and ADR-0051.
 
 **Entities / value objects**
 - Agent roles (mapped to Frame): `mayor`, `witness`, `worker` (polecat), `crew`, `deacon`, `dog` (maintenance). Routing: `mail` (direct/queued/broadcast), `sling` (assign), `nudge` (kick stalled), `handoff` (graceful session end).
@@ -104,6 +106,23 @@ The bead-and-hook protocol governing agent work, adopted from Steve Yegge's Gas 
 **Frame mappings (source of truth: `gastown/knowledge/domain-model.md`)**
 - `polecat` → `worker` agent. `crew` → `crew` agent. `mayor` → `mayor` agent. `witness` → `witness` agent.
 - `bead` → `FrameBead`. `hook` (assignment) → `hook` field on `AgentBead`. `convoy` → `FrameConvoy`. `molecule` → `FrameMolecule`. `formula` → `Formula` (TOML).
+
+**Bead prefix reservations** (extends adoption-plan A1 routing; ADR-0052)
+| Prefix | Rig | Profile | Notes |
+|--------|-----|---------|-------|
+| `core-` | core | frame-tooling | workflow engine |
+| `hq-` | shell | frame | cross-app aggregation |
+| `cv-` | cv-builder | frame | |
+| `blog-` | blogengine | frame | |
+| `trip-` | tripplanner | frame | |
+| `pure-` | purefoy | frame | |
+| `lean-` | lean-canvas | frame | |
+| `seh-` | seh-study | frame | |
+| `fnd-` | asset-foundry | non-frame | build-time pipeline |
+| `bvr-` | beaverGame | non-frame | Three.js client |
+| `lib-` | Game Library (TBD name) | frame | future sub-app |
+
+Prefix is the only routing primitive for non-frame rigs until A1 FrameBead lands. `/bead` markdown frontmatter carries the prefix today; future BeadStore implementations route the same way.
 
 **See:** `gastown/knowledge/domain-model.md`, `gastown/knowledge/wasteland-spec.md`, `gastown/knowledge/paperclip-patterns.md`, ADR-0033 (FrameBead), ADR-0034 (Mayor), ADR-0043 (agent-bead-bridge), `bead/references/bead-schemas.md`.
 
