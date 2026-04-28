@@ -22,6 +22,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | mrplug | — | Chrome extension MV3, AI UI/UX analysis | 2B | active |
 | frame-ui-components | — | Shared Carbon DS component library | — | active |
 | landing | — | Personal portfolio landing page | — | active |
+| beaverGame | 5173 | Cozy 3D beaver simulator (Three.js) — consumes asset-foundry .glbs | 0 | active |
+| asset-foundry | — | AI-driven Blender asset pipeline (LangGraph + bpy) | 0 | active |
 
 ## Skills
 
