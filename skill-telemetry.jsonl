@@ -1,3 +1,10 @@
-{"ts":"2026-04-10T20:18:44Z","event":"skill:invoked","skill":"investigate:investigate","args":"Missing episodes S02E188 and S02E189 — RSS feed jumps from episode 187 to 190","tool_name":"Skill","repo":"purefoy","cwd":"/Users/yuri/ojfbot/purefoy","session_id":"b75368c2-cad4-45cd-a52b-3e7bf1e38476","source":"interactive"}
-{"ts":"2026-04-12T01:28:59Z","event":"skill:pr-commented","repo":"core","pr":"72","session_id":"e629d30d-42ec-45ea-b0a7-34c53a63551f"}
-{"ts":"2026-04-12T01:36:09Z","event":"skill:pr-commented","repo":"core","pr":"72","session_id":"e629d30d-42ec-45ea-b0a7-34c53a63551f"}
+{"ts":"2026-04-27T20:24:42Z","event":"skill:invoked","skill":"frame-standup:frame-standup","args":"","tool_name":"Skill","repo":"core","cwd":"/Users/yuri/ojfbot/core","session_id":"01c97afb-9e73-4550-9f31-592ed2f931ec","source":"interactive"}
+{"ts":"2026-04-27T20:35:24Z","event":"skill:pr-commented","repo":"daily-logger","pr":"170","session_id":"01c97afb-9e73-4550-9f31-592ed2f931ec"}
+{"ts":"2026-04-27T22:26:30Z","event":"skill:invoked","skill":"init","args":"","tool_name":"Skill","repo":"beaverGame","cwd":"/Users/yuri/ojfbot/beaverGame","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf","source":"interactive"}
+{"ts":"2026-04-27T22:26:30Z","event":"skill:suggestion-followed","skill":"init","suggested_at":"2026-04-27T22:25:11Z","repo":"beaverGame","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T03:02:31Z","event":"skill:pr-commented","repo":"core","pr":"78","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T03:40:24Z","event":"skill:pr-commented","repo":"core","pr":"79","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T03:43:19Z","event":"skill:pr-commented","repo":"beaverGame","pr":"1","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T03:44:54Z","event":"skill:pr-commented","repo":"asset-foundry","pr":"1","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T04:31:25Z","event":"skill:pr-commented","repo":"beaverGame","pr":"2","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
+{"ts":"2026-04-28T04:55:46Z","event":"skill:pr-commented","repo":"beaverGame","pr":"20","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
