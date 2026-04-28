@@ -220,6 +220,8 @@ case "$REPO_NAME" in
   purefoy)      ARCH_FILE="purefoy-architecture.md" ;;
   daily-logger) ARCH_FILE="daily-logger-architecture.md" ;;
   lean-canvas)  ARCH_FILE="lean-canvas-architecture.md" ;;
+  beaverGame|beaver-game) ARCH_FILE="beavergame-architecture.md" ;;
+  asset-foundry) ARCH_FILE="asset-foundry-architecture.md" ;;
   shell)        ARCH_FILE="" ;;  # frame-os-context covers the shell
 esac
 
