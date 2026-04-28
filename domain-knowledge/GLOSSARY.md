@@ -28,6 +28,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Bead (skill artifact)** — A small dated markdown file produced by the `/bead` skill capturing a decision, gotcha, or report for inter-session continuity. Compatible with Gas Town bead schema. (`bead/bead.md`)
 
+**BeadPrefixReservation** — Reserved prefix mapping rigs to their bead namespace (`core-`, `cv-`, `blog-`, `trip-`, `pure-`, `lean-`, `seh-`, `hq-`, `fnd-`, `bvr-`, `lib-`). Extends adoption-plan A1 prefix routing; works today with `/bead` markdown, migrates cleanly to A1 FrameBead. See CONTEXT.md §4 and ADR-0052.
+
 **bead-session.sh** — Hook bound to PostToolUse(Skill) and PostToolUse(Bash) that captures session state for inter-session continuity.
 
 **Bounded context (DDD)** — A region of the system where a particular language is consistent. ojfbot has six (CONTEXT.md): Shell + Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components.
@@ -70,6 +72,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **FrameBead** — Frame's adaptation of Gas Town's bead. Same shape and lifecycle (simplified to 4 stages). (ADR-0033)
 
+**FrameDev** — Multi-app dev-server orchestrator (`scripts/frame-dev.sh`, surfaced as `/frame-dev`). Registers each runnable rig with start/stop/status; logs at `/tmp/frame-dev-logs/<app>.log`. Dispatches by `RigProfile`. See CONTEXT.md §3 and ADR-0051.
+
 **frame-agent** — Single LLM gateway service (port 4001). All Anthropic calls in Frame OS go through it.
 
 **frame-fade-in** — CSS class + `@keyframes` (150ms, Carbon easing) applied to every AppFrame swap for fade animation.
@@ -81,6 +85,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Gas Town** — Steve Yegge's multi-agent coding orchestrator. Manages 20-30+ parallel CLI coding agents. Source of bead/hook/GUPP/molecule vocabulary adopted by Frame.
 
 **GasCity** — Wasteland-era federation node concept (forthcoming).
+
+**Game Library** — TBD-named Frame sub-app for switching between game projects (beaverGame and future siblings). On the roadmap; not yet scaffolded. Reserved bead prefix: `lib-`. See ADR-0052.
 
 **Glossary** — This file. Companion to CONTEXT.md.
 
@@ -157,6 +163,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **RemoteComponent** — Module Federation remote loaded at runtime by AppFrame.
 
 **Rig** — A codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
+
+**RigProfile** — Rig categorization (`frame` vs `non-frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See CONTEXT.md §4 and ADR-0051.
 
 ## S
 
