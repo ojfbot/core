@@ -879,6 +879,31 @@
       ],
       "suggested_after": ["/roadmap", "/orchestrate"],
       "layer_affinity": [0, 1]
+    },
+    {
+      "name": "skill-metrics",
+      "tier": 2,
+      "phase": "observation",
+      "tags": [
+        "metrics",
+        "telemetry",
+        "adoption",
+        "retrospective",
+        "measurement",
+        "observability"
+      ],
+      "description": "Compute adoption metrics from skill-telemetry.jsonl + suggestion-telemetry.jsonl. Invocations, sequencing, suggestion-followed rate, ADR target gaps. Honest numbers only.",
+      "triggers": [
+        "skill-metrics",
+        "how is adoption going",
+        "are we using the new skills",
+        "skill telemetry report",
+        "skill adoption metrics",
+        "are the targets met",
+        "pocock retrospective"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [0]
     }
   ]
 }
