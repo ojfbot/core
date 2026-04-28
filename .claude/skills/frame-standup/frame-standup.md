@@ -231,9 +231,37 @@ Always include "All P0 + P1 items" as a final option.
 
 ### Step 7 — Expand selected options and offer orchestration
 
-For each selected option, generate a **Layer 1 orchestrator prompt** suitable
-for `/orchestrate` consumption. The prompt format extends the canonical
-structure from `knowledge/prompt-format.md`:
+**Funnel telemetry (per ADR-0054):** Before presenting options to the user,
+emit a `standup:suggested` event for each generated option. This logs the
+suggestion regardless of whether the user selects it — an ignored suggestion
+is also signal about adoption.
+
+Generate a single `standup_id` for this entire `/frame-standup` invocation:
+```bash
+STANDUP_ID="stnd-$(date +%Y-%m-%d)-$(node -e 'process.stdout.write(Math.random().toString(36).slice(2,6))')"
+```
+
+Then for each suggested option (P0/P1/P2 priority surfaced from Step 5/6),
+emit one event:
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/standup-emit.mjs" suggested \
+  --standup-id="$STANDUP_ID" \
+  --suggestion-id="s<N>" \
+  --skill="<the /skill that should run for this priority>" \
+  --priority-id="<priority text or stable ID from Step 5>" \
+  --rationale="<one-sentence why this suggestion>" \
+  || true   # never block the standup flow if telemetry fails
+```
+
+`suggestion_id` is sequential per standup (`s1`, `s2`, ...). `priority_id` is
+free-text (the priority's title or a stable hash of it). Telemetry lands in
+`~/.claude/standup-telemetry.jsonl`. PR-X2 will compute the funnel by
+correlating these events with `~/.claude/skill-telemetry.jsonl` (launched
+within 24h, same session_id).
+
+Then, for each selected option, generate a **Layer 1 orchestrator prompt**
+suitable for `/orchestrate` consumption. The prompt format extends the
+canonical structure from `knowledge/prompt-format.md`:
 
 > **Load `knowledge/prompt-format.md`** for the base canonical structure.
 > **Load `knowledge/orchestration-prompts.md`** for the Layer 1/2/3 templates.

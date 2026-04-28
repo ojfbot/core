@@ -135,16 +135,19 @@ The observability layer. What gets seen, by whom, where it lands.
 - `Council` — multi-persona review agents. Personas live in `personas/*.md`. Council critiques independently, then a synthesis pass. Used by daily-logger and `/council-review` skill.
 - `BeadSession` — file-based per-session record produced by the `bead-session.sh` hook. Captures decisions, gotchas, and reports for inter-session continuity.
 - `Telemetry` — same JSONL stores as Workflow Engine context (skill-telemetry, suggestion-telemetry). Read by `pr-skill-audit.sh` for coverage reports.
+- `StandupFunnel` — measurement of `/frame-standup` Step 7 suggestions through four stages: suggested → launched → addressed → closed. Each stage has its own JSONL event class in `~/.claude/standup-telemetry.jsonl`. Closure: (a) bead-status closed (per ADR-0053) OR (c) priority absent from next standup. See ADR-0054.
 
 **Entities / value objects**
 - `Persona` (council member with frontmatter + critique style), `Article` (daily-logger output), `Mermaid diagram` (auto-rendered in articles), `Heuristic` (rule in `heuristic-analysis.sh` mapping diff patterns to skill suggestions).
+- `StandupSuggestion` — emitted by `/frame-standup` Step 7. Frontmatter: `suggestion_id`, `standup_id`, `skill`, `priority_id`, `rationale`, optional `bead_id` and `expected_outcome`. Logged via `scripts/hooks/standup-emit.mjs` to `~/.claude/standup-telemetry.jsonl`.
+- `ClosureSignal` — evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (the linked bead's lifecycle reached closed) and `audit-disappeared` (the priority absent from the next `/frame-standup`). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise.
 
 **Invariants**
 - Every day without a daily-logger entry is lost signal. The pipeline must run daily.
 - Council critiques are independent — no shared scratch context between personas.
 - Skill telemetry is append-only, JSONL, never edited in-place.
 
-**See:** `daily-logger-architecture.md`, ADR-0037 (skill telemetry), `bead/bead.md`, `council-review/council-review.md`.
+**See:** `daily-logger-architecture.md`, ADR-0037 (skill telemetry), ADR-0050 (skill-metrics measurement system), ADR-0054 (standup funnel measurement), `bead/bead.md`, `council-review/council-review.md`.
 
 ### 6. UI Components
 
