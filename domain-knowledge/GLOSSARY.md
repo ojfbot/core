@@ -44,6 +44,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **CLAUDE.md** — Per-repo file loaded into every Claude Code session. Holds repo-specific guidance, ecosystem table, skill list, defaults reference. Top of every session's context.
 
+**ClosureSignal** — Evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (linked bead lifecycle reached closed) and `audit-disappeared` (priority absent from next standup). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise. See CONTEXT.md §5 and ADR-0054.
+
 **Convoy** — A named group of related beads representing a feature or sprint. Tracks N/M progress. Frame term: `FrameConvoy`.
 
 **Council** — Multi-persona review system. Personas in `personas/*.md` critique independently; synthesis merges. Used by daily-logger and `/council-review`.
@@ -185,6 +187,14 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **SSE (Server-Sent Events)** — Streaming pattern used to surface agent progress to the browser. Used by every agent-graph app.
 
 **Stamp** — Reputation unit in Wasteland federation. Multi-dimensional: quality, reliability, creativity.
+
+**StandupFunnel** — Measurement of `/frame-standup` Step 7 suggestions through four stages (suggested → launched → addressed → closed). Drop-off rates expose adoption vs. efficacy gaps. Telemetry in `~/.claude/standup-telemetry.jsonl`. See CONTEXT.md §5 and ADR-0054.
+
+**StandupSuggestion** — A single follow-up action emitted by `/frame-standup` Step 7. Carries `suggestion_id`, `standup_id`, target `skill`, `priority_id`, `rationale`, optional `bead_id`. Logged via `scripts/hooks/standup-emit.mjs`. See CONTEXT.md §5 and ADR-0054.
+
+**standup-emit.mjs** — Pure-Node JSONL appender at `scripts/hooks/standup-emit.mjs`. Commands: `suggested` (PR-X1) and `closed` (PR-X2). Writes to `~/.claude/standup-telemetry.jsonl`. Never blocks the skill flow — exits 0 on any error path.
+
+**Standup telemetry** — `~/.claude/standup-telemetry.jsonl`. Append-only JSONL of `standup:suggested` and `standup:closed` events. Read by `/skill-metrics --funnel=standup` (PR-X2).
 
 **suggest-skill.sh** — Hook bound to UserPromptSubmit. Matches user prompt against `skill-catalog.json` triggers; injects skill suggestions.
 
