@@ -1,6 +1,6 @@
 # OJF Workflow Framework
 
-> Portable Claude Code workflow framework: 30+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use.
+> Portable Claude Code workflow framework: 30+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use. Includes `/bead` for session-handoff across repos.
 
 Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application OS built as both a live product and an engineering portfolio. This repo is the shared development infrastructure that powers all Frame OS projects.
 
@@ -148,3 +148,5 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [purefoy](https://github.com/ojfbot/purefoy) | Roger Deakins cinematography knowledge base |
 | [MrPlug](https://github.com/ojfbot/MrPlug) | Chrome extension for AI UI feedback |
 | [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) — published to npm as `@ojfbot/frame-ui-components` |
+| [beaverGame](https://github.com/ojfbot/beaverGame) | Terrain-to-dam sandbox loop — water-as-highway game mechanic |
+| [asset-foundry](https://github.com/ojfbot/asset-foundry) | AI-driven Blender asset pipeline |
