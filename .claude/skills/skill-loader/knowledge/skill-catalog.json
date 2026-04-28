@@ -1,5 +1,5 @@
 {
-  "version": "1.4",
+  "version": "1.5",
   "updated": "2026-04-12",
   "skills": [
     {
@@ -779,6 +779,106 @@
         "orient me",
         "what's going on"
       ]
+    },
+    {
+      "name": "grill-with-docs",
+      "tier": 2,
+      "phase": "alignment",
+      "tags": [
+        "grill",
+        "align",
+        "socratic",
+        "design-concept",
+        "ubiquitous-language",
+        "context",
+        "pre-planning"
+      ],
+      "description": "Socratic alignment before planning. Updates CONTEXT.md and stages ADR drafts in-loop. No code. Output: shared design concept, CONTEXT.md diff, ADR stub drafts.",
+      "triggers": [
+        "grill me",
+        "grill with docs",
+        "grill-with-docs",
+        "align before coding",
+        "help me think through this",
+        "establish design concept",
+        "I'm not sure what we're building",
+        "shared design concept",
+        "before we plan"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [0]
+    },
+    {
+      "name": "tdd",
+      "tier": 2,
+      "phase": "implementation",
+      "tags": [
+        "tdd",
+        "test",
+        "red-green-refactor",
+        "feedback-loop",
+        "discipline",
+        "test-first"
+      ],
+      "description": "Red-green-refactor loop. Writes failing test first, verifies red, makes minimal change to green, offers refactor. Guidance — does not block edits.",
+      "triggers": [
+        "tdd",
+        "red green refactor",
+        "test first",
+        "write the failing test",
+        "enforce TDD",
+        "TDD this change"
+      ],
+      "suggested_after": ["/scaffold", "/plan-feature"],
+      "layer_affinity": [2, 3]
+    },
+    {
+      "name": "deepen",
+      "tier": 2,
+      "phase": "architecture",
+      "tags": [
+        "refactor",
+        "architecture",
+        "deep-modules",
+        "ousterhout",
+        "shallow",
+        "consolidation",
+        "module-depth"
+      ],
+      "description": "Find shallow modules and propose deepening refactors. Ousterhout depth metric (interface simplicity × implementation richness). No edits.",
+      "triggers": [
+        "deepen",
+        "improve codebase architecture",
+        "find shallow modules",
+        "reduce module sprawl",
+        "audit module depth",
+        "consolidate utilities"
+      ],
+      "suggested_after": ["/recon", "/sweep", "/lint-audit"],
+      "layer_affinity": [1, 2]
+    },
+    {
+      "name": "triage",
+      "tier": 2,
+      "phase": "planning",
+      "tags": [
+        "triage",
+        "labels",
+        "backlog",
+        "prioritize",
+        "severity",
+        "effort"
+      ],
+      "description": "Apply consistent severity/effort/domain labels and prioritize backlog. Output: label set + ordered backlog. Optional --apply writes labels via gh.",
+      "triggers": [
+        "triage",
+        "triage these issues",
+        "label this backlog",
+        "prioritize the issues",
+        "apply triage labels"
+      ],
+      "suggested_after": ["/roadmap", "/orchestrate"],
+      "layer_affinity": [0, 1]
     }
   ]
 }

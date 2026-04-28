@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
 
+> **Default agent posture: grill before coding.** See `domain-knowledge/agent-defaults.md`. Before any non-trivial change, restate the request in one sentence, surface 2–3 assumptions, and ask the highest-leverage clarifying question. Skip only for trivial tasks (typos, direct lookups, explicit "just do it"). Cost of one question is far below cost of building the wrong thing.
+
 ## Ecosystem
 
 | Repo | Port(s) | Description | Phase | Status |
@@ -62,9 +64,11 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 
 | Command | Tier | Phase | Purpose |
 |---------|------|-------|---------|
+| `/grill-with-docs` | 2 | Alignment | Socratic alignment before planning. Updates CONTEXT.md, drafts ADR stubs in-loop. No code. ADR-0045 |
 | `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub |
 | `/spec-review` | 2 | Pre-kick-off | Fact-check a plan or spec before scaffolding — PASS / PASS WITH NOTES / BLOCKED |
 | `/scaffold` | 2 | Kick-off | Types, skeleton implementations, test stubs |
+| `/tdd` | 2 | Implementation | Red-green-refactor loop. Writes failing test first, verifies red, minimal change to green. Guidance only. ADR-0046 |
 | `/investigate` | 2 | Debugging | Cause map + candidate fixes — no code edits |
 | `/validate` | 2 | Quality gate | Spec coverage, invariants, auth/data safety checks |
 | `/deploy` | 2 | Release | Pre-flight checklist, blast radius, rollback plan, changelog |
@@ -78,6 +82,8 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | `/doc-refactor` | 2 | Post-MVP / after refactors | Normalize README, docs/, ADRs, Mermaid diagrams |
 | `/test-expand` | 1/2 | After milestones | Identify untested branches, propose new tests only |
 | `/sweep` | 1/2 | Daily/weekly | Stale TODOs, unused imports, debug logs, config duplication |
+| `/deepen` | 2 | Architecture | Find shallow modules, propose Ousterhout-style deepening refactors. No edits. ADR-0047 |
+| `/triage` | 2 | Backlog | Apply severity/effort/domain rubric to issues. Output: ordered backlog. ADR-0048 |
 | `/techdebt` | 3 | Continuous | Scan for debt → TECHDEBT.md; or propose/apply framework patches |
 
 ### Environment
@@ -241,6 +247,9 @@ Persistent file-based memory at project scope (`.claude/projects/`) tracks user 
 
 `domain-knowledge/` contains reference files read by commands when context is needed:
 
+- `CONTEXT.md` — **ubiquitous language layer (ADR-0044)**: 6 bounded contexts (Shell+Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components), aggregates inside each, cross-context workflows, universal invariants, naming disambiguation
+- `GLOSSARY.md` — A→Z one-liners for every non-obvious term, with source ADR/file cross-references
+- `agent-defaults.md` — default grilling posture: restate, surface assumptions, ask the highest-leverage question, wait. Applies to every ojfbot session
 - `frame-os-context.md` — **agent context brief**: product vision, two demo tracks, full repo inventory, shell blockers, roadmap phases, architectural decisions, env vars, constraints
 - `cv-builder-architecture.md` — monorepo packages, agent graph structure, P0 blockers, `.agents/` system, open issues map
 - `langgraph-patterns.md` — state schema rules, node/routing invariants, checkpointer behavior, common failure signatures

@@ -197,6 +197,9 @@ UNIVERSAL=(
   langgraph-patterns.md
   workbench-architecture.md
   tbcony-dia-context.md
+  CONTEXT.md
+  GLOSSARY.md
+  agent-defaults.md
 )
 
 for f in "${UNIVERSAL[@]}"; do
