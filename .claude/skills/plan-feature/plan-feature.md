@@ -30,6 +30,10 @@ Read `CLAUDE.md` for the current project's stack, packages, and conventions. If 
 
 One paragraph: what is the actual problem? Challenge vague requirements — state ambiguities explicitly and make reasonable assumptions.
 
+**If `--from-conversation` flag is present:** synthesize the problem statement from the preceding conversation transcript (typically a `/grill-with-docs` session) instead of from the user's current `$ARGUMENTS`. Surface 3 implicit assumptions from the conversation back to the user **before continuing past this step** — let the user confirm each one or correct it. Only proceed to step 3 once assumptions are confirmed.
+
+> **Load `knowledge/conversation-synthesis-guide.md`** for how to extract a spec from a Socratic transcript without losing nuance, and what to do when the conversation didn't reach a single design concept.
+
 ### 3. Proposed solution
 
 Architecture sketch in the style of this codebase:

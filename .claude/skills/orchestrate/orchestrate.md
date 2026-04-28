@@ -317,6 +317,33 @@ Tests passing: M/N
 
 ---
 
+## Modes — emit GitHub issues (Pocock /to-issues)
+
+When `--emit=github-issues` is in `$ARGUMENTS`, after Step 3 (decomposition) the skill emits each vertical slice as a GitHub issue body — title, description, acceptance criteria, parent epic link — instead of (or before) executing.
+
+**Why:** sometimes the decomposition is the deliverable. The user wants a backlog of well-shaped issues, not autonomous execution of all of them. This mode produces issue bodies that downstream `/triage` can label and order.
+
+**Steps:**
+
+1. Run Steps 1–3 as usual (parse input, spawn Layer 1, present decomposition).
+2. For each task in the decomposition, format an issue body:
+   - **Title:** `<verb> <object>` form, ≤70 chars (e.g., `add session resume to cv-builder chat panel`)
+   - **Body:** problem statement (one paragraph), acceptance criteria (numbered, INVEST-compliant), related files (paths), parent epic reference if multi-task feature
+   - **Suggested labels:** infer from the task — domain (auth/agent-graph/ui/...), type (bug/feature/refactor/...), but **do not** assign severity or effort. Those are `/triage` decisions.
+3. Output as either:
+   - `gh issue create` invocations (default — user runs them) — one per task
+   - With `--apply` — actually create them via `gh` CLI; print URLs of created issues
+4. Skip Steps 4–6 (Layer 2/3 execution) if `--emit=github-issues` is the terminal action. The user runs `/triage` next to label and order, and `/orchestrate <app> execute-selected` to drive specific issues.
+
+> **Load `knowledge/vertical-slice-issue-template.md`** for the issue body template, INVEST checklist, and parent-epic link format.
+
+**Composes with:** `/triage` (label and order), `/plan-feature` (for individual high-priority issues that need a deeper spec).
+
+**Constraints:**
+- Each emitted issue must be a vertical slice — independently shippable, exercises the full path entrypoint → data boundary where applicable.
+- Don't emit infrastructure-only or pure-refactor issues from this path; those go through `/plan-feature` directly.
+- Cap at 12 issues per session. More indicates the priority is actually a multi-feature initiative — emit a parent epic + 3–5 child issues instead.
+
 ## Decomposition patterns
 
 > **Load `knowledge/decomposition-patterns.md`** for common task structures.
