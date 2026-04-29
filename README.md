@@ -148,3 +148,5 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [purefoy](https://github.com/ojfbot/purefoy) | Roger Deakins cinematography knowledge base |
 | [MrPlug](https://github.com/ojfbot/MrPlug) | Chrome extension for AI UI feedback |
 | [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) — published to npm as `@ojfbot/frame-ui-components` |
+| [beaverGame](https://github.com/ojfbot/beaverGame) | Terrain-to-dam beaver sandbox (Babylon.js) |
+| [asset-foundry](https://github.com/ojfbot/asset-foundry) | AI-driven Blender asset pipeline (MCP platform) |
