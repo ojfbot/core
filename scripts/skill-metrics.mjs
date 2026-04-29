@@ -11,6 +11,8 @@
 //   node scripts/skill-metrics.mjs --skill-telemetry=path --suggestion-telemetry=path
 //   node scripts/skill-metrics.mjs --pair-window=3600                    # seconds for sequencing pairs (default 3600)
 //   node scripts/skill-metrics.mjs --pairs=grill-with-docs,plan-feature  # explicit pairs to track
+//   node scripts/skill-metrics.mjs --funnel=standup                      # include standup funnel section (ADR-0054)
+//   node scripts/skill-metrics.mjs --funnel=standup --launch-window=86400 # 24h default for launched correlation
 
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -19,9 +21,12 @@ import { resolve } from "node:path";
 const args = parseArgs(process.argv.slice(2));
 const skillPath = expandHome(args["skill-telemetry"] ?? "~/.claude/skill-telemetry.jsonl");
 const suggestionPath = expandHome(args["suggestion-telemetry"] ?? "~/.claude/suggestion-telemetry.jsonl");
+const standupPath = expandHome(args["standup-telemetry"] ?? "~/.claude/standup-telemetry.jsonl");
 const baselinePath = args.baseline ? expandHome(args.baseline) : null;
 const format = args.format ?? "markdown";
 const pairWindowSec = Number(args["pair-window"] ?? 3600);
+const launchWindowSec = Number(args["launch-window"] ?? 86400); // 24h default per ADR-0054
+const funnelMode = args.funnel === "standup" || args.funnel === true;
 const since = args.since ? Date.parse(args.since) : Date.now() - 30 * 24 * 60 * 60 * 1000;
 const until = args.until ? Date.parse(args.until) : Date.now();
 
@@ -51,6 +56,11 @@ const baselineCounts = countBySkill(skillBaseline);
 const sequencing = computeSequencing(skillInWindow, SEQUENCING_PAIRS, pairWindowSec);
 const suggestionFollowed = computeSuggestionFollowed(suggestionEvents.filter((e) => inWindow(e.ts)), skillInWindow);
 
+// Standup funnel computation (ADR-0054). Only enabled with --funnel=standup.
+const standupEvents = funnelMode ? readJsonl(standupPath) : [];
+const standupInWindow = standupEvents.filter((e) => inWindow(e.ts));
+const standupFunnel = funnelMode ? computeStandupFunnel(standupInWindow, skillInWindow, launchWindowSec) : null;
+
 const report = {
   generated_at: new Date().toISOString(),
   window: {
@@ -61,6 +71,7 @@ const report = {
   sources: {
     skill_telemetry: skillPath,
     suggestion_telemetry: suggestionPath,
+    standup_telemetry: funnelMode ? standupPath : null,
     baseline: baselinePath,
   },
   totals: {
@@ -68,12 +79,14 @@ const report = {
     skill_events_total: skillEvents.length,
     suggestion_events_in_window: suggestionEvents.filter((e) => inWindow(e.ts)).length,
     suggestion_events_total: suggestionEvents.length,
+    standup_events_in_window: standupInWindow.length,
     baseline_skill_events: skillBaseline.length,
   },
   invocations: counts,
   baseline_diff: baselineCounts ? diffCounts(counts, baselineCounts) : null,
   sequencing,
   suggestion_followed: suggestionFollowed,
+  standup_funnel: standupFunnel,
   targets: scoreTargets(counts, sequencing, TARGETS, SEQUENCING_PAIRS),
 };
 
@@ -257,6 +270,91 @@ function computeSuggestionFollowed(suggestionEvents, skillEvents) {
   return { totals, overall_followed_rate: followedRate, per_skill: perSkillSorted, follow_window_minutes: 5 };
 }
 
+function computeStandupFunnel(standupEvents, skillEvents, launchWindowSec) {
+  const suggested = standupEvents.filter((e) => e.event === "standup:suggested");
+  const closed = standupEvents.filter((e) => e.event === "standup:closed");
+  const closedById = new Map(closed.map((e) => [e.suggestion_id, e]));
+
+  // Index skill invocations by skill name for fast lookup.
+  const skillInvocations = skillEvents
+    .filter((e) => isUserInvocation(e))
+    .map((e) => ({ skill: normalizeSkillName(e.skill), t: parseTs(e.ts), session_id: e.session_id }));
+
+  const perSuggestion = suggested.map((s) => {
+    const tSugg = parseTs(s.ts);
+    const targetSkill = normalizeSkill(s.skill);
+    const launched = skillInvocations.some((inv) => {
+      if (inv.skill !== targetSkill) return false;
+      const dt = (inv.t - tSugg) / 1000;
+      if (dt < 0 || dt > launchWindowSec) return false;
+      return true;
+    });
+    const closeEvent = closedById.get(s.suggestion_id);
+    return {
+      suggestion_id: s.suggestion_id,
+      standup_id: s.standup_id,
+      skill: s.skill,
+      priority_id: s.priority_id,
+      launched,
+      addressed: launched, // v1: launched ≡ addressed
+      closed: !!closeEvent,
+      closure_signal: closeEvent?.closure_signal ?? null,
+    };
+  });
+
+  // Aggregate counts
+  const totals = {
+    suggested: perSuggestion.length,
+    launched: perSuggestion.filter((p) => p.launched).length,
+    addressed: perSuggestion.filter((p) => p.addressed).length,
+    closed: perSuggestion.filter((p) => p.closed).length,
+  };
+  const launchRate = totals.suggested > 0 ? Number((totals.launched / totals.suggested).toFixed(3)) : 0;
+  const closureRate = totals.suggested > 0 ? Number((totals.closed / totals.suggested).toFixed(3)) : 0;
+  const launchedClosureRate = totals.launched > 0 ? Number((totals.closed / totals.launched).toFixed(3)) : 0;
+
+  // Per-skill breakdown
+  const bySkill = new Map();
+  for (const p of perSuggestion) {
+    const k = p.skill;
+    if (!bySkill.has(k)) bySkill.set(k, { suggested: 0, launched: 0, closed: 0 });
+    const s = bySkill.get(k);
+    s.suggested++;
+    if (p.launched) s.launched++;
+    if (p.closed) s.closed++;
+  }
+  const perSkill = Object.fromEntries(
+    [...bySkill.entries()].sort(([, a], [, b]) => b.suggested - a.suggested)
+  );
+
+  // Closure signal breakdown
+  const closureSignals = { "bead-status": 0, "audit-disappeared": 0, "explicit": 0, "unknown": 0 };
+  for (const p of perSuggestion) {
+    if (!p.closed) continue;
+    const sig = p.closure_signal ?? "unknown";
+    closureSignals[sig] = (closureSignals[sig] ?? 0) + 1;
+  }
+
+  return {
+    launch_window_seconds: launchWindowSec,
+    totals,
+    launch_rate: launchRate,
+    closure_rate: closureRate,
+    launched_to_closed_rate: launchedClosureRate,
+    per_skill: perSkill,
+    closure_signals: closureSignals,
+    per_suggestion: perSuggestion,
+  };
+}
+
+// Normalize a /skill or skill identifier as the standup events use a leading slash
+// while skill-telemetry uses plugin:name format. Strip leading slash and any prefix.
+function normalizeSkill(raw) {
+  if (!raw) return "";
+  const stripped = String(raw).replace(/^\//, "");
+  return normalizeSkillName(stripped);
+}
+
 function scoreTargets(counts, sequencing, targetsTable, pairs) {
   const out = [];
   for (const [skill, t] of Object.entries(targetsTable)) {
@@ -359,6 +457,47 @@ function renderMarkdown(r) {
     lines.push("");
   }
 
+  if (r.standup_funnel) {
+    const f = r.standup_funnel;
+    lines.push(`## Standup funnel (ADR-0054)`);
+    lines.push("");
+    lines.push(`Launch window: ${f.launch_window_seconds}s (${Math.round(f.launch_window_seconds / 3600)}h). Suggestions in window: **${f.totals.suggested}**.`);
+    lines.push("");
+    lines.push("| Stage | Count | Rate |");
+    lines.push("|-------|------:|-----:|");
+    lines.push(`| Suggested | ${f.totals.suggested} | 100% |`);
+    lines.push(`| Launched (≡ addressed v1) | ${f.totals.launched} | ${(f.launch_rate * 100).toFixed(1)}% |`);
+    lines.push(`| Closed | ${f.totals.closed} | ${(f.closure_rate * 100).toFixed(1)}% |`);
+    lines.push("");
+    if (f.totals.launched > 0) {
+      lines.push(`**Launched → Closed rate:** ${(f.launched_to_closed_rate * 100).toFixed(1)}% (efficacy of launched work)`);
+      lines.push("");
+    }
+    if (Object.keys(f.per_skill).length > 0) {
+      lines.push("### Per-skill funnel");
+      lines.push("");
+      lines.push("| Skill | Suggested | Launched | Closed | Launch% | Closure% |");
+      lines.push("|-------|----------:|---------:|-------:|--------:|---------:|");
+      for (const [skill, s] of Object.entries(f.per_skill)) {
+        const lp = s.suggested > 0 ? ((s.launched / s.suggested) * 100).toFixed(1) : "—";
+        const cp = s.suggested > 0 ? ((s.closed / s.suggested) * 100).toFixed(1) : "—";
+        lines.push(`| \`${skill}\` | ${s.suggested} | ${s.launched} | ${s.closed} | ${lp}% | ${cp}% |`);
+      }
+      lines.push("");
+    }
+    const sigs = f.closure_signals;
+    const sigTotal = sigs["bead-status"] + sigs["audit-disappeared"] + sigs.explicit + sigs.unknown;
+    if (sigTotal > 0) {
+      lines.push("### Closure signal breakdown");
+      lines.push("");
+      lines.push(`- bead-status: ${sigs["bead-status"]} (${pct(sigs["bead-status"], sigTotal)})`);
+      lines.push(`- audit-disappeared: ${sigs["audit-disappeared"]} (${pct(sigs["audit-disappeared"], sigTotal)})`);
+      lines.push(`- explicit: ${sigs.explicit} (${pct(sigs.explicit, sigTotal)})`);
+      if (sigs.unknown > 0) lines.push(`- unknown: ${sigs.unknown} (${pct(sigs.unknown, sigTotal)})`);
+      lines.push("");
+    }
+  }
+
   lines.push(`## Targets vs actual (from ADRs)`);
   lines.push("");
   lines.push("| Kind | Target | Observed | Goal | Pass | Source |");
@@ -385,4 +524,9 @@ function renderMarkdown(r) {
   }
 
   return lines.join("\n");
+}
+
+function pct(n, total) {
+  if (!total) return "0.0%";
+  return ((n / total) * 100).toFixed(1) + "%";
 }

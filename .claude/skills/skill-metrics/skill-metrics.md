@@ -44,15 +44,22 @@ For specific sequencing pairs beyond the default:
 node scripts/skill-metrics.mjs --pairs="recon,deepen;tdd,deepen"
 ```
 
+For the standup funnel (ADR-0054 — measures /frame-standup suggestion → launched → closed):
+```bash
+node scripts/skill-metrics.mjs --funnel=standup
+node scripts/skill-metrics.mjs --funnel=standup --launch-window=86400  # 24h default
+```
+
 ### 2. Read the output
 
-The script produces six sections:
+The script produces seven sections (the last is conditional on `--funnel=standup`):
 - **Totals** — raw events vs filtered user invocations
 - **Invocations by skill** — top 20, normalized names
 - **Delta vs baseline** — change since `--baseline` was snapshotted
 - **Sequencing** — A→B pairs within session, with target pass/fail
 - **Suggestion-followed rate** — overall + per-skill, within 5min of suggestion
 - **Targets vs actual** — table mapping ADR-defined targets to observed values + gaps
+- **Standup funnel** (with `--funnel=standup`) — per-stage drop-off (suggested → launched → closed) with per-skill and closure-signal breakdowns. Reads `~/.claude/standup-telemetry.jsonl`. See ADR-0054.
 
 ### 3. Interpret against ADRs
 

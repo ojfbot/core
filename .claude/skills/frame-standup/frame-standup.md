@@ -211,6 +211,32 @@ Produce a ranked list of 3–6 actions for today:
 When structured actions are available, prefer them over free-text extraction.
 Map each action's `command` field to the corresponding framework skill.
 
+### Step 5.5 — Audit yesterday's pending suggestions (ADR-0054)
+
+For the standup funnel measurement: walk yesterday's `standup:suggested`
+events and emit `standup:closed` events for any whose `priority_id` is
+absent from today's surfaced priorities (signal `c` "audit-disappeared"
+per ADR-0054).
+
+Build a semicolon-delimited string of today's priority IDs from Step 5
+(the priority titles, exactly as they will be passed to `standup-emit`
+in Step 7). Then call:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/standup-audit.mjs" \
+  --today-priorities="<priority1>;<priority2>;<priority3>" \
+  --lookback-days=7 \
+  || true   # never block the standup flow
+```
+
+The script reads `~/.claude/standup-telemetry.jsonl`, finds pending
+suggestions (suggested but not closed) from the last 7 days, and emits
+`standup:closed` events for any pending suggestion whose `priority_id`
+is absent from today's list. Output is a JSON summary; log it but don't
+parse it — the closures are written directly to the telemetry file.
+
+Pass `--dry-run` during testing to preview without writing.
+
 ### Step 6 — Present interactive options
 
 Do NOT generate full prompts yet. Output the day plan summary, then present
