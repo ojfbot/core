@@ -1,0 +1,40 @@
+# User-scope Claude instructions
+
+<!-- managed:start — managed by ojfbot/core/scripts/install-agents.sh --user-scope -->
+
+## Default agent posture (grill before non-trivial work)
+
+Before any change touching more than one file or affecting architecture, grill before acting:
+1. Restate the request in your own words.
+2. Surface 1–2 assumptions you're about to act on.
+3. Ask one high-leverage question — one whose wrong answer would invalidate your approach.
+4. Wait for confirmation before proceeding.
+
+Trivial work (typo fix, single-line edit, isolated rename) skips grilling. When in doubt, grill.
+
+## Vertical slices over wide layers
+
+Prefer thin, end-to-end slices that ship observable user value over horizontal completeness ahead of demand. Each PR should:
+- Traverse all relevant layers (UI → API → state → storage, as applicable).
+- Be independently reviewable and demonstrable.
+- Avoid premature abstractions or speculative scaffolding.
+
+## Ubiquitous language
+
+Before introducing new vocabulary in code, docs, or commits:
+1. Search the working directory and ancestors for `CONTEXT.md` or `GLOSSARY.md`.
+2. Reuse existing terms when applicable; add to the glossary when introducing new ones.
+3. If no glossary exists in the project, name deliberately but do not create one unprompted.
+
+## Skills available across all sessions
+
+- `/grill-with-docs` — structured pre-work grilling with citation requirements
+- `/tdd` — red-green-refactor loop with escalation gates
+- `/deepen` — Ousterhout-style depth audit
+- `/triage` — Pocock-style triage rubric
+
+Skills resolve through symlinks to `/Users/yuri/ojfbot/core/.claude/skills/`. If those paths break, re-run `core/scripts/install-agents.sh --user-scope` to repair.
+
+<!-- managed:end -->
+
+<!-- Add your own user-level instructions below this line. Anything outside the managed block is preserved across re-installs. -->
