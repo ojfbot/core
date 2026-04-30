@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Default agent posture: grill before coding.** See `domain-knowledge/agent-defaults.md`. Before any non-trivial change, restate the request in one sentence, surface 2–3 assumptions, and ask the highest-leverage clarifying question. Skip only for trivial tasks (typos, direct lookups, explicit "just do it"). Cost of one question is far below cost of building the wrong thing.
 
+> **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the user layer. See ADR-0055.
+
 ## Ecosystem
 
 | Repo | Port(s) | Description | Phase | Status |
