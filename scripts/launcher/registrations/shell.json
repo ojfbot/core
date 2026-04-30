@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "id": "shell",
+  "display_name": "Frame Shell + frame-agent",
+  "repo": {
+    "url": "https://github.com/ojfbot/shell",
+    "local_path": "/Users/yuri/ojfbot/shell",
+    "branch": "main"
+  },
+  "priority_tier": "active",
+  "rig_profile": "frame",
+  "order": 10,
+  "tags": ["frontend", "federated", "host"],
+  "panes": [
+    {
+      "name": "dev",
+      "command": "pnpm dev",
+      "size": "60%",
+      "ready_signal": {
+        "type": "stdout_match",
+        "pattern": "Local:.*http://localhost:4000",
+        "timeout_seconds": 90
+      }
+    },
+    {
+      "name": "claude-headless",
+      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=shell --session-id=launcher && echo '✓ shell-agent-worker registered' && tail -f /dev/null",
+      "size": "20%",
+      "split": "horizontal"
+    },
+    {
+      "name": "tests",
+      "command": "pnpm test:watch || (echo 'no test:watch script; tailing dev log instead' && tail -f /dev/null)",
+      "size": "20%",
+      "split": "vertical"
+    }
+  ],
+  "claude_sessions": {
+    "headless": { "enabled": true, "role": "worker" },
+    "interactive": { "key_binding": "M-1" }
+  }
+}
