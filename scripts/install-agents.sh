@@ -36,16 +36,85 @@ OJFBOT_ROOT="$(dirname "$CORE_DIR")"
 
 FORCE=false
 TARGET_ARG=""
+USER_SCOPE=false
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=true ;;
+    --user-scope) USER_SCOPE=true ;;
     *) TARGET_ARG="$arg" ;;
   esac
 done
 
+# --user-scope: install Pocock skills + ~/.claude/CLAUDE.md baseline (no repo target)
+# See ADR-0055.
+if [[ "$USER_SCOPE" == "true" ]]; then
+  USER_SKILLS_DIR="$HOME/.claude/skills"
+  USER_CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+  CORE_SKILLS_DIR="$CORE_DIR/.claude/skills"
+  TEMPLATE="$SCRIPT_DIR/templates/user-claude-md.template"
+
+  echo "User-scope baseline install"
+  echo "  skills dir: $USER_SKILLS_DIR"
+  echo "  CLAUDE.md:  $USER_CLAUDE_MD"
+  echo ""
+
+  mkdir -p "$USER_SKILLS_DIR"
+
+  for skill in grill-with-docs tdd deepen triage; do
+    if [[ -d "$CORE_SKILLS_DIR/$skill" ]]; then
+      ln -sfn "$CORE_SKILLS_DIR/$skill" "$USER_SKILLS_DIR/$skill"
+      echo "  symlinked $skill"
+    else
+      echo "  WARN: $CORE_SKILLS_DIR/$skill missing — has the Pocock stack merged to main?"
+    fi
+  done
+
+  if [[ ! -f "$TEMPLATE" ]]; then
+    echo "Error: template not found at $TEMPLATE"
+    exit 1
+  fi
+
+  if [[ ! -f "$USER_CLAUDE_MD" ]]; then
+    cp "$TEMPLATE" "$USER_CLAUDE_MD"
+    echo "  created $USER_CLAUDE_MD"
+  else
+    # Replace content between managed markers; preserve everything else.
+    python3 - "$USER_CLAUDE_MD" "$TEMPLATE" <<'PY'
+import sys, re, pathlib
+target_path, template_path = sys.argv[1], sys.argv[2]
+target = pathlib.Path(target_path).read_text()
+template = pathlib.Path(template_path).read_text()
+
+start = "<!-- managed:start"
+end_re = re.compile(r"<!-- managed:end[^>]*-->")
+
+t_start = template.find(start)
+t_end_match = end_re.search(template)
+if t_start < 0 or not t_end_match:
+    print("ERROR: template missing managed markers", file=sys.stderr); sys.exit(1)
+new_block = template[t_start:t_end_match.end()]
+
+cur_start = target.find(start)
+cur_end_match = end_re.search(target)
+if cur_start >= 0 and cur_end_match and cur_end_match.end() > cur_start:
+    out = target[:cur_start] + new_block + target[cur_end_match.end():]
+else:
+    # No managed block in target — append fresh block at end
+    out = target.rstrip() + "\n\n" + new_block + "\n"
+pathlib.Path(target_path).write_text(out)
+PY
+    echo "  refreshed managed block in $USER_CLAUDE_MD"
+  fi
+
+  echo ""
+  echo "User-scope install complete."
+  exit 0
+fi
+
 if [[ -z "$TARGET_ARG" ]]; then
   echo "Usage: $0 <target-repo> [--force]"
+  echo "       $0 --user-scope                  # install Pocock baseline at ~/.claude/"
   echo ""
   echo "Available sibling repos:"
   for d in "$OJFBOT_ROOT"/*/; do
