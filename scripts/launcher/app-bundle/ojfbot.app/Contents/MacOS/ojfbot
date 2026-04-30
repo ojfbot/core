@@ -1,0 +1,25 @@
+#!/bin/bash
+# ~/Applications/ojfbot.app/Contents/MacOS/ojfbot
+#
+# Spotlight-launchable entry point. Type "ojfbot" in Spotlight, hit return.
+#
+# Strategy:
+#   1. If Hammerspoon is running, fire the URL handler so Hammerspoon owns
+#      menubar updates, hotkeys, and window placement.
+#   2. Otherwise, fall back to direct invocation of spotlight-launch.sh.
+
+set -e
+
+LAUNCHER_DIR="/Users/yuri/ojfbot/core/scripts/launcher"
+
+# Ensure brew binaries are reachable when Spotlight starts the app fresh.
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+
+if pgrep -x Hammerspoon >/dev/null 2>&1; then
+  /usr/bin/open "hammerspoon://ojfbot-launch"
+  exit 0
+fi
+
+# Fallback path. Also runs if Hammerspoon was killed or hasn't been granted
+# permissions yet.
+exec "$LAUNCHER_DIR/scripts/spotlight-launch.sh"
