@@ -3,80 +3,112 @@ name: workbench
 description: >
   MANDATORY: Load this skill IMMEDIATELY when user asks to "workbench", "start the
   workbench", "launch the dev environment", "open all repos". Start, stop, or inspect
-  the tmux multi-repo development workbench. Uses ~/.tmux/workbench/workbench.py.
-  Commands: start (default), kill, status.
+  the tmux multi-repo development workbench. Uses
+  core/scripts/launcher/scripts/launch.sh per ADR-0057. Commands: start (default),
+  kill, status, dry-run.
 ---
 
-You are a workbench launch assistant. Start, stop, or inspect a tmux multi-repo development workbench using the launcher at `~/.tmux/workbench/workbench.py`.
+You are a workbench launch assistant. Start, stop, or inspect a tmux multi-repo development workbench using the launcher at `core/scripts/launcher/scripts/launch.sh`.
 
 **Tier:** 1 — Direct shell invocation (no LLM generation step)
 **Phase:** Any time you need a multi-repo dev environment
 
 ## What the workbench is
 
-A full-screen tmux layout with up to 9 repo tiles (auto-arranged: 6→3×2, 9→3×3, 4→2×2). Each tile has 3 windows: **Claude** (`M-1`), **Service** (`M-2`), **Shell** (`M-3`).
+A tmux session named `ojfbot` (override per invocation) with one window per registered rig. Each window has 1–4 panes per the rig's registration JSON. Five-state colored window tags surface state at a glance — see `knowledge/status-language.md` for the glyph + color table (ADR-0059).
+
+The launcher reads JSON registrations from `core/scripts/launcher/registrations/`. Adding a rig is a JSON edit per `core/scripts/launcher/REGISTRATION_GUIDE.md`. The skill does not author registrations; it invokes the launcher.
+
+The python predecessor at `~/.tmux/workbench/workbench.py` is preserved on disk as a fallback during the migration.
 
 ## Input
 
-Parse `$ARGUMENTS` for one of three forms:
+Parse `$ARGUMENTS`:
 
-### Form A — use existing config file
 ```
-/workbench [start|kill|status] [--config PATH] [--reset]
-```
-
-### Form B — inline repo list
-```
-/workbench start --reset \
-  --repo='{"name":"repo1","path":"/abs/path","service_cmd":"pnpm start","claude_prompt":"..."}' \
-  --repo='{"name":"repo2","path":"/abs/path","service_cmd":"pnpm dev"}'
+/workbench [start|kill|status|dry-run] [SESSION_NAME] [--include-dormant] [--window ID]
 ```
 
-### Form C — no args (show help)
-Output usage instructions and the contents of `~/.tmux/workbench/example-config.json`, then stop.
+### Form A — start
+```
+/workbench start                       # default session 'ojfbot'
+/workbench start my-session
+/workbench start --include-dormant
+```
+
+### Form B — restart one window
+```
+/workbench start --window shell        # rebuild just the 'shell' window in the existing session
+```
+
+### Form C — dry-run
+```
+/workbench dry-run                     # print the plan; do not create the session
+```
+
+### Form D — status / kill
+```
+/workbench status                      # tmux ls output, plus per-window state from @rig_state options
+/workbench kill                        # tmux kill-session -t ojfbot
+```
 
 ## Steps
 
 ### 1. Parse arguments
+- `command` — `start` (default), `kill`, `status`, `dry-run`
+- positional `session_name` — defaults to `ojfbot`
+- `--include-dormant` — include `priority_tier: dormant` registrations
+- `--window ID` — rebuild a single window in the existing session
 
-- `command` — `start` (default), `kill`, `status`
-- `--config PATH` — config JSON file (default: `~/.tmux/workbench/config.json`)
-- `--reset` — kill existing tmux servers before starting
-- `--repo JSON` — (repeatable) inline repo; collect into a `repos` array
-
-If `--repo` flags are present, build a config object and pass via `--config-json`.
-
-> **For Form B or when user needs config format details, load `knowledge/config-reference.md`** for the full field reference and examples.
-
-### 2. Validate
-
-- Confirm `~/.tmux/workbench/workbench.py` exists.
-- Confirm each `path` in repos exists. Warn on missing (do not abort).
+### 2. Validate prereqs
+- Confirm `tmux`, `jq`, and `node` are on PATH.
+- Confirm `core/scripts/launcher/scripts/launch.sh` exists and is executable.
+- Optional: confirm Dolt sql-server is up on `127.0.0.1:3307` for the headless AgentBead worker (ADR-0043). If not, the headless pane reports the failure and stays idle.
 
 ### 3. Execute
 
+For `start`:
 ```bash
-~/.tmux/workbench/workbench.py <command> [--config PATH | --config-json JSON] [--reset]
+core/scripts/launcher/scripts/launch.sh [SESSION] [--include-dormant] [--window ID]
+```
+This is non-blocking — the launcher creates the detached session and returns. The user runs `tmux attach -t <session>` to view.
+
+For `dry-run`:
+```bash
+core/scripts/launcher/scripts/launch.sh [SESSION] --dry-run
 ```
 
-For `start`: this will take over the terminal (blocking). Warn the user.
+For `kill`:
+```bash
+tmux kill-session -t <session>
+```
+
+For `status`:
+```bash
+tmux ls
+tmux list-windows -t <session> -F '#{window_name}\t#{@rig_state}'
+```
 
 ### 4. Output navigation summary
 
-> **In Step 4, load `knowledge/keybindings.md`** for the complete keybinding reference to include in the output.
+After `start`, surface the key bindings:
 
-Report: which command ran, repos included, how to navigate.
+- `tmux attach -t <session>` to enter
+- `prefix + a` opens an interactive Claude pane in the focused window (ADR-0060)
+- `prefix + n` cycles needs-attention windows (ADR-0059)
+- `Alt-N` switches to the rig with that key binding declared
 
 ## Constraints
 
 - Do not modify any repo files.
 - Do not run package installs.
-- Do not edit workbench.py or config files unless explicitly asked.
+- Do not edit `core/scripts/launcher/` files unless the user asks; registrations live in `core/scripts/launcher/registrations/` and follow the schema at `core/scripts/launcher/schema/registration.schema.json`.
 
 ---
 
 $ARGUMENTS
 
 ## See Also
-- If starting a new project, run `/scaffold` to generate the initial skeleton.
-- Run `/setup-ci-cd` to configure CI for any new repos in the workbench.
+- `core/scripts/launcher/REGISTRATION_GUIDE.md` to author a new registration.
+- `core/.claude/skills/workbench/knowledge/status-language.md` for the visual status table.
+- ADR-0057, ADR-0058, ADR-0059, ADR-0060 in `core/decisions/adr/` for the design.
