@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0.0",
+  "id": "your-rig",
+  "bead_prefix": "your-rig",
+  "display_name": "Your rig display name",
+  "repo": {
+    "url": "https://github.com/ojfbot/your-rig",
+    "local_path": "/Users/yuri/ojfbot/your-rig",
+    "branch": "main"
+  },
+  "priority_tier": "active",
+  "rig_profile": "frame",
+  "order": 100,
+  "tags": ["replace-me"],
+  "panes": [
+    {
+      "name": "dev",
+      "command": "pnpm dev",
+      "size": "60%",
+      "ready_signal": {
+        "type": "stdout_match",
+        "pattern": "Local:.*http://localhost",
+        "timeout_seconds": 60
+      }
+    },
+    {
+      "name": "claude-headless",
+      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=your-rig --session-id=launcher && echo '✓ your-rig-agent-worker registered' && tail -f /dev/null",
+      "size": "20%",
+      "split": "horizontal"
+    },
+    {
+      "name": "tests",
+      "command": "pnpm test:watch || tail -f /dev/null",
+      "size": "20%",
+      "split": "vertical"
+    }
+  ],
+  "claude_sessions": {
+    "headless": { "enabled": true, "role": "worker" },
+    "interactive": { "key_binding": "M-9" }
+  }
+}

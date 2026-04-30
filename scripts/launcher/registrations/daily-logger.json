@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "id": "daily-logger",
+  "display_name": "Daily log generator",
+  "repo": {
+    "url": "https://github.com/ojfbot/daily-logger",
+    "local_path": "/Users/yuri/ojfbot/daily-logger",
+    "branch": "main"
+  },
+  "priority_tier": "infrastructure",
+  "rig_profile": "non-frame",
+  "order": 20,
+  "tags": ["cron", "blog"],
+  "panes": [
+    {
+      "name": "frontend",
+      "command": "pnpm --filter @ojfbot/daily-logger-frontend dev || (echo 'frontend dev unavailable; idle' && tail -f /dev/null)",
+      "size": "60%",
+      "ready_signal": {
+        "type": "stdout_match",
+        "pattern": "Local:.*http://localhost",
+        "timeout_seconds": 60
+      }
+    },
+    {
+      "name": "claude-headless",
+      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=daily-logger --session-id=launcher && echo '✓ daily-logger-agent-worker registered' && tail -f /dev/null",
+      "size": "40%",
+      "split": "horizontal"
+    }
+  ],
+  "claude_sessions": {
+    "headless": { "enabled": true, "role": "worker" },
+    "interactive": { "key_binding": "M-3" }
+  }
+}
