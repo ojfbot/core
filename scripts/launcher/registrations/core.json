@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "id": "core",
+  "bead_prefix": "core",
+  "display_name": "Core workflow engine",
+  "repo": {
+    "url": "https://github.com/ojfbot/core",
+    "local_path": "/Users/yuri/ojfbot/core",
+    "branch": "main"
+  },
+  "priority_tier": "infrastructure",
+  "rig_profile": "frame",
+  "order": 5,
+  "tags": ["infra", "shared-library"],
+  "panes": [
+    {
+      "name": "watch",
+      "command": "pnpm test:watch",
+      "size": "70%"
+    },
+    {
+      "name": "claude-headless",
+      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=core --session-id=launcher && echo '✓ core-agent-worker registered' && tail -f /dev/null",
+      "size": "30%",
+      "split": "horizontal"
+    }
+  ],
+  "claude_sessions": {
+    "headless": { "enabled": true, "role": "worker" },
+    "interactive": { "key_binding": "M-2" }
+  }
+}
