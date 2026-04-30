@@ -3,6 +3,8 @@
 > Read by `/validate`, `/sweep`, and `/plan-feature` when checking or writing code in any ojfbot repo.
 > These are the explicit rules. If a pattern isn't documented here, derive from existing code before inventing.
 
+> Grill-before-non-trivial-work, narrow vertical slices, and ubiquitous-language sourcing live at user scope in `~/.claude/CLAUDE.md` (see ADR-0055). They apply to every Claude session on this Mac. The rules below complement that baseline with project-specific TypeScript / structural standards.
+
 ---
 
 ## TypeScript
