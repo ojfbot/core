@@ -19,13 +19,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | gastown-pilot | 3017, 3018 | Gas Town 6-tab dashboard, bead adapters | scaffold | active |
 | seh-study | 3030, 3031 | NASA SEH glossary, Leitner spaced repetition | scaffold | active |
 | core-reader | 3015, 3016 | Core repo browser, commands + ADRs tabs | 1A | active |
-| core | — | Workflow engine, 34 slash commands | — | active |
+| core | — | Workflow engine, skill catalog + telemetry | — | active |
 | daily-logger | — | Auto-committed dev log at log.jim.software | — | active |
 | mrplug | — | Chrome extension MV3, AI UI/UX analysis | 2B | active |
 | frame-ui-components | — | Shared Carbon DS component library | — | active |
 | landing | — | Personal portfolio landing page | — | active |
-| beaverGame | 5173 | Cozy 3D beaver simulator (Three.js) — consumes asset-foundry .glbs | 0 | active |
-| asset-foundry | — | AI-driven Blender asset pipeline (LangGraph + bpy) | 0 | active |
+| beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
+| asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 
 ## Skills
 
@@ -208,7 +208,7 @@ This repo uses Claude Code's full feature surface beyond skills:
 
 ### Reusable prompts (`.claude/prompts/`)
 
-Lightweight, composable prompts for recurring patterns that don't need a full skill directory. Invoked inline via prompt picker, complementing the 34 skills.
+Lightweight, composable prompts for recurring patterns that don't need a full skill directory. Invoked inline via prompt picker, complementing the skill catalog.
 
 | Prompt | Purpose |
 |--------|---------|
