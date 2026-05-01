@@ -1,20 +1,3 @@
-{"ts":"2026-04-28T19:48:50Z","event":"skill:pr-commented","repo":"beaverGame","pr":"21","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-28T20:52:34Z","event":"skill:pr-commented","repo":"beaverGame","pr":"23","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-28T21:03:01Z","event":"skill:pr-commented","repo":"core","pr":"81","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T21:11:18Z","event":"skill:pr-commented","repo":"core","pr":"82","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T21:16:47Z","event":"skill:pr-commented","repo":"core","pr":"83","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T21:19:52Z","event":"skill:pr-commented","repo":"core","pr":"84","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T21:23:10Z","event":"skill:pr-commented","repo":"core","pr":"85","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T21:39:56Z","event":"skill:invoked","skill":"roadmap:roadmap","args":"file two specific items from the grill conversation — do not do a full codebase scan. R1: asset-foundry → Frame MF UI (deferred; gated on 3D viewer story decision: Blender embed vs WebGL preview vs CLI/API only). R2: \"Game Library\" Frame sub-app (TBD name; reserved bead prefix `lib-`; library/switcher for beaverGame and future games, follows scaffold-frame-app pattern). Output GitHub-issue-ready text per item; do not run gh commands without confirmation.","tool_name":"Skill","repo":"core","cwd":"/Users/yuri/ojfbot/core","session_id":"0fae0a59-b9bc-4102-81e8-bd7a5a3b2562","source":"interactive"}
-{"ts":"2026-04-28T22:03:42Z","event":"skill:pr-commented","repo":"beaverGame","pr":"24","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-28T22:23:47Z","event":"skill:pr-commented","repo":"core","pr":"87","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T22:25:51Z","event":"skill:pr-commented","repo":"beaverGame","pr":"25","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-28T22:26:51Z","event":"skill:pr-commented","repo":"core","pr":"88","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T23:00:00Z","event":"skill:pr-commented","repo":"asset-foundry","pr":"15","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-28T23:02:17Z","event":"skill:pr-commented","repo":"core","pr":"89","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-28T23:23:41Z","event":"skill:pr-commented","repo":"beaverGame","pr":"26","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-29T00:05:00Z","event":"skill:pr-commented","repo":"core","pr":"90","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
-{"ts":"2026-04-29T00:10:58Z","event":"skill:pr-commented","repo":"beaverGame","pr":"27","session_id":"7d4d17a4-008f-467f-9505-0f0e79dcfbcf"}
-{"ts":"2026-04-29T01:24:05Z","event":"skill:pr-commented","repo":"core","pr":"92","session_id":"0fae0a59-b9bc-4102-81e8-bd7a5a3b2562"}
-{"ts":"2026-04-29T02:30:32Z","event":"skill:pr-commented","repo":"core","pr":"94","session_id":"0fae0a59-b9bc-4102-81e8-bd7a5a3b2562"}
-{"ts":"2026-04-29T02:44:25Z","event":"skill:pr-commented","repo":"beaverGame","pr":"28","session_id":"0fae0a59-b9bc-4102-81e8-bd7a5a3b2562"}
+{"ts":"2026-04-30T15:32:12Z","event":"skill:pr-commented","repo":"core","pr":"94","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
+{"ts":"2026-04-30T15:35:54Z","event":"skill:pr-commented","repo":"core","pr":"98","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
+{"ts":"2026-04-30T15:41:26Z","event":"skill:pr-commented","repo":"core","pr":"99","session_id":"98c0d4d6-b23c-4b19-bc8d-c3737adc55ba"}
