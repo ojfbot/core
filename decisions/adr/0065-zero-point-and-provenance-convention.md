@@ -130,9 +130,5 @@ OTLP is not in the ojfbot tree (per the [ADR-0056](0056-developer-day-orchestrat
 | Implementation end | `51fd7ef` (convention itself; no executable code in this PR) |
 | PR | [#100](https://github.com/ojfbot/core/pull/100) — merged 2026-05-05T02:00:32Z |
 | First ADR to use this convention end-to-end | ADR-0057 — empty zero-point `abe3233` on `feat/launcher-implementation-wave-1-2`, two implementation commits (`a42f49e`, `b37afcf`), one self-review fix (`2ac47c4`), manifest mirror at `decisions/orchestration/DD-2026-04-30.md` |
-| CI check version | `1.0.0` (script `core/scripts/check-provenance.sh` is deferred to follow-up — see Acceptance criteria gap) |
+| CI check version | `1.0.0` — `core/scripts/check-provenance.sh` wired into `.github/workflows/ci.yml` |
 | Originally drafted as | ADR-010 (handoff message, 2026-04-30) |
-
-### Acceptance criteria gap (deferred to follow-up)
-
-The `core/scripts/check-provenance.sh` script in §"CI check" is **not yet shipped**. Until it lands, Provenance fields are validated by human review rather than CI. PR #101's description listed this as out-of-scope; a small follow-up PR will add the script and wire it into `.github/workflows/ci.yml` to walk every ADR in `core/decisions/adr/`, parse Provenance tables, and verify that each non-`_pending_` SHA resolves in git.

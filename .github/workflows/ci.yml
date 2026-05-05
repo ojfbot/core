@@ -27,3 +27,16 @@ jobs:
 
       - name: Launcher registrations test (ADR-0058)
         run: pnpm --filter @core/launcher-tests test
+
+  check-provenance:
+    name: Check ADR Provenance (ADR-0065)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Need full history so `git cat-file -e <sha>` resolves Provenance SHAs.
+          fetch-depth: 0
+
+      - name: Run provenance check
+        run: bash scripts/check-provenance.sh
