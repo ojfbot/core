@@ -75,6 +75,25 @@ check_prereqs() {
   require_cmd node
 }
 
+# ── Env expansion in registration string fields ─────────────────────────────
+# Registrations may use ${HOME} and ${USER} so they're portable across machines.
+# Only those two are expanded; arbitrary $FOO is left literal so commands keep
+# their own shell variables intact (e.g. "$PATH" inside a pane command).
+
+expand_env() {
+  local s="$1"
+  s="${s//\$\{HOME\}/$HOME}"
+  s="${s//\$\{USER\}/$USER}"
+  printf '%s' "$s"
+}
+
+# Read a jq query from a file and expand ${HOME}/${USER} in the result.
+jq_expand() {
+  local f="$1"
+  local query="$2"
+  expand_env "$(jq -r "$query" "$f")"
+}
+
 # ── Registration discovery and validation ────────────────────────────────────
 
 # List registration JSON paths (top-level only — _examples/ is sub-directory).
@@ -120,7 +139,7 @@ validate_registration() {
     || { echo "  - panes missing or wrong length (1..4)" >&2; errs=$((errs+1)); }
 
   local local_path
-  local_path="$(jq -r '.repo.local_path' "$f")"
+  local_path="$(jq_expand "$f" '.repo.local_path')"
   if [[ ! -d "$local_path" ]]; then
     echo "  - WARNING: repo.local_path does not exist on disk: $local_path" >&2
   fi
@@ -156,5 +175,5 @@ window_name_for() {
 
 # ── Bead-emit shim ──────────────────────────────────────────────────────────
 
-BEAD_EMIT="${BEAD_EMIT:-/Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs}"
+BEAD_EMIT="${BEAD_EMIT:-${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs}"
 export BEAD_EMIT

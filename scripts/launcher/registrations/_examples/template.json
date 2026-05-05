@@ -1,11 +1,10 @@
 {
   "schema_version": "1.0.0",
   "id": "your-rig",
-  "bead_prefix": "your-rig",
   "display_name": "Your rig display name",
   "repo": {
     "url": "https://github.com/ojfbot/your-rig",
-    "local_path": "/Users/yuri/ojfbot/your-rig",
+    "local_path": "${HOME}/ojfbot/your-rig",
     "branch": "main"
   },
   "priority_tier": "active",
@@ -25,7 +24,7 @@
     },
     {
       "name": "claude-headless",
-      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=your-rig --session-id=launcher && echo '✓ your-rig-agent-worker registered' && tail -f /dev/null",
+      "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=your-rig --session-id=launcher && echo '✓ your-rig-agent-worker registered' && tail -f /dev/null",
       "size": "20%",
       "split": "horizontal"
     },

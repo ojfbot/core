@@ -4,7 +4,7 @@
   "display_name": "core-reader (Frame sub-app)",
   "repo": {
     "url": "https://github.com/ojfbot/core-reader",
-    "local_path": "/Users/yuri/ojfbot/core-reader",
+    "local_path": "${HOME}/ojfbot/core-reader",
     "branch": "main"
   },
   "priority_tier": "dormant",
@@ -19,7 +19,7 @@
     },
     {
       "name": "claude-headless",
-      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=core-reader --session-id=launcher && echo '✓ core-reader-agent-worker registered' && tail -f /dev/null",
+      "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=core-reader --session-id=launcher && echo '✓ core-reader-agent-worker registered' && tail -f /dev/null",
       "size": "30%",
       "split": "horizontal"
     }

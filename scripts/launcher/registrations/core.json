@@ -5,7 +5,7 @@
   "display_name": "Core workflow engine",
   "repo": {
     "url": "https://github.com/ojfbot/core",
-    "local_path": "/Users/yuri/ojfbot/core",
+    "local_path": "${HOME}/ojfbot/core",
     "branch": "main"
   },
   "priority_tier": "infrastructure",
@@ -20,7 +20,7 @@
     },
     {
       "name": "claude-headless",
-      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=core --session-id=launcher && echo '✓ core-agent-worker registered' && tail -f /dev/null",
+      "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=core --session-id=launcher && echo '✓ core-agent-worker registered' && tail -f /dev/null",
       "size": "30%",
       "split": "horizontal"
     }

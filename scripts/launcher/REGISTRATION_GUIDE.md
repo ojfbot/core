@@ -35,12 +35,14 @@ Human-friendly label. Surfaces in tmux status (when configured) and in `gastown-
 ```json
 "repo": {
   "url": "https://github.com/ojfbot/<rig>",
-  "local_path": "/Users/yuri/ojfbot/<rig>",
+  "local_path": "${HOME}/ojfbot/<rig>",
   "branch": "main"
 }
 ```
 
-`local_path` must be absolute. The validator warns if the path does not exist on disk but does not abort the launch — a fresh laptop may not have every rig cloned.
+`local_path` must be absolute. Use `${HOME}` (and optionally `${USER}`) so the file works on any developer's machine — the launcher expands those two tokens at read time. Other `$FOO` shell variables are left literal so pane commands keep their own runtime expansion.
+
+The validator warns if the expanded path does not exist on disk but does not abort the launch — a fresh laptop may not have every rig cloned.
 
 ### `priority_tier` (required)
 
@@ -80,7 +82,7 @@ Ordered array, 1–4 panes per window. The first pane is the window's primary; s
   },
   {
     "name": "claude-headless",
-    "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=shell --session-id=launcher && echo '✓ shell-agent-worker registered' && tail -f /dev/null",
+    "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=shell --session-id=launcher && echo '✓ shell-agent-worker registered' && tail -f /dev/null",
     "size": "20%",
     "split": "horizontal"
   },

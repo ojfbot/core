@@ -5,7 +5,7 @@
 local M = {}
 local log = require('util.log')
 
-local LAUNCHER_ROOT = '/Users/yuri/ojfbot/core/scripts/launcher'
+local LAUNCHER_ROOT = (os.getenv('HOME') or '') .. '/ojfbot/core/scripts/launcher'
 local SESSION = 'ojfbot'
 
 -- Wrap hs.execute and return (stdout, ok) with safe defaults.
