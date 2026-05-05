@@ -5,7 +5,7 @@
   "display_name": "gastown-pilot dashboard",
   "repo": {
     "url": "https://github.com/ojfbot/gastown-pilot",
-    "local_path": "/Users/yuri/ojfbot/gastown-pilot",
+    "local_path": "${HOME}/ojfbot/gastown-pilot",
     "branch": "main"
   },
   "priority_tier": "active",
@@ -25,7 +25,7 @@
     },
     {
       "name": "claude-headless",
-      "command": "node /Users/yuri/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=gastown-pilot --session-id=launcher && echo '✓ gastown-pilot-agent-worker registered' && tail -f /dev/null",
+      "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=gastown-pilot --session-id=launcher && echo '✓ gastown-pilot-agent-worker registered' && tail -f /dev/null",
       "size": "20%",
       "split": "horizontal"
     },

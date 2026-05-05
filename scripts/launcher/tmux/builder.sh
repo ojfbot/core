@@ -44,7 +44,7 @@ build_window_for() {
   tier="$(jq -r '.priority_tier' "$f")"
   state="$(initial_state_for_tier "$tier")"
   color="$(state_color "$state")"
-  cwd="$(jq -r '.repo.local_path' "$f")"
+  cwd="$(jq_expand "$f" '.repo.local_path')"
 
   # Initial window name has the glyph + id:tier.
   local wname
@@ -77,7 +77,7 @@ build_window_for() {
   for ((i = 0; i < pane_count; i++)); do
     local pane_name pane_cmd pane_size pane_split
     pane_name="$(jq -r ".panes[$i].name" "$f")"
-    pane_cmd="$(jq -r ".panes[$i].command" "$f")"
+    pane_cmd="$(jq_expand "$f" ".panes[$i].command")"
     pane_size="$(jq -r ".panes[$i].size // \"50%\"" "$f")"
     pane_split="$(jq -r ".panes[$i].split // \"horizontal\"" "$f")"
 
@@ -101,7 +101,7 @@ build_window_for() {
 
   # Run pre_launch if declared (after panes start, since pre_launch is a one-shot).
   local pre
-  pre="$(jq -r '.pre_launch // empty' "$f")"
+  pre="$(jq_expand "$f" '.pre_launch // empty')"
   if [[ -n "$pre" ]]; then
     ( cd "$cwd" && bash -c "$pre" >/dev/null 2>&1 || true )
   fi

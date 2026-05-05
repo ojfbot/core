@@ -10,7 +10,7 @@
 
 set -e
 
-LAUNCHER_DIR="/Users/yuri/ojfbot/core/scripts/launcher"
+LAUNCHER_DIR="$HOME/ojfbot/core/scripts/launcher"
 
 # Ensure brew binaries are reachable when Spotlight starts the app fresh.
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"

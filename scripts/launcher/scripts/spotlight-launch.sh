@@ -15,15 +15,19 @@
 set -euo pipefail
 
 SESSION="${1:-ojfbot}"
-LAUNCHER_DIR="/Users/yuri/ojfbot/core/scripts/launcher"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LAUNCHER_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_DIR="$HOME/Library/Logs"
+LOG_FILE="$LOG_DIR/ojfbot-launcher.log"
+mkdir -p "$LOG_DIR"
 
 # Ensure tmux + jq + node are reachable when invoked from launchd / Spotlight.
 export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
 # 1. Create the session if it doesn't exist.
 if ! tmux has-session -t "$SESSION" 2>/dev/null; then
-  "$LAUNCHER_DIR/scripts/launch.sh" "$SESSION" >/tmp/ojfbot-launcher.log 2>&1 || {
-    osascript -e 'display notification "launch.sh failed; see /tmp/ojfbot-launcher.log" with title "ojfbot"'
+  "$LAUNCHER_DIR/scripts/launch.sh" "$SESSION" >>"$LOG_FILE" 2>&1 || {
+    osascript -e 'display notification "launch.sh failed; see ~/Library/Logs/ojfbot-launcher.log" with title "ojfbot"'
     exit 1
   }
 fi
