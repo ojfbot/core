@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Default agent posture: grill before coding.** See `domain-knowledge/agent-defaults.md`. Before any non-trivial change, restate the request in one sentence, surface 2–3 assumptions, and ask the highest-leverage clarifying question. Skip only for trivial tasks (typos, direct lookups, explicit "just do it"). Cost of one question is far below cost of building the wrong thing.
 
+> **Use pnpm, never npm.** Every install/run/test/exec invocation in this repo and across the ojfbot ecosystem uses pnpm — in CI workflows, scripts, READMEs, ADRs, commit messages, and any one-off bash. Add new sub-packages to `pnpm-workspace.yaml` and invoke them via `pnpm --filter <name> <script>`; do not shell out to `npm install` in a subdirectory. Use `pnpm dlx` instead of `npx`. CI uses `pnpm install --frozen-lockfile`. The presence of `pnpm-workspace.yaml` or `pnpm-lock.yaml` is the decisive signal. If a tool genuinely requires npm, surface it explicitly and ask before shipping the change.
+
 ## Ecosystem
 
 | Repo | Port(s) | Description | Phase | Status |
