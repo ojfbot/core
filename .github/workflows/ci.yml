@@ -26,7 +26,4 @@ jobs:
         run: pnpm test
 
       - name: Launcher registrations test (ADR-0058)
-        run: |
-          cd scripts/launcher/tests
-          npm install --no-package-lock --no-audit --no-fund
-          npm test
+        run: pnpm --filter @core/launcher-tests test
