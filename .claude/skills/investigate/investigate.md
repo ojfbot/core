@@ -61,6 +61,16 @@ Small, reversible tests (log additions, temporary assertions, isolated unit test
 
 Do not apply any changes. Do not edit files.
 
+### Phase 7: Persist the report (so it surfaces on the PR)
+
+After Phase 6, write the same Output-Format block (Symptom + Evidence + Cause map + Candidate fixes + Verification experiments) to a file at `~/.claude/last-investigation-${SESSION_ID}.md`.
+
+Why: the `bead-session.sh` PostToolUse hook reads this file when generating the `<!-- skill-usage-report -->` comment on `gh pr create` and embeds the RCA in a `<details>` block. That gives reviewers the cause map before they read the fix code, AND lets `pr-skill-audit.sh` credit `/investigate` as covered (via the `<!-- has-investigation -->` sub-marker) without waiting on telemetry/daily sync. See ADR-0068 + the audit-window fix.
+
+How: Use the Write tool. The session ID is exposed by the harness (commonly via `$CLAUDE_SESSION_ID` or `$SESSION_ID` in hooks) — when running interactively, the agent's own session is the right scope. If the variable isn't accessible, fall back to a stable per-conversation marker the agent maintains and document the path used.
+
+The file is session-scoped — overwriting on subsequent investigations within the same session is fine; one report per session is the design.
+
 ## Output Format
 
 ```

@@ -120,16 +120,31 @@ generate_skill_comment() {
       awk '{printf "| %s | %s |\n", $2, $1}')
   fi
 
+  # Detect investigation report for this session (set early so we can include
+  # a sub-marker in the top-level marker line; pr-skill-audit.sh greps the
+  # comment body for `<!-- has-investigation -->` to credit /investigate as
+  # covered without waiting on telemetry/daily sync).
+  local INVEST_FILE="${HOME}/.claude/last-investigation-${SESSION_ID}.md"
+  local has_investigation=false
+  if [[ -f "$INVEST_FILE" && -s "$INVEST_FILE" ]]; then
+    has_investigation=true
+  fi
+
   # Build the comment
   local body=""
+  local sub_marker=""
+  if [[ "$has_investigation" == "true" ]]; then
+    sub_marker="
+<!-- has-investigation -->"
+  fi
   if [[ "$comment_type" == "initial" ]]; then
-    body="$marker
+    body="$marker$sub_marker
 ## Skill Usage Report
 
 **Session:** \`${SESSION_ID:0:8}\` | **Repo:** \`$REPO\`
 "
   else
-    body="$marker
+    body="$marker$sub_marker
 ### Skill Usage Update
 
 **Push at:** $(iso_now)
@@ -171,6 +186,20 @@ _No skills were invoked during this ${comment_type}._
     done
     body="${body%|}"  # remove trailing pipe
     body+="
+"
+  fi
+
+  # Investigation report (if /investigate ran this session — Phase 7 of the
+  # skill writes the report to ~/.claude/last-investigation-${SESSION_ID}.md)
+  if [[ "$has_investigation" == "true" ]]; then
+    body+="
+
+<details>
+<summary><b>🔍 Root cause analysis</b> (from /investigate)</summary>
+
+$(cat "$INVEST_FILE")
+
+</details>
 "
   fi
 
