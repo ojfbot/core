@@ -92,6 +92,7 @@ rel_path() {
 }
 
 CREATED=0
+UPDATED=0
 SKIPPED=0
 WARNED=0
 
@@ -403,8 +404,12 @@ if [[ -f "$AUDIT_WORKFLOW" ]]; then
     cp "$AUDIT_WORKFLOW" "$TARGET_WORKFLOW"
     echo "  copied claude-skill-audit.yml"
     CREATED=$((CREATED + 1))
+  elif ! cmp -s "$AUDIT_WORKFLOW" "$TARGET_WORKFLOW"; then
+    cp "$AUDIT_WORKFLOW" "$TARGET_WORKFLOW"
+    echo "  refreshed claude-skill-audit.yml (drifted from core)"
+    UPDATED=$((UPDATED + 1))
   else
-    echo "  claude-skill-audit.yml already exists (not overwritten)"
+    echo "  claude-skill-audit.yml already up to date"
     SKIPPED=$((SKIPPED + 1))
   fi
   echo ""
@@ -442,7 +447,8 @@ fi
 
 # ── 8. Summary ────────────────────────────────────────────────────────────────
 echo "Done."
-echo "  Created/updated: $CREATED"
+echo "  Created: $CREATED"
+echo "  Updated (drift refreshed): $UPDATED"
 echo "  Skipped (already linked): $SKIPPED"
 [[ $WARNED -gt 0 ]] && echo "  Warnings: $WARNED"
 echo ""
