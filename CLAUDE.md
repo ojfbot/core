@@ -30,6 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | landing | — | Personal portfolio landing page | — | active |
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
+| github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
 
 ## Skills
 
