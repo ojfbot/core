@@ -24,6 +24,20 @@ SESSION_FILE="/tmp/claude-bead-session-${SESSION_ID}"
 # Idempotent — only fires on first user message per session
 [[ -f "$SESSION_FILE" ]] && exit 0
 
+# ── Opportunistic telemetry sync (catches missed launchd runs) ────────────────
+# The launchd job at 03:30 local doesn't fire when the Mac is asleep, so the
+# telemetry/daily branch can fall behind and CI skill-audit shows stale data.
+# When the first prompt of a session lands and last sync was > 24h ago, kick
+# a background sync. Throttled via a sentinel file so we don't double-fire
+# across overlapping sessions.
+SYNC_SENTINEL="/tmp/claude-telemetry-sync-checked"
+SYNC_SCRIPT="/Users/yuri/ojfbot/core/scripts/sync-telemetry.sh"
+if [[ -x "$SYNC_SCRIPT" ]] && [[ ! -f "$SYNC_SENTINEL" || $(find "$SYNC_SENTINEL" -mmin +360 2>/dev/null) ]]; then
+  touch "$SYNC_SENTINEL"
+  # Fork into background, detach, never block the session
+  ( nohup bash "$SYNC_SCRIPT" --since=48h >/tmp/sync-telemetry-opportunistic.log 2>&1 & ) &
+fi
+
 # Map repo directory name to canonical app name for agent identity
 repo_to_app() {
   case "$1" in
