@@ -1,7 +1,8 @@
 # ADR-0059: tmux topology and visual status language
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /workbench
 Repos affected: core (.claude/skills/workbench, scripts/launcher)
@@ -119,10 +120,14 @@ The launcher refuses to start the session when `tput colors` reports fewer than 
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` (parent); slice zero-point `_pending_` |
-| Originally drafted as | ADR-004 (handoff message, 2026-04-30) |
-| Renderer | `core/scripts/launcher/scripts/tmux/status.sh` |
+| Parent zero-point SHA | `5c2b132` |
+| Slice zero-point SHA | `abe3233` (shared with ADR-0057; bundled in PR #101) |
+| Renderer | `core/scripts/launcher/tmux/status.sh` (note: actual path; ADR text said `scripts/tmux/` — the implementation collapsed to `tmux/`) |
 | Source-of-truth file | `core/.claude/skills/workbench/knowledge/status-language.md` |
-| Terminal emulator chosen | `_pending_ — first ship targets iTerm2; Ghostty/WezTerm validation later_ |
-| tmux version pinned | `_pending_` |
+| Terminal emulator validated | iTerm2 (Ghostty/WezTerm validation deferred) |
+| tmux version pinned | not pinned in v1.0; runs on system tmux |
+| Implementation start | `a42f49e` |
+| Implementation end | `a42f49e` (no fix-commit changes to status code) |
+| PR | [#101](https://github.com/ojfbot/core/pull/101) — merged 2026-05-05T02:02:35Z |
 | Manifest | `core/decisions/orchestration/DD-2026-04-30.md` |
+| Originally drafted as | ADR-004 (handoff message, 2026-04-30) |

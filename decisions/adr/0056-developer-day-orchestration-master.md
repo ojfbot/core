@@ -1,7 +1,8 @@
 # ADR-0056: Developer Day Orchestration — Master
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /frame-standup, /diagram-intake, /workbench, /frame-dev, /orchestrate
 Repos affected: core (skills, scripts, decisions), gastown-pilot (Intake tab), daily-logger (perRig schema), shell (registration map)
@@ -93,8 +94,10 @@ The handoff message authored an external ADR-000..010 series. The series renumbe
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` |
+| Zero-point SHA | `5c2b132` (original) / `956b4e8` (preserved on main after rebase-merge) |
 | Zero-point branch | `adr-orchestration/dd-2026-04-30` (off `main` at `c569cf4`) |
 | Inspection plan | `~/.claude/plans/handoff-ojfbot-developer-velvet-rabin.md` |
 | Manifest | `core/decisions/orchestration/DD-2026-04-30.md` |
+| Implementation (docs) | `51fd7ef` — docs(adr): land ADR-0056..0065 Developer Day Orchestration series |
+| PR | [#100](https://github.com/ojfbot/core/pull/100) — merged 2026-05-05T02:00:32Z (rebase) |
 | Originally drafted as | ADR-000 (handoff message, 2026-04-30) |

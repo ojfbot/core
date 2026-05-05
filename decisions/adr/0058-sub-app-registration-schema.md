@@ -1,7 +1,8 @@
 # ADR-0058: Sub-app registration schema
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /workbench, /install-agents
 Repos affected: core (schema/, registrations/, .claude/skills/workbench)
@@ -159,8 +160,11 @@ The `REGISTRATION_GUIDE.md` covers five sections:
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` (parent); slice zero-point `_pending_` |
+| Parent zero-point SHA | `5c2b132` |
+| Slice zero-point SHA | `abe3233` (shared with ADR-0057; bundled in PR #101) |
 | Schema version at first publish | `1.0.0` |
-| Implementation start | `_pending_` |
-| Implementation end | `_pending_` |
+| Implementation start | `a42f49e` — feat(launcher): tmux + status language + dual Claude sessions (ADR-0057..0060) |
+| Implementation end | `2ac47c4` — fix(launcher): wire CI tests (Ajv 2020-12, BEAD_PREFIX_MAP cross-check still deferred), portable paths, log path |
+| Notable follow-up | `d8664e1` — fix(launcher,ci): use pnpm not npm for the launcher test step |
+| PR | [#101](https://github.com/ojfbot/core/pull/101) — merged 2026-05-05T02:02:35Z |
 | Originally drafted as | ADR-003 (handoff message, 2026-04-30) |

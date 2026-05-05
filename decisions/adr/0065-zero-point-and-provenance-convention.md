@@ -1,7 +1,8 @@
 # ADR-0065: Zero-point and provenance convention
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /adr, /handoff
 Repos affected: core (decisions/adr, decisions/orchestration), all rigs that host slice branches
@@ -123,11 +124,15 @@ OTLP is not in the ojfbot tree (per the [ADR-0056](0056-developer-day-orchestrat
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` (this slice; identical to the parent zero-point — this ADR is the convention) |
+| Zero-point SHA | `5c2b132` (identical to the parent zero-point — this ADR is the convention) |
 | Inspection commit | not applicable (green-field convention) |
-| Implementation start | _pending_ |
-| Implementation end | _pending_ |
-| PR | _pending_ |
-| First ADR to use this convention end-to-end | _pending — proposed: ADR-0057 launcher first slice_ |
-| CI check version | `1.0.0` |
+| Implementation start | `51fd7ef` — docs(adr): land ADR-0056..0065 Developer Day Orchestration series |
+| Implementation end | `51fd7ef` (convention itself; no executable code in this PR) |
+| PR | [#100](https://github.com/ojfbot/core/pull/100) — merged 2026-05-05T02:00:32Z |
+| First ADR to use this convention end-to-end | ADR-0057 — empty zero-point `abe3233` on `feat/launcher-implementation-wave-1-2`, two implementation commits (`a42f49e`, `b37afcf`), one self-review fix (`2ac47c4`), manifest mirror at `decisions/orchestration/DD-2026-04-30.md` |
+| CI check version | `1.0.0` (script `core/scripts/check-provenance.sh` is deferred to follow-up — see Acceptance criteria gap) |
 | Originally drafted as | ADR-010 (handoff message, 2026-04-30) |
+
+### Acceptance criteria gap (deferred to follow-up)
+
+The `core/scripts/check-provenance.sh` script in §"CI check" is **not yet shipped**. Until it lands, Provenance fields are validated by human review rather than CI. PR #101's description listed this as out-of-scope; a small follow-up PR will add the script and wire it into `.github/workflows/ci.yml` to walk every ADR in `core/decisions/adr/`, parse Provenance tables, and verify that each non-`_pending_` SHA resolves in git.

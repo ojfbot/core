@@ -1,7 +1,8 @@
 # ADR-0064: Hammerspoon workspace orchestration
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /workbench
 Repos affected: core (scripts/launcher/hammerspoon, scripts/bootstrap.sh)
@@ -135,8 +136,12 @@ The user's `~/.hammerspoon` is a symlink into this directory, written by `core/s
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` (parent); slice zero-point `_pending_` |
-| Hammerspoon version pinned | `_pending_` (record at brew install time) |
-| displayplacer version pinned | `_pending_` (record at brew install time) |
-| Display profile snapshot | `_pending_` (taken at first run; saved to `core/scripts/launcher/hammerspoon/displays/<profile-name>.lua`) |
+| Parent zero-point SHA | `5c2b132` |
+| Slice zero-point SHA | `abe3233` (shared with ADR-0057; bundled in PR #101) |
+| Hammerspoon version pinned | not pinned in v1.0 — `bootstrap.sh` runs `brew install hammerspoon`; record on first run via `hs.processInfo.version` |
+| displayplacer version pinned | not used in v1.0 — Spaces and dynamic display placement deferred (per "Out of scope") |
+| Display profile snapshot | not captured in v1.0 — single-screen fallback only |
+| Implementation start | `b37afcf` — feat(launcher): Hammerspoon + Spotlight app bundle (ADR-0064) |
+| Implementation end | `2ac47c4` — fix(launcher): wire CI tests, portable paths, log path (PR #101 self-review) |
+| PR | [#101](https://github.com/ojfbot/core/pull/101) — merged 2026-05-05T02:02:35Z |
 | Originally drafted as | ADR-009 (handoff message, 2026-04-30) |
