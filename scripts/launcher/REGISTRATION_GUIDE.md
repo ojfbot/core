@@ -18,13 +18,15 @@ Pinned at `"1.0.0"`. The validator fails on any other value. Schema-breaking cha
 
 Kebab-case rig identifier. Used in tmux window names, the `bd-emit agent-create --app=<id>` call (when no `bead_prefix` is set), and as the registration's filename stem. Pattern: `^[a-z][a-z0-9-]{0,31}$`.
 
-The id is the rig's working name. It does not have to match a `BEAD_PREFIX_MAP` key — see `bead_prefix` for the bridge.
+The id is the rig's working name. It does not have to match a `BEAD_PREFIX_MAP` key — see `bead_prefix` for the bridge. The launcher tests cross-check `id` against a known set: `BEAD_PREFIX_MAP` keys (`core/packages/workflows/src/types/bead.ts:95-105`), ADR-0052 reservations, and the ecosystem rig directory names. A typo like `id: "shellll"` fails CI with a clear message naming the file and field; new rigs need to be added to `ECOSYSTEM_RIG_IDS` in `tests/registrations.test.mjs` (per ADR-0058 §3).
 
 ### `bead_prefix` (optional)
 
 The bead prefix the headless AgentBead worker emits under (`<prefix>-agent-worker`). Defaults to `id` when omitted.
 
 When the rig's directory name and its bead namespace differ, set this field. Example: `gastown-pilot` registers as `id: "gastown-pilot"` but its bead prefix is `gt` (per `BEAD_PREFIX_MAP` at `core/packages/workflows/src/types/bead.ts:95-105`). So `gastown-pilot.json` carries `"bead_prefix": "gt"`.
+
+The launcher tests cross-check `bead_prefix` against `BEAD_PREFIX_MAP` values plus ADR-0052 reservations. A typo like `bead_prefix: "stx"` fails CI; valid additions require either a new `BEAD_PREFIX_MAP` entry (workflows package change) or an ADR-0052 amendment.
 
 ### `display_name` (required)
 
