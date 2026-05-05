@@ -1,7 +1,8 @@
 # ADR-0057: Launcher mechanism under core/scripts/launcher
 
 Date: 2026-04-30
-Status: Proposed
+Date accepted: 2026-05-04
+Status: Accepted
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /workbench, /frame-dev
 Repos affected: core (scripts, .claude/skills/workbench)
@@ -108,9 +109,10 @@ A new rig does not require code changes to the launcher. It drops a JSON file in
 
 | Field | Value |
 | --- | --- |
-| Zero-point SHA | `5c2b13225c500af82431ea1a2c810951f9f8e895` (parent orchestration zero-point; this slice's own zero-point is `_pending_`) |
-| Inspection commit | _pending — none required for this slice; greenfield_ |
-| Implementation start commit | _pending_ |
-| Implementation end commit | _pending_ |
-| PR number | _pending_ |
+| Parent zero-point SHA | `5c2b132` (orchestration parent) |
+| Slice zero-point SHA | `abe3233` — chore(adr-0057): zero-point — ojfb-agent-worker 2026-04-30T21:55:25Z |
+| Inspection commit | not applicable — green-field |
+| Implementation start | `a42f49e` — feat(launcher): tmux + status language + dual Claude sessions (ADR-0057..0060) |
+| Implementation end | `2ac47c4` — fix(launcher): wire CI tests, portable paths, log path (PR #101 self-review) |
+| PR | [#101](https://github.com/ojfbot/core/pull/101) — merged 2026-05-05T02:02:35Z (rebase) |
 | Originally drafted as | ADR-002 (handoff message, 2026-04-30) |
