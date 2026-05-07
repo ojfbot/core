@@ -1,10 +1,4 @@
-{"ts":"2026-05-05T02:41:53Z","event":"session:start","session_id":"0fae0a59-b9bc-4102-81e8-bd7a5a3b2562","source":"compact","model":"claude-opus-4-7[1m]","repo":"beaverGame","branch":"feat/babylon/03-action-systems","cwd":"/Users/yuri/ojfbot/beaverGame"}
-{"ts":"2026-05-05T02:48:35Z","event":"session:start","session_id":"55f4dc8f-4663-4928-a9f5-898f5d033335","source":"resume","model":"","repo":"core","branch":"main","cwd":"/Users/yuri/ojfbot/core"}
-{"ts":"2026-05-05T03:49:48Z","event":"session:start","session_id":"136d330d-88a8-4a4a-93b4-75f1ab1c895d","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-05T05:28:43Z","event":"session:start","session_id":"0b70fc68-a26b-46a8-9eeb-ee53e4615fdc","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-05T05:35:45Z","event":"session:start","session_id":"0b70fc68-a26b-46a8-9eeb-ee53e4615fdc","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-05T05:43:25Z","event":"session:start","session_id":"0b70fc68-a26b-46a8-9eeb-ee53e4615fdc","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-05T05:53:05Z","event":"session:start","session_id":"0b70fc68-a26b-46a8-9eeb-ee53e4615fdc","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-05-05T13:23:46Z","event":"session:start","session_id":"2d354891-44ea-4c37-bde3-784e79e037f9","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-05-05T13:24:01Z","event":"session:start","session_id":"f592a3c5-cdee-4eac-9165-84bb22aa40ac","source":"startup","model":"claude-opus-4-7[1m]","repo":"core","branch":"feat/investigate-persist-and-credit","cwd":"/Users/yuri/ojfbot/core"}
 {"ts":"2026-05-07T02:34:37Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-05-07T02:49:04Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
