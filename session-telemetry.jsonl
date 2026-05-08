@@ -1,4 +1,2 @@
-{"ts":"2026-05-05T13:23:46Z","event":"session:start","session_id":"2d354891-44ea-4c37-bde3-784e79e037f9","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-05T13:24:01Z","event":"session:start","session_id":"f592a3c5-cdee-4eac-9165-84bb22aa40ac","source":"startup","model":"claude-opus-4-7[1m]","repo":"core","branch":"feat/investigate-persist-and-credit","cwd":"/Users/yuri/ojfbot/core"}
 {"ts":"2026-05-07T02:34:37Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-05-07T02:49:04Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
