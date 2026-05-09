@@ -1,2 +1,2 @@
-{"ts":"2026-05-07T02:34:37Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-07T02:49:04Z","event":"session:start","session_id":"ff2a8c1b-edd8-4ba0-bb2a-92222d85dd6f","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-05-09T20:36:51Z","event":"session:start","session_id":"ec462a2f-ee90-4a2a-a317-31e3d3ae0e5c","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-05-09T20:43:29Z","event":"session:start","session_id":"6f4a9781-d0ce-442e-bf37-7b98bd4f941f","source":"startup","model":"claude-opus-4-7[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
