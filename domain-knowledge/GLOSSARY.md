@@ -146,6 +146,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## P
 
+**Page (selfco wiki)** — A markdown file in `~/selfco/wiki/`. Kinds: **source** (`wiki/sources/<slug>.md` — summary of a `raw/` item or a "virtual source" like a sync run), **entity** (`wiki/entities/<slug>.md` — person/org/product/tool/repo; `kind: repo` carries `repo/ports/status/last_synced`), **concept** (`wiki/concepts/<slug>.md` — idea/framework/theory), **synthesis** (`wiki/synthesis/<slug>.md` — comparison/theme/roadmap), plus `index.md` (hub catalog) and `log.md` (append-only ledger). Schema in `~/selfco/CLAUDE.md`. (Supersedes the v1 "project note" — now an entity page `kind: repo`.) (`selfco-vault.md`, ADR-0069)
+
+**Project note (vault)** — _Superseded._ v1 term for `Areas/Technical/<repo>.md`; now an **entity page** `kind: repo` at `wiki/entities/<repo>.md`. See *Page (selfco wiki)*.
+
 **Paperclip** — Governance pattern source (separate from Gas Town). Frame adopts G-series patterns from Paperclip. (`gastown/knowledge/paperclip-patterns.md`)
 
 **Persona** — Council member with a frontmatter + critique style, in `personas/<name>.md`.
@@ -164,6 +168,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **RemoteComponent** — Module Federation remote loaded at runtime by AppFrame.
 
+**raw/ (selfco wiki)** — The append-only, immutable source layer of the selfco LLM Wiki (`~/selfco/raw/`): articles, PDFs, clippings, research dumps, notes you authored. The single source of truth for everything the wiki was built from. The LLM reads it but never edits or deletes it. (`selfco-vault.md`)
+
+**Research note (vault)** — _Superseded._ v1 term for `Areas/Research/<topic>.md`; now a **concept page** (`wiki/concepts/<slug>.md`) and/or **synthesis page**, built from `wiki/sources/` pages. See *Page (selfco wiki)*.
+
 **Rig** — A codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
 
 **RigProfile** — Rig categorization (`frame` vs `non-frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See CONTEXT.md §4 and ADR-0051.
@@ -171,6 +179,12 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## S
 
 **Seance (gt seance)** — Query a predecessor session's conversation history.
+
+**selfco vault / selfco wiki** — A personal **LLM Wiki** (Karpathy pattern) at `${SELFCO_VAULT:-~/selfco}`: append-only `raw/` source layer + LLM-owned `wiki/` of source/entity/concept/synthesis pages + `index.md` + `log.md`, with `~/selfco/CLAUDE.md` as the self-contained schema. The lookup-shaped knowledge layer paralleling all ojfbot work + free-form research; complementary to `daily-logger` (chronological published blog) and `/bead` (per-repo handoff). Own git repo, not symlinked into ojfbot. Maintained by `/vault`. Not called a "second brain". (`selfco-vault.md`, ADR-0069, Karpathy gist `karpathy/442a6bf555914893e9891c11519de94f`)
+
+**Session stub (selfco wiki)** — A `## [YYYY-MM-DD] session | <repo>@<branch>` entry appended to `~/selfco/wiki/log.md` by the opt-in `vault-session.sh` SessionEnd hook; `/vault sync` folds it into that day's context. (Replaces the v1 `Inbox/session-stubs.md` mechanism.) Distinct from a *bead*. (`selfco-vault.md`)
+
+**LLM Wiki (Karpathy)** — Andrej Karpathy's pattern for an LLM-maintained personal knowledge base: append-only `raw/` sources; an LLM-owned `wiki/` of compiled, interlinked pages; a `CLAUDE.md` schema; workflows ingest/query/lint. "Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase." Versus RAG: knowledge is compiled once into a persistent artifact, not re-derived per query. Gist: `karpathy/442a6bf555914893e9891c11519de94f`. The selfco vault implements this. (ADR-0069)
 
 **Shell** — Module Federation host (port 4000). Owns app registry, routing, layout, theme. Repo: `shell`.
 
@@ -217,6 +231,12 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## V
 
 **Validate** — Skill `/validate`. Pre-merge quality gate: spec coverage, TypeScript safety, auth, logging, tests.
+
+**`/vault`** — Skill maintaining the *selfco wiki*; a thin wrapper that reads `~/selfco/CLAUDE.md` (the schema) and runs helper scripts. Modes: `init` (scaffold + write the schema + Obsidian plugins + a repo entity stub per `~/ojfbot/*/.git`), `ingest <path|url>` (land a source in `raw/` → summary page → update entity/concept pages → `index.md` → `log.md`), `research <topic>` (ingest, but the skill fetches the sources), `query <q>` (answer from the wiki w/ citations, file substantive explorations back), `lint [--fix]` (orphans/broken-links/raw-without-source + semantic checks), `sync [--since=7d]` (fold the ojfbot activity feed into repo entity pages), `orient`, `note <title>`. Scripts read/scaffold; the LLM authors pages. (`selfco-vault.md`, ADR-0069)
+
+**Vault** — see *selfco vault / selfco wiki*. (When unqualified in ojfbot docs, "the vault" = the selfco wiki.)
+
+**wiki/ (selfco)** — The LLM-owned layer of the selfco LLM Wiki (`~/selfco/wiki/`): `index.md` (hub catalog), `log.md` (append-only ledger), `sources/`, `entities/`, `concepts/`, `synthesis/`. The LLM creates/updates/cross-references pages here; you read them. (`selfco-vault.md`)
 
 ## W
 

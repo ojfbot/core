@@ -37,14 +37,19 @@ OJFBOT_ROOT="$(dirname "$CORE_DIR")"
 FORCE=false
 TARGET_ARG=""
 USER_SCOPE=false
+WITH_SELFCO=false
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=true ;;
     --user-scope) USER_SCOPE=true ;;
+    --with-selfco) WITH_SELFCO=true ;;
     *) TARGET_ARG="$arg" ;;
   esac
 done
+
+# --with-selfco is a user-scope add-on (vault skill + scaffold + opt-in SessionEnd hook)
+[[ "$WITH_SELFCO" == "true" ]] && USER_SCOPE=true
 
 # --user-scope: install Pocock skills + ~/.claude/CLAUDE.md baseline (no repo target)
 # See ADR-0055.
@@ -107,6 +112,54 @@ PY
     echo "  refreshed managed block in $USER_CLAUDE_MD"
   fi
 
+  # ── Opt-in: selfco vault (--with-selfco) ──────────────────────────────────
+  # Adds the /vault skill at user scope, scaffolds ~/selfco, and installs the
+  # opt-in vault-session.sh SessionEnd hook into ~/.claude/settings.json.
+  if [[ "$WITH_SELFCO" == "true" ]]; then
+    echo ""
+    echo "── selfco vault (--with-selfco)"
+
+    if [[ -d "$CORE_SKILLS_DIR/vault" ]]; then
+      ln -sfn "$CORE_SKILLS_DIR/vault" "$USER_SKILLS_DIR/vault"
+      echo "  symlinked vault skill → $USER_SKILLS_DIR/vault"
+    else
+      echo "  WARN: $CORE_SKILLS_DIR/vault missing — has the /vault skill merged to main?"
+    fi
+
+    INIT_VAULT="$CORE_SKILLS_DIR/vault/scripts/init-vault.py"
+    if [[ -f "$INIT_VAULT" ]]; then
+      echo "  scaffolding vault (${SELFCO_VAULT:-$HOME/selfco})…"
+      python3 "$INIT_VAULT" || echo "  WARN: init-vault.py exited non-zero"
+    fi
+
+    VAULT_HOOK="$CORE_DIR/scripts/hooks/vault-session.sh"
+    USER_SETTINGS="${HOME}/.claude/settings.json"
+    if command -v jq >/dev/null 2>&1; then
+      [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
+      if jq -e --arg cmd "$VAULT_HOOK" \
+           '[.. | objects | .command? // empty] | index($cmd)' "$USER_SETTINGS" >/dev/null 2>&1; then
+        echo "  vault-session.sh already in ~/.claude/settings.json — skipping"
+      else
+        if jq -e '.hooks.SessionEnd' "$USER_SETTINGS" >/dev/null 2>&1; then
+          jq --arg cmd "$VAULT_HOOK" \
+            '.hooks.SessionEnd += [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+            "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+        elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+          jq --arg cmd "$VAULT_HOOK" \
+            '.hooks.SessionEnd = [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+            "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+        else
+          jq --arg cmd "$VAULT_HOOK" \
+            '. + {"hooks":{"SessionEnd":[{"hooks":[{"type":"command","command":$cmd,"async":true}]}]}}' \
+            "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+        fi
+        echo "  added vault-session.sh → ~/.claude/settings.json (SessionEnd, async)"
+      fi
+    else
+      echo "  WARN: jq not found — add vault-session.sh to ~/.claude/settings.json SessionEnd manually"
+    fi
+  fi
+
   echo ""
   echo "User-scope install complete."
   exit 0
@@ -115,6 +168,7 @@ fi
 if [[ -z "$TARGET_ARG" ]]; then
   echo "Usage: $0 <target-repo> [--force]"
   echo "       $0 --user-scope                  # install Pocock baseline at ~/.claude/"
+  echo "       $0 --user-scope --with-selfco    # also: /vault skill + ~/selfco vault + opt-in SessionEnd hook"
   echo ""
   echo "Available sibling repos:"
   for d in "$OJFBOT_ROOT"/*/; do
@@ -267,6 +321,7 @@ UNIVERSAL=(
   langgraph-patterns.md
   workbench-architecture.md
   tbcony-dia-context.md
+  selfco-vault.md
   CONTEXT.md
   GLOSSARY.md
   agent-defaults.md
