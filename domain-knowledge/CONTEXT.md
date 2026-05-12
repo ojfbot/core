@@ -136,9 +136,11 @@ The observability layer. What gets seen, by whom, where it lands.
 - `BeadSession` — file-based per-session record produced by the `bead-session.sh` hook. Captures decisions, gotchas, and reports for inter-session continuity.
 - `Telemetry` — same JSONL stores as Workflow Engine context (skill-telemetry, suggestion-telemetry). Read by `pr-skill-audit.sh` for coverage reports.
 - `StandupFunnel` — measurement of `/frame-standup` Step 7 suggestions through four stages: suggested → launched → addressed → closed. Each stage has its own JSONL event class in `~/.claude/standup-telemetry.jsonl`. Closure: (a) bead-status closed (per ADR-0053) OR (c) priority absent from next standup. See ADR-0054.
+- `SelfcoVault` — a personal LLM Wiki at `${SELFCO_VAULT:-~/selfco}` following Karpathy's pattern ("Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase"): an append-only `raw/` source layer (immutable; LLM reads, never edits) + an LLM-owned `wiki/` of `sources/` / `entities/` / `concepts/` / `synthesis/` pages + `index.md` (hub catalog) + `log.md` (append-only `## [date] <op> | <title>` ledger), with `~/selfco/CLAUDE.md` as the self-contained *schema*. The lookup-shaped knowledge layer (browsed by topic/entity) complementary to `DailyLogger` (published chronological feed) and `BeadSession` (per-repo handoff). The ojfbot activity stream is one input feed — every repo is an `entity` (`kind: repo`). Maintained by `/vault` (`init` / `ingest` / `research` / `query` / `lint` / `sync` / `orient` / `note`); deterministic scripts read+scaffold, the LLM authors pages. Opt-in `vault-session.sh` SessionEnd hook appends `## [date] session` stubs to `wiki/log.md` that `/vault sync` folds in. Own git repo, not symlinked into ojfbot. Not called a "second brain". See ADR-0069, `selfco-vault.md`, the Karpathy gist.
 
 **Entities / value objects**
 - `Persona` (council member with frontmatter + critique style), `Article` (daily-logger output), `Mermaid diagram` (auto-rendered in articles), `Heuristic` (rule in `heuristic-analysis.sh` mapping diff patterns to skill suggestions).
+- `SourcePage` / `EntityPage` (`kind: person|org|product|tool|repo`) / `ConceptPage` / `SynthesisPage` — the wiki page kinds in `SelfcoVault`; plus `index.md` and `log.md`. The Obsidian graph's colour clusters key on folder path (`wiki/entities`, `wiki/concepts`, `wiki/sources`, `wiki/synthesis`, `raw`) with `#status/<state>` an overlay. See the in-vault `CLAUDE.md` and `vault/knowledge/wiki-schema.md`. (Supersedes the v1 `ProjectNote`/`ResearchNote`/`SessionNote`/`IndexNote(MOC)` kinds — a v1 "project note" is now an `EntityPage` `kind: repo`.)
 - `StandupSuggestion` — emitted by `/frame-standup` Step 7. Frontmatter: `suggestion_id`, `standup_id`, `skill`, `priority_id`, `rationale`, optional `bead_id` and `expected_outcome`. Logged via `scripts/hooks/standup-emit.mjs` to `~/.claude/standup-telemetry.jsonl`.
 - `ClosureSignal` — evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (the linked bead's lifecycle reached closed) and `audit-disappeared` (the priority absent from the next `/frame-standup`). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise.
 
@@ -146,8 +148,9 @@ The observability layer. What gets seen, by whom, where it lands.
 - Every day without a daily-logger entry is lost signal. The pipeline must run daily.
 - Council critiques are independent — no shared scratch context between personas.
 - Skill telemetry is append-only, JSONL, never edited in-place.
+- `SelfcoVault`: `raw/` and `wiki/log.md` are append-only — nothing edits or deletes from them; the schema lives *in the vault* (`~/selfco/CLAUDE.md`) and wins over the `/vault` skill prompt; `/vault` never overwrites hand-edited wiki pages, never copies ADR/bead/article/source bodies (link only), never writes credentials; `init` and `sync` are idempotent.
 
-**See:** `daily-logger-architecture.md`, ADR-0037 (skill telemetry), ADR-0050 (skill-metrics measurement system), ADR-0054 (standup funnel measurement), `bead/bead.md`, `council-review/council-review.md`.
+**See:** `daily-logger-architecture.md`, `selfco-vault.md`, ADR-0037 (skill telemetry), ADR-0050 (skill-metrics measurement system), ADR-0054 (standup funnel measurement), ADR-0069 (selfco vault + /vault), `bead/bead.md`, `council-review/council-review.md`.
 
 ### 6. UI Components
 
