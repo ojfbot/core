@@ -288,10 +288,24 @@ if $FORCE; then
   done
 fi
 
+# Skills with a non-active status (in-progress / deprecated) in the catalog are not synced.
+# Absence of the `status` field ≡ active. See .claude/skills/skill-create/knowledge/naming-guide.md.
+CATALOG="$CORE_DIR/.claude/skills/skill-loader/knowledge/skill-catalog.json"
+SKIP_SKILLS=""
+if [[ -f "$CATALOG" ]] && command -v jq >/dev/null 2>&1; then
+  SKIP_SKILLS="$(jq -r '.skills[] | select(.status != null and .status != "active") | .name' "$CATALOG" 2>/dev/null || true)"
+fi
+
 # Symlink each skill directory (the directory contains <name>.md + knowledge/ + scripts/)
 for src in "$CORE_DIR/.claude/skills"/*/; do
   [[ -d "$src" ]] || continue
   name="$(basename "$src")"
+  if [[ -n "$SKIP_SKILLS" ]] && grep -qxF "$name" <<<"$SKIP_SKILLS"; then
+    echo "  skipped (status != active): $name"
+    # Remove any stale link from a previous install
+    [[ -L "$TARGET/.claude/skills/$name" ]] && rm "$TARGET/.claude/skills/$name"
+    continue
+  fi
   link_file "$TARGET/.claude/skills/$name" "$src"
 done
 

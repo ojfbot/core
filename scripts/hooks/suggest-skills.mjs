@@ -102,6 +102,10 @@ const queryWords = query ? tokenize(query) : [];
 const scored = [];
 
 for (const skill of catalog.skills) {
+  // Lifecycle filter: only `active` skills are auto-suggested.
+  // Absence of the `status` field ≡ active. See naming-guide.md "Skill lifecycle".
+  if (skill.status != null && skill.status !== 'active') continue;
+
   // Layer filter: if --layer given and skill has layer_affinity, must match
   if (layer != null && skill.layer_affinity?.length > 0) {
     if (!skill.layer_affinity.includes(layer)) continue;
