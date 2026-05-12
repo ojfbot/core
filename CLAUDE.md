@@ -124,6 +124,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 |---------|-------|---------|
 | `/push-all` | POC / rapid iteration | Safe commits with secret scanning and smart messages |
 | `/setup-ci-cd` | POC → MVP | One-shot CI/CD: pre-commit hooks, GitHub Actions, coverage gates |
+| `/git-guardrails` | Any time | State the dangerous-git policy; audit or wire `.claude/settings.json` deny/ask rules + an optional pre-push hook. ADR-0070 |
 
 ### Project-specific commands (cv-builder)
 
