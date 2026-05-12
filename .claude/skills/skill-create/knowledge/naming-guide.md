@@ -43,6 +43,33 @@ When in doubt: would this phrase more naturally trigger a different existing ski
 
 ---
 
+## Description field spec
+
+The `description` in YAML frontmatter is the **only** thing Claude Code sees when deciding whether to load the skill. Treat it as the most important line in the file.
+
+- **Two parts.** Sentence 1: what capability this skill provides. Sentence 2 (or a clause): when to activate it — the concrete trigger conditions.
+- **Third person.** "Builds X…", "Audits Y…", "Turns Z…" — not "I will…" or "You should…".
+- **≤ 1024 characters.** Hard limit. If it's bumping the limit, the skill probably does too much.
+- **No time-sensitive content.** No dates, version numbers, "new", "recently", "as of". The description outlives them.
+- **Lead with the trigger phrases** in our convention: `MANDATORY: Load this skill IMMEDIATELY when user asks to "<trigger1>", "<trigger2>", "<trigger3>".` then the capability sentence, then the key constraint (`No auto-fixes` / `Read-only` / `Creates files on disk` / etc.).
+- **Disambiguate from neighbours.** If another skill has a similar name or purpose, say in the description how this one differs (e.g. `/zoom-out` says "For a full repo overview from cold, use /recon instead").
+
+---
+
+## Review checklist (run before committing a new or edited skill)
+
+- [ ] Description includes concrete activation triggers (not just a restatement of the name)
+- [ ] Description is third person, ≤ 1024 chars, no time-sensitive info
+- [ ] Description disambiguates from any neighbouring skill
+- [ ] Main `<name>.md` stays within its tier's line budget (see Tier definitions below); overflow lives in `knowledge/`
+- [ ] Cross-references go one level deep only (a knowledge file doesn't link to another knowledge file)
+- [ ] Terminology is consistent with `domain-knowledge/GLOSSARY.md` and `CONTEXT.md`
+- [ ] Concrete examples or an output template included — not just abstract instructions
+- [ ] Deterministic, repeated operations are in `scripts/`, not inline prose
+- [ ] Registered in `packages/workflows/src/registry.ts` and `skill-catalog.json`; row added to the right `CLAUDE.md` table
+
+---
+
 ## Phase values
 
 | Phase | When it runs |
