@@ -1,6 +1,6 @@
 ---
 name: bead
-description: Use this skill at session boundaries — when picking up work in a project that has a `.handoff/` directory, when delegating from a chat session to a Claude Code session, or when a substantive piece of work, decision, or gotcha just occurred and should not be lost. Triggers include "orient me", "pick up where we left off", "what was the last session about", "write a brief for Claude Code", "log this decision", "capture this discovery", "write a bead". The skill produces small, dated, markdown files (beads) with structured frontmatter that any future session — chat or Code — can read to reconstruct context. Bead schema is compatible with Gas Town / Beads / GasCity for optional downstream ingestion. NOTE: distinct from /handoff (post-ship runbook documentation) — /bead is for inter-session continuity via beads, not module documentation.
+description: Use this skill at session boundaries — when picking up work in a project that has a `.handoff/` directory, when delegating from a chat session to a Claude Code session, or when a substantive piece of work, decision, or gotcha just occurred and should not be lost. Triggers include "orient me", "pick up where we left off", "what was the last session about", "write a brief for Claude Code", "log this decision", "capture this discovery", "write a bead"; also "/bead --compact", "compact this conversation", "hand this off so another agent can continue" for a one-shot temp-file handoff that skips the ledger. The skill produces small, dated, markdown files (beads) with structured frontmatter that any future session — chat or Code — can read to reconstruct context. Bead schema is compatible with Gas Town / Beads / GasCity for optional downstream ingestion. NOTE: distinct from /handoff (post-ship runbook documentation) — /bead is for inter-session continuity via beads, not module documentation.
 ---
 
 # /bead — session continuity via beads
@@ -70,3 +70,21 @@ When the skill triggers at session end:
 ## A note on identity
 
 The `actor` field in bead frontmatter is the addressable identity. Sessions are ephemeral; actors are durable. Use stable names: `chat-claude`, `code-claude`, `<human-username>`, or named agents from your wider system. This identity convention is what makes "the next session of code-claude" coherent across time.
+
+## `--compact` mode — one-shot conversation handoff
+
+When invoked as `/bead --compact` (or the user says "compact this conversation", "write a handoff so another agent can continue", "hand this off"), skip the `.handoff/` ledger entirely and produce a single throwaway handoff document for an incoming agent. Use this when there is no `.handoff/` directory, or the work doesn't warrant a permanent bead, or you just need to pass the baton mid-task.
+
+```
+1. Path: `mktemp -t handoff-XXXXXX.md`. If a path is given, read it first; append, don't clobber.
+2. Reference, don't reproduce. Link existing artifacts by path/URL — PRDs, plans, ADRs, issues,
+   commit SHAs, diffs, branch names. Do not paste their contents.
+3. Tailor to the next step. If the user said what the next session will focus on, lead with that
+   and cut everything not relevant to it.
+4. Name the skills the incoming agent should run (e.g. "start with /zoom-out on packages/x, then /tdd").
+5. Contents, in order: task + current state · what's done · what's left · open questions / decisions
+   pending · gotchas · artifacts (paths) · suggested next skills.
+6. Output the path. Do not create a permanent bead unless the user also asks for one.
+```
+
+This is the lightweight counterpart to the full orient → work → handoff bead protocol above — same purpose (inter-session continuity), less ceremony.
