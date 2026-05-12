@@ -7,7 +7,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import { FilesystemBeadStore } from '../bead-store/FilesystemBeadStore.js';
-import { initAgent, closeAgent } from '../agent-lifecycle.js';
+import { initAgent } from '../agent-lifecycle.js';
 import { sendMail, readMail, getUnreadMail, countUnreadMail, handoff } from '../mail.js';
 import { runPrimeNode } from '../prime-node.js';
 import { isFrameMail } from '../types/mail.js';

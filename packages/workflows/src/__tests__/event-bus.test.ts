@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { FrameEventBus, eventBus, makeEvent } from '../event-bus.js';
 import type { FrameEvent } from '../types/event.js';
 
