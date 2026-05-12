@@ -77,6 +77,11 @@ Install into a sibling repo:
 
 ```bash
 ./scripts/install-agents.sh lean-canvas
+
+# user-scope baseline (Pocock skills + ~/.claude/CLAUDE.md):
+./scripts/install-agents.sh --user-scope
+# ...plus the /vault skill, the ~/selfco knowledge vault, and the opt-in vault-session hook:
+./scripts/install-agents.sh --user-scope --with-selfco
 ```
 
 ---
