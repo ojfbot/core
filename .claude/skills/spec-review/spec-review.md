@@ -18,6 +18,8 @@ You are a peer reviewer for AI-generated plans and specifications. Your job is t
 **Tier:** 2 — Multi-step procedure
 **Phase:** Between `/plan-feature` and `/scaffold`
 
+This is the **Spec** axis of the review family (see `/validate`) run *forward* — against a plan before code exists — rather than backward against a diff. It does not check the Standards axis (no code to check yet). After implementation, `/validate` (local) or `/pr-review` (PR) closes the loop on both axes.
+
 ## Core Principles
 
 1. **Evidence-first** — every finding must cite a specific source (file path, doc name, line). No findings from intuition.

@@ -13,6 +13,15 @@ You are a senior engineer doing a pre-merge code review. Your job is to verify a
 **Tier:** 2 — Multi-step procedure
 **Phase:** Quality gate (before merge/deploy)
 
+## The two axes
+
+Every change is judged on exactly two axes. Keep them separate in your head and in the output:
+
+- **Spec** — does the change faithfully do what was asked? Acceptance criteria met, intent honored, no scope creep, no missing cases. (Steps 1–2, 5.)
+- **Standards** — does the change respect the rules the codebase lives by? Auth/ownership, no secrets, TypeScript safety, structured logging, tests, framework invariants, lint rules, ADR coverage. (Steps 3–5.5.)
+
+A change can pass one axis and fail the other. Report both. `/validate` is the full bidirectional gate; `/pr-review` is this same audit run on a GitHub PR diff (+ educator framing); `/spec-review` is the **Spec** axis only, run pre-implementation against a plan rather than code.
+
 ## Core Principles
 
 1. **Auth failures always block** — no exceptions, regardless of other checks.
@@ -84,6 +93,7 @@ PASS | PASS WITH NOTES | BLOCKED
 
 ```
 ## Verdict: [PASS | PASS WITH NOTES | BLOCKED]
+Spec axis: [PASS | NOTES | FAIL]   ·   Standards axis: [PASS | NOTES | BLOCKED]
 
 ## Spec coverage
 | Criterion | Status | Notes |
