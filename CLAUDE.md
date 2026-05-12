@@ -74,6 +74,7 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub |
 | `/spec-review` | 2 | Pre-kick-off | Fact-check a plan or spec before scaffolding — PASS / PASS WITH NOTES / BLOCKED |
 | `/scaffold` | 2 | Kick-off | Types, skeleton implementations, test stubs |
+| `/prototype` | 2 | Kick-off | Throwaway code that answers one question — terminal harness for logic edge cases, or N UI variants by URL param. Record the verdict, then delete. ADR-0070 |
 | `/tdd` | 2 | Implementation | Red-green-refactor loop. Writes failing test first, verifies red, minimal change to green. Guidance only. ADR-0046 |
 | `/investigate` | 2 | Debugging | Cause map + candidate fixes — no code edits |
 | `/validate` | 2 | Quality gate | Spec coverage, invariants, auth/data safety checks |
@@ -136,11 +137,13 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 
 | Command | Purpose |
 |---------|---------|
-| `/recon` | Codebase reconnaissance report |
+| `/recon` | Codebase reconnaissance report (full, cold-start) |
+| `/zoom-out` | In-loop orientation for code you're already in: who calls this, what it depends on, blast radius if changed. No report file. ADR-0070 |
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
 | `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
 | `/observe` | Triage logs/metrics/alerts (Sentry, Prometheus, LangGraph-aware) |
+| `/caveman` | Ultra-compressed communication mode — drops filler, keeps technical accuracy. Stays on until "normal mode". ADR-0070 |
 
 ### Skill management
 
@@ -151,14 +154,29 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | `/daily-logger` | Load the daily-logger architecture context (4-phase pipeline, council-of-experts, personas) |
 | `/vault` | Maintain the `selfco` **LLM Wiki** (`~/selfco`) — a Karpathy-style Obsidian vault (append-only `raw/` + LLM-owned `wiki/` of source/entity/concept/synthesis pages + `index.md` + `log.md`; the schema is `~/selfco/CLAUDE.md`). Thin wrapper. Modes: `init` · `ingest <path\|url>` · `research <topic>` · `query <q>` · `lint` · `sync [--since=7d]` (folds the ojfbot activity feed into repo entity pages) · `orient` · `note`. Distinct from `/daily-logger` (chronological blog) and `/bead` (per-repo handoff). See ADR-0069, `domain-knowledge/selfco-vault.md`, the Karpathy gist. |
 
+### Writing pipeline
+
+A three-step article pipeline (ADR-0070). Lives in `core` and is synced to sibling repos that publish prose (e.g. daily-logger, landing).
+
+| Command | Step | Purpose |
+|---------|------|---------|
+| `/writing-fragments` | 1 — raw material | Interview the user to extract varied fragments (stories, claims, examples, objections); consolidate into a fragments file. No structure yet. |
+| `/writing-beats` | 2 — structure | Structure the article as an ordered sequence of beats (reader-journey decision points); develop one beat at a time with sign-off. |
+| `/writing-shape` | 3 — prose | Turn beat drafts into finished article prose, deciding the form (prose/list/table/callout/code/heading) of every paragraph. |
+
+```
+/writing-fragments → /writing-beats → /writing-shape → /council-review → publish
+```
+
 ### Recommended lifecycle order
 
 ```
-/plan-feature → /spec-review → /scaffold → [implement] → /investigate (if needed)
+/plan-feature → /spec-review → /scaffold → /prototype (if a design branch is unclear)
+→ [implement via /tdd] → /investigate (if needed)
 → /test-expand → /validate → /hardening → /deploy → /handoff
                                     ↑
                               /techdebt (continuous)
-                              /sweep (weekly)
+                              /sweep (weekly)   /zoom-out (any time you're lost in a file)
 ```
 
 ---

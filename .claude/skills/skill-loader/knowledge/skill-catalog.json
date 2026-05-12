@@ -1,6 +1,6 @@
 {
-  "version": "1.6",
-  "updated": "2026-05-11",
+  "version": "1.7",
+  "updated": "2026-06-04",
   "skills": [
     {
       "name": "plan-feature",
@@ -942,6 +942,66 @@
       ],
       "suggested_after": ["/bead", "/handoff"],
       "layer_affinity": [0]
+    },
+    {
+      "name": "prototype",
+      "tier": 2,
+      "phase": "kick-off",
+      "tags": ["prototype", "spike", "throwaway", "experiment", "design-exploration", "ui-variants"],
+      "description": "Build throwaway code that answers one question: an interactive terminal harness for logic/state-machine edge cases, or N radically different UI variants switchable by URL param. Record the verdict, then delete.",
+      "triggers": ["prototype", "spike this", "throwaway prototype", "try a quick experiment", "explore a few UI options", "build a scratch version to test X"],
+      "suggested_after": ["/plan-feature", "/scaffold"],
+      "layer_affinity": [1, 2]
+    },
+    {
+      "name": "caveman",
+      "tier": 1,
+      "phase": "continuous",
+      "tags": ["caveman", "terse", "compressed", "low-token", "communication", "brevity"],
+      "description": "Ultra-compressed communication mode — drops articles, hedging, preamble, recap; keeps full technical accuracy, paths, commands, code. Stays on until the user says 'normal mode'.",
+      "triggers": ["caveman", "caveman mode", "be terse", "compress your replies", "stop the preamble", "low-token mode"],
+      "suggested_after": [],
+      "layer_affinity": [0, 1, 2]
+    },
+    {
+      "name": "zoom-out",
+      "tier": 1,
+      "phase": "continuous",
+      "tags": ["zoom-out", "context", "orientation", "call-graph", "blast-radius", "navigation"],
+      "description": "In-loop orientation for code you're already working in: walk up the call graph and module boundaries — who calls this, what it depends on, blast radius if changed. No report file; for a full cold-start repo overview use /recon.",
+      "triggers": ["zoom out", "give me the bigger picture", "what's the broader context here", "how does this fit into the system", "I'm lost in this file", "step back"],
+      "suggested_after": [],
+      "layer_affinity": [1, 2]
+    },
+    {
+      "name": "writing-fragments",
+      "tier": 2,
+      "phase": "continuous",
+      "tags": ["writing", "article", "fragments", "brain-dump", "interview", "raw-material"],
+      "description": "Interview the user to extract varied raw material for an article (stories, claims, examples, definitions, objections); consolidate into a fragments file. Step 1 of the writing pipeline (then /writing-beats, then /writing-shape).",
+      "triggers": ["writing-fragments", "help me brain-dump for an article", "extract my raw material", "interview me for a post", "gather fragments"],
+      "suggested_after": [],
+      "layer_affinity": [0]
+    },
+    {
+      "name": "writing-beats",
+      "tier": 2,
+      "phase": "continuous",
+      "tags": ["writing", "article", "beats", "structure", "outline", "reader-journey"],
+      "description": "Structure an article as an ordered sequence of beats (reader-journey decision points), then develop one beat at a time with sign-off. Step 2 of the writing pipeline; takes a fragments file, hands beats to /writing-shape.",
+      "triggers": ["writing-beats", "outline this article as a journey", "structure my post", "what's the beat sheet for this piece", "develop this section by section"],
+      "suggested_after": ["/writing-fragments"],
+      "layer_affinity": [0, 1]
+    },
+    {
+      "name": "writing-shape",
+      "tier": 2,
+      "phase": "continuous",
+      "tags": ["writing", "article", "shape", "prose", "formatting", "polish"],
+      "description": "Turn rough or beat-drafted markdown into finished article prose, deciding the form (prose/list/table/callout/code/heading) of every paragraph rather than defaulting to walls of text or bullet soup. Step 3 of the writing pipeline.",
+      "triggers": ["writing-shape", "shape this into an article", "turn my notes into prose", "polish this draft", "format this article"],
+      "suggested_after": ["/writing-beats", "/writing-fragments"],
+      "layer_affinity": [0, 1]
     }
   ]
 }
