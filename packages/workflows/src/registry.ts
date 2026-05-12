@@ -38,6 +38,12 @@ const fileBacked: WorkflowRegistry = {
   "spec-review":      fileBackedWorkflow("spec-review",       "Cross-check an agent-generated spec against domain knowledge and code before implementation"),
   "skill-create":     fileBackedWorkflow("skill-create",      "Turn a session workflow into a convention-compliant skill directory; registers in skill-catalog.json"),
   gastown:            fileBackedWorkflow("gastown",            "Gas Town adoption audit and planning — four modes: audit, plan (--sprint=N), pilot (--panel=<name>), sync"),
+  prototype:          fileBackedWorkflow("prototype",          "Build throwaway code that answers one question: an interactive terminal harness for logic edge cases, or N radically different UI variants by URL param. Record the verdict, then delete."),
+  caveman:            fileBackedWorkflow("caveman",            "Ultra-compressed communication mode — drops articles, hedging, preamble; keeps full technical accuracy. Stays on until 'normal mode'."),
+  "zoom-out":         fileBackedWorkflow("zoom-out",           "In-loop orientation for code you're already in: walk up the call graph and module boundaries — who calls this, what it depends on, blast radius if changed. No report file."),
+  "writing-fragments": fileBackedWorkflow("writing-fragments", "Interview the user to extract varied raw material for an article (stories, claims, examples, objections); consolidate into a fragments file. Step 1 of the writing pipeline."),
+  "writing-beats":    fileBackedWorkflow("writing-beats",     "Structure an article as an ordered sequence of beats (reader-journey decision points); develop one beat at a time with sign-off. Step 2 of the writing pipeline."),
+  "writing-shape":    fileBackedWorkflow("writing-shape",     "Turn rough or beat-drafted markdown into finished article prose, deciding the form (prose/list/table/callout/code) of every paragraph. Step 3 of the writing pipeline."),
 };
 
 export const workflows: WorkflowRegistry = {
