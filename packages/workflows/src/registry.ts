@@ -44,6 +44,7 @@ const fileBacked: WorkflowRegistry = {
   "writing-fragments": fileBackedWorkflow("writing-fragments", "Interview the user to extract varied raw material for an article (stories, claims, examples, objections); consolidate into a fragments file. Step 1 of the writing pipeline."),
   "writing-beats":    fileBackedWorkflow("writing-beats",     "Structure an article as an ordered sequence of beats (reader-journey decision points); develop one beat at a time with sign-off. Step 2 of the writing pipeline."),
   "writing-shape":    fileBackedWorkflow("writing-shape",     "Turn rough or beat-drafted markdown into finished article prose, deciding the form (prose/list/table/callout/code) of every paragraph. Step 3 of the writing pipeline."),
+  "git-guardrails":   fileBackedWorkflow("git-guardrails",    "State the dangerous-git policy and audit/wire the repo's guardrails — .claude/settings.json deny rules (via /update-config) and an optional pre-push hook. Read-only unless asked to install."),
 };
 
 export const workflows: WorkflowRegistry = {

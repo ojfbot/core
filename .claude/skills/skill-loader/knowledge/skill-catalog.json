@@ -1002,6 +1002,16 @@
       "triggers": ["writing-shape", "shape this into an article", "turn my notes into prose", "polish this draft", "format this article"],
       "suggested_after": ["/writing-beats", "/writing-fragments"],
       "layer_affinity": [0, 1]
+    },
+    {
+      "name": "git-guardrails",
+      "tier": 1,
+      "phase": "continuous",
+      "tags": ["git", "guardrails", "safety", "permissions", "force-push", "settings"],
+      "description": "State the dangerous-git policy and audit or wire the repo's guardrails — .claude/settings.json deny/ask rules (via /update-config) and an optional pre-push hook. Read-only by default; only edits settings when asked.",
+      "triggers": ["git-guardrails", "block dangerous git commands", "stop me force-pushing main", "add git safety rails", "set up git protections"],
+      "suggested_after": [],
+      "layer_affinity": [0]
     }
   ]
 }
