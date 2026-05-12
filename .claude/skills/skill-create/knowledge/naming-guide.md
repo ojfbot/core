@@ -70,6 +70,20 @@ The `description` in YAML frontmatter is the **only** thing Claude Code sees whe
 
 ---
 
+## Skill lifecycle (status)
+
+The catalog has 60+ skills; not all are equally baked. Each `skill-catalog.json` entry may carry a `status` field (absence ≡ `active`):
+
+| status | meaning | synced to siblings? | auto-suggested? |
+|--------|---------|---------------------|-----------------|
+| `active` (default) | production skill, conventions met | yes | yes |
+| `in-progress` | drafted, not yet stable — usable but expect churn | no | no |
+| `deprecated` | superseded; kept for reference, scheduled for removal — the description should name the replacement | no | no |
+
+`install-agents.sh` only syncs `active` skills to sibling repos. `suggest-skills.mjs` only matches `active` triggers. When a skill graduates, flip `status` to `active` and run the review checklist above. When retiring one, set `status: deprecated` and point its description at the replacement before deleting it a release later.
+
+---
+
 ## Phase values
 
 | Phase | When it runs |
