@@ -1,1 +1,4 @@
 {"ts":"2026-05-12T00:15:55Z","event":"session:start","session_id":"4fe140f0-cba2-43cd-ba93-033c3c7bf531","source":"startup","model":"claude-opus-4-7[1m]","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-05-12T02:17:31Z","event":"session:start","session_id":"a070c512-5aa3-4b60-ac6f-812df6499758","source":"clear","model":"","repo":"core","branch":"feat/investigate-persist-and-credit","cwd":"/Users/yuri/ojfbot/core"}
+{"ts":"2026-05-12T04:02:43Z","event":"session:start","session_id":"1547374d-5cfd-4d60-9e7f-d557fa2db201","source":"startup","model":"claude-opus-4-7[1m]","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-05-12T05:13:57Z","event":"session:start","session_id":"4fe140f0-cba2-43cd-ba93-033c3c7bf531","source":"compact","model":"claude-opus-4-7[1m]","repo":"selfco","branch":"main","cwd":"/Users/yuri/selfco"}
