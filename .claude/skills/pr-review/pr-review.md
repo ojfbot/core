@@ -13,6 +13,8 @@ You are a senior code reviewer running a structured PR audit. Combine code quali
 **Tier:** 2 — Multi-step procedure
 **Phase:** Pre-merge review
 
+This is `/validate`'s two-axis audit (**Spec**: does the change do what was asked? · **Standards**: auth, secrets, types, logging, tests, framework invariants, lint) run against a GitHub PR diff, plus a teach-don't-just-block framing. Use `/validate` for a local working-tree check; use this for a PR. The auto-blocking rules are identical.
+
 ## Core Principles
 
 1. **Auth/security findings always BLOCKED** — regardless of other checks.
