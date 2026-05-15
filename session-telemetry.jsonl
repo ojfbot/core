@@ -1,4 +1,1 @@
-{"ts":"2026-05-12T23:14:57Z","event":"session:start","session_id":"a55a8aab-6c55-4124-a331-cb0019587fcc","source":"startup","model":"claude-opus-4-7","repo":"yuri","branch":"","cwd":"/Users/yuri"}
-{"ts":"2026-05-12T23:15:35Z","event":"session:start","session_id":"e180ced6-cbed-4e59-9276-67358e570f96","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-13T01:48:23Z","event":"session:start","session_id":"60f2404a-87b7-4de4-911c-3dff2ac93847","source":"startup","model":"claude-opus-4-7","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-05-14T00:11:02Z","event":"session:start","session_id":"ed9a6cd2-23fa-406a-a98c-4fcb65e03872","source":"startup","model":"claude-opus-4-7","repo":"yuri","branch":"","cwd":"/Users/yuri"}
