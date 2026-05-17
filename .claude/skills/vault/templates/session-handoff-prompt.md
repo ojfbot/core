@@ -94,8 +94,19 @@ Length handling: if the bundle is too long to fit in one message, split it into 
 `=== PART 1 of N ===` … `=== END PART 1 ===` — emit the first part, then stop and wait for me to say "continue".
 **Never truncate an artifact mid-way**; if a single artifact is too long for one part, give it its own part.
 
-Be adaptive: a short thread → a tiny bundle (TL;DR + maybe one artifact) is the right answer. An extended research
-session with many documents and drafts → be thorough; capture every document and every draft.
+**Target length: 500–1000 words of summary content** across TL;DR + What was done + Key findings + Decisions +
+Sources sections combined, regardless of how long the chat session itself was. **Artifacts ADD to that** —
+include every artifact in full under `## Artifacts produced`, verbatim, never truncated. Artifacts are additive
+and don't count toward the 500–1000-word target.
+
+Going under 500 words is an **opt-out, not the default** — only acceptable if the session was genuinely trivial
+(one quick question, one-paragraph answer, no decisions made, no artifacts produced). If you do go shorter,
+write "trivial session" in the TL;DR so the human reader can audit the call.
+
+An extended research session with many documents and drafts → be thorough; capture every document and every draft
+in full. **Err on the side of more, not less.** This bundle is feeding a RAG index for future retrieval, not a
+publishable essay — length isn't penalized, thinness is. A bundle that's just frontmatter + a one-line TL;DR is a
+broken bundle.
 
 Output only the bundle (and the part-markers if you split it). No preamble, no "here's your bundle" — just start
 with `--- BEGIN selfco handoff bundle ---`.

@@ -11,17 +11,22 @@ connectors** (an HTTPS endpoint, configured once in account settings, synced acr
 stdio server can't be used there. Claude-Code skills don't exist in the apps; the apps have **Agent Skills**
 you upload to the account.
 
-## Phase A — GitHub-backed (now)
+## Phase A — GitHub-backed reads, Notion-backed writes (now)
 
-GitHub is the source of truth; `~/selfco` on the Mac is a clone you keep pulled/pushed.
+GitHub is the source of truth; `~/selfco` on the Mac is a clone you keep pulled/pushed. **Reads** come from
+the GitHub connector. **Writes from a Claude chat** go through Notion (see the next section); the GitHub
+connector is not a reliable write path in practice.
 
 1. **The mirror** — `~/selfco` is pushed to a **private** GitHub repo `ojfbot/selfco`
    (`gh repo create ojfbot/selfco --private --source=$HOME/selfco --remote=origin --push`). `.gitignore`
    keeps `.obsidian/{plugins,workspace*}` and `raw/assets/*.tmp` out.
-2. **GitHub connector** (web + iPhone + Mac desktop) — in the Claude UI: Settings → **Connectors** →
-   add/authorize **GitHub** → scope it to `ojfbot/selfco`. Claude in any app can now read/search/write
-   `selfco/**` via the GitHub API; **each write is a commit** to `ojfbot/selfco`. Bring those down to the Mac
-   with `git -C ~/selfco pull --rebase`.
+2. **GitHub connector — *read* surface only** (web + iPhone + Mac desktop) — in the Claude UI: Settings →
+   **Connectors** → add/authorize **GitHub** → scope it to `ojfbot/selfco`. Claude in any app can now
+   read/search `selfco/**`: browse pages, pull source content into a chat, search for prior entities.
+   **It is not a reliable write path** — the connector's "create file" / "edit file" capabilities through
+   the Claude apps don't work end-to-end for this vault (silent failures, partial commits). Write from a
+   Claude chat using the **Notion `📥 selfco — Inbox`** path below; the GitHub connector is for reading and
+   browsing, period.
 3. **Mac desktop — add a local `mcp-obsidian`** (better UX on the Mac: live Obsidian index, no API round-trip;
    optional — the GitHub connector also works on the Mac):
    - Obsidian → Settings → Community plugins → install & enable **"Local REST API"** → copy its API key
@@ -54,10 +59,56 @@ GitHub is the source of truth; `~/selfco` on the Mac is a clone you keep pulled/
    and writes via whichever connector is attached (GitHub or obsidian-mcp). Covers `ingest`/`query`/`note`/
    `orient`; `init`/`sync`/full web-`research` stay in Claude Code on the Mac.
 
-Result: from web or iPhone you `/vault ingest <url>` etc. → commits land in `ojfbot/selfco`; from the Mac you
-work in Claude Code (full `/vault`) or Claude Desktop (`mcp-obsidian` + the Agent Skill), and `git pull` keeps
-`~/selfco` current. The Mac-side `/vault` skill (`vault.md`) does `git pull --rebase --autostash` before and
-`git push` after its writes when `$V` has a remote — so the two views stay in sync without thinking.
+Result: from web or iPhone you read via the GitHub connector and *write* via the Notion `📥 selfco — Inbox`
+(next section); from the Mac you work in Claude Code (full `/vault`) or Claude Desktop (`mcp-obsidian` + the
+Agent Skill), and `git pull` keeps `~/selfco` current. The Mac-side `/vault` skill (`vault.md`) does
+`git pull --rebase --autostash` before and `git push` after its writes when `$V` has a remote — so the Mac
+and the GitHub view stay in sync without thinking.
+
+## Writing from a Claude chat — the Notion `📥 selfco — Inbox` (canonical write path)
+
+From claude.ai web, the iPhone app, or anywhere else you can edit a Notion DB, drop a row into the canonical
+`📥 selfco — Inbox` database (page id `35e54a8c-53d7-81de-8e0f-e4c367908439`, DB id
+`81b8a0f7e97d4052900fac535b035237`). The `selfco-box` daemon polls this DB every 5 min, files matching rows
+into `~/selfco` per the vault schema, commits, and pushes — then flips the Notion row to `status=promoted`
+with a `commit ref` + `promoted at` timestamp.
+
+**Row shape:**
+- **Title** — what the page is about. Becomes the `title` field of the vault page.
+- **`status`** (select) — set to `ready` when you want the box to file it. Stays `draft` while you're still
+  editing. After the box runs: `promoted` (success) or `failed` (with the reason in `error`).
+- **`type`** (select) — one of `source`, `entity`, `concept`, `synthesis`, `note` (matches the vault schemas
+  in `~/selfco/CLAUDE.md`).
+- **`slug`** (text) — kebab-case; becomes the filename under `raw/<slug>.md` + `wiki/<type>/<slug>.md`. If
+  omitted, the agent derives one from the title.
+- **`tags`** (multi-select) — drawn from a frozen vocabulary. Unknown tags → row marked `failed`.
+- **`commit ref`** (text, written by the box) — the SHA the row was filed at.
+- **`promoted at`** (date, written by the box) — when the box committed.
+- **`error`** (text, written by the box on failure) — what went wrong.
+
+**Wikilink convention:** in Notion, write wikilinks as **inline code** — `` `[[some-page]]` `` — so Notion's
+auto-formatter doesn't eat the brackets. The poller strips the inline-code wrapper on write so the markdown
+in the vault lands as plain `[[some-page]]`.
+
+**Body:** standard markdown in the row's body (paragraphs, headings, bullet/numbered lists, code blocks,
+quotes, to-dos, dividers). Attachments (images/files) are skipped in the current slice — paste their text
+content directly or link out.
+
+**Idempotency** is keyed on the Notion page id; once a row is filed, repeat polls do nothing. To re-file a
+row after edits, flip its `status` back to `draft` then up to `ready`.
+
+**Reaching it from a chat:** the row creation can be done via Notion's UI directly, or — when the chat has a
+Notion connector authorized — by asking the model to "create a row in the `selfco — Inbox` database with
+status=ready, type=…, slug=…" and giving the body.
+
+The selfco-box runs the poller on this Mac via launchd (`com.ojfbot.selfco-box.poll-notion.plist`, every
+5 min). When the Mac mini is up the plist moves there; everything else stays the same.
+
+## Writing from an iOS Shortcut — `POST /capture`
+
+The selfco-box exposes `POST /capture` on `127.0.0.1:$PORT` (bearer-token gated). An iOS Shortcut hitting
+that endpoint enqueues a job exactly like the Notion poller does. **Reachability**: local-network only for
+now; the public Cloudflare-Tunnel endpoint is Slice 3b (deferred).
 
 ## Phase B — locally-hosted obsidian-mcp (later, when you have dedicated hardware)
 
@@ -75,8 +126,12 @@ The "real" obsidian-mcp, always-on, no GitHub round-trip:
 ## Why this shape
 
 - `/vault`-as-Agent-Skill, tool-agnostic → one Skill, every surface; survives the Phase-A→B connector swap.
-- GitHub-as-source-of-truth → web/iPhone writes are commits (free history), no tunnel, no Mac-must-be-on; the
-  Mac is a clone.
+- GitHub-as-source-of-truth → the Mac is a clone, every device pull-rebases from the GitHub ref. The
+  selfco-box writes to its local clone first and pushes; reads on other devices come from the next pull.
+- The **Notion `📥 selfco — Inbox`** is the only chat→vault write path that actually works in 2026 —
+  the GitHub connector reads cleanly but its write surface in the Claude apps is unreliable for this vault.
+  Notion is the channel that always succeeds (a row create with `status=ready`); the box does the actual
+  filing + commit + push.
 - The python helpers (`init-vault.py`, `collect.py`, `lint.py`, `ingest.py`) and the `sync` activity feed need
   the ojfbot repos on disk + git, so they stay Claude-Code-on-the-Mac — but `init` is one-time and `sync` is a
   Mac-only concern anyway, so the app-side subset (`ingest`/`query`/`note`/`orient`) is exactly the useful one.
