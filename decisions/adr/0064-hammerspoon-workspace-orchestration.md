@@ -2,7 +2,7 @@
 
 Date: 2026-04-30
 Date accepted: 2026-05-04
-Status: Accepted
+Status: Superseded by [workstation-yuri/ADR-0001](../../../workstation-yuri/decisions/adr/0001-workstation-orchestration.md) (2026-05-16)
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR2 (the morning ritual ships repeatable executable plans)
 Commands affected: /workbench
 Repos affected: core (scripts/launcher/hammerspoon, scripts/bootstrap.sh)
@@ -20,6 +20,8 @@ The status substrate is `~/.claude/skill-telemetry.jsonl` per [ADR-0037](0037-sk
 Window placement reads `display.screen` and `display.space` from the registration schema proposed for v1.1 in [ADR-0058](0058-sub-app-registration-schema.md). Rigs registered against v1.0 (no display fields) fall back to the single-screen profile.
 
 Originally drafted as ADR-009 in the 2026-04-30 handoff; renumbered to fit core/decisions/adr/ flat numbering.
+
+**2026-05-16 update**: This ADR is superseded by `workstation-yuri/ADR-0001`. The Hammerspoon code documented here was extracted from `core/scripts/launcher/hammerspoon/` to the new sibling repo `workstation-yuri/`. The cross-repo coupling (Hammerspoon reads `core/scripts/launcher/registrations/*.json`) is preserved by keeping `LAUNCHER_ROOT` pointed at this directory. See the new ADR for the inversion rationale and migration boundary.
 
 ## Decision
 

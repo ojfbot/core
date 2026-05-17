@@ -31,6 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 | github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
+| workstation-yuri | — | macOS workstation automation: Focus modes, wallpapers, iTerm2, Hammerspoon, future Swift app. Reads `core/scripts/launcher/registrations/`. Supersedes core ADR-0064. | 0 | scaffold |
 
 ## Skills
 
