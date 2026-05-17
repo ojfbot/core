@@ -299,6 +299,11 @@ def main() -> int:
     if handoff_src.is_file():
         write_if_missing(v / "prompts" / "session-handoff.md", handoff_src.read_text(encoding="utf-8"))
 
+    # the Notion-Inbox row-shape template (the chat→vault write path)
+    notion_row_src = TEMPLATES_SRC / "notion-inbox-row.md"
+    if notion_row_src.is_file():
+        write_if_missing(v / "prompts" / "notion-inbox-row.md", notion_row_src.read_text(encoding="utf-8"))
+
     # repos → entity stubs
     repos = discover_repos(oj)
     repo_slugs = [name for name, _ in repos]
