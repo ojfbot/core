@@ -1,6 +1,6 @@
 # OJF Workflow Framework
 
-> Portable Claude Code workflow framework: 30+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use. Includes `/bead` for session-handoff across repos.
+> Portable Claude Code workflow framework: 30+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use. Includes `/bead` for session-handoff across repos and `/vault` for personal knowledge management.
 
 Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application OS built as both a live product and an engineering portfolio. This repo is the shared development infrastructure that powers all Frame OS projects.
 
@@ -12,18 +12,18 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos (shared UI components use [npm publishing](https://github.com/ojfbot/frame-ui-components) with Vite alias for local dev)
-- **43+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge)
+- **70+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge, [ADR-0069](decisions/adr/ADR-0069.md)/[ADR-0070](decisions/adr/ADR-0070.md) for vault reachability)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
 
-- **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, and more
+- **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, vault, and more
 - **Skill-directory architecture** — each command is a self-contained directory with orchestration prompt, knowledge files, and scripts
 - **TypeScript CLI** — `core-workflow` binary for CI/CD and terminal use
 - **VS Code extension** — run any slash command from the editor
 - **Cross-repo installation** — `install-agents.sh` and `session-init.sh` symlinks skills + domain knowledge into sibling repos (symlinks tracked in git to survive clone and branch-switch)
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
-- **Architecture Decision Records** — 43+ ADRs documenting every significant decision across the ecosystem
+- **Architecture Decision Records** — 70+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
 | Layer | Technology |
@@ -96,7 +96,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0043+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0070+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0069/0070 vault reachability)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
@@ -139,7 +139,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | Repo | Description |
 |------|-------------|
 | [shell](https://github.com/ojfbot/shell) | Module Federation host + frame-agent LLM gateway |
-| **core** | **Workflow framework — 30+ slash commands + TypeScript engine + skill suggestion/telemetry (this repo)** |
+| **core** | **Workflow framework — 30+ slash commands + TypeScript engine + skill suggestion/telemetry + /vault personal knowledge (this repo)** |
 | [FrameBus](https://github.com/ojfbot/FrameBus) | Event bus with ADR-0013, Playwright e2e |
 | [cv-builder](https://github.com/ojfbot/cv-builder) | AI-powered resume builder with LangGraph agents |
 | [gcgcca](https://github.com/ojfbot/gcgcca) | Pydantic + TypeScript type bridge |
