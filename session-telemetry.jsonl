@@ -1,6 +1,0 @@
-{"ts":"2026-05-16T17:59:58Z","event":"session:start","session_id":"e49c62fe-95dd-4409-9d43-a6bc4c55bac3","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-16T18:08:20Z","event":"session:start","session_id":"e49c62fe-95dd-4409-9d43-a6bc4c55bac3","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-16T18:12:02Z","event":"session:start","session_id":"408f151f-2bb5-44a1-bf82-e20ac64c689b","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-16T22:43:05Z","event":"session:start","session_id":"1159e3b4-a52e-427d-aa8d-ebadbe9ab17a","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-16T22:46:17Z","event":"session:start","session_id":"5b17c613-53a8-4439-99cd-9ab7a35d96e2","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-17T02:29:47Z","event":"session:start","session_id":"70332ea2-17bf-4249-be12-08a88d84f064","source":"startup","model":"claude-opus-4-7","repo":"yuri","branch":"","cwd":"/Users/yuri"}
