@@ -1,2 +1,3 @@
 {"ts":"2026-05-19T19:17:54Z","event":"skill:suggestion-ignored","skill":"roadmap","suggested_at":"2026-05-18T00:59:55Z","repo":"core","session_id":"60f2404a-87b7-4de4-911c-3dff2ac93847"}
 {"ts":"2026-05-19T19:17:54Z","event":"skill:no-match","prompt_prefix":" follow the rebase option ","repo":"core","session_id":"60f2404a-87b7-4de4-911c-3dff2ac93847"}
+{"ts":"2026-05-21T19:03:21Z","event":"skill:suggested","skill":"spec-review","reason":"trigger 'review this plan'","prompt_prefix":"recently i have been working with claude code and my local obsidian selfco vault to plan automation and terminal orchest","repo":"ojfbot","session_id":"a7fd47e7-1770-433f-b5fe-3d657b471124"}
