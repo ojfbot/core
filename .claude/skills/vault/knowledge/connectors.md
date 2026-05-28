@@ -75,8 +75,10 @@ with a `commit ref` + `promoted at` timestamp.
 
 **Row shape:**
 - **Title** — what the page is about. Becomes the `title` field of the vault page.
-- **`status`** (select) — set to `ready` when you want the box to file it. Stays `draft` while you're still
-  editing. After the box runs: `promoted` (success) or `failed` (with the reason in `error`).
+- **`status`** (select) — **optional; no longer gates ingest** (ADR-0073). The box files any non-terminal row
+  (`draft`, `ready`, or unset) on its next pass — so **create the row complete; there is no `draft` hold.**
+  After the box runs it writes `promoted` (success) or `failed` (reason in `error`); `declined` (set by hand)
+  is never filed.
 - **`type`** (select) — one of `source`, `entity`, `concept`, `synthesis`, `note` (matches the vault schemas
   in `~/selfco/CLAUDE.md`).
 - **`slug`** (text) — kebab-case; becomes the filename under `raw/<slug>.md` + `wiki/<type>/<slug>.md`. If
@@ -94,12 +96,13 @@ in the vault lands as plain `[[some-page]]`.
 quotes, to-dos, dividers). Attachments (images/files) are skipped in the current slice — paste their text
 content directly or link out.
 
-**Idempotency** is keyed on the Notion page id; once a row is filed, repeat polls do nothing. To re-file a
-row after edits, flip its `status` back to `draft` then up to `ready`.
+**Idempotency** is keyed on the Notion page id; a row is filed **exactly once** and later edits to it do
+**not** re-sync — the vault's git history is where the page evolves (ADR-0073). To capture materially changed
+content, create a **new** row (a new page id).
 
 **Reaching it from a chat:** the row creation can be done via Notion's UI directly, or — when the chat has a
 Notion connector authorized — by asking the model to "create a row in the `selfco — Inbox` database with
-status=ready, type=…, slug=…" and giving the body.
+type=…, slug=… (status optional)" and giving the **complete** body.
 
 The selfco-box runs the poller on this Mac via launchd (`com.ojfbot.selfco-box.poll-notion.plist`, every
 5 min). When the Mac mini is up the plist moves there; everything else stays the same.
@@ -130,7 +133,7 @@ The "real" obsidian-mcp, always-on, no GitHub round-trip:
   selfco-box writes to its local clone first and pushes; reads on other devices come from the next pull.
 - The **Notion `📥 selfco — Inbox`** is the only chat→vault write path that actually works in 2026 —
   the GitHub connector reads cleanly but its write surface in the Claude apps is unreliable for this vault.
-  Notion is the channel that always succeeds (a row create with `status=ready`); the box does the actual
+  Notion is the channel that always succeeds (a row create — `status` optional); the box does the actual
   filing + commit + push.
 - The python helpers (`init-vault.py`, `collect.py`, `lint.py`, `ingest.py`) and the `sync` activity feed need
   the ojfbot repos on disk + git, so they stay Claude-Code-on-the-Mac — but `init` is one-time and `sync` is a

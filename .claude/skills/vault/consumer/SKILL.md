@@ -33,9 +33,10 @@ the Notion `📥 selfco — Inbox`** — that's the only path that's reliable in
   the chat. Do not attempt to create or update files through the connector — its write surface for this
   vault is unreliable (silent failures, partial commits). Use Notion below for writes.
 - **Notion `📥 selfco — Inbox`** (DB id `81b8a0f7e97d4052900fac535b035237`) — **the canonical chat→vault
-  write path.** Create a row in this database with `status=ready` + the body of the page. The `selfco-box`
-  daemon polls every 5 min, files matching rows into `~/selfco`, commits, and pushes. See `## Writing →
-  Notion` below for the row shape.
+  write path.** Create a **complete** row in this database (`status` is optional — the box files any
+  non-terminal row within ~5 min; there is no `draft` hold, so finish the body before you create the row).
+  The `selfco-box` daemon polls every 5 min, files matching rows into `~/selfco`, commits, and pushes. See
+  `## Writing → Notion` below for the row shape.
 - **`mcp-obsidian` server** — on the Mac desktop app only. Tools: `get_file_contents`, `search`,
   `patch_content`, `append_content`, `list_files_in_vault`, `delete_file`. Writes are NOT commits — rely on
   `autocommit.sh`. Available only on the Mac; web + iPhone go through Notion.
@@ -71,9 +72,10 @@ non-negotiable contract of this skill — if you skip it, you've broken the pipe
   was genuinely trivial — a single lookup, a one-paragraph clarification, no decisions made, no artifacts
   produced. If you do go shorter, **say so in the TL;DR** ("trivial session, no full summary needed") so the
   user can audit.
-- **Self-check before flipping `status` to `ready`:** word-count the body. If it's under 500 words and the
-  session wasn't trivial, **you've underwritten** — go back, expand the summary with the actual substance of
-  what was discussed, and pull in any artifacts you forgot to include.
+- **Self-check before you create the row:** word-count the body. If it's under 500 words and the session
+  wasn't trivial, **you've underwritten** — expand the summary with the actual substance of what was
+  discussed, and pull in any artifacts you forgot, *before* creating the row (it ingests one-shot; there's no
+  `draft` hold to fix it in afterward).
 - **Err on the side of more, not less.** This is feeding RAG, not a publishable essay. Length isn't penalized;
   thinness is.
 
@@ -86,7 +88,7 @@ non-negotiable contract of this skill — if you skip it, you've broken the pipe
 **Path A — Notion Inbox (web / iPhone / anywhere without obsidian-mcp).** This is the default. Create one
 row in the `📥 selfco — Inbox` DB with:
 - title = the page title
-- `status` = `ready`
+- `status` — optional (the box files any non-terminal row; no `draft` hold)
 - `type` = `source` (or `entity` / `concept` / `synthesis` / `note` if you know which schema applies)
 - `slug` = the kebab-case filename (optional; the agent will derive one)
 - `tags` = the relevant frozen-vocabulary tags
@@ -101,8 +103,8 @@ The selfco-box will file it within ~5 min: it writes `raw/<slug>.md` + `wiki/sou
 entity/concept/synthesis pages the source bears on, updates `wiki/index.md`, appends a `wiki/log.md` entry,
 and commits + pushes. The row flips to `status=promoted` with a `commit ref` + `promoted at` when done.
 
-Tell the user: "Filed a `status=ready` row in the Notion `selfco — Inbox`; the selfco-box will pick it up
-within 5 minutes and commit it to `~/selfco`. Watch for `status=promoted` on the row."
+Tell the user: "Filed a row in the Notion `selfco — Inbox`; the selfco-box will pick it up within 5 minutes
+and commit it to `~/selfco`. Watch for `status=promoted` on the row."
 
 **Path B — `mcp-obsidian` (Mac desktop only).** When the Mac obsidian-mcp tools are attached, you can write
 directly. Steps:
@@ -128,7 +130,7 @@ Fold *this* session into the vault — no copy-paste. Summarize the conversation
 you produced this session** · open threads · filing plan), then file it via the `ingest` path that fits your surface:
 
 - **Web / iPhone / no obsidian-mcp** — create **one** row in the Notion `📥 selfco — Inbox` (`type=source`,
-  `slug=session-<date>-<slug>`, `status=ready`) whose body is the **full handoff bundle**. The body must
+  `slug=session-<date>-<slug>`; `status` optional) whose body is the **full handoff bundle**. The body must
   include, at minimum, these sections (omit none — write "—" or "(none)" if a section genuinely has nothing):
   - **TL;DR** — 3–5 sentences: what the session was for and what it produced
   - **What was done** — **≥200 words of narrative**: the arc of the work, the key turns, the dead ends
@@ -197,8 +199,8 @@ Code on the Mac** (`/vault init` / `/vault sync`). If the user asks for those he
 
 ## Constraints
 - **Body substance is non-negotiable.** Metadata-only rows (title + tags + empty/stub body) defeat the entire
-  purpose of the pipeline. See `## Body substance — the whole point` above. Word-count the body before flipping
-  `status=ready`; if it's under 500 words and the session wasn't trivial, you've underwritten.
+  purpose of the pipeline. See `## Body substance — the whole point` above. Word-count the body before creating
+  the row (it ingests one-shot — no `draft` hold); if it's under 500 words and the session wasn't trivial, you've underwritten.
 - Read `CLAUDE.md` first (it's the schema); never touch `raw/` after creating a file; never reorder/edit past
   `wiki/log.md` entries; never overwrite a hand-edited page (treat user edits as authoritative); link, don't copy
   (ADRs/beads/articles referenced by path/link, never pasted); never write credentials or `.env` contents anywhere.
