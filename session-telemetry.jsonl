@@ -1,2 +1,1 @@
-{"ts":"2026-05-21T18:58:45Z","event":"session:start","session_id":"a7fd47e7-1770-433f-b5fe-3d657b471124","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-22T03:19:51Z","event":"session:start","session_id":"a7fd47e7-1770-433f-b5fe-3d657b471124","source":"compact","model":"claude-opus-4-7","repo":"workstation-yuri","branch":"feat/mvp-arc-and-input-surfaces","cwd":"/Users/yuri/ojfbot/workstation-yuri"}
+{"ts":"2026-05-28T01:57:10Z","event":"session:start","session_id":"34b696a4-3fb9-4ea9-8f32-8fc79f3c9ce3","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
