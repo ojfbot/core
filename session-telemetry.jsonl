@@ -1,3 +1,3 @@
-{"ts":"2026-05-28T01:57:10Z","event":"session:start","session_id":"34b696a4-3fb9-4ea9-8f32-8fc79f3c9ce3","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-05-28T03:34:29Z","event":"session:start","session_id":"d0a29869-54ff-4253-bb5f-fce47828f004","source":"startup","model":"claude-opus-4-7","repo":"selfco","branch":"main","cwd":"/Users/yuri/selfco"}
-{"ts":"2026-05-28T03:34:50Z","event":"session:start","session_id":"667fee75-c79c-4c7b-b273-0f939175ca7e","source":"startup","model":"claude-opus-4-7","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-01T23:28:34Z","event":"session:start","session_id":"68160c1f-5c15-4ad0-84ef-ada04a382668","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-01T23:28:34Z","event":"session:start","session_id":"b0b7a174-a996-4221-9948-280f2a2431bd","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-01T23:29:01Z","event":"session:start","session_id":"adf7f66c-ba7e-4d81-a32c-5f10fd2e62ed","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
