@@ -17,9 +17,12 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlparse
+
+YOUTUBE_RE = re.compile(r"(?:youtube\.com/(?:watch\?|.*[?&]v=|shorts/|live/)|youtu\.be/)", re.I)
 
 
 def vault_root() -> Path:
@@ -29,6 +32,91 @@ def vault_root() -> Path:
 def slugify(s: str) -> str:
     s = re.sub(r"[^a-zA-Z0-9]+", "-", s.strip().lower()).strip("-")
     return s[:80] or "source"
+
+
+def _yt_meta(url: str) -> dict:
+    """yt-dlp metadata for a single video (first JSON object if a playlist)."""
+    out = subprocess.run(
+        ["yt-dlp", "--skip-download", "--dump-json", url],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    first = next((ln for ln in out.splitlines() if ln.strip()), "")
+    return json.loads(first)
+
+
+def _yt_subs_text(url: str, td: str, auto: bool) -> str | None:
+    """Download English captions (manual if auto=False, else auto-generated) as json3 into td,
+    parse to clean deduplicated, speaker-turn-split text. None if no track was written."""
+    flag = "--write-auto-subs" if auto else "--write-subs"
+    subprocess.run(
+        ["yt-dlp", "--skip-download", flag, "--sub-langs", "en.*,en",
+         "--sub-format", "json3", "-o", str(Path(td) / "cap.%(ext)s"), url],
+        capture_output=True, text=True,
+    )
+    files = sorted(Path(td).glob("*.json3"))
+    if not files:
+        return None
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    lines: list[str] = []
+    for ev in data.get("events", []):
+        segs = ev.get("segs")
+        if not segs:
+            continue
+        txt = "".join(s.get("utf8", "") for s in segs).strip()
+        if txt and (not lines or lines[-1] != txt):  # drop consecutive duplicates
+            lines.append(txt)
+    full = re.sub(r"\s+", " ", " ".join(lines)).strip()
+    full = re.sub(r"\s*>>\s*", "\n\n>> ", full).strip()  # break on YouTube speaker-turn markers
+    return full or None
+
+
+def _fetch_youtube(url: str, raw: Path, slug: str | None, title: str | None, today: str):
+    """YouTube-aware land step: write the transcript to raw/<slug>.md via yt-dlp.
+    The generic URL path below uses curl, which fetches the watch *page*, not the captions —
+    so YouTube URLs route here. Returns (raw_file, slug, title, front, err).
+    Prerequisite: yt-dlp on PATH (`brew install yt-dlp`)."""
+    if shutil.which("yt-dlp") is None:
+        return None, slug, title, {}, {"error": "yt-dlp not found — install it: `brew install yt-dlp`"}
+    try:
+        meta = _yt_meta(url)
+    except (subprocess.CalledProcessError, FileNotFoundError, json.JSONDecodeError) as e:
+        return None, slug, title, {}, {"error": f"yt-dlp metadata failed: {e}"}
+
+    title = title or meta.get("title") or meta.get("id")
+    slug = slug or slugify(title)
+    raw_file = raw / f"{slug}.md"
+    front = {"url": url, "retrieved": today}
+    if raw_file.exists():  # idempotent — never re-download or overwrite
+        return raw_file, slug, title, front, None
+
+    with tempfile.TemporaryDirectory() as tdir:
+        text = _yt_subs_text(url, tdir, auto=False)
+        cap_type = "manual (en)"
+        if not text:
+            text = _yt_subs_text(url, tdir, auto=True)
+            cap_type = "auto-generated (en)"
+    if not text:
+        return None, slug, title, {}, {
+            "error": f"no English captions available for {url} (manual or auto). "
+                     "A future ffmpeg+ASR fallback is not yet built."
+        }
+
+    upload = meta.get("upload_date") or ""
+    published = f"{upload[:4]}-{upload[4:6]}-{upload[6:8]}" if len(upload) == 8 else upload
+    dur = meta.get("duration")
+    dur_str = f"{round(dur / 60)} min" if isinstance(dur, (int, float)) else "?"
+    header = (
+        f"# {title}\n\n"
+        f"Source: {url}\n"
+        f"Channel: {meta.get('uploader') or meta.get('channel') or '?'}\n"
+        f"Published: {published or '?'}\n"
+        f"Duration: {dur_str}\n"
+        f"Captions: {cap_type}\n"
+        f"Transcript captured: {today}\n\n"
+        f"---\n\n"
+    )
+    raw_file.write_text(header + text + "\n", encoding="utf-8")
+    return raw_file, slug, title, front, None
 
 
 def main(argv: list[str]) -> int:
@@ -54,7 +142,11 @@ def main(argv: list[str]) -> int:
 
     is_url = bool(urlparse(src).scheme in ("http", "https"))
     front = {}
-    if is_url:
+    if is_url and YOUTUBE_RE.search(src):
+        raw_file, slug, title, front, err = _fetch_youtube(src, raw, slug, title, today)
+        if err:
+            print(json.dumps(err)); return 1
+    elif is_url:
         path = urlparse(src).path
         base = Path(path).name or urlparse(src).netloc
         if not slug:
