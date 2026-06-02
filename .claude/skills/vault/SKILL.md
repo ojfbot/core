@@ -20,7 +20,8 @@ not duplicate the procedure.
 3. Parse `$ARGUMENTS` as `<mode> [args]` and execute that mode per `vault.md`.
 
 Vault path: `${SELFCO_VAULT:-$HOME/selfco}`. Deterministic helpers (read/scaffold only; the LLM authors all
-pages): `scripts/{init-vault.py, ingest.py, collect.py, lint.py, install-obsidian-plugins.sh}`. Page
+pages): `scripts/{init-vault.py, ingest.py, collect.py, lint.py, install-obsidian-plugins.sh}` (`ingest.py`
+auto-detects YouTube URLs and lands the transcript via `yt-dlp`). Page
 scaffolds: `templates/`. Schema reference: `knowledge/wiki-schema.md`. Consumer-app companion (web / iPhone /
 Mac desktop): `consumer/SKILL.md`.
 

@@ -8,7 +8,7 @@ description: >
   "query my wiki / what does my wiki say about X", "lint the wiki", "sync my vault", "what does my vault
   know", "init my vault", "selfco", "second brain", or wants to be oriented from the wiki. Modes: `init`
   (scaffold raw/+wiki/, write the in-vault CLAUDE.md, fetch Obsidian plugins, seed a repo entity stub per
-  ojfbot repo), `ingest <path|url>` (land a source in raw/, summarize, update entity/concept pages, index,
+  ojfbot repo), `ingest <path|url>` (land a source in raw/ — incl. YouTube videos via transcript — summarize, update entity/concept pages, index,
   log), `research <topic>` (active web/context7 research → raw/ + source page → concept/synthesis page),
   `query <question>` (answer from the wiki with citations, file substantive explorations back), `lint`
   (health-check the wiki), `sync [--since=7d]` (fold the ojfbot activity feed into repo entity pages),
@@ -66,7 +66,12 @@ to run `/vault sync`.
 Karpathy's core loop (full procedure in `$V/CLAUDE.md` § Workflows):
 1. **Land it in `raw/`.** Local file → copy/move into `raw/` (binaries → `raw/assets/`). URL → download to
    `raw/<slug>.md` (+ assets); `ingest.py` can help (`python {skill}/scripts/ingest.py <url>` downloads + stubs the
-   source page). Never modify the raw file afterward.
+   source page). **YouTube URLs are handled automatically** (`youtube.com/watch`, `youtu.be/`, `youtube.com/shorts/…`):
+   `ingest.py` detects them and pulls the transcript via `yt-dlp` (manual captions preferred, auto-generated
+   fallback) instead of `curl`, cleaning it to readable speaker-split text with a metadata header. Requires `yt-dlp`
+   on PATH (`brew install yt-dlp`); degrades gracefully with an actionable error if absent or if the video has no
+   English captions. Opinionated talks/podcasts → fill the source page with `templates/article-ingest.md` (Critique +
+   Bridge). Never modify the raw file afterward.
 2. **Read it; discuss the key takeaways with the user** before writing.
 3. **Write `wiki/sources/<slug>.md`** (from `templates/source.md`) — TL;DR, key takeaways, notable quotes/data.
 4. **Update the wiki** — create/update every `entities/`, `concepts/`, `synthesis/` page the source bears on (be
@@ -182,7 +187,7 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `knowledge/connectors.md` — reaching the vault from the Claude apps (GitHub connector / mcp-obsidian / Phase-B tunnel)
 - `consumer/SKILL.md` + `consumer/README.md` — the consumer-app `/vault` Agent Skill (ingest/query/note/orient/handoff)
 - `templates/{vault-claude-md,source,entity,concept,synthesis,session-handoff-prompt}.md`
-- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, ingest.py, autocommit.sh}`
+- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
 - `${SELFCO_VAULT:-$HOME/selfco}/prompts/session-handoff.md` — the copy-paste session-export prompt (seeded by `init`)
 - ADR-0069 (`decisions/adr/0069-selfco-vault-and-skill.md`) + ADR-0070 (`…/0070-vault-multi-surface-access.md`), `domain-knowledge/selfco-vault.md`
 - Karpathy's LLM Wiki: <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>
