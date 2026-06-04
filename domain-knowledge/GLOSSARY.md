@@ -16,6 +16,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **AgentGraph** — A compiled LangGraph `StateGraph` with state schema, nodes, routing, checkpointer. Lives in each app's `packages/agent-graph/`. (`langgraph-patterns.md`)
 
+**always-loaded footprint** — _(proposed, ADR-0081)_ The total instruction context loaded into *every* session in a repo (CLAUDE.md + any `@import`s). The metric ADR-0081 optimizes when decomposing oversized CLAUDE.md files — distinct from line count, which `@import`-relocation can lower without changing footprint.
+
 **App / sub-app** — A Module Federation remote that mounts in shell. 4-package monorepo (`api`, `agent-graph`, `agent-core`, `browser-app`). Examples: cv-builder, blogengine, TripPlanner.
 
 **App registry** — Single source of truth for which apps exist in the Frame OS. Read by shell at startup and by `frame-dev.sh`. (`shell-mf-integration.md`)
@@ -118,6 +120,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Lens (UI)** — A viewing mode for the same underlying data, switched via `ContentSwitcher`. TripPlanner has 6 itinerary lenses; BlogEngine has tab-style lenses.
 
+**loading-discipline routing** — _(proposed, ADR-0081)_ Classifying CLAUDE.md content by *when it's needed* and routing each block to the matching layer: always-relevant → CLAUDE.md (Layer 0); path-conditional → `rules/` (Layer 1); task-conditional reference → `domain-knowledge/` + skill (Layer 2); stale → deleted. The standing authoring convention from ADR-0081.
+
 **log-skill.sh** — Hook bound to PostToolUse(Skill) that appends each invocation to `~/.claude/skill-telemetry.jsonl`. Async; never blocks.
 
 ## M
@@ -175,6 +179,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Rig** — A codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
 
 **RigProfile** — Rig categorization (`frame` vs `non-frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See CONTEXT.md §4 and ADR-0051.
+
+**Rule (Workflow Engine)** — _(proposed, ADR-0081)_ A path-scoped instruction at `.claude/rules/<area>.md` with `paths:` frontmatter, auto-loaded by Claude only when the edited file matches. Layer 1 of the instruction progressive-disclosure stack. Distinct from a "rule" in casual prose and from a Gas Town hook. See CONTEXT.md §3.
 
 ## S
 
