@@ -36,6 +36,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Bounded context (DDD)** — A region of the system where a particular language is consistent. ojfbot has six (CONTEXT.md): Shell + Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components.
 
+**Brassboard (shadow stage)** — *NASA SEH term.* A medium-fidelity functional unit structured to operate in *simulated operational environments* to assess critical functions, on the TRL maturity ladder. In Control-Gated Slices it anchors the **shadow stage**: an enforcement control runs observe-only/simulated, emitting TPMs but taking **no real action**, before promotion to Operational. *"Shadow mode" itself is a harness extension — NASA has no exact term for it.* (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)
+
 ## C
 
 **Carbon Design System** — IBM's design system. Source of every primitive UI component used in ojfbot. (`shared-stack.md`)
@@ -47,6 +49,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **CLAUDE.md** — Per-repo file loaded into every Claude Code session. Holds repo-specific guidance, ecosystem table, skill list, defaults reference. Top of every session's context.
 
 **ClosureSignal** — Evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (linked bead lifecycle reached closed) and `audit-disappeared` (priority absent from next standup). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise. See CONTEXT.md §5 and ADR-0054.
+
+**Control Gate** — *NASA SEH term* (a.k.a. **Key Decision Point / KDP**). A defined point in a slice's life cycle where the decision authority evaluates progress and determines next actions. In Control-Gated Slices each checkpoint is a Control Gate with explicit **Entrance Criteria** (minimum to start) and **Success Criteria** (what must be demonstrated to pass, expressed as TPMs). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)
+
+**Control-Gated Slices** — The standing pattern (ADR-0086) for decomposing and shipping large agentic-harness work: independently-shippable **vertical slices**, each delivered through ordered **Control Gates** whose **Success Criteria** are TPMs (MOE → MOP → TPM); any enforcement control matures through a **Brassboard/shadow** (observe-only) stage before going **Operational**, promoted by a data-gated **RIDM** decision. Grounded in NASA SEH; "vertical slice" and "shadow mode" are flagged harness extensions. Skill: `/gated-slice`. (ADR-0086; `gated-slice/SKILL.md`)
 
 **Convoy** — A named group of related beads representing a feature or sprint. Tracks N/M progress. Frame term: `FrameConvoy`.
 
@@ -67,6 +73,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Dolt** — SQL database with Git semantics (branch/merge/PR/fork on tables). Backing store for Gas Town beads. DoltHub is the public remote.
 
 **Dog** — Maintenance agent (Wisp Reaper, Compactor, JSONL Dog). Gas Town role; Frame `maintenance-patrol` formula.
+
+## E
+
+**Entrance Criteria** — *NASA SEH term.* The minimum accomplishments a slice must fulfill *before starting* a Control Gate. The entry half of a gate (the exit half is **Success Criteria**). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 ## F
 
@@ -114,6 +124,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Invariant** — A rule that must hold across the codebase. Universal invariants in CONTEXT.md § Universal invariants.
 
+## K
+
+**Key Decision Point (KDP)** — *NASA SEH term.* A Control Gate at which the decision authority decides whether to proceed. In Control-Gated Slices, "Control Gate" and "KDP" are used interchangeably for a slice checkpoint with Entrance + Success Criteria. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
 ## L
 
 **LangGraph** — The framework used to build agent state machines. Core abstraction: `StateGraph` with typed state, nodes, routing. (`langgraph-patterns.md`)
@@ -129,6 +143,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Mail (Gas Town)** — Inter-agent message built on beads. Modes: direct, queued, broadcast. Distinct from email. Frame mapping: `FrameMail extends FrameBead`.
 
 **Mayor** — Town-level coordinator agent that creates convoys, slings beads, dispatches work. Gas Town role; Frame implementation in shell.
+
+**Measure of Effectiveness (MOE)** — *NASA SEH term.* The **qualitative** stakeholder goal a slice is judged against — not directly a design-to number. Top of the metric hierarchy: a MOE is realized by one or more MOPs, tracked as TPMs. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
+**Measure of Performance (MOP)** — *NASA SEH term.* A **quantitative** measure that, when met, helps ensure its parent MOE is satisfied (typically 2+ per MOE). The middle of the MOE → MOP → TPM hierarchy. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 **Module Federation (MF)** — The Webpack/Vite mechanism for runtime composition of separate apps into a single shell. ojfbot uses it instead of iframes. (ADR-0001)
 
@@ -176,6 +194,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Research note (vault)** — _Superseded._ v1 term for `Areas/Research/<topic>.md`; now a **concept page** (`wiki/concepts/<slug>.md`) and/or **synthesis page**, built from `wiki/sources/` pages. See *Page (selfco wiki)*.
 
+**RIDM (Risk-Informed Decision Making)** — *NASA SEH term.* Promoting a slice across a Control Gate — especially shadow → operational — as a **data-gated** decision: you promote only when the measured TPMs clear their thresholds, not on a hunch. The corrective-action path (stay in shadow / roll back on a TPM breach) is part of the decision. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
 **Rig** — A codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
 
 **RigProfile** — Rig categorization (`frame` vs `non-frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See CONTEXT.md §4 and ADR-0051.
@@ -216,11 +236,17 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Standup telemetry** — `~/.claude/standup-telemetry.jsonl`. Append-only JSONL of `standup:suggested` and `standup:closed` events. Read by `/skill-metrics --funnel=standup` (PR-X2).
 
+**Success Criteria** — *NASA SEH term (formerly "exit criteria").* The specific accomplishments that must be satisfactorily **demonstrated to pass** a Control Gate. In Control-Gated Slices each Success Criterion is expressed as a **TPM** (a metric tracked vs a baseline with a threshold), not a vibe. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
 **suggest-skill.sh** — Hook bound to UserPromptSubmit. Matches user prompt against `skill-catalog.json` triggers; injects skill suggestions.
 
 ## T
 
 **TDD** — Test-driven development. Skill `/tdd` (Phase 2, scaffolded 2026-04-28) enforces red-green-refactor.
+
+**Technical Performance Measure (TPM)** — *NASA SEH term.* A MOP **tracked against a baseline/anticipated value**; an assessed value outside the expected range signals a need for evaluation and **corrective action**. The harness's "metrics" ARE TPMs serving MOEs — that's what makes a metric *gating* rather than decorative. Bottom of the MOE → MOP → TPM hierarchy. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
+**Technology Readiness Level (TRL)** — *NASA SEH term.* A 1–9 maturity scale for a technology (1 = basic research, 9 = operations); TRL 6 ≈ "demonstrated in a relevant environment." With **Brassboard**, the SEH anchor for the harness's **shadow stage** (mature observe-only before enforcing). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 **Telemetry** — Append-only JSONL stores at user level. `skill-telemetry.jsonl` (invocations); `suggestion-telemetry.jsonl` (suggestions).
 
@@ -238,9 +264,15 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Validate** — Skill `/validate`. Pre-merge quality gate: spec coverage, TypeScript safety, auth, logging, tests.
 
+**Validation** — *NASA SEH term* (verbatim): proof that the product accomplishes the intended purpose based on stakeholder expectations and the Concept of Operations — *"Am I building the right product?"*. At a Control Gate, distinct from **Verification**; a control can be verified yet not validated (right build of the wrong control), which the shadow stage exists to catch. Distinct from the `/validate` skill. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
 **`/vault`** — Skill maintaining the *selfco wiki*; a thin wrapper that reads `~/selfco/CLAUDE.md` (the schema) and runs helper scripts. Modes: `init` (scaffold + write the schema + Obsidian plugins + a repo entity stub per `~/ojfbot/*/.git`), `ingest <path|url>` (land a source in `raw/` → summary page → update entity/concept pages → `index.md` → `log.md`), `research <topic>` (ingest, but the skill fetches the sources), `query <q>` (answer from the wiki w/ citations, file substantive explorations back), `lint [--fix]` (orphans/broken-links/raw-without-source + semantic checks), `sync [--since=7d]` (fold the ojfbot activity feed into repo entity pages), `orient`, `note <title>`. Scripts read/scaffold; the LLM authors pages. (`selfco-vault.md`, ADR-0085)
 
 **Vault** — see *selfco vault / selfco wiki*. (When unqualified in ojfbot docs, "the vault" = the selfco wiki.)
+
+**Verification** — *NASA SEH term* (verbatim): proof of compliance with specifications, by test/analysis/demonstration/inspection — *"Did I build the product right?"*. At a Control Gate, distinct from **Validation** (right build vs right thing). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
+**Vertical Slice** — *Harness extension, NOT a NASA term* (closest SEH analogs: a life-cycle phase / Product Baseline / WBS element — but those are horizontal program structures). A thin, end-to-end, **independently shippable** unit of a large effort that traverses all relevant layers and ships observable value. The unit of decomposition in **Control-Gated Slices**. (ADR-0086; user-scope `~/.claude/CLAUDE.md` "vertical slices over wide layers")
 
 **wiki/ (selfco)** — The LLM-owned layer of the selfco LLM Wiki (`~/selfco/wiki/`): `index.md` (hub catalog), `log.md` (append-only ledger), `sources/`, `entities/`, `concepts/`, `synthesis/`. The LLM creates/updates/cross-references pages here; you read them. (`selfco-vault.md`)
 

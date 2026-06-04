@@ -1,5 +1,5 @@
 {
-  "version": "1.7",
+  "version": "1.8",
   "updated": "2026-06-04",
   "skills": [
     {
@@ -1056,6 +1056,16 @@
       "description": "State the dangerous-git policy and audit or wire the repo's guardrails — .claude/settings.json deny/ask rules (via /update-config) and an optional pre-push hook. Read-only by default; only edits settings when asked.",
       "triggers": ["git-guardrails", "block dangerous git commands", "stop me force-pushing main", "add git safety rails", "set up git protections"],
       "suggested_after": [],
+      "layer_affinity": [0]
+    },
+    {
+      "name": "gated-slice",
+      "tier": 2,
+      "phase": "planning",
+      "tags": ["decomposition", "vertical-slice", "control-gate", "tpm", "shadow-mode", "ridm", "seh", "enforcement", "planning"],
+      "description": "Decompose a large effort into Control-Gated Slices (ADR-0086): independently-shippable vertical slices, each delivered through ordered Control Gates with Entrance + Success Criteria expressed as TPMs (MOE → MOP → TPM), with any action-taking enforcement control required to mature through a Brassboard/shadow (observe-only) stage before going Operational, promoted by a data-gated RIDM decision. Plan only, no code. Distinct from /plan-feature (single-feature spec→test-matrix) and /orchestrate (execution).",
+      "triggers": ["gated-slice", "control gated slices", "decompose this initiative", "slice this up", "plan a big effort", "shadow mode then enforce", "how do I roll out this gate", "stage this enforcement", "control gates"],
+      "suggested_after": ["/grill-with-docs"],
       "layer_affinity": [0]
     }
   ]
