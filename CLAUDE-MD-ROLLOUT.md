@@ -16,8 +16,8 @@ Baseline tokens are the always-loaded measurement at rollout start (`footprint.m
 
 | Repo | State | Baseline (M1, ~tokens) | After (~tokens) | PR | Notes |
 |------|-------|------------------------|-----------------|-----|-------|
-| cv-builder | pr-open | ~4151 | ~941 | [cv-builder#148](https://github.com/ojfbot/cv-builder/pull/148) | ~77% drop, relocate-only. Fixed broken `ARCHITECTURE.md` pointer → `docs/ARCHITECTURE.md`. L1 `packages/agent-core/CLAUDE.md` + `.claude/rules/mf-and-deploy.md` (paths-scoped); L2 `docs/claude-reference.md`. Verified ARCHITECTURE.md is NOT a superset → relocated, not deleted. |
-| purefoy | pr-open | ~4066 | ~1243 | [purefoy#44](https://github.com/ojfbot/purefoy/pull/44) | ~69% drop, relocate-only. L1 `deakins_forums/CLAUDE.md`; L2 in repo-native `documentation/` (NOT `domain-knowledge/` — it's a gitignored symlink farm into core). |
+| cv-builder | merged | ~4151 | ~941 | [cv-builder#148](https://github.com/ojfbot/cv-builder/pull/148) | ~77% drop, relocate-only. Fixed broken `ARCHITECTURE.md` pointer → `docs/ARCHITECTURE.md`. L1 `packages/agent-core/CLAUDE.md` + `.claude/rules/mf-and-deploy.md` (paths-scoped); L2 `docs/claude-reference.md`. Verified ARCHITECTURE.md is NOT a superset → relocated, not deleted. Unblocked by dep fix [cv-builder#149](https://github.com/ojfbot/cv-builder/pull/149) (langsmith/fast-xml-builder HIGH vulns). |
+| purefoy | merged | ~4066 | ~1243 | [purefoy#44](https://github.com/ojfbot/purefoy/pull/44) | ~69% drop, relocate-only. L1 `deakins_forums/CLAUDE.md`; L2 in repo-native `documentation/` (NOT `domain-knowledge/` — it's a gitignored symlink farm into core). PR also dropped stale "keep PRIVATE" framing across 7 docs (repo is public; scraped data gitignored). |
 | virtualLight | untouched | ~3746 | — | — | most lines (390); comprehensive doc |
 | blogengine | untouched | ~2840 | — | — | multi-tab dashboard; lens/responder rules |
 | TripPlanner | untouched | ~2831 | — | — | 11-phase SSE pipeline subtree |
