@@ -198,6 +198,10 @@ or milestone file exists, extract the deadline and remaining days.
 - If `activityType: "sprint"` — note potential overwork, suggest consolidation
 - If `staleDays > 1` — note the gap, suggest a sweep of what happened in between
 
+**Standing rollouts:** if `CLAUDE-MD-ROLLOUT.md` exists in core, read it and surface one line —
+counts by state (`untouched`/`pr-open`/`merged`) and the next repo due. Offer `/claude-md-rollout --step`
+as a one-click day-plan item (ADR-0081, the paced loading-discipline rollout). Skip silently if absent.
+
 ### Step 5 — Generate the day plan
 
 Cross-reference: daily-logger suggested actions + open action backlog +
