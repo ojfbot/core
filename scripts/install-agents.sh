@@ -426,6 +426,11 @@ if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
     name="$(basename "$hook_script")"
     link_file "$TARGET/scripts/hooks/$name" "$hook_script"
   done
+  # Symlink the claude-md-gate/ subdir (loading-discipline gate — ADR-0081 Slice 2; the top-level
+  # loop above only links scripts/hooks/*.sh and *.mjs, not subdirs).
+  if [[ -d "$CORE_DIR/scripts/hooks/claude-md-gate" ]]; then
+    link_file "$TARGET/scripts/hooks/claude-md-gate" "$CORE_DIR/scripts/hooks/claude-md-gate"
+  fi
   echo ""
 
   # Merge PostToolUse Skill logger hook into target's .claude/settings.json
@@ -475,6 +480,24 @@ if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
       echo "  done."
     else
       echo "  Bead-session hook already configured."
+    fi
+
+    # Merge PreToolUse CLAUDE.md loading-discipline gate (ADR-0081 Slice 2). SHADOW mode by
+    # default (observe-only, never blocks) — promote to enforce via CLAUDE_MD_GATE_MODE only
+    # after the RIDM data gate (M3 < 30%, low M5). See scripts/hooks/claude-md-gate/SPEC.md.
+    if ! grep -q 'claude-md-gate.sh' "$TARGET_SETTINGS" 2>/dev/null; then
+      echo "  Adding CLAUDE.md loading-discipline gate (PreToolUse, shadow mode)..."
+      GATE_HOOK='{"matcher":"Write|Edit","hooks":[{"type":"command","command":"\"$CLAUDE_PROJECT_DIR/scripts/hooks/claude-md-gate.sh\""}]}'
+      if jq -e '.hooks.PreToolUse' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        jq ".hooks.PreToolUse += [$GATE_HOOK]" "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      elif jq -e '.hooks' "$TARGET_SETTINGS" >/dev/null 2>&1; then
+        jq ".hooks.PreToolUse = [$GATE_HOOK]" "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      else
+        jq ". + {\"hooks\":{\"PreToolUse\":[$GATE_HOOK]}}" "$TARGET_SETTINGS" > "${TARGET_SETTINGS}.tmp" && mv "${TARGET_SETTINGS}.tmp" "$TARGET_SETTINGS"
+      fi
+      echo "  done (mode=shadow)."
+    else
+      echo "  CLAUDE.md gate already configured."
     fi
   fi
 else

@@ -16,7 +16,7 @@ Origin: an audit of the Newline "Setting Up Claude Code" lesson vs the fleet's `
 ## Architecture (the 4 layers of the system, not to be confused with the 4 content layers)
 - **Measure** (deterministic): `scripts/claude-md/footprint.mjs`. Counts root CLAUDE.md + `@imports` + non-path-scoped rules as always-loaded; **excludes** path-scoped rules/ + nested CLAUDE.md. This exclusion is what makes routing show as a real drop and `@import` show as theater.
 - **Decide** (LLM judgment): `.claude/skills/claude-md-audit/`. Classifies each block; conservative toward Layer 0 (wrong eviction is silent).
-- **Enforce** (Slice 2, NOT BUILT): a two-stage PreToolUse gate on `**/CLAUDE.md` edits — cheap tripwire → scoped Haiku judge → block→ask loop routed into `/grill-with-docs`, with a per-session clearance marker and an M5 judge-reliability event log.
+- **Enforce** (Slice 2, **SHADOW STAGE BUILT** — `scripts/hooks/claude-md-gate/`): a two-stage `PreToolUse` gate on `Edit|Write` of governed CLAUDE.md files — cheap deterministic tripwire (`tripwire.mjs`) → scoped Haiku judge (`judge.mjs`, safe-degrade) → block→ask loop routed into `/grill-with-docs` with a per-session clearance marker (`clearance.mjs`), all observed via a TPM event log (`events.mjs` + `analyze.mjs`). Orchestrated by `gate.mjs` (+ `claude-md-gate.sh`). **Mode defaults to `shadow`** (observe-only, never blocks — the Brassboard stage); promotion to `enforce` is **RIDM-gated** on M3 (<30%) + low M5 over ~4 weeks. 35 unit tests. Wired via `install-agents.sh` (settings.json is gitignored). Built as Control-Gated Slices (ADR-0086). Checkpoints C0–C5 done; **C6 enforce + C7 generalization NOT built** (data-gated). See `claude-md-gate/SPEC.md`.
 - **Roll out** (Slice 3, this PR): `CLAUDE-MD-ROLLOUT.md` tracker + `/claude-md-rollout` step skill + a `/schedule` cron advancing one repo/cycle + a `/frame-standup` line.
 
 ## How to debug
@@ -34,7 +34,7 @@ Origin: an audit of the Newline "Setting Up Claude Code" lesson vs the fleet's `
 
 ## Open items (priority order)
 1. ~~**Tests for `footprint.mjs`**~~ ✅ **Done** — `scripts/claude-md/__tests__/footprint.test.mjs` (16 tests, incl. @import-theater). See Tests above.
-2. **Run `/claude-md-audit` on one real repo** (cv-builder) in propose mode — the skill has never produced a real routing plan; validate its judgment before the gate trusts it. **← now the top open item.**
-3. **Slice 2 — the gate.** High blast radius (touches live editing). Needs the Haiku judge script (use `packages/workflows` `callClaude`), the per-session clearance marker, the M5 event log.
+2. ~~**Run `/claude-md-audit` on a real repo**~~ ✅ **Done** — validated on cv-builder + purefoy (propose), then applied: **purefoy MERGED** (~69%), **cv-builder MERGED** (~77%, after dep-fix #149). The hardened skill (delete-safety + repo-native L2) held across both.
+3. **Slice 2 — the gate.** ✅ **Shadow stage (C0–C5) built + 35 tests** (see Architecture/Enforce above). **Remaining: C6 — run shadow ~4 weeks, then RIDM-promote to `enforce` if M3<30% & low M5; C7 — generalization (ADR-0083).** This is now the top open item.
 4. **Decide Layer-1 default per repo** — nested `CLAUDE.md` vs `rules/` glob (ADR-0081 leans nested for subtree-coherent content).
-5. PRs to merge: **#129** (ADR + vocab), **#130** (this — slices 1+3).
+5. ~~PRs to merge: #129, #130~~ ✅ **All merged** (rebase-only ruleset). Remaining rollout targets: **virtualLight, TripPlanner, blogengine**.
