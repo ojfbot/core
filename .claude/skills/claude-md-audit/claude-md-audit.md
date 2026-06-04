@@ -14,7 +14,7 @@ You are decomposing an oversized CLAUDE.md by **loading-discipline**, per ADR-00
 
 **Tier:** 2 — Multi-step procedure
 **Phase:** Implementation (workflow-engine hygiene)
-**Modes:** `propose` (default — output a routing plan, no edits) · `apply` (path-restricted: only writes CLAUDE.md, `.claude/rules/**`, nested `*/CLAUDE.md`, `domain-knowledge/**` in the target repo)
+**Modes:** `propose` (default — output a routing plan, no edits) · `apply` (path-restricted: only writes `CLAUDE.md`, `.claude/rules/**`, nested `*/CLAUDE.md`, and a **repo-native, git-tracked docs dir** for Layer-2 — `documentation/` or `docs/`, whichever the repo already uses; **not** `domain-knowledge/` when it's a gitignored symlink farm — see Step 3)
 
 ## Core principle — the four buckets
 
@@ -24,7 +24,7 @@ Read every block of the target CLAUDE.md and assign exactly one:
 |---|---|---|---|
 | **Layer 0 — always** | …in *every* session, no matter which file is edited? | **stays in CLAUDE.md** | always |
 | **Layer 1 — path-conditional** | …only when editing a specific subtree? | nested `<subtree>/CLAUDE.md` (default) or `.claude/rules/<x>.md` with `paths:` glob (cross-cutting) | on matching edit path |
-| **Layer 2 — task reference** | …only when a specific task/skill runs (deep reference, not a rule)? | `domain-knowledge/<topic>.md`, pulled by a skill | when a skill reads it |
+| **Layer 2 — task reference** | …only when a specific task/skill runs (deep reference, not a rule)? | a repo-native tracked docs dir (`documentation/`/`docs/`); see Step 3 re `domain-knowledge/` | when read on demand |
 | **Delete** | …provably stale, OR already present **verbatim** in another file that **actually exists**? | removed | never |
 
 **Forbidden:** routing a block to an `@import` — imports load at startup, so they do **not** reduce the always-loaded footprint. That is theater (ADR-0081). If you're tempted to `@import`, the content is either Layer 0 (leave it) or genuinely conditional (Layer 1/2).
@@ -43,6 +43,8 @@ Read the target `CLAUDE.md` top to bottom. For each block (a heading + its body,
 
 ### 3. Name the targets
 For each non-Layer-0 block, name the exact destination file and (for `rules/`) the `paths:` glob. Group related path-conditional blocks into one Layer-1 file per subtree, not one per block. Prefer nested `<subtree>/CLAUDE.md` when a subtree has one coherent rule set; use `.claude/rules/<concern>.md` when a concern (testing, security) spans multiple globs.
+
+**Layer-2 destination must be git-tracked, repo-native.** Pick the docs dir the repo *already* uses (`documentation/`, `docs/`) and confirm it's tracked. **Do not write Layer-2 into `domain-knowledge/`** without checking `git check-ignore domain-knowledge` first — in fleet repos that dir is a gitignored farm of symlinks into `core/domain-knowledge/`, so writing there both fails to commit (broken pointer) and risks editing core. If the repo has no tracked docs dir, create `documentation/`.
 
 ### 4. Project the after-footprint
 State the projected always-loaded tokens after routing (baseline minus what moves to Layer 1/2/delete). Note: a near-zero projected drop is a **valid, correct** result for a Layer-0-heavy repo (e.g. a command-catalog CLAUDE.md like core's) — say so; do not manufacture decomposition to hit a number.
