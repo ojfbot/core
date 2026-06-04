@@ -17,7 +17,7 @@ description: >
 ```
 
 Rules:
-- `name` must match the directory name and the filename (`<name>/<name>.md`)
+- `name` must match the directory name; the skill body file is always `SKILL.md` (`<name>/SKILL.md`, ADR-0084)
 - `description` is parsed by Claude Code to auto-trigger the skill — keep it specific
 - Trigger phrases: include the skill name itself first, then 3–5 natural language variants
 - Avoid trigger phrases that overlap significantly with another skill's triggers

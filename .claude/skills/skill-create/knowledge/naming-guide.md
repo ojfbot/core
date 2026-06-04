@@ -61,7 +61,7 @@ The `description` in YAML frontmatter is the **only** thing Claude Code sees whe
 - [ ] Description includes concrete activation triggers (not just a restatement of the name)
 - [ ] Description is third person, ≤ 1024 chars, no time-sensitive info
 - [ ] Description disambiguates from any neighbouring skill
-- [ ] Main `<name>.md` stays within its tier's line budget (see Tier definitions below); overflow lives in `knowledge/`
+- [ ] Main `SKILL.md` stays within its tier's line budget (see Tier definitions below); overflow lives in `knowledge/`
 - [ ] Cross-references go one level deep only (a knowledge file doesn't link to another knowledge file)
 - [ ] Terminology is consistent with `domain-knowledge/GLOSSARY.md` and `CONTEXT.md`
 - [ ] Concrete examples or an output template included — not just abstract instructions

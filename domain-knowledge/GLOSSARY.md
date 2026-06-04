@@ -198,7 +198,7 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Sling** — Operation to assign a bead to an agent's hook. `gt sling <bead> <agent>`.
 
-**Skill** — Orchestration prompt at `.claude/skills/<name>/<name>.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>`. The user-facing primitive of the workflow engine.
+**Skill** — Orchestration prompt at `.claude/skills/<name>/SKILL.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>` or `Skill(<name>)`. The user-facing primitive of the workflow engine.
 
 **Skill catalog** — see *Catalog*.
 

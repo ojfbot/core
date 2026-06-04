@@ -4,9 +4,9 @@ import { summarizeWorkflow } from "./workflows/summarize.js";
 import { workbenchWorkflow } from "./workflows/workbench.js";
 import { fileBackedWorkflow } from "./fileBackedWorkflow.js";
 
-// File-backed workflows: prompt lives in .claude/skills/<name>/<name>.md
-// Each skill is a directory: <name>.md + knowledge/ (JIT reference) + scripts/ (deterministic utils)
-// Single source of truth — updating the .md updates both Claude Code and the CLI.
+// File-backed workflows: prompt lives in .claude/skills/<name>/SKILL.md (ADR-0084)
+// Each skill is a directory: SKILL.md + knowledge/ (JIT reference) + scripts/ (deterministic utils)
+// Single source of truth — updating SKILL.md updates Claude Code (/name and Skill(name)) and the CLI.
 const fileBacked: WorkflowRegistry = {
   "plan-feature":  fileBackedWorkflow("plan-feature",  "Turn a rough idea or ticket into an implementation-ready spec with acceptance criteria and ADR stub"),
   scaffold:        fileBackedWorkflow("scaffold",       "Generate type definitions, skeleton implementations, and test stubs for a planned feature"),

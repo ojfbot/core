@@ -206,7 +206,7 @@ Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a 
 | `src/registry.ts` | Maps slash names → `WorkflowSpec`. Register new workflows here. |
 | `src/runner.ts` | `runWorkflow(raw, ctx)` — shared dispatch entry point |
 | `src/llm.ts` | `callClaude(system, user)` — wraps `@anthropic-ai/sdk` |
-| `src/fileBackedWorkflow.ts` | Factory: loads `.claude/skills/<name>.md`, replaces `$ARGUMENTS`, calls Claude |
+| `src/fileBackedWorkflow.ts` | Factory: loads `.claude/skills/<name>/SKILL.md` (legacy `<name>.md` fallback), replaces `$ARGUMENTS`, calls Claude |
 | `src/subagent.ts` | `logTechDebtIncident(incident, cwd)` — programmatic `/techdebt` trigger |
 | `src/utils/diff.ts` | `applyUnifiedDiff()` — pure TS, no external deps |
 | `src/workflows/techdebt/schema.ts` | `TechDebtIncident`, `TechDebtProposal` types |
@@ -310,7 +310,7 @@ cv-builder has a separate `.agents/registry.json` that defines programmatic agen
 
 ## Adding a new command
 
-**Claude Code only:** Create `.claude/skills/mycommand/mycommand.md`. Done — available immediately as `/mycommand`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
+**Claude Code only:** Create `.claude/skills/mycommand/SKILL.md` (canonical body; ADR-0084). Done — available immediately as `/mycommand` and as `Skill(mycommand)`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
 
 **Also in CLI/TypeScript:** The file-backed factory picks it up automatically once registered in `src/registry.ts`:
 ```typescript

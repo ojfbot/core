@@ -62,7 +62,7 @@ LangGraph state machines that power cv-builder, blogengine, TripPlanner, purefoy
 The infrastructure that turns prompts into structured workflows. Lives in core; symlinked into every sibling repo.
 
 **Aggregates**
-- `Skill` — orchestration prompt at `.claude/skills/<name>/<name>.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>`. Source of truth for behavior.
+- `Skill` — orchestration prompt at `.claude/skills/<name>/SKILL.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>` or `Skill(<name>)`. Source of truth for behavior.
 - `Rule` — _(proposed, ADR-0081)_ path-scoped instruction at `.claude/rules/<area>.md` with `paths:` frontmatter; auto-loaded by Claude only when the edited file matches the scope. Layer 1 of the instruction progressive-disclosure stack (CLAUDE.md = Layer 0 always-loaded; `domain-knowledge/` + skill = Layer 2 on-demand). Not yet present in any repo — introduced by ADR-0081.
 - `SkillCatalog` — `.claude/skills/skill-loader/knowledge/skill-catalog.json`. Registry of all skills with triggers, tier, phase, tags. Drives the suggest-skill hook.
 - `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity).
@@ -74,7 +74,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - `Tier` (1=mandatory, 2=recommended, 3=passive), `Phase` (planning, alignment, implementation, debugging, validation, release, etc.), `Trigger` (string array matched word-overlap by suggest-skill).
 
 **Invariants**
-- Every skill has both a `<name>.md` file and a `skill-catalog.json` entry, or the suggest-skill hook can't surface it.
+- Every skill has both a `SKILL.md` file and a `skill-catalog.json` entry, or the suggest-skill hook can't surface it.
 - Skills are pure prompts — no side effects until the agent acts. The `$ARGUMENTS` placeholder is the user's text after `/<name>`.
 - _(proposed, ADR-0081)_ CLAUDE.md content is routed by loading-discipline: always-relevant → CLAUDE.md (Layer 0); path-conditional → `rules/` (Layer 1); task-conditional reference → `domain-knowledge/` + skill (Layer 2); stale → deleted. `@import`-relocation that preserves the always-loaded footprint is forbidden — the metric is footprint, not line count.
 - `mode=apply` skills (e.g. `/techdebt`) only patch paths in the allowlist (`packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`).
@@ -182,7 +182,7 @@ The interactions where contexts touch.
 ### Skill invocation lifecycle (Workflow Engine + Observation)
 
 1. User types `/<skill> [args]` or trigger phrase. → `suggest-skill.sh` (UserPromptSubmit) matches against `skill-catalog.json` triggers; if match, may inject suggestion.
-2. Claude Code loads `.claude/skills/<name>/<name>.md`, replaces `$ARGUMENTS`, executes the prompt.
+2. Claude Code loads `.claude/skills/<name>/SKILL.md`, replaces `$ARGUMENTS`, executes the prompt.
 3. Skill may load `knowledge/<file>.md` JIT, or run `scripts/<name>.<sh|mjs>`.
 4. On Skill PostToolUse: `log-skill.sh` writes invocation to `~/.claude/skill-telemetry.jsonl` (async, non-blocking). `bead-session.sh` updates session state.
 5. On PR open/sync: `pr-skill-audit.sh` (GitHub Action) reads telemetry + diff, posts coverage report comment.
