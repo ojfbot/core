@@ -16,8 +16,8 @@ Baseline tokens are the always-loaded measurement at rollout start (`footprint.m
 
 | Repo | State | Baseline (M1, ~tokens) | After (~tokens) | PR | Notes |
 |------|-------|------------------------|-----------------|-----|-------|
-| cv-builder | untouched | ~4151 | — | — | LangGraph-node rules are the obvious Layer-1 candidate (`packages/agent-graph/`) |
-| purefoy | untouched | ~4066 | — | — | Python KB; check for scraper/MCP subtree rules |
+| cv-builder | audited | ~4151 | ~600 (proj.) | — | Propose validated. **Finding:** root `ARCHITECTURE.md` pointer (CLAUDE.md:15) is broken — real file is `docs/ARCHITECTURE.md`. Plan: relocate-not-delete + fix pointer. L1: agent-core (add-an-agent), `.claude/rules/mf-and-deploy.md`. |
+| purefoy | pr-open | ~4066 | ~1243 | [purefoy#44](https://github.com/ojfbot/purefoy/pull/44) | ~69% drop, relocate-only. L1 `deakins_forums/CLAUDE.md`; L2 in repo-native `documentation/` (NOT `domain-knowledge/` — it's a gitignored symlink farm into core). |
 | virtualLight | untouched | ~3746 | — | — | most lines (390); comprehensive doc |
 | blogengine | untouched | ~2840 | — | — | multi-tab dashboard; lens/responder rules |
 | TripPlanner | untouched | ~2831 | — | — | 11-phase SSE pipeline subtree |
