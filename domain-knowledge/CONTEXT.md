@@ -63,6 +63,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 
 **Aggregates**
 - `Skill` — orchestration prompt at `.claude/skills/<name>/<name>.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>`. Source of truth for behavior.
+- `Rule` — _(proposed, ADR-0081)_ path-scoped instruction at `.claude/rules/<area>.md` with `paths:` frontmatter; auto-loaded by Claude only when the edited file matches the scope. Layer 1 of the instruction progressive-disclosure stack (CLAUDE.md = Layer 0 always-loaded; `domain-knowledge/` + skill = Layer 2 on-demand). Not yet present in any repo — introduced by ADR-0081.
 - `SkillCatalog` — `.claude/skills/skill-loader/knowledge/skill-catalog.json`. Registry of all skills with triggers, tier, phase, tags. Drives the suggest-skill hook.
 - `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity).
 - `Telemetry` — `~/.claude/skill-telemetry.jsonl` (invocations) and `~/.claude/suggestion-telemetry.jsonl` (suggestions). Append-only, JSONL, user-level.
@@ -75,6 +76,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 **Invariants**
 - Every skill has both a `<name>.md` file and a `skill-catalog.json` entry, or the suggest-skill hook can't surface it.
 - Skills are pure prompts — no side effects until the agent acts. The `$ARGUMENTS` placeholder is the user's text after `/<name>`.
+- _(proposed, ADR-0081)_ CLAUDE.md content is routed by loading-discipline: always-relevant → CLAUDE.md (Layer 0); path-conditional → `rules/` (Layer 1); task-conditional reference → `domain-knowledge/` + skill (Layer 2); stale → deleted. `@import`-relocation that preserves the always-loaded footprint is forbidden — the metric is footprint, not line count.
 - `mode=apply` skills (e.g. `/techdebt`) only patch paths in the allowlist (`packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`).
 - New skills land in core first. Sibling repos receive them via `install-agents.sh` symlinks.
 
