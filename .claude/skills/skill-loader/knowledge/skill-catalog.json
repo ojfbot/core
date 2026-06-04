@@ -26,6 +26,30 @@
       "layer_affinity": [0, 1]
     },
     {
+      "name": "claude-md-audit",
+      "tier": 2,
+      "phase": "implementation",
+      "tags": [
+        "claude-md",
+        "loading-discipline",
+        "rules",
+        "context",
+        "footprint",
+        "decompose",
+        "adr-0081"
+      ],
+      "description": "Audit a CLAUDE.md for loading-discipline (ADR-0081): classify each block Layer 0/1/2/delete and propose a routing plan that shrinks the always-loaded footprint without @import theater.",
+      "triggers": [
+        "claude-md-audit",
+        "audit claude.md",
+        "decompose claude.md",
+        "is my claude.md too big",
+        "route claude.md"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [0, 1]
+    },
+    {
       "name": "spec-review",
       "tier": 2,
       "phase": "pre-kick-off",
