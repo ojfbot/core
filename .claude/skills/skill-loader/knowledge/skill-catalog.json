@@ -50,6 +50,27 @@
       "layer_affinity": [0, 1]
     },
     {
+      "name": "claude-md-rollout",
+      "tier": 2,
+      "phase": "implementation",
+      "tags": [
+        "claude-md",
+        "rollout",
+        "automation",
+        "schedule",
+        "adr-0081"
+      ],
+      "description": "Advance the ADR-0081 CLAUDE.md loading-discipline rollout by one repo: pick next untouched, run /claude-md-audit --apply, open a PR, update the tracker. Driven by /schedule or run at /frame-standup.",
+      "triggers": [
+        "claude-md-rollout",
+        "advance the claude.md rollout",
+        "next rollout step",
+        "roll out adr-0081"
+      ],
+      "suggested_after": ["/claude-md-audit"],
+      "layer_affinity": [0, 1]
+    },
+    {
       "name": "spec-review",
       "tier": 2,
       "phase": "pre-kick-off",
