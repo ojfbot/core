@@ -5,6 +5,7 @@ export default defineConfig({
     include: [
       "packages/**/src/__tests__/**/*.test.ts",
       "scripts/hooks/__tests__/**/*.test.mjs",
+      "scripts/claude-md/__tests__/**/*.test.mjs",
     ],
     environment: "node",
     coverage: {
