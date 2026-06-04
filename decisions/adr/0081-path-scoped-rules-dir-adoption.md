@@ -21,11 +21,11 @@ The newline lesson's remedy — split into `.claude/rules/` — is correct for *
 Adopt a **standing loading-discipline** for CLAUDE.md authoring, not a line ceiling. Route every block by when it's needed:
 
 - **Always-relevant** → stays embedded in CLAUDE.md (**Layer 0**).
-- **Path-conditional** → `.claude/rules/<area>.md` with `paths:` frontmatter (**Layer 1**, auto-loaded by edit path) — the new `Rule` aggregate (CONTEXT.md §3).
+- **Path-conditional** → **Layer 1**, auto-loaded by edit path. Two officially-supported mechanisms (verified against Claude Code docs, 2026-06): (a) `.claude/rules/<area>.md` with `paths:` frontmatter glob — the new `Rule` aggregate (CONTEXT.md §3); or (b) a nested `<subtree>/CLAUDE.md` (loaded on-demand when Claude reads files in that subtree). Default: nested CLAUDE.md for subtree-coherent content, `rules/` glob for cross-cutting concerns. (`@import` does **not** qualify — imports load at startup.)
 - **Task-conditional reference** → `domain-knowledge/` pulled by a skill (**Layer 2**).
 - **Stale / not-100%-true** → deleted.
 
-**Forbid `@import`-relocation** (it preserves the always-loaded footprint — the metric is footprint, not line count). Enforce with a **high-precision PreToolUse WARN gate** (never hard-block) that fires when an edit grows an already-oversized CLAUDE.md or adds obviously path-conditional language. The *reasoning* (which bucket?) lives in an invoked `/claude-md-audit` skill, never in the hook. `/init` learns to route from the start so the pattern does not regrow.
+**Forbid `@import`-relocation** (it preserves the always-loaded footprint — the metric is footprint, not line count). Enforce with a **two-stage PreToolUse gate** scoped to `**/CLAUDE.md` edits: stage 1 is a cheap deterministic tripwire (edit grows an already-oversized CLAUDE.md?) that gates stage 2, a scoped Haiku **judge** (reads the file + routing rubric). On a hit the gate runs a **block→ask loop**: block the edit (agent attempts to re-route) → if unresolved or the editor is human, ask the user — **presenting the judge's verdict as a fallible flag, not a ruling**, and routing into `/grill-with-docs --scope=claude-md-routing` to decide. Because the judge can itself drift/hallucinate, **every firing is logged as a structured event** (file, flagged lines, verdict + reasoning, action, resolution) so the judge's own reliability is measurable (see M5). The *reasoning* lives in the judge/`/claude-md-audit` skill, never as static logic in the hook. `/init` learns to route from the start so the pattern does not regrow.
 
 ## Consequences
 
@@ -44,13 +44,14 @@ Adopt a **standing loading-discipline** for CLAUDE.md authoring, not a line ceil
 
 ## Rollout & evaluation (gating condition)
 
-Decompose the 6 repos behind explicit metrics (strawman thresholds, tune in `/plan-feature`):
-- **M1 — always-loaded footprint** (primary, deterministic): CLAUDE.md tokens loaded per repo, before→after, with a "where did each block go" routing diff. Success = real drop landing in `rules/`/deleted, not `@import`.
-- **M2 — rules/ conditionality**: % of `rules/` content whose `paths:` is narrower than the whole repo. Target 100%.
+Success is a **quality property, not a footprint target**: *zero conditional blocks remain in the always-loaded layer.* Footprint reduction is then whatever falls out — large for cv-builder, ≈0 for core — and **both are correct** (a flat % target would wrongly force core to evict always-relevant content). Metrics (deterministic where possible):
+- **M1 — always-loaded footprint** (descriptive, not pass/fail): tokens loaded per repo = root + ancestor `CLAUDE.md` + `@imports` + non-path-scoped rules; **excludes** path-scoped `rules/` and nested subtree `CLAUDE.md`. Tracked before→after with a routing diff (proves no `@import` theater).
+- **M2 — Layer-1 conditionality**: % of new Layer-1 files (rules/ or nested CLAUDE.md) whose scope is narrower than repo root. Target 100%.
 - **M3 — gate precision** (overfit signal): gate fires vs. overridden. Override rate >~30% → retune or disable.
-- **M4 — over-decomposition / mis-routing** (overfit, silent): rules/ file count + a floor spot-audit (a CLAUDE.md dropping below ~80 lines is sampled: did always-true content get wrongly evicted?).
+- **M4 — over-decomposition / mis-routing** (overfit, silent): Layer-1 file count + a floor spot-audit (a CLAUDE.md dropping below ~80 lines is sampled — did always-true content get wrongly evicted?).
+- **M5 — judge reliability** (the watcher of the watcher): false-block rate from the gate's structured event log — blocks later confirmed (by grill/user) to be on genuinely conditional content vs. judge hallucinations. Rising false-block rate ⇒ the Haiku judge is drifting ⇒ retune/swap.
 
-A **scheduled `/claude-md-audit`** (via `/schedule` → cron routine) recomputes M1–M4 and appends to telemetry, same shape as `/skill-metrics`. **Scale-up to ADR-0083** (general hooks-as-enforcement) is **data-gated**: only if M1↓ AND M3 low AND M4 clean after ~4 weeks; else hold the gate / keep manual discipline.
+**Rollout is opt-in per repo but automated**: a `core/CLAUDE-MD-ROLLOUT.md` tracker (per repo: `untouched → audited → PR-open → merged → gated`) advanced one repo per cycle by a **`/schedule` cron** that runs `/claude-md-audit`, opens the PR, and updates the tracker + telemetry — never a big-bang. Daily progress surfaces in **`/frame-standup`**. **Scale-up to ADR-0083** (general hooks-as-enforcement) is **data-gated**: only if the quality property holds AND M3/M5 low AND M4 clean after ~4 weeks; else hold the gate / keep manual discipline.
 
 ## Alternatives considered
 
