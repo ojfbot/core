@@ -25,15 +25,16 @@ Origin: an audit of the Newline "Setting Up Claude Code" lesson vs the fleet's `
 - **rollout step opens a PR against the wrong base** → check the repo's `git remote` (golf-platform-scripts was SSH and had to be switched to HTTPS; some repos are archived/empty — see the tracker's `notes`).
 
 ## Tests
-**None yet.** The spec's acceptance criteria (fixture repo with one of each layer type; @import-theater detection; gate precision; clearance) are **not** encoded as tests. `footprint.mjs` is only manually verified against the 6 repos. **This is the top follow-up before Slice 2.**
+**`footprint.mjs` is covered** — `scripts/claude-md/__tests__/footprint.test.mjs` (16 tests, vitest). Encodes the spec's measurement-layer acceptance criteria: a fixture repo with **one of each layer type** (root CLAUDE.md, @import, unconditional rule, path-scoped rule, nested CLAUDE.md); the **@import-theater** property (relocating text into an @import does NOT shrink always-loaded, but routing the same text to a path-scoped rule DOES); recursive @import following; the conservative-detector guard (bare `@filename` and fenced `@import`s are not followed); `node_modules` skip; and the pure helpers. Run: `pnpm vitest run scripts/claude-md/__tests__/footprint.test.mjs`. The script was refactored to export its functions + guard `main` behind an `import.meta.url` check so it stays runnable as a CLI.
+**Still untested:** the **gate** acceptance criteria (precision, clearance) — they belong with Slice 2, which isn't built. The `/claude-md-audit` LLM judgment is validated by running it, not by unit tests (open item #2).
 
 ## Operations
 - The rollout is **opt-in per repo** (a repo enters the tracker as `untouched` only when added) and **PR-gated** (every decomposition is a reviewable PR, never auto-merged). Kill switch: pause/delete the `/schedule` routine; the tracker and skills are inert without it.
 - Metrics M1–M5 append to telemetry (same pattern as `/skill-metrics`). Scale-up to ADR-0083 (general hooks-as-enforcement) is **data-gated** on M3/M5 staying low after ~4 weeks.
 
 ## Open items (priority order)
-1. **Tests for `footprint.mjs`** (the acceptance criteria) — before anything else.
-2. **Run `/claude-md-audit` on one real repo** (cv-builder) in propose mode — the skill has never produced a real routing plan; validate its judgment before the gate trusts it.
+1. ~~**Tests for `footprint.mjs`**~~ ✅ **Done** — `scripts/claude-md/__tests__/footprint.test.mjs` (16 tests, incl. @import-theater). See Tests above.
+2. **Run `/claude-md-audit` on one real repo** (cv-builder) in propose mode — the skill has never produced a real routing plan; validate its judgment before the gate trusts it. **← now the top open item.**
 3. **Slice 2 — the gate.** High blast radius (touches live editing). Needs the Haiku judge script (use `packages/workflows` `callClaude`), the per-session clearance marker, the M5 event log.
 4. **Decide Layer-1 default per repo** — nested `CLAUDE.md` vs `rules/` glob (ADR-0081 leans nested for subtree-coherent content).
 5. PRs to merge: **#129** (ADR + vocab), **#130** (this — slices 1+3).

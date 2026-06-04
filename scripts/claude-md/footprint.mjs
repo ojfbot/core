@@ -29,11 +29,12 @@
 
 import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
 
-const approxTokens = (chars) => Math.ceil(chars / 4);
+export const approxTokens = (chars) => Math.ceil(chars / 4);
 
-function measureFile(path) {
+export function measureFile(path) {
   const text = readFileSync(path, 'utf8');
   return { lines: text.split('\n').length, chars: text.length, tokens: approxTokens(text.length), text };
 }
@@ -41,7 +42,7 @@ function measureFile(path) {
 // Find @path imports in a CLAUDE.md body. Conservative: an @token at line-start or after
 // whitespace, resolving to an existing FILE relative to the importing file's dir (or ~ for home),
 // and not inside a fenced code block. Returns absolute paths.
-function findImports(text, fromDir) {
+export function findImports(text, fromDir) {
   const out = [];
   let inFence = false;
   for (const line of text.split('\n')) {
@@ -58,14 +59,14 @@ function findImports(text, fromDir) {
 }
 
 // Does a rules/ file have a `paths:` frontmatter key (→ conditional)?
-function rulesIsConditional(text) {
+export function rulesIsConditional(text) {
   const fm = text.match(/^---\n([\s\S]*?)\n---/);
   if (!fm) return false; // no frontmatter → unconditional, always-loaded
   return /^\s*paths\s*:/m.test(fm[1]);
 }
 
 // Walk for nested CLAUDE.md below the repo root (excluding the root itself and noise dirs).
-function findNestedClaudeMd(repoRoot) {
+export function findNestedClaudeMd(repoRoot) {
   const skip = new Set(['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '.serena', '.claude']);
   const found = [];
   const walk = (dir) => {
@@ -82,7 +83,7 @@ function findNestedClaudeMd(repoRoot) {
   return found;
 }
 
-function analyzeRepo(repoPath) {
+export function analyzeRepo(repoPath) {
   const root = resolve(repoPath);
   const name = basename(root);
   const always = [];
@@ -133,7 +134,11 @@ function analyzeRepo(repoPath) {
   };
 }
 
-// --- main ---
+// --- main (only when run directly, not when imported by tests) ---
+const isMain = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) main();
+
+function main() {
 const args = process.argv.slice(2);
 const jsonOnly = args.includes('--json');
 const repos = args.filter((a) => a !== '--json');
@@ -160,4 +165,5 @@ if (jsonOnly) {
   console.log(pad('TOTAL', 22) + padL(tot.l, 14) + padL('~' + tot.t, 15) + '\n');
   console.log('cond-tokens = content that loads conditionally (path-scoped rules + nested CLAUDE.md) — the target homes for routed content.');
   console.log('Success (ADR-0081) is zero conditional blocks left in the always-loaded layer, NOT a % drop — track always-tokens before→after.\n');
+}
 }
