@@ -16,7 +16,7 @@ Baseline tokens are the always-loaded measurement at rollout start (`footprint.m
 
 | Repo | State | Baseline (M1, ~tokens) | After (~tokens) | PR | Notes |
 |------|-------|------------------------|-----------------|-----|-------|
-| cv-builder | audited | ~4151 | ~600 (proj.) | — | Propose validated. **Finding:** root `ARCHITECTURE.md` pointer (CLAUDE.md:15) is broken — real file is `docs/ARCHITECTURE.md`. Plan: relocate-not-delete + fix pointer. L1: agent-core (add-an-agent), `.claude/rules/mf-and-deploy.md`. |
+| cv-builder | pr-open | ~4151 | ~941 | [cv-builder#148](https://github.com/ojfbot/cv-builder/pull/148) | ~77% drop, relocate-only. Fixed broken `ARCHITECTURE.md` pointer → `docs/ARCHITECTURE.md`. L1 `packages/agent-core/CLAUDE.md` + `.claude/rules/mf-and-deploy.md` (paths-scoped); L2 `docs/claude-reference.md`. Verified ARCHITECTURE.md is NOT a superset → relocated, not deleted. |
 | purefoy | pr-open | ~4066 | ~1243 | [purefoy#44](https://github.com/ojfbot/purefoy/pull/44) | ~69% drop, relocate-only. L1 `deakins_forums/CLAUDE.md`; L2 in repo-native `documentation/` (NOT `domain-knowledge/` — it's a gitignored symlink farm into core). |
 | virtualLight | untouched | ~3746 | — | — | most lines (390); comprehensive doc |
 | blogengine | untouched | ~2840 | — | — | multi-tab dashboard; lens/responder rules |
