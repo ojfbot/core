@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Use pnpm, never npm.** Every install/run/test/exec invocation in this repo and across the ojfbot ecosystem uses pnpm — in CI workflows, scripts, READMEs, ADRs, commit messages, and any one-off bash. Add new sub-packages to `pnpm-workspace.yaml` and invoke them via `pnpm --filter <name> <script>`; do not shell out to `npm install` in a subdirectory. Use `pnpm dlx` instead of `npx`. CI uses `pnpm install --frozen-lockfile`. The presence of `pnpm-workspace.yaml` or `pnpm-lock.yaml` is the decisive signal. If a tool genuinely requires npm, surface it explicitly and ask before shipping the change.
 
-> **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the user layer. Add `--with-selfco` to also install the `/vault` skill at user scope, scaffold the `~/selfco` knowledge vault, and add the opt-in `vault-session.sh` SessionEnd hook (see ADR-0069). See ADR-0055.
+> **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the user layer. Add `--with-selfco` to also install the `/vault` skill at user scope, scaffold the `~/selfco` knowledge vault, and add the opt-in `vault-session.sh` SessionEnd hook (see ADR-0085). See ADR-0055.
 
 ## Ecosystem
 
@@ -153,7 +153,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | `/skill-create` | Turn a reusable workflow or session pattern into a convention-compliant skill directory |
 | `/skill-loader` | Examine a repo and produce an install plan: which skills to add, keep, or remove |
 | `/daily-logger` | Load the daily-logger architecture context (4-phase pipeline, council-of-experts, personas) |
-| `/vault` | Maintain the `selfco` **LLM Wiki** (`~/selfco`) — a Karpathy-style Obsidian vault (append-only `raw/` + LLM-owned `wiki/` of source/entity/concept/synthesis pages + `index.md` + `log.md`; the schema is `~/selfco/CLAUDE.md`). Thin wrapper. Modes: `init` · `ingest <path\|url>` · `research <topic>` · `query <q>` · `lint` · `sync [--since=7d]` (folds the ojfbot activity feed into repo entity pages) · `orient` · `note`. Distinct from `/daily-logger` (chronological blog) and `/bead` (per-repo handoff). See ADR-0069, `domain-knowledge/selfco-vault.md`, the Karpathy gist. |
+| `/vault` | Maintain the `selfco` **LLM Wiki** (`~/selfco`) — a Karpathy-style Obsidian vault (append-only `raw/` + LLM-owned `wiki/` of source/entity/concept/synthesis pages + `index.md` + `log.md`; the schema is `~/selfco/CLAUDE.md`). Thin wrapper. Modes: `init` · `ingest <path\|url>` · `research <topic>` · `query <q>` · `lint` · `sync [--since=7d]` (folds the ojfbot activity feed into repo entity pages) · `orient` · `note`. Distinct from `/daily-logger` (chronological blog) and `/bead` (per-repo handoff). See ADR-0085, `domain-knowledge/selfco-vault.md`, the Karpathy gist. |
 
 ### Writing pipeline
 
@@ -228,7 +228,7 @@ Three Claude Code hooks power skill observability across the Frame OS cluster (s
 
 **Install:** `install-agents.sh` deploys hooks to sibling repos (section 6) and merges hook config into `.claude/settings.json`. The suggest-skill hook is installed at user level (`~/.claude/settings.json`) once.
 
-**Opt-in hook:** `scripts/hooks/vault-session.sh` (SessionEnd, async) appends a one-line stub per session to `~/selfco/Inbox/session-stubs.md` for the `/vault` skill to fold in later. Not installed by default — `install-agents.sh --user-scope --with-selfco` adds it. No-ops if `~/selfco` isn't initialized. See ADR-0069.
+**Opt-in hook:** `scripts/hooks/vault-session.sh` (SessionEnd, async) appends a one-line stub per session to `~/selfco/Inbox/session-stubs.md` for the `/vault` skill to fold in later. Not installed by default — `install-agents.sh --user-scope --with-selfco` adds it. No-ops if `~/selfco` isn't initialized. See ADR-0085.
 
 ## Claude Code configuration
 
@@ -289,7 +289,7 @@ Persistent file-based memory at project scope (`.claude/projects/`) tracks user 
 - `app-templates.md` — canonical file structures, dependency versions, and config patterns for the three scaffold-app templates
 - `tbcony-dia-context.md` — TBCoNY/Dia AI-native product philosophy (Samir Mody talk): assistant-centricity, model behavior discipline, eval/hill-climbing, prompt injection as UX, "internet computer" framing
 - `daily-logger-architecture.md` — daily-logger pipeline (collect → draft → council → synthesize), persona format, council-of-experts pattern, CI orchestration, invariants
-- `selfco-vault.md` — the `selfco` LLM Wiki (`~/selfco`, Karpathy pattern: `raw/` + `wiki/`) and the `/vault` skill: layers, page schemas, the in-vault `CLAUDE.md` schema, modes (ingest/research/query/lint/sync/…), graph-UI config, opt-in `vault-session.sh` hook. ADR-0069
+- `selfco-vault.md` — the `selfco` LLM Wiki (`~/selfco`, Karpathy pattern: `raw/` + `wiki/`) and the `/vault` skill: layers, page schemas, the in-vault `CLAUDE.md` schema, modes (ingest/research/query/lint/sync/…), graph-UI config, opt-in `vault-session.sh` hook. ADR-0085
 - `coding-standards.md` — TypeScript rules, forbidden patterns, naming conventions, skill file structure, PR standards, ADR quality guide
 
 Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.
