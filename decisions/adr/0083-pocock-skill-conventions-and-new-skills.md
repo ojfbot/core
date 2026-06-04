@@ -1,4 +1,4 @@
-# ADR-0070: Adopt Pocock-style skill conventions; add /prototype, /caveman, /zoom-out, and the writing pipeline
+# ADR-0083: Adopt Pocock-style skill conventions; add /prototype, /caveman, /zoom-out, and the writing pipeline
 
 Date: 2026-05-12
 Status: Accepted

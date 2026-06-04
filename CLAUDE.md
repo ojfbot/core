@@ -74,7 +74,7 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub |
 | `/spec-review` | 2 | Pre-kick-off | Fact-check a plan or spec before scaffolding — PASS / PASS WITH NOTES / BLOCKED |
 | `/scaffold` | 2 | Kick-off | Types, skeleton implementations, test stubs |
-| `/prototype` | 2 | Kick-off | Throwaway code that answers one question — terminal harness for logic edge cases, or N UI variants by URL param. Record the verdict, then delete. ADR-0070 |
+| `/prototype` | 2 | Kick-off | Throwaway code that answers one question — terminal harness for logic edge cases, or N UI variants by URL param. Record the verdict, then delete. ADR-0083 |
 | `/tdd` | 2 | Implementation | Red-green-refactor loop. Writes failing test first, verifies red, minimal change to green. Guidance only. ADR-0046 |
 | `/investigate` | 2 | Debugging | Cause map + candidate fixes — no code edits |
 | `/validate` | 2 | Quality gate | Spec coverage, invariants, auth/data safety checks |
@@ -124,7 +124,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 |---------|-------|---------|
 | `/push-all` | POC / rapid iteration | Safe commits with secret scanning and smart messages |
 | `/setup-ci-cd` | POC → MVP | One-shot CI/CD: pre-commit hooks, GitHub Actions, coverage gates |
-| `/git-guardrails` | Any time | State the dangerous-git policy; audit or wire `.claude/settings.json` deny/ask rules + an optional pre-push hook. ADR-0070 |
+| `/git-guardrails` | Any time | State the dangerous-git policy; audit or wire `.claude/settings.json` deny/ask rules + an optional pre-push hook. ADR-0083 |
 
 ### Project-specific commands (cv-builder)
 
@@ -139,12 +139,12 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | Command | Purpose |
 |---------|---------|
 | `/recon` | Codebase reconnaissance report (full, cold-start) |
-| `/zoom-out` | In-loop orientation for code you're already in: who calls this, what it depends on, blast radius if changed. No report file. ADR-0070 |
+| `/zoom-out` | In-loop orientation for code you're already in: who calls this, what it depends on, blast radius if changed. No report file. ADR-0083 |
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
 | `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
 | `/observe` | Triage logs/metrics/alerts (Sentry, Prometheus, LangGraph-aware) |
-| `/caveman` | Ultra-compressed communication mode — drops filler, keeps technical accuracy. Stays on until "normal mode". ADR-0070 |
+| `/caveman` | Ultra-compressed communication mode — drops filler, keeps technical accuracy. Stays on until "normal mode". ADR-0083 |
 
 ### Skill management
 
@@ -157,7 +157,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 
 ### Writing pipeline
 
-A three-step article pipeline (ADR-0070). Lives in `core` and is synced to sibling repos that publish prose (e.g. daily-logger, landing).
+A three-step article pipeline (ADR-0083). Lives in `core` and is synced to sibling repos that publish prose (e.g. daily-logger, landing).
 
 | Command | Step | Purpose |
 |---------|------|---------|
