@@ -189,5 +189,5 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `templates/{vault-claude-md,source,entity,concept,synthesis,session-handoff-prompt}.md`
 - `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
 - `${SELFCO_VAULT:-$HOME/selfco}/prompts/session-handoff.md` — the copy-paste session-export prompt (seeded by `init`)
-- ADR-0069 (`decisions/adr/0069-selfco-vault-and-skill.md`) + ADR-0070 (`…/0070-vault-multi-surface-access.md`), `domain-knowledge/selfco-vault.md`
+- ADR-0085 (`decisions/adr/0085-selfco-vault-and-skill.md`) + ADR-0070 (`…/0070-vault-multi-surface-access.md`), `domain-knowledge/selfco-vault.md`
 - Karpathy's LLM Wiki: <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>

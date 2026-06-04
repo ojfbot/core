@@ -4,7 +4,7 @@
 (<https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>): _"Obsidian is the IDE; the LLM is the
 programmer; the wiki is the codebase."_ You curate raw material; the LLM owns and maintains `wiki/`. It parallels
 all `ojfbot` work *and* free-form research, and doubles as a navigable graph UI (Obsidian graph view + Excalibrain).
-Complementary to `daily-logger` (chronological published blog) and `/bead` (per-repo session handoff). See ADR-0069.
+Complementary to `daily-logger` (chronological published blog) and `/bead` (per-repo session handoff). See ADR-0085.
 
 It's its own git repo, not symlinked into ojfbot. **Not** called a "second brain" in code/docs — "the vault" / "the wiki".
 
@@ -90,6 +90,6 @@ Agent Skill is unchanged. Full setup + the migration path: `core/.claude/skills/
 - `core/.claude/skills/vault/knowledge/{wiki-schema,obsidian-graph-setup,connectors}.md`
 - `core/.claude/skills/vault/scripts/{init-vault.py,migrate-v1.py,collect.py,install-obsidian-plugins.sh,lint.py,ingest.py,autocommit.sh}`
 - `core/scripts/hooks/vault-session.sh`
-- `core/decisions/adr/0069-selfco-vault-and-skill.md`, `0070-vault-multi-surface-access.md`
+- `core/decisions/adr/0085-selfco-vault-and-skill.md`, `0070-vault-multi-surface-access.md`
 - GitHub mirror: `ojfbot/selfco` (private)
 - Karpathy's LLM Wiki gist: <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>

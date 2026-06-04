@@ -10,7 +10,7 @@ Repos affected: core (the /vault skill, consumer Agent Skill, connectors doc, au
 
 ## Context
 
-`/vault` (ADR-0069) is a Claude-Code skill and `~/selfco` is a local-only git repo on the Mac. The user wants to
+`/vault` (ADR-0085) is a Claude-Code skill and `~/selfco` is a local-only git repo on the Mac. The user wants to
 invoke the vault workflows from the consumer Claude apps too — claude.ai web, the Claude Desktop Mac app, the iPhone
 app — and have output land in the vault. Constraints (verified May 2026): Claude Desktop supports *local* MCP servers
 (`~/Library/Application Support/Claude/claude_desktop_config.json`); claude.ai web + the iPhone app support only
@@ -61,7 +61,7 @@ added as a custom remote MCP connector (keep the GitHub connector too, or retire
   when `consumer/SKILL.md` changes.
 
 ### Neutral
-- `~/selfco` stays its own repo (now with a GitHub remote), still not symlinked into ojfbot — consistent with ADR-0069.
+- `~/selfco` stays its own repo (now with a GitHub remote), still not symlinked into ojfbot — consistent with ADR-0085.
 - The `~/selfco` history carries ~8 MB of (since-deleted) Obsidian plugin binaries; pushed as-is — annoying, harmless.
 
 ## Alternatives considered
@@ -72,4 +72,4 @@ added as a custom remote MCP connector (keep the GitHub connector too, or retire
 | Just Claude-Code on the Mac (no apps) | Doesn't satisfy the request — no Claude Code on iPhone; the consumer apps only do connectors. |
 | Re-implement `/vault` per-app (web Skill, separate desktop config, …) | Duplication; drift. One tool-agnostic Agent Skill + one connector-of-the-moment is simpler. |
 | Sync `~/selfco` to iCloud/Dropbox and point a hosted MCP at that | More plumbing than the GitHub connector, and you lose commit-per-write history. |
-| Make `~/selfco` part of the ojfbot monorepo / a symlink | Contradicts ADR-0069 (the vault is deliberately standalone — "selfco OS", not an ojfbot sub-app). |
+| Make `~/selfco` part of the ojfbot monorepo / a symlink | Contradicts ADR-0085 (the vault is deliberately standalone — "selfco OS", not an ojfbot sub-app). |
