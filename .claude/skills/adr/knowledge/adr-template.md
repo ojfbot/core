@@ -79,7 +79,7 @@ budget on content only relevant for specific sub-tasks.
 
 ## Decision
 
-Each command is a skill directory: <name>.md (orchestration, ≤250 lines) + knowledge/
+Each command is a skill directory: SKILL.md (orchestration, ≤250 lines) + knowledge/
 (JIT-loaded reference) + scripts/ (deterministic utilities).
 
 ## Consequences

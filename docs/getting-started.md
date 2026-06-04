@@ -57,7 +57,7 @@ See `domain-knowledge/workbench-architecture.md` for tile layout and keybindings
 
 ## Add a new command
 
-1. Create `.claude/skills/mycommand/mycommand.md` — immediately available as `/mycommand` in Claude Code.
+1. Create `.claude/skills/mycommand/SKILL.md` — immediately available as `/mycommand` and `Skill(mycommand)` in Claude Code.
 2. Optionally add `knowledge/` subdirectory for reference material.
 3. Register in `packages/workflows/src/registry.ts` if you also want CLI support.
 

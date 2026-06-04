@@ -19,7 +19,7 @@ You are a skill author. Given a workflow description or session pattern, you pro
 
 ## Core Principles
 
-1. **Three-tier progressive disclosure** — `<name>.md` (≤250 lines, always loaded) → `knowledge/` (loaded JIT on demand) → `scripts/` (executed without loading context). Never inline reference material or computations that belong in the lower tiers.
+1. **Three-tier progressive disclosure** — `SKILL.md` (≤250 lines, always loaded) → `knowledge/` (loaded JIT on demand) → `scripts/` (executed without loading context). Never inline reference material or computations that belong in the lower tiers.
 2. **Scripts don't consume context** — any step expressible as "input → deterministic output" without LLM reasoning is a script candidate. Move it to `scripts/<verb>-<noun>.js`.
 3. **Examples over explanations** — show a script call or tool invocation rather than describing it in prose. Trust the LLM to fill in obvious steps.
 4. **Generic, not specific** — skills must not hardcode project names (cv-builder, LangGraph, Carbon, blogengine). Reference `domain-knowledge/` dynamically.
@@ -53,11 +53,11 @@ Confirm no conflict. If a clash exists, use a more specific name.
 
 | What | Where |
 |------|-------|
-| Orchestration steps (LLM reasoning, tool calls, decisions) | `<name>.md` |
+| Orchestration steps (LLM reasoning, tool calls, decisions) | `SKILL.md` |
 | Deep reference material (checklist, template, taxonomy, examples) | `knowledge/<topic>.md` |
 | Deterministic computation (scan, count, transform, output) | `scripts/<verb>-<noun>.js` |
 
-Add JIT directives in `<name>.md` at the step that needs the knowledge file:
+Add JIT directives in `SKILL.md` at the step that needs the knowledge file:
 ```
 > **Load `knowledge/<topic>.md`** for <what it provides>.
 ```
@@ -74,7 +74,7 @@ scripts/<verb>-<noun>.js --input <arg> --output <arg>
 Create the following files:
 
 **Always:**
-- `.claude/skills/<name>/<name>.md` — main orchestration file
+- `.claude/skills/<name>/SKILL.md` — main orchestration file (canonical body; ADR-0084)
 
 **When knowledge files are needed** (one file per distinct reference topic):
 - `.claude/skills/<name>/knowledge/<topic>.md`
@@ -82,7 +82,7 @@ Create the following files:
 **When deterministic scripts are needed:**
 - `.claude/skills/<name>/scripts/<verb>-<noun>.js` — CommonJS, `--help` flag, proper exit codes
 
-Write each file using the conventions in `knowledge/skill-template.md`. Read back the generated `<name>.md` and verify: YAML frontmatter present, ≤250 lines, no hardcoded project names, JIT directives point to real files.
+Write each file using the conventions in `knowledge/skill-template.md`. Read back the generated `SKILL.md` and verify: YAML frontmatter present (`name` matching the directory + concise `description`), ≤250 lines, no hardcoded project names, JIT directives point to real files.
 
 ### Step 5 — Register the skill
 
@@ -107,7 +107,7 @@ Insert it adjacent to related skills (e.g., after `plan-feature` if it's a plann
 ## Skill created: /<name>
 
 Files written:
-  .claude/skills/<name>/<name>.md            (<N> lines)
+  .claude/skills/<name>/SKILL.md             (<N> lines)
   .claude/skills/<name>/knowledge/<topic>.md  (if any)
   .claude/skills/<name>/scripts/<name>.js     (if any)
 
@@ -124,4 +124,4 @@ Manual step — add to CLAUDE.md:
 ## Postflight
 
 After creating the skill, offer:
-> Run `/spec-review` on the generated `<name>.md` to catch structural issues before using it in a real session.
+> Run `/spec-review` on the generated `SKILL.md` to catch structural issues before using it in a real session.

@@ -10,7 +10,7 @@
 #
 # What it does:
 #   1. Creates .claude/skills/ with symlinks to all core skill directories
-#      Each skill is a directory: .claude/skills/<name>/ with <name>.md + knowledge/ + scripts/
+#      Each skill is a directory: .claude/skills/<name>/ with SKILL.md + knowledge/ + scripts/
 #      Symlinking the directory gives the target repo the full skill tree automatically.
 #      Also creates .claude/commands → skills/ backward-compat symlink.
 #   2. Creates domain-knowledge/ with symlinks to the universal context files
@@ -296,7 +296,7 @@ if [[ -f "$CATALOG" ]] && command -v jq >/dev/null 2>&1; then
   SKIP_SKILLS="$(jq -r '.skills[] | select(.status != null and .status != "active") | .name' "$CATALOG" 2>/dev/null || true)"
 fi
 
-# Symlink each skill directory (the directory contains <name>.md + knowledge/ + scripts/)
+# Symlink each skill directory (the directory contains SKILL.md + knowledge/ + scripts/)
 for src in "$CORE_DIR/.claude/skills"/*/; do
   [[ -d "$src" ]] || continue
   name="$(basename "$src")"

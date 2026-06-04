@@ -90,10 +90,10 @@ These are hard rules. `/validate` blocks on them.
 
 ## Skill files (`.claude/skills/<name>/`)
 
-- `<name>.md` is the orchestration skeleton — max 250 lines.
+- `SKILL.md` is the orchestration skeleton — max 250 lines (ADR-0084).
 - Heavy reference material goes in `knowledge/` and is loaded explicitly with `> **Load \`knowledge/<file>.md\`**`.
 - Scripts in `scripts/` are deterministic Node.js utilities — no LLM calls, no network, pure file I/O.
-- YAML frontmatter required at top of `<name>.md`: `name:` and `description:` with trigger phrases.
+- YAML frontmatter required at top of `SKILL.md`: `name:` and `description:` with trigger phrases.
 - Generic commands must not hardcode project names (cv-builder, LangGraph, Carbon) — reference `domain-knowledge/` dynamically.
 
 ---
