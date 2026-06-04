@@ -68,7 +68,7 @@ A daily cluster canary (`core/scripts/audit-ci-health.sh`, scheduled in core's `
 | **Soft policy: write a coding-standard line, no enforcement** | The current state is already "soft policy" — `coding-standards.md` references CI; people ignore it. The skill-audit drift wasn't caught by any soft signal. Soft policy is the disease; enforcement is the cure. |
 | **Branch-protection only, no `\|\| true` rule** | Branch protection only enforces that a check *ran*, not that it *meant* anything. A workflow with `pnpm test \|\| true` will pass the check while silently swallowing failures. Need both the gate AND the integrity rule. |
 | **Replace all CI with a single core orchestrator** | Tempting (one place to edit, no drift) but creates a single point of failure and forces all repos through one CI path. Per-repo workflows with a *common policy* preserves repo independence; cross-cutting drift is solved by the canary instead. |
-| **Defer enforcement to manual review (relying on `/validate`)** | `/validate` is a skill the user invokes deliberately; not every PR will run it. Required CI checks fire on every PR by definition. The two layers complement each other (this ADR is Pillar 1; future ADR-0069 makes `/validate` a CI gate as Pillar 3). |
+| **Defer enforcement to manual review (relying on `/validate`)** | `/validate` is a skill the user invokes deliberately; not every PR will run it. Required CI checks fire on every PR by definition. The two layers complement each other (this ADR is Pillar 1; a future ADR makes `/validate` a CI gate as Pillar 3). |
 
 ## Implementation
 
@@ -80,4 +80,4 @@ Order:
 3. **Branch-protection setup** — `gh api` script to apply required checks across cluster.
 4. **Canary scheduling** — daily run of `audit-ci-health.sh` posts a cluster-health issue when regression detected.
 
-Phase B (ADR-0067 *Cluster minimum test bar*) and Phase C (ADR-0069 */validate as CI gate*) follow this one. Without Phase A, those would be theater.
+Phase B (*Cluster minimum test bar*) and Phase C (*/validate as CI gate*) follow this one. Without Phase A, those would be theater.

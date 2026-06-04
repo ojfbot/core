@@ -17,8 +17,8 @@ The Claude Code **Skill tool** discovers a skill by reading `<dir>/SKILL.md`. Ev
 (`fileBackedWorkflow.ts`) and Claude Code's slash interface read that file, so `/name` works — but
 `Skill(name)` does **not**, because there is no `SKILL.md` for the tool to find.
 
-[ADR-0085] (the vault ADR, formerly numbered 0069)/PR #126 fixed this for `vault` alone by adding a
-thin hand-written `SKILL.md` that defers to `vault.md`. The 2026-06-02 core#117 pickup bead flagged the general case as
+ADR-0085 / PR #126 fixed this for `vault` alone by adding a thin hand-written `SKILL.md` that
+defers to `vault.md`. The 2026-06-02 core#117 pickup bead flagged the general case as
 "ADR-shaped — surface before doing the fleet-wide version." At the time of this decision, **1 of 55
 skill directories** (`vault`) was `Skill()`-callable; the other 54 were not.
 

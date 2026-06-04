@@ -2,7 +2,6 @@
 
 Date: 2026-05-11 (revised 2026-05-12 — adopted Karpathy's LLM-Wiki model before merge)
 Status: Accepted
-Note: Renumbered from ADR-0069 → ADR-0085 on 2026-06-04 to resolve a number collision. ADR-0069 was already taken by `0069-asset-foundry-blender-transport-cross-link.md` (dated 2026-05-05, which predates this one); the earlier ADR keeps 0069. Append-only references in the `~/selfco` vault history (`wiki/log.md`, `wiki/sources/sync-2026-05-11.md`) still cite "ADR-0069" as a faithful point-in-time record.
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
 Commands affected: /vault (new), /daily-logger (distinction clarified), /bead (composition)
 Repos affected: core (skill, hook, install-agents, catalog, domain-knowledge), all sibling repos (skill symlink, selfco-vault.md), new repo ~/selfco
