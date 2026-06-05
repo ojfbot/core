@@ -1,4 +1,10 @@
 # ADR-0056: Developer Day Orchestration — Master
+slug: developer-day-orchestration-master
+serial: 0056
+domain: meta
+type: process
+traces:
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

@@ -1,4 +1,11 @@
 # ADR-0058: Sub-app registration schema
+slug: sub-app-registration-schema
+serial: 0058
+domain: shell-host-composition
+type: convention
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

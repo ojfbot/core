@@ -1,4 +1,8 @@
 # ADR-0073: selfco ingest removes the `draft` gate — the box files all non-terminal Inbox rows
+slug: selfco-ingest-removes-draft-gate
+serial: 0073
+domain: observation
+type: policy
 
 Date: 2026-05-27
 Status: Proposed

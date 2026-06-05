@@ -1,4 +1,8 @@
 # ADR-0025: Gas Town execution + governance primitives in @core/workflows before shell/cv-builder adoption
+slug: gas-town-primitives-in-core-workflows-before-adoption
+serial: 0025
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

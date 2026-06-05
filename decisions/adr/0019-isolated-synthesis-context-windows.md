@@ -1,4 +1,8 @@
 # ADR-0019: Isolated context windows per domain agent — synthesis at output layer only
+slug: isolated-synthesis-context-windows
+serial: 0019
+domain: agent-graph
+type: architecture
 
 Date: 2026-03-17
 Status: Accepted

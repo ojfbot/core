@@ -1,4 +1,8 @@
 # ADR-0017: Store-level singleton enforcement for single-context app types
+slug: singleton-enforcement-store-level
+serial: 0017
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-03-09
 Status: Proposed

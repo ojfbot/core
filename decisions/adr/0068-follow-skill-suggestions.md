@@ -1,4 +1,8 @@
 # ADR-0068: Agent must follow skill suggestions
+slug: follow-skill-suggestions
+serial: 0068
+domain: workflow-engine
+type: policy
 
 Date: 2026-05-05
 Status: Accepted

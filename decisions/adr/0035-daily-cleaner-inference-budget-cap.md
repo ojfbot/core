@@ -1,4 +1,8 @@
 # ADR-0035: Daily-cleaner inference budget cap
+slug: daily-cleaner-inference-budget-cap
+serial: 0035
+domain: observation
+type: policy
 
 Date: 2026-03-29
 Status: Proposed

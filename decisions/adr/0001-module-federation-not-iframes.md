@@ -1,4 +1,8 @@
 # ADR-0001: Module Federation over iframes for shell composition
+slug: module-federation-not-iframes
+serial: 0001
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-01
 Status: Accepted

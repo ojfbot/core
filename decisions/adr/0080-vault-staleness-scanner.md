@@ -1,4 +1,8 @@
 # ADR-0080: Vault staleness scanner — graph-aware signal, surface-only, layered on `/vault lint`
+slug: vault-staleness-scanner
+serial: 0080
+domain: observation
+type: tooling
 
 Date: 2026-05-17
 Status: Proposed

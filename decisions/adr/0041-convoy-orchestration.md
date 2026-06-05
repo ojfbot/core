@@ -1,4 +1,8 @@
 # ADR-0041: Convoy orchestration via bead-emit.mjs
+slug: convoy-orchestration
+serial: 0041
+domain: gas-town-governance
+type: process
 
 Date: 2026-04-10
 Status: Accepted

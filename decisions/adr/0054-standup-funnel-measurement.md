@@ -1,4 +1,8 @@
 # ADR-0054: Standup funnel measurement (suggestion → closure)
+slug: standup-funnel-measurement
+serial: 0054
+domain: observation
+type: tooling
 
 Date: 2026-04-28
 Status: Proposed

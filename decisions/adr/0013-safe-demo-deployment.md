@@ -1,4 +1,8 @@
 # ADR-0013: Safe Demo Deployment — Frame OS at frame.jim.software
+slug: safe-demo-deployment
+serial: 0013
+domain: meta
+type: infrastructure
 
 Date: 2026-03-02
 Status: Accepted

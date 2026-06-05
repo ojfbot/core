@@ -1,4 +1,11 @@
 # ADR-0064: Hammerspoon workspace orchestration
+slug: hammerspoon-workspace-orchestration
+serial: 0064
+domain: meta
+type: infrastructure
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

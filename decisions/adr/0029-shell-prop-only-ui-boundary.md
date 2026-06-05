@@ -1,4 +1,8 @@
 # ADR-0029: Prop-only boundary for @ojfbot/shell UI components
+slug: shell-prop-only-ui-boundary
+serial: 0029
+domain: ui-components
+type: convention
 
 Date: 2026-03-20
 Status: Accepted

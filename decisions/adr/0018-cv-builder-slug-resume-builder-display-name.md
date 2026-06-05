@@ -1,4 +1,8 @@
 # ADR-0018: Separate cv-builder repo slug from Resume Builder display name
+slug: cv-builder-slug-resume-builder-display-name
+serial: 0018
+domain: meta
+type: convention
 
 Date: 2026-03-11
 Status: Accepted

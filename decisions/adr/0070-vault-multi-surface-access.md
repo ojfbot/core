@@ -1,4 +1,8 @@
 # ADR-0070: Reaching the selfco vault from the Claude apps — GitHub mirror + connector now, locally-hosted obsidian-mcp later
+slug: vault-multi-surface-access
+serial: 0070
+domain: observation
+type: architecture
 
 Date: 2026-05-12
 Status: Accepted

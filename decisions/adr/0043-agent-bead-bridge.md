@@ -1,4 +1,8 @@
 # ADR-0043: AgentBead Bridge
+slug: agent-bead-bridge
+serial: 0043
+domain: gas-town-governance
+type: architecture
 
 **Status:** Accepted
 **Date:** 2026-04-10

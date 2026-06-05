@@ -1,4 +1,8 @@
 # ADR-0033: Daily-Cleaner Confidence Threshold Policy
+slug: daily-cleaner-confidence-threshold-policy
+serial: 0033
+domain: observation
+type: policy
 
 Date: 2026-03-29
 Status: Proposed

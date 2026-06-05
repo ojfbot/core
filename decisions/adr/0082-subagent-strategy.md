@@ -1,4 +1,8 @@
 # ADR-0082: Subagent strategy — default to skills + native delegation; `.claude/agents/` deferred
+slug: subagent-strategy
+serial: 0082
+domain: workflow-engine
+type: process
 
 Date: 2026-06-04
 Status: Accepted

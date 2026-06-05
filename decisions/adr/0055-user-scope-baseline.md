@@ -1,4 +1,8 @@
 # ADR-0055: User-scope baseline for Pocock skills + principles
+slug: user-scope-baseline
+serial: 0055
+domain: workflow-engine
+type: convention
 
 Date: 2026-04-30
 Status: Proposed

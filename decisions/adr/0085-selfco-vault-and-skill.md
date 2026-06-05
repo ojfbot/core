@@ -1,4 +1,8 @@
 # ADR-0085: The `selfco` LLM Wiki and the `/vault` skill
+slug: selfco-vault-and-skill
+serial: 0085
+domain: observation
+type: tooling
 
 Date: 2026-05-11 (revised 2026-05-12 — adopted Karpathy's LLM-Wiki model before merge)
 Status: Accepted

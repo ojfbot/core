@@ -1,4 +1,8 @@
 # ADR-0046: Skill /tdd for red-green-refactor enforcement
+slug: tdd-skill
+serial: 0046
+domain: workflow-engine
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted

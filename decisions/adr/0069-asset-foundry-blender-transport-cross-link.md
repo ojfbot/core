@@ -1,4 +1,8 @@
 # ADR-0069: Cross-link asset-foundry's dual Blender transport contract for fleet visibility
+slug: asset-foundry-blender-transport-cross-link
+serial: 0069
+domain: meta
+type: convention
 
 Date: 2026-05-05
 Status: Accepted

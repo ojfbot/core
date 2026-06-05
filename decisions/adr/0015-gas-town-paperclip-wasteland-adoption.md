@@ -1,4 +1,8 @@
 # ADR-0015: Gas Town + Paperclip + Wasteland as the multi-agent coordination layer
+slug: gas-town-paperclip-wasteland-adoption
+serial: 0015
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-09
 Status: Accepted

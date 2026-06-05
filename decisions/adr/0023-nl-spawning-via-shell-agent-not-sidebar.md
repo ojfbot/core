@@ -1,4 +1,8 @@
 # ADR-0023: NL instance spawning via ShellAgent, not a sidebar affordance
+slug: nl-spawning-via-shell-agent-not-sidebar
+serial: 0023
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

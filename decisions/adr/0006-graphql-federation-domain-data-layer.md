@@ -1,4 +1,8 @@
 # ADR-0006: GraphQL Federation for Frame OS domain data layer
+slug: graphql-federation-domain-data-layer
+serial: 0006
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-02-26
 Status: Proposed

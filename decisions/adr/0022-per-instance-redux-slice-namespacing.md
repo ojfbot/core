@@ -1,4 +1,8 @@
 # ADR-0022: Per-instance Redux slice namespacing for multi-instance spawning
+slug: per-instance-redux-slice-namespacing
+serial: 0022
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

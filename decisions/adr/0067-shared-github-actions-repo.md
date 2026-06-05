@@ -1,4 +1,8 @@
 # ADR-0067: Shared GitHub Actions repo (`ojfbot/github-actions`)
+slug: shared-github-actions-repo
+serial: 0067
+domain: meta
+type: infrastructure
 
 Date: 2026-05-04
 Status: Accepted

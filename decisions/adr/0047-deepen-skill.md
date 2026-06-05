@@ -1,4 +1,8 @@
 # ADR-0047: Skill /deepen for Ousterhout-style module depth audits
+slug: deepen-skill
+serial: 0047
+domain: workflow-engine
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted

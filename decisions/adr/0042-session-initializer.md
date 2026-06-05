@@ -1,4 +1,8 @@
 # ADR-0042: Two-tier session initializer
+slug: session-initializer
+serial: 0042
+domain: gas-town-governance
+type: process
 
 Date: 2026-04-10
 Status: Accepted

@@ -1,4 +1,8 @@
 # ADR-0020: No Redux store imports inside @ojfbot/shell packages/ui components
+slug: shell-ui-package-no-redux-imports
+serial: 0020
+domain: ui-components
+type: convention
 
 Date: 2026-03-17
 Status: Accepted

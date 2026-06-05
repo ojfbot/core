@@ -17,16 +17,37 @@ When referencing cluster ADRs from a sibling repo, use `decisions/core/adr/<file
 
 ---
 
+## Frontmatter schema (ADR-0087 — stable identity + facets)
+
+`slug` is the ADR's **permanent, immutable identity** (the NASA Configuration Item "unchanging base").
+The 4-digit `serial` is a **non-load-bearing display number** assigned once at `/adr accept`
+(`max(serials)+1`, never reused, reserved, or renumbered). Drafts are `draft-<slug>.md` with
+`serial: draft`. Cross-references use `adr:<slug>`, never the number. Evolve a decision with
+`/adr revise` (bumps `rev:`), never by renumbering. Full rationale + the SEH↔Configuration-Management
+mapping: `decisions/adr/0087-stable-identity-and-facet-tags.md`.
+
+Controlled vocabularies:
+- **`domain`** (REQUIRED) = `shell-host-composition | agent-graph | workflow-engine | gas-town-governance | observation | ui-components | meta` (the six ADR-0044 bounded contexts + `meta` for the decision process / cross-cutting platform work).
+- **`type`** (REQUIRED) = `architecture | convention | process | infrastructure | policy | tooling`.
+- **`status`** = `Proposed | Accepted | Superseded | Deprecated`.
+- **`traces`** (optional, bidirectional, every value a slug that resolves on disk): `supersedes`↔`superseded-by`, `amends`↔`amended-by`, `relates-to` (symmetric), `parent`/`part-of-series`.
+- **`gate`/`baseline`** (optional NASA lifecycle facets) — `gate: adr-<slug>:C<n>` links to a `/gated-slice` Control Gate; `baseline: functional|allocated|product`.
+
 ## Format
 
 ```markdown
 # ADR-XXXX: [Decision title]
-
+slug: kebab-stable-id
+serial: draft
 Date: YYYY-MM-DD
 Status: Proposed
+domain: [bounded-context]
+type: [decision-class]
 OKR: [e.g. 2026-Q1 / O1 / KR2]
 Commands affected: [e.g. /validate, /scaffold]
 Repos affected: [e.g. shell, cv-builder]
+traces:
+  relates-to: []
 
 ---
 
@@ -62,12 +83,17 @@ Side effects that are neither positive nor negative.
 
 ```markdown
 # ADR-0003: Skill directories over flat command files
-
+slug: skill-directories-over-flat-files
+serial: 0003
 Date: 2026-02
 Status: Accepted
+domain: workflow-engine
+type: convention
 OKR: 2026-Q1 / O2 / KR2
-Commands affected: all 28 slash commands
+Commands affected: all slash commands
 Repos affected: core, all sibling repos via install-agents.sh
+traces:
+  superseded-by: skills-directory-rename-from-commands
 
 ---
 

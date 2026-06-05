@@ -1,4 +1,8 @@
 # ADR-0038: Morning Workflow Progressive Agent Orchestration
+slug: morning-workflow-orchestration
+serial: 0038
+domain: workflow-engine
+type: process
 
 Date: 2026-04-09
 Status: Accepted

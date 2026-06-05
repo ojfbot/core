@@ -1,4 +1,8 @@
 # ADR-0040: Claude session beads for meta-coordination
+slug: session-beads-meta-coordination
+serial: 0040
+domain: gas-town-governance
+type: process
 
 Date: 2026-04-10
 Status: Accepted

@@ -1,4 +1,8 @@
 # ADR-0051: RigProfile + workbench partition by profile
+slug: rigprofile-workbench-partition
+serial: 0051
+domain: meta
+type: tooling
 
 Date: 2026-04-28
 Status: Proposed

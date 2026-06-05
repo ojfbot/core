@@ -1,4 +1,8 @@
 # ADR-0030: Shared Frame UI Components Library
+slug: shared-frame-ui-components-library
+serial: 0030
+domain: ui-components
+type: architecture
 
 Date: 2026-03-24
 Status: Accepted

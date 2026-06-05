@@ -1,4 +1,8 @@
 # ADR-0005: IBM Carbon Design System for sub-app UI components
+slug: carbon-design-system
+serial: 0005
+domain: ui-components
+type: architecture
 
 Date: 2026-01
 Status: Accepted

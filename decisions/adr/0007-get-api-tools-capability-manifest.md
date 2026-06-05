@@ -1,4 +1,8 @@
 # ADR-0007: GET /api/tools capability manifest contract for all Frame sub-apps
+slug: get-api-tools-capability-manifest
+serial: 0007
+domain: shell-host-composition
+type: convention
 
 Date: 2026-02-27
 Status: Accepted

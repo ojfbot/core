@@ -1,4 +1,8 @@
 # ADR-0049: Pocock-style mode extensions on /plan-feature and /orchestrate
+slug: pocock-mode-extensions
+serial: 0049
+domain: workflow-engine
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted
