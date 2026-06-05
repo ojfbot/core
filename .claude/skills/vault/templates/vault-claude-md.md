@@ -58,7 +58,7 @@ ingested: YYYY-MM-DD
 tags: [topic, …]
 ---
 ```
-`Up: [[index]]` · **TL;DR** (2–4 sentences) · **Key takeaways** (bullets) · **Notable quotes / data** · **Touched pages** (`[[entities/…]]`, `[[concepts/…]]`, `[[synthesis/…]]` this source updated)
+`Up: [[index]]` · **TL;DR** (2–4 sentences) · **Key takeaways** (bullets) · **Notable quotes / data** · **Links** (every URL backing this source — full clickable `https://…` links; the frontmatter `url:` is the primary, list it + every corroborating outlet here, even when the material is also archived in `raw/`) · **Touched pages** (`[[entities/…]]`, `[[concepts/…]]`, `[[synthesis/…]]` this source updated)
 
 ### `wiki/entities/<slug>.md` — a person / org / product / tool / repo
 ```yaml
@@ -73,7 +73,7 @@ last_synced: YYYY-MM-DD
 tags: [topic, …]
 ---
 ```
-`Up: [[index]]` · **What it is** · **Current state** (for repos: filled by `/vault sync` from git/telemetry/beads) · **Relationships** (`[[…]]` — what it builds on, consumes, competes with) · **Sources** (`[[sources/…]]`) · **Open threads**
+`Up: [[index]]` · **What it is** · **Current state** (for repos: filled by `/vault sync` from git/telemetry/beads) · **Relationships** (`[[…]]` — what it builds on, consumes, competes with) · **Sources** (`[[sources/…]]` — include the primary external URL inline, e.g. `- [[sources/foo]] — Publisher: https://…`, so the page is clickable without a hop) · **Open threads**
 
 ### `wiki/concepts/<slug>.md` — an idea / framework / theory
 ```yaml
@@ -92,7 +92,7 @@ type: synthesis
 tags: [topic, …]
 ---
 ```
-`Up: [[index]]` · **Question / thesis** · **Comparison / analysis** · **Sources** (`[[sources/…]]`) · **Implications**
+`Up: [[index]]` · **Question / thesis** · **Comparison / analysis** · **Sources** (`[[sources/…]]` — include the primary external URL inline, e.g. `- [[sources/foo]] — Publisher: https://…`, so the page is clickable without a hop) · **Implications**
 
 ### `wiki/index.md` — the master catalog
 ```yaml
@@ -123,13 +123,13 @@ Ops: `ingest` · `research` · `query` · `lint` · `sync` · `session` · `init
 ### `ingest <path-or-url>` — the core loop
 1. **Land the source in `raw/`.** A local file → copy/move it into `raw/` (binaries → `raw/assets/`). A URL → download it to `raw/<slug>.md` (plus any assets). Never modify it afterward.
 2. **Read it. Discuss the key takeaways with me** before writing — confirm what's worth keeping.
-3. **Write `wiki/sources/<slug>.md`** — TL;DR + key takeaways + notable quotes/data.
+3. **Write `wiki/sources/<slug>.md`** — TL;DR + key takeaways + notable quotes/data + a **`## Links`** section listing *every* URL that backs the source (primary + each corroborating outlet), as full clickable `https://…` links. Multi-source research (e.g. a `/deep-research` report) must carry all its source URLs here — don't strand them in `raw/`.
 4. **Update the wiki.** Create or update every `entities/` and `concepts/` (and `synthesis/`) page the source bears on — be willing to touch 10–15 pages in one pass. Add the new claims, with `[[sources/<slug>]]` citations. Fix any cross-references that need it.
 5. **Update `wiki/index.md`** — add the new pages, refresh the one-liners.
 6. **Append a `## [YYYY-MM-DD] ingest | <title>` entry to `wiki/log.md`** listing what changed.
 
 ### `research <topic>` — ingest, but you fetch the sources
-Do active research (web search / fetch / docs). For each useful source: save it into `raw/` (or record `url:` + `retrieved:` if it's not worth archiving), give it a `wiki/sources/` page, then write/update the `concepts/` or `synthesis/` page from those sources. Log it (`## [date] research | <topic>`). "File good explorations back into the wiki."
+Do active research (web search / fetch / docs). For each useful source: save it into `raw/` (or record `url:` + `retrieved:` if it's not worth archiving), give it a `wiki/sources/` page with a **`## Links`** section holding every URL it draws on, then write/update the `concepts/` or `synthesis/` page from those sources — and when an entity/synthesis page cites a source, **put that source's primary URL inline** on the `## Sources` line so the page is clickable without a hop. Log it (`## [date] research | <topic>`). "File good explorations back into the wiki."
 
 ### `query <question>` — answer from the wiki, then file it back
 1. Search `wiki/` (and `raw/` if a page is thin) for relevant pages.

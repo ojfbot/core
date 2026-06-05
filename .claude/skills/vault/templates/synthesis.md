@@ -14,7 +14,7 @@ Up: [[index]]
 <!-- the substance -->
 
 ## Sources
-<!-- - [[sources/...]] -->
+<!-- - [[sources/...]] — Publisher: https://…  (include the primary external URL inline so the page is clickable without a hop) -->
 
 ## Implications
 <!-- so what — decisions, next steps -->

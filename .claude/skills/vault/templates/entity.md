@@ -22,7 +22,7 @@ Up: [[index]]
 <!-- - [[...]] — builds on / consumes / competes with / part of -->
 
 ## Sources
-<!-- - [[sources/...]] -->
+<!-- - [[sources/...]] — Publisher: https://…  (include the primary external URL inline so the page is clickable without a hop) -->
 
 ## Open threads
 <!-- - unfinished things, pending decisions, known bugs -->
