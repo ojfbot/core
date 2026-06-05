@@ -1,4 +1,8 @@
 # ADR-0011: Settings Modal Chrome Ownership and ErrorBoundary Reset Contract
+slug: settings-modal-chrome-ownership
+serial: 0011
+domain: ui-components
+type: convention
 
 Date: 2026-03-02
 Status: Accepted

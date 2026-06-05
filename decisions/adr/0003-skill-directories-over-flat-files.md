@@ -1,4 +1,10 @@
 # ADR-0003: Skill directories over flat command files
+slug: skill-directories-over-flat-files
+serial: 0003
+domain: workflow-engine
+type: convention
+traces:
+  superseded-by: skills-directory-rename-from-commands
 
 Date: 2026-02
 Status: Superseded by ADR-0021

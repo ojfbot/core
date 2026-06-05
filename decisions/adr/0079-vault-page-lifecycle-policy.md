@@ -1,4 +1,8 @@
 # ADR-0079: Vault page-lifecycle policy — promoter-side ingest gate + graph-aware staleness signal
+slug: vault-page-lifecycle-policy
+serial: 0079
+domain: observation
+type: policy
 
 Date: 2026-05-16
 Status: Proposed

@@ -1,4 +1,8 @@
 # ADR-0037: Skill telemetry, intent matching, and PR audit
+slug: skill-telemetry-and-intent-matching
+serial: 0037
+domain: observation
+type: tooling
 
 Date: 2026-04-06
 Status: Accepted

@@ -1,4 +1,8 @@
 # ADR-0048: Skill /triage and the severity/effort/domain/type rubric
+slug: triage-skill
+serial: 0048
+domain: workflow-engine
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted

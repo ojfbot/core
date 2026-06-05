@@ -1,4 +1,8 @@
 # ADR-0002: Single LLM gateway (frame-agent) for all sub-apps
+slug: single-llm-gateway
+serial: 0002
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-01
 Status: Accepted

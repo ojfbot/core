@@ -1,4 +1,8 @@
 # ADR-0081: CLAUDE.md loading-discipline routing (rules/ as Layer 1)
+slug: path-scoped-rules-dir-adoption
+serial: 0081
+domain: meta
+type: convention
 
 Date: 2026-06-04
 Status: Proposed

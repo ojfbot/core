@@ -1,4 +1,8 @@
 # ADR-0050: Skill metrics measurement system
+slug: skill-metrics-system
+serial: 0050
+domain: observation
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted

@@ -1,4 +1,8 @@
 # ADR-0032: Daily-Logger React + Vercel Migration
+slug: daily-logger-react-vercel-migration
+serial: 0032
+domain: observation
+type: infrastructure
 
 Date: 2026-03-28
 Status: Accepted

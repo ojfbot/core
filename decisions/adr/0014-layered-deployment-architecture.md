@@ -1,4 +1,8 @@
 # ADR-0014: Layered Deployment Architecture
+slug: layered-deployment-architecture
+serial: 0014
+domain: meta
+type: infrastructure
 
 Date: 2026-03-02
 Status: Accepted

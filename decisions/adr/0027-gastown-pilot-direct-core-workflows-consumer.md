@@ -1,4 +1,8 @@
 # ADR-0027: GasTownPilot as first direct @core/workflows consumer sub-app
+slug: gastown-pilot-direct-core-workflows-consumer
+serial: 0027
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

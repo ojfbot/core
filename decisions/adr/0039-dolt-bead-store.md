@@ -1,4 +1,8 @@
 # ADR-0039: Dolt as BeadStore backend
+slug: dolt-bead-store
+serial: 0039
+domain: gas-town-governance
+type: infrastructure
 
 Date: 2026-04-10
 Status: Accepted

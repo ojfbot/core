@@ -1,4 +1,8 @@
 # ADR-0012: Module Federation Remote Integration Pattern
+slug: module-federation-remote-integration-pattern
+serial: 0012
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-03-02
 Status: Accepted

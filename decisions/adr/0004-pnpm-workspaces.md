@@ -1,4 +1,8 @@
 # ADR-0004: pnpm workspaces as the package manager for all monorepos
+slug: pnpm-workspaces
+serial: 0004
+domain: meta
+type: infrastructure
 
 Date: 2026-01
 Status: Accepted

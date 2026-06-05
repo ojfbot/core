@@ -1,4 +1,8 @@
 # ADR-0066: Always-green CI policy
+slug: always-green-ci-policy
+serial: 0066
+domain: meta
+type: policy
 
 Date: 2026-05-05
 Status: Proposed

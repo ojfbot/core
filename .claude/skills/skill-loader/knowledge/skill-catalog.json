@@ -36,7 +36,7 @@
         "context",
         "footprint",
         "decompose",
-        "adr-0081"
+        "adr:path-scoped-rules-dir-adoption"
       ],
       "description": "Audit a CLAUDE.md for loading-discipline (ADR-0081): classify each block Layer 0/1/2/delete and propose a routing plan that shrinks the always-loaded footprint without @import theater.",
       "triggers": [
@@ -58,7 +58,7 @@
         "rollout",
         "automation",
         "schedule",
-        "adr-0081"
+        "adr:path-scoped-rules-dir-adoption"
       ],
       "description": "Advance the ADR-0081 CLAUDE.md loading-discipline rollout by one repo: pick next untouched, run /claude-md-audit --apply, open a PR, update the tracker. Driven by /schedule or run at /frame-standup.",
       "triggers": [

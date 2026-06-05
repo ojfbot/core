@@ -1,4 +1,8 @@
 # ADR-0083: Adopt Pocock-style skill conventions; add /prototype, /caveman, /zoom-out, and the writing pipeline
+slug: pocock-skill-conventions-and-new-skills
+serial: 0083
+domain: workflow-engine
+type: convention
 
 Date: 2026-05-12
 Status: Accepted

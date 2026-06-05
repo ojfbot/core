@@ -1,4 +1,8 @@
 # ADR-0053: Bead-aware /frame-standup; informal-bead spine until A1 FrameBead is blocked
+slug: bead-aware-frame-standup-defer-a1
+serial: 0053
+domain: observation
+type: process
 
 Date: 2026-04-28
 Status: Proposed

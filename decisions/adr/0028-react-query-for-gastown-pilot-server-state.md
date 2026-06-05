@@ -1,4 +1,8 @@
 # ADR-0028: React Query for server state in GasTownPilot
+slug: react-query-for-gastown-pilot-server-state
+serial: 0028
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

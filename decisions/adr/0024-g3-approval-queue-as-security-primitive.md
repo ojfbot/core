@@ -1,4 +1,8 @@
 # ADR-0024: G3 Approval Queue as security primitive, not a permission dialog
+slug: g3-approval-queue-as-security-primitive
+serial: 0024
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-18
 Status: Accepted

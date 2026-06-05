@@ -1,4 +1,8 @@
 ---
+slug: shell-agent-routing-protocol
+serial: 0008
+domain: shell-host-composition
+type: architecture
 id: ADR-0008
 title: ShellAgent Routing Protocol and MetaOrchestrator Dynamic Discovery
 status: Accepted

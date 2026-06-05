@@ -1,4 +1,11 @@
 # ADR-0061: gastown-pilot Intake tab
+slug: gastown-pilot-intake-tab
+serial: 0061
+domain: gas-town-governance
+type: architecture
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Status: Proposed

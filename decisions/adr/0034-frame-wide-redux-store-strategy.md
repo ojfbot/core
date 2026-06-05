@@ -1,4 +1,8 @@
 # ADR-0034: Isolated Redux stores with pub/sub message-passing boundary
+slug: frame-wide-redux-store-strategy
+serial: 0034
+domain: shell-host-composition
+type: architecture
 
 Date: 2026-03-29
 Status: Proposed

@@ -1,4 +1,11 @@
 # ADR-0063: daily-logger perRig digest extension
+slug: daily-logger-perrig-digest-extension
+serial: 0063
+domain: observation
+type: tooling
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Status: Proposed

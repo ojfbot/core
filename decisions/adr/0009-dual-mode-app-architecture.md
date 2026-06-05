@@ -1,4 +1,8 @@
 # ADR-0009 — Dual-Mode App Architecture
+slug: dual-mode-app-architecture
+serial: 0009
+domain: shell-host-composition
+type: architecture
 
 **Status:** Accepted
 **Date:** 2026-02-28

@@ -1,4 +1,8 @@
 # ADR-0010 — CoreReader Metadata Dashboard
+slug: corereader-metadata-dashboard
+serial: 0010
+domain: observation
+type: architecture
 
 **Status:** Proposed
 **Date:** 2026-03-01

@@ -1,4 +1,11 @@
 # ADR-0057: Launcher mechanism under core/scripts/launcher
+slug: launcher-mechanism-core-scripts-launcher
+serial: 0057
+domain: meta
+type: infrastructure
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

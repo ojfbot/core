@@ -1,4 +1,8 @@
 # ADR-0036: Lock-File Rebuild Protocol
+slug: lock-file-rebuild-protocol
+serial: 0036
+domain: meta
+type: infrastructure
 
 Date: 2026-04-04
 Status: Accepted

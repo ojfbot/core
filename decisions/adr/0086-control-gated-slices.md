@@ -1,4 +1,8 @@
 # ADR-0086: Control-Gated Slices — how we decompose and ship large agentic-harness work
+slug: control-gated-slices
+serial: 0086
+domain: meta
+type: process
 
 Date: 2026-06-04
 Status: Accepted

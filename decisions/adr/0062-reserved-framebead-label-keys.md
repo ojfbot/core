@@ -1,4 +1,11 @@
 # ADR-0062: Reserved FrameBead label keys
+slug: reserved-framebead-label-keys
+serial: 0062
+domain: gas-town-governance
+type: convention
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Status: Proposed

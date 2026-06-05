@@ -1,4 +1,8 @@
 # ADR-0026: CoreReader write-capability deferred to Phase 5, not Phase 1
+slug: corereader-write-capability-deferred-to-phase-5
+serial: 0026
+domain: observation
+type: process
 
 Date: 2026-03-18
 Status: Accepted

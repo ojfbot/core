@@ -1,4 +1,13 @@
 # ADR-0065: Zero-point and provenance convention
+slug: zero-point-and-provenance-convention
+serial: 0065
+domain: meta
+type: convention
+Note: Amended by ADR-0087 (stable-identity-and-facet-tags) — the numbering/branch/commit-key aspects below now follow the slug-as-identity scheme (merge key `ADR: <slug>` + retained `ADR: <serial>`; branch `adr/<slug>`). The zero-point + Provenance-table machinery here is unchanged.
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
+  amended-by: stable-identity-and-facet-tags
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

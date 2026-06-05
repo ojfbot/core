@@ -1,4 +1,8 @@
 # ADR-0044: Ubiquitous language layer (CONTEXT.md + GLOSSARY.md)
+slug: ubiquitous-language-layer
+serial: 0044
+domain: meta
+type: convention
 
 Date: 2026-04-28
 Status: Accepted

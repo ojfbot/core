@@ -1,4 +1,8 @@
 # ADR-0016: FrameBead — foundational work primitive for Frame Gas Town adoption
+slug: framebead-work-primitive
+serial: 0016
+domain: gas-town-governance
+type: architecture
 
 Date: 2026-03-09
 Status: Proposed

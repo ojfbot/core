@@ -1,4 +1,10 @@
 # ADR-0021: Rename .claude/commands/ → .claude/skills/
+slug: skills-directory-rename-from-commands
+serial: 0021
+domain: workflow-engine
+type: convention
+traces:
+  supersedes: skill-directories-over-flat-files
 
 Date: 2026-03-18
 Status: Accepted

@@ -1,4 +1,8 @@
 # ADR-0045: Skill /grill-with-docs for pre-planning Socratic alignment
+slug: grill-with-docs-skill
+serial: 0045
+domain: workflow-engine
+type: tooling
 
 Date: 2026-04-28
 Status: Accepted

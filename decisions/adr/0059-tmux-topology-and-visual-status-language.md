@@ -1,4 +1,11 @@
 # ADR-0059: tmux topology and visual status language
+slug: tmux-topology-and-visual-status-language
+serial: 0059
+domain: meta
+type: infrastructure
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

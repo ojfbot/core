@@ -1,4 +1,8 @@
 # ADR-0052: Bead prefix reservations for non-Frame rigs
+slug: bead-prefix-reservations-non-frame
+serial: 0052
+domain: gas-town-governance
+type: convention
 
 Date: 2026-04-28
 Status: Proposed

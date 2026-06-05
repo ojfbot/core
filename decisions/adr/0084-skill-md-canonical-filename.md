@@ -1,4 +1,8 @@
 # ADR-0084: SKILL.md is the canonical skill body filename (fleet-wide Skill-tool callability)
+slug: skill-md-canonical-filename
+serial: 0084
+domain: workflow-engine
+type: convention
 
 Date: 2026-06-04
 Status: Accepted

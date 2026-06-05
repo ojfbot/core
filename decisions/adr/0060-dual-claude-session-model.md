@@ -1,4 +1,11 @@
 # ADR-0060: Dual Claude session model
+slug: dual-claude-session-model
+serial: 0060
+domain: meta
+type: process
+traces:
+  parent: developer-day-orchestration-master
+  part-of-series: developer-day
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

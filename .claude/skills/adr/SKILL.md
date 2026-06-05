@@ -1,105 +1,125 @@
 ---
 name: adr
-description: Create, list, search, update, or publish Architecture Decision Records. Triggers on "adr new", "adr list", "adr search", "adr accept", "adr supersede", "adr publish".
+description: Create, list, search, accept, supersede, revise, or publish Architecture Decision Records. Triggers on "adr new", "adr list", "adr search", "adr accept", "adr supersede", "adr revise", "adr publish".
 ---
 
 # /adr — Architecture Decision Records
 
-Manage the `decisions/adr/` directory. ADRs are the written record of architectural decisions — the "why" layer that humans and commands can both reference.
+Manage `decisions/adr/`. ADRs are the written record of architectural decisions — the "why" layer.
 
-Arguments: `$ARGUMENTS`
+**Identity model (ADR-0087, NASA Configuration Management).** The `slug:` is each ADR's permanent,
+immutable identity — the Configuration Item "unchanging base". The 4-digit `serial:` is a
+**non-load-bearing display number** assigned once at `accept` (never reused, reserved, or renumbered).
+Cross-references use `adr:<slug>`, never the number. Read `decisions/adr/0087-stable-identity-and-facet-tags.md`
+for the full scheme before changing this skill's conventions.
 
----
+> **Load `knowledge/adr-template.md`** for the full frontmatter schema + controlled vocabularies.
 
-## Parse the arguments
+Arguments: `$ARGUMENTS`. Subcommands: `new "<title>"` · `list` · `search <kw>` · `accept <slug>` ·
+`supersede <old> <new>` · `revise <slug>` · `publish`. Default (no arg) → `list`.
 
-Determine the subcommand from `$ARGUMENTS`:
-
-- `new "<title>"` — create a new ADR stub
-- `list` — list all ADRs with their current status
-- `search <keyword>` — find ADRs matching a keyword
-- `accept <XXXX>` — update ADR status to Accepted
-- `supersede <XXXX> <YYYY>` — mark ADR-XXXX as superseded by ADR-YYYY
-- `publish` — sync `decisions/README.md` index from ADR files on disk
-
-If no subcommand is given, default to `list`.
-
----
-
-## `list`
-
-Read `decisions/README.md` and display the ADR index table. Then check `decisions/adr/` for any files not yet in the index and flag them as unregistered.
-
-Output format:
-```
-ADR-0001  Accepted  Module Federation over iframes for shell composition
-ADR-0002  Accepted  Single LLM gateway (frame-agent) for all sub-apps
-...
+Resolve slug↔serial↔file with the read-only helper (every mode uses it):
+```bash
+scripts/adr-slugs.sh            # prints: slug <TAB> serial <TAB> file   (one row per ADR + drafts)
 ```
 
 ---
 
 ## `new "<title>"`
 
-1. Count existing ADR files in `decisions/adr/` to determine the next ID (zero-padded to 4 digits).
-2. Generate the kebab-case filename from the title.
-3. Copy `decisions/adr/template.md`, fill in the ID, title, and today's date. Set `Status: Proposed`.
-4. Output the full path of the new file.
-5. Remind the user to:
-   - Fill in Context, Decision, Consequences, and Alternatives
-   - Add the OKR reference
-   - Run `/adr publish` to sync the README index when accepting
+1. **Derive the slug** = kebab-case(title), drop stopwords, ≤5 words (e.g. "Cache the tool manifest"
+   → `cache-tool-manifest`).
+2. **Uniqueness check** — run `scripts/adr-slugs.sh` and confirm the slug is not already present. On a
+   clash, disambiguate (add a qualifier) or ask the user; a slug is permanent, so pick well.
+3. **Write `decisions/adr/draft-<slug>.md`** from `decisions/adr/template.md`:
+   - `slug: <slug>`, `serial: draft`, `Status: Proposed`, `Date: <today>`.
+   - Prompt for `domain:` (offer the 7-value menu) and `type:` (offer the 6-value menu) — both REQUIRED.
+   - Leave `traces:` stubbed; **do not assign a number and do not reserve one.**
+4. Output the path. Remind: fill Context/Decision/Consequences/Alternatives + the Provenance table
+   (ADR-0065), then `/adr accept <slug>` when the decision lands.
+
+---
+
+## `accept <slug>`
+
+The **only** moment a number is born. (Accepts a slug or, for back-compat, a serial.)
+1. Resolve the draft file via the helper.
+2. Compute `serial = max(existing numeric serials) + 1`, zero-padded to 4 digits. (Monotonic; gaps are
+   never filled — they are meaningless by design.)
+3. Set `serial: <NNNN>`, `Status: Accepted`, add `Date accepted: <today>`, and update the `# ADR-<NNNN>:`
+   heading to carry the serial.
+4. `git mv decisions/adr/draft-<slug>.md decisions/adr/<NNNN>-<slug>.md`.
+5. Report the assigned serial. Suggest `/adr publish`.
+
+---
+
+## `supersede <old> <new>`  (slugs; serials also accepted)
+
+Write **both** sides (bidirectional traceability):
+- On `<old>`: set `Status: Superseded`, add `traces: superseded-by: <new-slug>`.
+- On `<new>`: add `traces: supersedes: <old-slug>`.
+
+Report both edits. Suggest `/adr publish`.
+
+---
+
+## `revise <slug>`  (NASA Rev letters — never renumber)
+
+For an in-place change to an **accepted** ADR (evolved decision, corrected detail):
+1. Resolve the file. Bump `rev:` (absent → `A` → `B` → …).
+2. Append `(revised <today> — <one-line why>)` to the `Date:` line.
+3. **slug, serial, and filename stay fixed.** This is the path that replaces renumbering.
+
+Report the new rev. (If the decision is genuinely replaced rather than revised, use `supersede` with a
+new ADR instead.)
 
 ---
 
 ## `search <keyword>`
 
-Grep `decisions/adr/` for the keyword (case-insensitive). Return matching ADR titles and the lines that matched, with file paths.
+Grep `decisions/adr/` case-insensitively. Return matching titles + matched lines + paths, surfacing
+each hit's `slug` / `domain` / `type`.
 
 ---
 
-## `accept <XXXX>`
+## `list`
 
-Read `decisions/adr/XXXX-*.md`. Change `Status: Proposed` to `Status: Accepted`. Confirm the update. Suggest running `/adr publish` to sync the README index.
-
----
-
-## `supersede <XXXX> <YYYY>`
-
-Read `decisions/adr/XXXX-*.md`. Change its status line to `Status: Superseded-by: ADR-YYYY`. Output the updated status line. Suggest running `/adr publish` to sync the README index.
+Group by `domain`, then `type`; within a group sort by serial. List drafts (serial=`draft`) in a
+separate **"Proposed (unnumbered)"** section. Each row: `serial · slug · status · rev?`.
+`--by-serial` flag → flat chronological view instead.
 
 ---
 
 ## `publish`
 
-Sync the `decisions/README.md` ADR index from the actual ADR files on disk.
+Regenerate `decisions/README.md` AND lint the trace graph.
 
-### Step 1 — read all ADR files
+### Step 1 — read every ADR
+Glob `decisions/adr/[0-9]*.md` + `draft-*.md`. Parse `slug`, `serial`, `domain`, `type`, `Status`,
+`rev`, `traces`, and the title from the heading.
 
-Glob `decisions/adr/[0-9]*.md`. For each file, extract:
-- **ID** — 4-digit number from the filename
-- **Title** — from the `# ADR-XXXX: <title>` heading
-- **Status** — from the `Status:` front-matter line
-- **Date** — from the `Date:` front-matter line (use the year-month portion, e.g. `2026-02`)
+### Step 2 — dangling-trace lint (the anti-rot gate)
+For every `traces:` value across all ADRs, confirm the slug resolves to a file on disk (use the
+helper). **Any unresolved slug is an error** — report it and stop before writing. This structurally
+forbids the phantom-reservation rot ADR-0087 exists to kill.
 
-### Step 2 — reconcile the README index table
-
-If `decisions/README.md` does not exist, output an error and stop:
-> `Error: decisions/README.md not found. Create it before running publish.`
-
-Read `decisions/README.md`. Rebuild the `| ID | Title | Status | Date |` table rows from the ADR files:
-- Add rows for any ADR not currently in the table
-- Update `Status` and `Date` cells for any ADR whose values differ from the file
-
-Write the updated `decisions/README.md` if any changes were made. Report what changed (added rows, updated statuses). If nothing changed, output: `Index is already up to date.`
+### Step 3 — rebuild the index
+Write `decisions/README.md` as **one table per `domain`** (the six bounded contexts + `meta`), each
+row `serial · [title](<file>) · type · status · rev?`, sorted by serial. Append a collapsed
+**by-serial appendix** for ordinal scanning, and a **Proposed (unnumbered)** section for drafts.
+Report what changed; if nothing changed, `Index is already up to date.`
 
 ---
 
 ## Always remind
 
-After any write operation:
-> Remember the 3-places rule: if this ADR captures a corrected mistake, also update the relevant `knowledge/` file and `memory/MEMORY.md`.
+After any write:
+> 3-places rule: if this ADR captures a corrected mistake, also update the relevant `knowledge/` file
+> and `memory/MEMORY.md`.
+
+When a decision lands on a branch, the merge commit carries `ADR: <slug>` (canonical) **and**
+`ADR: <serial>` (back-compat); branch naming is `adr/<slug>` (ADR-0065 as amended by ADR-0087).
 
 ## See Also
-- Run `/doc-refactor` to update documentation reflecting the decision.
-- Run `/plan-feature` to plan implementation of the decided approach.
+- `decisions/adr/0087-stable-identity-and-facet-tags.md` — the identity + facet scheme.
+- `/doc-refactor` to propagate the decision into docs; `/plan-feature` to plan implementation.
