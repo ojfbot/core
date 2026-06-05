@@ -63,6 +63,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 
 **Aggregates**
 - `Skill` — orchestration prompt at `.claude/skills/<name>/SKILL.md` plus optional `knowledge/` and `scripts/`. Invoked as `/<name>` or `Skill(<name>)`. Source of truth for behavior.
+- `Subagent` — _(ADR-0082)_ a *defined* `.claude/agents/<name>.md` agent with a restricted `tools`/`model` frontmatter. **Default-deny:** prefer a `Skill` (reusable interactive workflow) or the Agent tool's **native delegation** (ad-hoc, no committed artifact, already quarantines its transcript); define a `Subagent` only for an *experienced* need for tool-isolation, model-downgrade, or hard context-isolation. As of 2026-06-04 the fleet defines **none** (all three triggers theoretical). Distinct from cv-builder's `.agents/registry.json` (a separate event/NL-triggered automation system) and from `/orchestrate` + `WorkflowEngine` (deterministic multi-agent fan-out).
 - `Rule` — _(proposed, ADR-0081)_ path-scoped instruction at `.claude/rules/<area>.md` with `paths:` frontmatter; auto-loaded by Claude only when the edited file matches the scope. Layer 1 of the instruction progressive-disclosure stack (CLAUDE.md = Layer 0 always-loaded; `domain-knowledge/` + skill = Layer 2 on-demand). Not yet present in any repo — introduced by ADR-0081.
 - `SkillCatalog` — `.claude/skills/skill-loader/knowledge/skill-catalog.json`. Registry of all skills with triggers, tier, phase, tags. Drives the suggest-skill hook.
 - `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity).
@@ -79,6 +80,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - _(proposed, ADR-0081)_ CLAUDE.md content is routed by loading-discipline: always-relevant → CLAUDE.md (Layer 0); path-conditional → `rules/` (Layer 1); task-conditional reference → `domain-knowledge/` + skill (Layer 2); stale → deleted. `@import`-relocation that preserves the always-loaded footprint is forbidden — the metric is footprint, not line count.
 - `mode=apply` skills (e.g. `/techdebt`) only patch paths in the allowlist (`packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`).
 - New skills land in core first. Sibling repos receive them via `install-agents.sh` symlinks.
+- _(ADR-0082)_ Subagent default-deny: a defined `.claude/agents/` `Subagent` is adopted only for an *experienced* tool-isolation / model-downgrade / context-isolation need; otherwise reach for a `Skill` or the Agent tool's native delegation. The fleet defines none today (all three triggers theoretical).
 
 **See:** ADR-0021–0026 (skill directory structure), ADR-0037 (skill telemetry), `skill-loader/knowledge/skill-catalog.json`, `agent-defaults.md` (default grilling posture for every session).
 

@@ -226,6 +226,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **SSE (Server-Sent Events)** — Streaming pattern used to surface agent progress to the browser. Used by every agent-graph app.
 
+**Subagent (`.claude/agents/`)** — _(ADR-0082)_ A *defined* agent file with restricted `tools`/`model` frontmatter, distributed via `install-agents.sh`. **Default-deny:** prefer a *Skill* or the *Agent (Claude Code)* tool's native delegation; define one only for an experienced tool-isolation, model-downgrade, or hard context-isolation need. The fleet defines **none** today (all three triggers theoretical). Not to be confused with *Agent (Claude Code)* (ad-hoc native delegation, no committed file) or cv-builder's `.agents/registry.json` (separate event-automation system).
+
 **Stamp** — Reputation unit in Wasteland federation. Multi-dimensional: quality, reliability, creativity.
 
 **StandupFunnel** — Measurement of `/frame-standup` Step 7 suggestions through four stages (suggested → launched → addressed → closed). Drop-off rates expose adoption vs. efficacy gaps. Telemetry in `~/.claude/standup-telemetry.jsonl`. See CONTEXT.md §5 and ADR-0054.
