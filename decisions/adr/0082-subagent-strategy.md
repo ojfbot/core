@@ -1,45 +1,70 @@
-# ADR-0082: Subagent strategy — when `.claude/agents/` vs skill vs workflow engine
+# ADR-0082: Subagent strategy — default to skills + native delegation; `.claude/agents/` deferred
 
 Date: 2026-06-04
-Status: Proposed
-OKR: [TBD — Q2 / workflow-engine hygiene]
+Status: Accepted
+OKR: [Q2 / workflow-engine hygiene]
 Commands affected: /council-review, /pr-review, /orchestrate, install-agents.sh
 Repos affected: core (canonical agents/), cv-builder (.agents/ + 3 subagents), all repos (distribution)
 
 ---
 
-> **Stub — proposed for a later `/grill-with-docs` session.** Scaffolded 2026-06-04 from the Newline "Setting Up Claude Code" config audit (`~/selfco/wiki/synthesis/newline-setup-vs-ojfbot-claude-config.md`). Not a finished decision.
+> Developed via `/grill-with-docs` on 2026-06-04 from the Newline "Setting Up Claude Code" config audit (`~/selfco/wiki/synthesis/newline-setup-vs-ojfbot-claude-config.md`). **Key finding of the grill: all three justifications for a defined subagent are *theoretical* for the fleet today** — so this ADR ratifies the *rubric* and deliberately defines **zero** subagents. It is a "why we don't (yet)" decision.
 
 ## Context
 
-The fleet has invested heavily in **skills** (47 in core) and **hooks** (16 scripts), but barely in **subagents**: only `core` defines one (`queued-prompt-executor`) and `cv-builder` three. The Newline course lesson teaches `.claude/agents/` as a first-class power feature for three jobs: (1) **tool isolation** (a reviewer with `tools: [Read, Grep, Glob]` that physically cannot write), (2) **cheaper-model delegation** (run a simple pass on Haiku), (3) **context isolation** (keep a large analysis out of the main session).
+The fleet has invested heavily in **skills** (47 in core) and **hooks** (16 scripts), but barely in **subagents**: only `core` defines one (`queued-prompt-executor`) and `cv-builder` three. The Newline lesson teaches `.claude/agents/` as a first-class power feature for three jobs: (1) **tool isolation** (a reviewer with `tools: [Read, Grep, Glob]` that physically cannot write), (2) **cheaper-model delegation** (run a simple pass on Haiku), (3) **context isolation** (keep a large analysis out of the main session). Its canonical example is a read-only `code-reviewer` subagent.
 
-The fleet currently does review work as *skills* (`council-review`, `pr-review`) — invoked in the main context, with the main session's full tool access. The lesson's canonical example (a read-only `code-reviewer` subagent) is a genuinely unfilled surface: a reviewer skill can be prompted "don't edit," but a subagent with a restricted tool list *can't* edit, which is a stronger and auditable guarantee.
+Three other things look like "delegate to a sub-process" and get conflated:
+- The **Agent tool's native delegation** — the main agent spawning a subagent ad hoc (`subagent_type`: Explore, Plan, general-purpose). Already available, needs no committed artifact, and already quarantines the subagent's transcript from the main context.
+- cv-builder's **`.agents/registry.json`** — programmatic NL/event-triggered automation (a *different* system; see core `CLAUDE.md` § "The `.agents/` system").
+- **`/orchestrate` + the `@core/workflows` engine** — deterministic multi-agent fan-out/control-flow.
 
-This is muddied by **three overlapping mechanisms** that all look like "delegate to a sub-process": `.claude/agents/` (Claude Code subagents), cv-builder's `.agents/registry.json` (programmatic NL-triggered automation — a *different* system, see core `CLAUDE.md` § "The `.agents/` system"), and `/orchestrate`'s 4-layer agent pipeline + the `@core/workflows` TS engine. There is no written rule for which to reach for.
+There was no written rule for which to reach for.
 
 ## Decision
 
-*(Direction, not yet ratified.)* Define a **decision rubric**: reach for a `.claude/agents/` subagent when you need *tool restriction*, *model downgrade*, or *hard context isolation*; reach for a **skill** when you need a reusable, interactively-invoked workflow with full tooling; reach for the **workflow engine / `/orchestrate`** when you need deterministic multi-agent fan-out/control-flow. As a first concrete adoption, promote the read-only review path to a tool-restricted `code-reviewer` subagent that `council-review`/`pr-review` delegate to, and distribute it via `install-agents.sh`.
+Adopt a **default-deny subagent rubric**. In priority order:
+
+1. **Default — a `Skill`** (`.claude/skills/<name>/SKILL.md`) for any reusable, interactively-invoked workflow with full tooling.
+2. **Native `Agent`-tool delegation** for a one-off sub-task or to keep a large sub-analysis out of the main context. No artifact to define; the result returns, the transcript does not.
+3. **The workflow engine / `/orchestrate`** when you need *deterministic* multi-step, multi-agent control-flow (loops, barriers, structured-output fan-out across many agents).
+4. **A *defined* `.claude/agents/` `Subagent`** — adopt one **only** when you can name a concrete, *experienced* need for one of three guarantees that 1–3 cannot give:
+   - **Tool-isolation** — an auditable can't-write guarantee (stronger than a told-not-to-write skill);
+   - **Model-downgrade** — a cost win a skill / `callClaude({model})` cannot already express;
+   - **Hard context-isolation** — beyond what native `Agent`-tool delegation already provides.
+
+   **As of 2026-06-04 all three are theoretical for the fleet → we define ZERO `.claude/agents/` subagents.** The grill confirmed the headline trigger (tool-isolation) is not load-bearing: `council-review`/`pr-review` have not edited code mid-review, and the other two triggers are already covered by skills' model selection and native delegation respectively.
+
+5. cv-builder's `.agents/registry.json` is a **separate system** (event/NL-triggered automation), **never** a Claude Code subagent. The rubric names the distinction so they are not conflated.
+
+**Concrete:** do **not** build the read-only `code-reviewer` subagent now. Review stays a skill. The reviewer + the three triggers are recorded below as the named revisit conditions.
+
+## Revisit triggers
+
+Re-open this decision (and build the reviewer subagent as **Slice 1** under the Control-Gated Slices pattern, ADR-0086) when any trigger becomes **real and observed**:
+
+- a "review"/analysis skill **edits code when it shouldn't have**, or you need an auditable non-mutating guarantee for a compliance/safety reason → tool-isolation is now real;
+- a **measured** cost win from a downgraded pass that a skill's own model selection cannot capture → model-downgrade is real;
+- a **context-pollution incident** where a big sub-analysis degraded the main session and native delegation didn't quarantine it → context-isolation is real.
 
 ## Consequences
 
 ### Gains
-- Auditable least-privilege for review/analysis (can't-write beats told-not-to-write).
-- Cheaper passes via model downgrade where quality allows.
-- A clear answer to "skill vs subagent vs orchestrate," reducing the current ad-hoc choice.
+- A clear, written answer to "skill vs native-delegation vs orchestrate vs subagent," ending the ad-hoc choice.
+- Avoids a **fourth distribution mechanism** in `install-agents.sh` and the bitter-lesson trap (`[[heresy-vibe-coded-codebases]]`: don't add a mechanism the model's native delegation already covers) — bought for free by the default-deny posture.
+- The revisit triggers make the future "yes" a *data-gated* decision, not a vibe.
 
 ### Costs
-- A fourth thing to distribute and keep coherent (`install-agents.sh` already handles skills/hooks/domain-knowledge/decisions; agents/ would join it).
-- Risk of re-implementing as a subagent what a skill already does well — net complexity if the rubric isn't disciplined (cf. the bitter lesson / `[[heresy-vibe-coded-codebases]]`: don't add a mechanism the model's native delegation already covers).
+- The auditable tool-isolation use-case stays **unserved** until a trigger fires — accepted deliberately (it's theoretical today).
+- The rubric must be *enforced by discipline*, not tooling; a future contributor could still scaffold a needless subagent. Mitigation: this ADR + the GLOSSARY/CONTEXT entries are the reference.
 
 ### Neutral
-- cv-builder's `.agents/` system stays *complementary* (event/NL-triggered automation), not merged with `.claude/agents/`; the rubric must name the distinction so they don't get conflated.
+- cv-builder's `.agents/` system stays *complementary*, untouched.
 
 ## Alternatives considered
 
-| Alternative | Why rejected (tentatively) |
-|-------------|----------------------------|
-| Keep review as skills only | Loses the auditable tool-restriction guarantee the lesson's example provides; the main session retains write access during "review." |
-| Use `/orchestrate` + TS engine for everything | Heavier than needed for a single read-only pass; orchestration is for deterministic multi-step fan-out, not a lone restricted reviewer. |
-| Do nothing (skills + hooks are enough) | Defensible given the bitter-lesson caution, but leaves the tool-isolation use-case unserved and the skill-vs-subagent choice undocumented. |
+| Alternative | Why rejected |
+|-------------|--------------|
+| **Build the read-only `code-reviewer` subagent now** (the stub's original direction) | Its can't-write guarantee solves a **theoretical** problem — review skills have not caused mid-review edits. Building it adds a fourth distributed mechanism for no experienced need (bitter-lesson trap). Deferred to the revisit triggers. |
+| Use `/orchestrate` + TS engine for review | Heavier than needed for a lone read-only pass; orchestration is for deterministic multi-step fan-out. |
+| Do nothing / write no rubric | Leaves the "which mechanism?" confusion and the four-way conflation undocumented — the one real, present cost the audit found. The rubric is the deliverable. |
