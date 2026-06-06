@@ -65,6 +65,56 @@ Agent Skill), and `git pull` keeps `~/selfco` current. The Mac-side `/vault` ski
 `git pull --rebase --autostash` before and `git push` after its writes when `$V` has a remote — so the Mac
 and the GitHub view stay in sync without thinking.
 
+### Claude Code → Obsidian over MCP (verified working 2026-06-06)
+
+Separate from the Desktop path above: **Claude Code (the CLI)** can reach the vault directly via its native
+HTTP-MCP support. As of plugin **v4.1.3 the "Local REST API with MCP" plugin serves an MCP endpoint itself**
+at `/mcp/` — no separate `mcp-obsidian` wrapper needed for the simple case. Two routes:
+
+**Route 1 — loopback HTTP (simplest; fine on `127.0.0.1`).** Traffic never leaves the machine, so the lack of
+TLS is not a real exposure. In Obsidian → Local REST API settings, toggle on the **non-encrypted HTTP server**
+(port **27123**; 27124 is HTTPS). Then, at **user scope** (so the key never lands in a repo-tracked file):
+```
+claude mcp add obsidian "http://127.0.0.1:27123/mcp/" -t http -s user -H "Authorization: Bearer <KEY>"
+claude mcp get obsidian   # MUST show the Authorization header
+```
+**Gotcha that bit us:** `-H/--header` takes a *variadic* value, so if it appears before the positional
+name/url it silently swallows them and the header is dropped — leaving an unauthenticated entry that fails
+with `401 "Authorization required."`. Put `--header` **last** (positionals first), and verify with
+`claude mcp get`. Reload with a fresh session or `/mcp` → reconnect.
+
+**Route 2 — verified HTTPS (encrypted *and* cert-verified; the secure option).** Claude Code's http transport
+has no per-server cert-trust flag, and the plugin's cert is self-signed, so HTTPS via the native http transport
+fails the TLS check. Use the **stdio `cyanheads/obsidian-mcp-server`** instead — it talks to Obsidian itself
+(handling the cert) and speaks stdio to Claude Code. First trust the plugin's cert explicitly (adds *one* cert;
+disables nothing):
+```
+mkdir -p ~/.config/obsidian-rest
+echo | openssl s_client -connect 127.0.0.1:27124 -servername 127.0.0.1 2>/dev/null \
+  | openssl x509 -outform PEM > ~/.config/obsidian-rest/cert.pem
+claude mcp add obsidian -s user \
+  -e OBSIDIAN_API_KEY=<KEY> \
+  -e OBSIDIAN_BASE_URL=https://127.0.0.1:27124 \
+  -e OBSIDIAN_VERIFY_SSL=true \
+  -e NODE_EXTRA_CA_CERTS=$HOME/.config/obsidian-rest/cert.pem \
+  -- npx -y obsidian-mcp-server@latest
+```
+`VERIFY_SSL=true` + `NODE_EXTRA_CA_CERTS` = full verification against that one cert; nothing globally disabled
+(never `NODE_TLS_REJECT_UNAUTHORIZED=0`). **Do not disable TLS verification** (`OBSIDIAN_VERIFY_SSL=false` /
+`NODE_TLS_REJECT_UNAUTHORIZED=0`) to "make it work" — unverified TLS gives a false sense of security (it's still
+MITM-able) while looking encrypted. If cyanheads doesn't honor `NODE_EXTRA_CA_CERTS`, **fall back to Route 1
+(loopback HTTP) instead** — on `127.0.0.1` that's honestly local rather than fake-secure. **Bonus:** cyanheads
+adds BM25/Omnisearch ranking + surgical block-level PATCH. Re-run `openssl` if the plugin regenerates its cert.
+
+**Native vs cyanheads:** the native `/mcp/` endpoint (Route 1) is the zero-extra-dependency quick start, but its
+`search_simple` is Obsidian's fuzzy search — it over-matches multi-word queries and can return enormous results.
+cyanheads (Route 2) is the better toolset (BM25 ranking, surgical PATCH). Either way the vault is plain markdown
+on disk that Claude Code can also read/write with filesystem tools + grep — so the MCP's real payoff is search
+ranking + surgical edits + parity with how Claude Desktop reaches the same vault.
+
+**Secret hygiene:** always add at `--scope user` (key lands in `~/.claude.json`, not committed). Never put the
+bearer token in a project-root `.mcp.json` — several sibling repos are git repos and would leak it.
+
 ## Writing from a Claude chat — the Notion `📥 selfco — Inbox` (canonical write path)
 
 From claude.ai web, the iPhone app, or anywhere else you can edit a Notion DB, drop a row into the canonical
