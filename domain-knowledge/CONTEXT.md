@@ -66,10 +66,11 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - `Subagent` — _(ADR-0082)_ a *defined* `.claude/agents/<name>.md` agent with a restricted `tools`/`model` frontmatter. **Default-deny:** prefer a `Skill` (reusable interactive workflow) or the Agent tool's **native delegation** (ad-hoc, no committed artifact, already quarantines its transcript); define a `Subagent` only for an *experienced* need for tool-isolation, model-downgrade, or hard context-isolation. As of 2026-06-04 the fleet defines **none** (all three triggers theoretical). Distinct from cv-builder's `.agents/registry.json` (a separate event/NL-triggered automation system) and from `/orchestrate` + `WorkflowEngine` (deterministic multi-agent fan-out).
 - `Rule` — _(proposed, ADR-0081)_ path-scoped instruction at `.claude/rules/<area>.md` with `paths:` frontmatter; auto-loaded by Claude only when the edited file matches the scope. Layer 1 of the instruction progressive-disclosure stack (CLAUDE.md = Layer 0 always-loaded; `domain-knowledge/` + skill = Layer 2 on-demand). Not yet present in any repo — introduced by ADR-0081.
 - `SkillCatalog` — `.claude/skills/skill-loader/knowledge/skill-catalog.json`. Registry of all skills with triggers, tier, phase, tags. Drives the suggest-skill hook.
-- `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity).
+- `Hook` — shell script at `scripts/hooks/<name>.sh` bound to a Claude Code lifecycle event in `.claude/settings.json`. Three present: `log-skill.sh` (PostToolUse Skill — telemetry), `suggest-skill.sh` (UserPromptSubmit — recommendations), `pr-skill-audit.sh` (CI — coverage report). Fourth: `bead-session.sh` (PostToolUse Skill+Bash — session continuity). Fifth _(proposed, adr:envisioned-capability-marker)_: `envisioned-lint.sh` (CI + optional pre-commit — bidirectional marker lint: containment / reference-tag / stale-marker; first plank of the fleet-wide markdown-lint layer).
 - `Telemetry` — `~/.claude/skill-telemetry.jsonl` (invocations) and `~/.claude/suggestion-telemetry.jsonl` (suggestions). Append-only, JSONL, user-level.
 - `WorkflowEngine` — TypeScript runtime in `packages/workflows/`. Provides `runWorkflow()` for CLI/CI use; reads the same `.claude/skills/` files via `fileBackedWorkflow`.
 - `FrameDev` — multi-app dev-server orchestrator at `scripts/frame-dev.sh`, surfaced as `/frame-dev`. Registers each runnable rig with start/stop/status semantics; logs land in `/tmp/frame-dev-logs/<app>.log`. Dispatches by `RigProfile`: frame rigs use `pnpm dev:all` (web + API), non-frame rigs declare a custom `start_cmd` (e.g. `pnpm dev` Vite for beaverGame, `pnpm gen-asset --watch`-equivalent for asset-foundry). Idempotent port-checks; safe to re-run. See ADR-0051.
+- `EnvisionedCapability` — _(proposed, adr:envisioned-capability-marker)_ a desired-but-unbuilt capability (lib, app, integration, or future `Skill`) captured as a note carrying the frontmatter field `envisioned: idea | shaped | ready-to-build`. **Presence of the field ⇒ the thing does not exist yet**; absence ⇒ real (graduation = deleting the field). Quarantined by *marker, not location* — the note lives beside related code or in `SelfcoVault`. The maturity ladder gates allowed detail: `idea` (name + why) → `shaped` (prose shape, no signatures) → `ready-to-build` (interfaces allowed, build imminent). Orthogonal to the skill `status:` lifecycle (active/in-progress/deprecated, ADR-0083) and the vault page `status:` (seedling/growing/evergreen). Captured/advanced via `/envision`; enforced by the `envisioned-lint` Hook.
 
 **Entities / value objects**
 - `Tier` (1=mandatory, 2=recommended, 3=passive), `Phase` (planning, alignment, implementation, debugging, validation, release, etc.), `Trigger` (string array matched word-overlap by suggest-skill).
@@ -81,6 +82,7 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - `mode=apply` skills (e.g. `/techdebt`) only patch paths in the allowlist (`packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`).
 - New skills land in core first. Sibling repos receive them via `install-agents.sh` symlinks.
 - _(ADR-0082)_ Subagent default-deny: a defined `.claude/agents/` `Subagent` is adopted only for an *experienced* tool-isolation / model-downgrade / context-isolation need; otherwise reach for a `Skill` or the Agent tool's native delegation. The fleet defines none today (all three triggers theoretical).
+- _(proposed, adr:envisioned-capability-marker)_ An `EnvisionedCapability` note must not contain stage-inappropriate detail (no signatures/interfaces/contract-language before `ready-to-build`); every inbound reference to its name carries an inline `— envisioned` tag; no `— envisioned` tag survives the referent's graduation.
 
 **See:** ADR-0021–0026 (skill directory structure), ADR-0037 (skill telemetry), `skill-loader/knowledge/skill-catalog.json`, `agent-defaults.md` (default grilling posture for every session).
 
@@ -243,6 +245,8 @@ Same word, different contexts. Resolve by surrounding context.
 | **Bead** | n/a | Atomic unit of work + the file produced by `/bead` skill |
 
 When in doubt, prefix: "Claude Code hook" vs. "Gas Town hook"; "skill telemetry" vs. "bead telemetry."
+
+`status:` vs `envisioned:` — `status:` is the lifecycle of a *real* thing (skill: active/in-progress/deprecated; vault page: seedling/growing/evergreen); `envisioned:` (idea/shaped/ready-to-build) means the thing isn't real *at all* yet. Orthogonal axes — a note can be `status: seedling` **and** `envisioned: shaped`. _(proposed, adr:envisioned-capability-marker)_
 
 ---
 
