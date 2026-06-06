@@ -12,17 +12,29 @@ whose frontmatter has `category: reference-data` (class-level: Landsat/ERA5-styl
 entities collectively) or `staleness: ignore` (page-level operator override). Surface-only —
 never moves, never deletes.
 
+With `--suggest-links` (serendipitous linking; selfco-tooling-adoption-2026): reports STRUCTURAL
+candidate links — pairs of pages not yet directly linked but sharing many neighbours in the
+wikilink graph, ranked by Adamic-Adar (co-citation / common-neighbours, the read-only core of the
+old `obsidian-graph-analysis` plugin reimplemented agent-side, no embeddings). `index.md`, `log.md`,
+and underscore-prefixed scratch files (e.g. `_suggested-links.md`) are excluded from the graph so
+the index hub doesn't make everything a common neighbour. Output is candidates only — the LLM
+applies semantic judgment and writes the read-only `wiki/_suggested-links.md` sidecar; nothing is
+ever auto-inserted into a canonical page.
+
 Vault root: positional argument, or $SELFCO_VAULT, or ~/selfco. A path ending in /wiki is
 accepted as a convenience (vault root inferred). Exit 0 always (it's a report).
 """
 from __future__ import annotations
 
 import argparse
+import math
 import os
 import re
 import subprocess
 import sys
 import time
+from collections import defaultdict
+from itertools import combinations
 from pathlib import Path
 
 WIKILINK_RE = re.compile(r"\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]")
@@ -164,6 +176,79 @@ def is_stale(
     return True, hint, age, last_log
 
 
+def _canonical_id(page: Path, wiki: Path) -> str:
+    """Folder-qualified slug, e.g. 'concepts/llm-wiki' — stable graph node id."""
+    return str(page.relative_to(wiki).with_suffix("")).replace(os.sep, "/")
+
+
+def _excluded_node(cid: str) -> bool:
+    """Hubs and scratch files are not real graph nodes: index.md/log.md (index links every page
+    by schema, so it'd be a common neighbour of everything) and underscore-prefixed files
+    (generated scratch like _suggested-links.md itself)."""
+    base = cid.split("/")[-1]
+    return base in ("index", "log") or base.startswith("_")
+
+
+def build_link_graph(wiki: Path) -> dict[str, set[str]]:
+    """Undirected wikilink neighbour map over real wiki pages (hubs/scratch excluded)."""
+    cid_of: dict[str, str] = {}  # any link target form (folder/stem or bare stem) → canonical id
+    for p in wiki.rglob("*.md"):
+        cid = _canonical_id(p, wiki)
+        cid_of[cid] = cid
+        cid_of.setdefault(p.stem, cid)  # bare-stem fallback; folder-qualified wins on collision
+    neighbours: dict[str, set[str]] = {}
+    for p in wiki.rglob("*.md"):
+        src = _canonical_id(p, wiki)
+        if _excluded_node(src):
+            continue
+        neighbours.setdefault(src, set())
+        text = strip_noise(p.read_text(encoding="utf-8", errors="ignore"))
+        for m in WIKILINK_RE.finditer(text):
+            target = m.group(1).strip()
+            tgt = cid_of.get(target) or cid_of.get(target.split("/")[-1])
+            if not tgt or tgt == src or _excluded_node(tgt):
+                continue
+            neighbours.setdefault(tgt, set())
+            neighbours[src].add(tgt)
+            neighbours[tgt].add(src)
+    return neighbours
+
+
+def suggest_links(
+    neighbours: dict[str, set[str]], top: int, min_common: int, hub_degree: int = 0
+) -> list[tuple[str, str, float, int]]:
+    """Adamic-Adar over the wikilink graph: for each shared neighbour c, every non-adjacent pair
+    of c's neighbours scores 1/log(deg(c)) — rare shared neighbours weigh more than hubs. Returns
+    (a, b, score, shared_count) for the top non-adjacent pairs with >= min_common shared neighbours.
+
+    hub_degree > 0 hard-excludes any page with degree > hub_degree from acting as a shared
+    neighbour — beyond Adamic-Adar's soft damping. On selfco this strips catalog-sibling noise
+    (e.g. two repos that merely co-appear in ecosystem-map/cluster-status), leaving genuine
+    conceptual co-citation. 0 disables the cutoff (pure Adamic-Adar)."""
+    aa: dict[tuple[str, str], float] = defaultdict(float)
+    common: dict[tuple[str, str], int] = defaultdict(int)
+    for c, nbrs in neighbours.items():
+        deg = len(nbrs)
+        if deg < 2:  # log(1)=0; a degree-1 neighbour says nothing about a pair
+            continue
+        if hub_degree and deg > hub_degree:  # catalog/hub page — co-membership isn't a real A–B signal
+            continue
+        weight = 1.0 / math.log(deg)
+        for a, b in combinations(sorted(nbrs), 2):
+            if b in neighbours.get(a, ()):  # already directly linked → not a suggestion
+                continue
+            key = (a, b)
+            aa[key] += weight
+            common[key] += 1
+    rows = [
+        (a, b, score, common[(a, b)])
+        for (a, b), score in aa.items()
+        if common[(a, b)] >= min_common
+    ]
+    rows.sort(key=lambda r: (-r[2], -r[3]))
+    return rows[:top]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="lint.py — selfco vault health check (ADR-0069); --stale per ADR-0080",
@@ -183,6 +268,29 @@ def main() -> int:
         type=int,
         default=90,
         help="Staleness threshold in days (default 90). Per ADR-0080: tighten to 60 if 0 flagged; loosen to 180 if >25.",
+    )
+    ap.add_argument(
+        "--suggest-links",
+        action="store_true",
+        help="Report structural candidate links (Adamic-Adar over the wikilink graph) for the LLM to judge and file into wiki/_suggested-links.md. Never auto-inserts.",
+    )
+    ap.add_argument(
+        "--top",
+        type=int,
+        default=30,
+        help="With --suggest-links: max candidate pairs to report (default 30).",
+    )
+    ap.add_argument(
+        "--min-common",
+        type=int,
+        default=2,
+        help="With --suggest-links: minimum shared neighbours for a candidate pair (default 2; raise to cut noise).",
+    )
+    ap.add_argument(
+        "--hub-degree",
+        type=int,
+        default=0,
+        help="With --suggest-links: exclude pages with degree > N as shared neighbours (strips catalog-sibling noise; 0 = pure Adamic-Adar). Try ~15 on selfco.",
     )
     args = ap.parse_args()
 
@@ -219,7 +327,9 @@ def main() -> int:
                 broken.append((str(p.relative_to(v)), target))
 
     orphans = [p for p in wiki.rglob("*.md")
-               if p.name not in ("index.md", "log.md") and inbound.get(p.stem, 0) == 0]
+               if p.name not in ("index.md", "log.md")
+               and not p.name.startswith("_")  # generated scratch (e.g. _suggested-links.md) is non-canonical
+               and inbound.get(p.stem, 0) == 0]
 
     # raw/ items not referenced by any wiki/sources/ page
     raw_items: list[Path] = []
@@ -273,6 +383,29 @@ def main() -> int:
             "no git edits in --days ∧ ≤1 log.md section mentions it. Surface-only — never "
             "destructive. Escape hatches: `category: reference-data` (class) or "
             "`staleness: ignore` (page). See ADR-0079 / ADR-0080.)"
+        )
+
+    # --suggest-links: serendipitous-linking candidates (structural, read-only). The graph
+    # algorithms surface pairs that *look* related by topology; the LLM decides which are real
+    # and writes the wiki/_suggested-links.md sidecar. Never auto-inserts into a canonical page.
+    if args.suggest_links:
+        neighbours = build_link_graph(wiki)
+        rows = suggest_links(neighbours, args.top, args.min_common, args.hub_degree)
+        hub_note = f", hub-degree {args.hub_degree}" if args.hub_degree else ""
+        print(f"\n== suggested links (structural; Adamic-Adar, top {args.top}, "
+              f"min-common {args.min_common}{hub_note}): {len(rows)} ==")
+        if rows:
+            print()
+            print("| Score | Shared | Page A | Page B |")
+            print("|---|---|---|---|")
+            for a, b, score, shared in rows:
+                print(f"| {score:.2f} | {shared} | [[{a}]] | [[{b}]] |")
+        print(
+            "\n(Candidates are non-adjacent page pairs sharing >= --min-common neighbours in the "
+            "wikilink graph, scored by Adamic-Adar — co-citation/common-neighbours, no embeddings. "
+            "index.md/log.md/_*-files are excluded as hubs/scratch. These are SUGGESTIONS for the "
+            "LLM to judge; file the ones that hold up into the read-only wiki/_suggested-links.md "
+            "sidecar — never auto-insert links into canonical pages.)"
         )
 
     print("\n(Semantic checks — contradictions, stale claims, missing cross-refs — are the LLM's job; "
