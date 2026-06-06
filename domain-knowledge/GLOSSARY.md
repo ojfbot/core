@@ -78,6 +78,16 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Entrance Criteria** — *NASA SEH term.* The minimum accomplishments a slice must fulfill *before starting* a Control Gate. The entry half of a gate (the exit half is **Success Criteria**). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
+**EnvisionedCapability** — _(proposed, adr:envisioned-capability-marker)_ A desired-but-unbuilt capability (lib, app, integration, or future skill) captured as a note marked `envisioned: idea|shaped|ready-to-build`; quarantined by marker not location; graduates to real by deleting the field. (CONTEXT.md § Workflow Engine)
+
+**envisioned: (frontmatter field)** — _(proposed, adr:envisioned-capability-marker)_ Presence ⇒ the capability does not exist yet; value ⇒ maturity-ladder stage (`idea`→`shaped`→`ready-to-build`). Orthogonal to `status:`.
+
+**— envisioned (reference tag)** — _(proposed, adr:envisioned-capability-marker)_ Inline marker required on every `[[link]]`/mention of an EnvisionedCapability so a grep hit or wikilink self-announces as not-yet-real.
+
+**envisioned-lint** — _(proposed, adr:envisioned-capability-marker)_ The bidirectional Hook enforcing the containment / reference-tag / stale-marker invariants; derives its registry at lint-time from `envisioned:` frontmatter. First plank of the fleet-wide markdown-lint layer.
+
+**/envision** — _(proposed, adr:envisioned-capability-marker)_ Skill to author an EnvisionedCapability note, advance its ladder stage, and graduate it (handing off to /skill-create or /scaffold).
+
 ## F
 
 **Formula** — A TOML workflow definition that compiles to a molecule (chain of beads). Types: `workflow`, `expansion`, `aspect`, `patrol`. (`gastown/knowledge/domain-model.md`)
