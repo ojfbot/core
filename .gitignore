@@ -12,3 +12,9 @@ runs/
 # Personal knowledge — career context, job targets, personal OKRs
 # Not for public repos. Technical ADRs and OKRs live in decisions/ (public-safe).
 personal-knowledge/
+
+# Claude Code worktree storage (git worktrees created under .claude/)
+.claude/worktrees/
+
+# Serena MCP server project state (cache + project config)
+.serena/
