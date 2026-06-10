@@ -126,6 +126,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## K
 
+**Karpathy Loop** — Autonomous propose→measure→keep/discard improvement loop on ONE metric with an immutable evaluator + git-as-state, no human in the moment (from `karpathy/autoresearch`, 2026). A closed-loop control pattern; **shadow mode** (the **Brassboard** stage, ADR-0086) is its safe-rollout form. Distinct from the **LLM Wiki (Karpathy)** — same author, opposite job (metric optimization vs knowledge compilation). First fleet use: a throwaway lint-rig prototype demonstrating Goodhart ("accurate ≠ good"). Destination: per-skill prompt eval. (selfco wiki `concepts/karpathy-loop`; `core/.handoff/2026-06-07-skill-eval-two-step-decision.md`)
+
 **Key Decision Point (KDP)** — *NASA SEH term.* A Control Gate at which the decision authority decides whether to proceed. In Control-Gated Slices, "Control Gate" and "KDP" are used interchangeably for a slice checkpoint with Entrance + Success Criteria. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 ## L
