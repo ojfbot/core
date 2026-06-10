@@ -9,7 +9,6 @@ type: policy
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
 Commands affected: /vault (lint mode)
 Repos affected: core (lint.py, vault skill docs), selfco-box (pre-commit gate on the push path)
-gate: adr-control-gated-slices:operational
 traces:
   amends: selfco-vault-and-skill
   relates-to: [control-gated-slices, vault-staleness-scanner]

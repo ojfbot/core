@@ -123,6 +123,17 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 
 - For a flat chronological view: `/adr list --by-serial`.
 
+### Proposed (unnumbered)
+
+Drafts awaiting `/adr accept` — identity is the slug; the serial is assigned at accept (ADR-0087).
+
+| Slug | Title | Domain | Type |
+|------|-------|--------|------|
+| `obsidian-bases-views` | [Obsidian Bases as the vault's dynamic browsing layer](adr/draft-obsidian-bases-views.md) | observation | tooling |
+| `lint-shadow-to-gate` | [Promote vault lint from shadow mode to a commit gate](adr/draft-lint-shadow-to-gate.md) | observation | policy |
+| `defuddle-ingest-fetch` | [defuddle as a reversible, shadow-mode ingest trial](adr/draft-defuddle-ingest-fetch.md) | observation | tooling |
+| `semantic-link-suggester` | [Semantic link-suggester for cultivate](adr/draft-semantic-link-suggester.md) | observation | tooling |
+
 ---
 
 ## OKR index
