@@ -10,6 +10,15 @@ summary + the `sync` data sources.
 - `raw/` — append-only, immutable source materials. The LLM reads, never edits. Single source of truth.
 - `wiki/` — LLM-owned: `index.md`, `log.md` (append-only ledger), `sources/`, `entities/`, `concepts/`, `synthesis/`.
 - `CLAUDE.md` — the schema (this is what `templates/vault-claude-md.md` becomes).
+- `bases/` + `canvas/` — Obsidian **Bases** (`.base`) and **JSON Canvas** (`.canvas`) files, at the vault top level,
+  **outside `wiki/`** so the `wiki/`-scoped lint invariant never sees them (adopted 2026-06-10; adr:obsidian-bases-views).
+  Bases are the live *human* browsing layer over the `wiki/` frontmatter (`type`/`kind`/`status`/`last_synced`/…) —
+  additive to the Python scripts, which stay authoritative for the headless selfco-box because they emit committed,
+  diffable artifacts. Canvas files hold curated, hand-arranged spatial maps.
+
+Entity frontmatter also supports an optional `aliases: ["…"]` list (alt names — Obsidian uses them for link
+autocomplete and fewer broken links; quote every value). All three additions live in `templates/vault-claude-md.md`
+so a future `init` regenerates them — schema changes made in-vault must be mirrored into that template.
 
 Workflows: **ingest** (raw → source page → update entity/concept pages → index → log; also handles a pasted
 `--- BEGIN selfco handoff bundle ---` block — write it to `raw/session-<date>-<slug>.md` then loop over the
