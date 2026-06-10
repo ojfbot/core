@@ -119,7 +119,11 @@ it pre-commit on its push path. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
 ### `cultivate`
 The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it compound (full procedure in
 `$V/CLAUDE.md` § Workflows). Runs unattended daily on the selfco-box (`selfco-box cultivate`, vendored
-procedure: `selfco-box/src/prompts/cultivate-procedure.md`) and on demand here:
+procedure: `selfco-box/src/prompts/cultivate-procedure.md`) and on demand here. Two candidate channels
+feed the run, both suggestion-only into `wiki/_suggested-links.md`: `lint.py --suggest-links`
+(structural, Adamic-Adar on co-citation) and `semantic-suggest.py` (embeddings; prototype,
+adr:semantic-link-suggester — surfaces pairs with ZERO shared citations, the ones co-citation is blind
+to; Voyage embeddings with `$VOYAGE_API_KEY`, labelled TF-IDF fallback without):
 1. Orient on the delta — `wiki/index.md` + `wiki/log.md` entries since the last `cultivate` entry.
 2. Read 2–4 mutually-unlinked clusters *together*; hunt non-obvious connections (shared mechanisms,
    transferable methods, contradictions, same idea under two names).
@@ -208,7 +212,7 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `knowledge/connectors.md` — reaching the vault from the Claude apps (GitHub connector / mcp-obsidian / Phase-B tunnel)
 - `consumer/SKILL.md` + `consumer/README.md` — the consumer-app `/vault` Agent Skill (ingest/query/note/orient/handoff)
 - `templates/{vault-claude-md,source,entity,concept,synthesis,session-handoff-prompt}.md`
-- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
+- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, semantic-suggest.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
 - `${SELFCO_VAULT:-$HOME/selfco}/prompts/session-handoff.md` — the copy-paste session-export prompt (seeded by `init`)
 - ADR-0085 (`decisions/adr/0085-selfco-vault-and-skill.md`) + ADR-0070 (`…/0070-vault-multi-surface-access.md`), `domain-knowledge/selfco-vault.md`
 - Karpathy's LLM Wiki: <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>
