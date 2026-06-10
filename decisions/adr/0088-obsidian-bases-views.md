@@ -1,9 +1,10 @@
-# ADR-XXXX: Obsidian Bases as the vault's dynamic browsing layer
+# ADR-0088: Obsidian Bases as the vault's dynamic browsing layer
 slug: obsidian-bases-views
-serial: draft
+serial: 0088
 rev:
 Date: 2026-06-10
-Status: Proposed
+Date accepted: 2026-06-10
+Status: Accepted
 domain: observation
 type: tooling
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall

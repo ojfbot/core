@@ -1,9 +1,10 @@
-# ADR-XXXX: defuddle as a reversible, shadow-mode ingest trial
+# ADR-0090: defuddle as a reversible, shadow-mode ingest trial
 slug: defuddle-ingest-fetch
-serial: draft
+serial: 0090
 rev:
 Date: 2026-06-10
-Status: Proposed
+Date accepted: 2026-06-10
+Status: Accepted
 domain: observation
 type: tooling
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
@@ -66,4 +67,4 @@ web ingests; promotion to canonical normaliser is a separate, data-gated ADR.
 | --- | --- |
 | Zero-point | selfco `wiki/synthesis/adr-draft-defuddle-ingest-fetch.md` (2026-06-10, vault best-practices audit § defuddle) |
 | Implementation start | 2026-06-10 (selfco-box: shadow-compare; selfco: gitignore) |
-| Implementation end | _pending_ (trial sample collection not started) |
+| Implementation end | 2026-06-10 — trial mechanism merged (selfco-box PR #4); sample collection (~15-20 web ingests) not started |
