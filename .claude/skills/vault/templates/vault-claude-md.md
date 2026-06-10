@@ -114,7 +114,7 @@ type: index
 ## [2026-05-11] sync | first /vault sync
 - ...
 ```
-Ops: `ingest` · `research` · `query` · `lint` · `sync` · `session` · `init`. **Never edit or reorder existing entries** — a correction is a new entry.
+Ops: `ingest` · `research` · `query` · `lint` · `cultivate` · `sync` · `session` · `init`. **Never edit or reorder existing entries** — a correction is a new entry.
 
 ---
 
@@ -138,6 +138,16 @@ Do active research (web search / fetch / docs). For each useful source: save it 
 
 ### `lint` — health check (you don't get bored; do the bookkeeping)
 Scan `wiki/` for: contradictions between pages; claims superseded by newer sources; orphan pages (no inbound links); missing cross-references; data gaps; items in `raw/` with no `wiki/sources/` page; broken `[[links]]`. Report findings. Only fix things if I say so (or you're told `--fix`). Log it (`## [date] lint | <n findings>`).
+
+### `cultivate` — grow the synthesis layer (the serendipity pass)
+`lint` keeps the wiki *correct*; `cultivate` makes it *compound*. The per-source ingest loop only links what one source touches — cross-cluster connections (a concept from one domain explaining an entity in another, two clusters quietly making contradictory claims, a method proven in one project that an unrelated project needs) accumulate as the corpus grows and nothing else hunts for them. Designed to run unattended on a schedule (the selfco-box runs it daily) as well as on demand.
+1. **Orient on the delta.** Read `wiki/index.md` + every `wiki/log.md` entry since the last `cultivate` entry — what's new or changed since the last pass is where unmade connections concentrate.
+2. **Read across distant clusters.** Pick 2–4 areas of the wiki that don't currently link to each other (the new material plus its farthest neighbors) and read them *together*, hunting for non-obvious connections: shared mechanisms, transferable methods, contradictions, the same idea under two names.
+3. **Weave before you write.** Prefer enriching existing pages — add the missing `[[link]]` *with a sentence of context* (a bare link in a "Related" list is noise; say *why* they connect). Touching 10–15 existing pages is a better run than authoring one new page.
+4. **Author sparingly.** At most **2–3 new `synthesis/` pages per run**, each needing a real **Question / thesis** and claims citing **≥ 2 distinct `[[sources/…]]`**. Never create a page that restates what an existing page already says — extend that page instead (`extends:` frontmatter).
+5. **Log with restraint visible.** Update `wiki/index.md`; append `## [YYYY-MM-DD] cultivate | <summary>` to `wiki/log.md` listing pages touched/created **and a "Considered, declined" list** — connections examined and judged too thin to act on.
+
+**Goodhart guardrail:** an unattended loop rewarded for output will manufacture filler. An **empty run is a success state** — if nothing crosses the threshold, log `## [date] cultivate | no connections above threshold` (with the declined list) and stop. Never pad, never force a page to justify the run.
 
 ### `sync` — fold in the ojfbot activity feed (this vault's special input)
 The ojfbot cluster is a standing source. On `sync`: read recent git history, `.handoff/` beads, Claude session/skill telemetry (a helper script produces a JSON digest); update each repo's `wiki/entities/<repo>.md` (**Current state**, recent work, `status:`, `last_synced:`); write a `wiki/sources/sync-YYYY-MM-DD.md` page; refresh `wiki/index.md`; fold any `## [date] session | …` stub lines (left by the opt-in `vault-session.sh` hook) into that day's context; append `## [date] sync | …` to `wiki/log.md`. Never copy bead/commit/article bodies — link by path.

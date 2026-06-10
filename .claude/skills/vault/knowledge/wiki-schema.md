@@ -15,7 +15,10 @@ Workflows: **ingest** (raw → source page → update entity/concept pages → i
 `--- BEGIN selfco handoff bundle ---` block — write it to `raw/session-<date>-<slug>.md` then loop over the
 `### ARTIFACT n` blocks), **research** (ingest, but the skill fetches the sources), **query** (answer from wiki
 w/ citations, file substantive explorations back), **lint** (contradictions / stale claims / orphans / missing
-xrefs / raw-without-source / broken links / **source pages with no `## Links` or no URL anywhere**), **sync** (fold in the ojfbot activity feed), **handoff** (fold the
+xrefs / raw-without-source / broken links / **source pages with no `## Links` or no URL anywhere**), **cultivate**
+(the serendipity pass — read mutually-unlinked clusters together, weave cross-links with context into existing
+pages, author ≤ 2–3 cited synthesis pages, log a "Considered, declined" list; empty run = success; runs daily
+unattended on the selfco-box), **sync** (fold in the ojfbot activity feed), **handoff** (fold the
 current session into the wiki — summary + full text of every artifact + a `raw/session-…` source of record +
 a log entry; = `ingest` where the source is the conversation), **note** (quick capture → `raw/`).
 

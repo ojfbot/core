@@ -11,7 +11,9 @@ description: >
   ojfbot repo), `ingest <path|url>` (land a source in raw/ — incl. YouTube videos via transcript — summarize, update entity/concept pages, index,
   log), `research <topic>` (active web/context7 research → raw/ + source page → concept/synthesis page),
   `query <question>` (answer from the wiki with citations, file substantive explorations back), `lint`
-  (health-check the wiki), `sync [--since=7d]` (fold the ojfbot activity feed into repo entity pages),
+  (health-check the wiki), `cultivate` (the serendipity pass — hunt cross-cluster connections, weave links,
+  author ≤2–3 synthesis pages; runs daily on the selfco-box), `sync [--since=7d]` (fold the ojfbot activity
+  feed into repo entity pages),
   `handoff` (fold the current session into the vault — summary + full text of every artifact), `orient`,
   `note <title>`. There's also a copy-paste export prompt at `~/selfco/prompts/session-handoff.md` for
   foreign chat agents (Dia, claude.ai). Deterministic scripts read/scaffold; the LLM authors all pages.
@@ -110,6 +112,22 @@ it a `wiki/sources/` page, then write/update the `concepts/` or `synthesis/` pag
 broken `[[links]]`); you do the semantic part — contradictions between pages, claims superseded by newer sources,
 missing cross-refs, data gaps. Report findings grouped by type. Only mutate the wiki if `--fix` (or the user says
 so), then append `## [date] lint | <n findings, m fixed>` to `wiki/log.md`.
+
+### `cultivate`
+The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it compound (full procedure in
+`$V/CLAUDE.md` § Workflows). Runs unattended daily on the selfco-box (`selfco-box cultivate`, vendored
+procedure: `selfco-box/src/prompts/cultivate-procedure.md`) and on demand here:
+1. Orient on the delta — `wiki/index.md` + `wiki/log.md` entries since the last `cultivate` entry.
+2. Read 2–4 mutually-unlinked clusters *together*; hunt non-obvious connections (shared mechanisms,
+   transferable methods, contradictions, same idea under two names).
+3. **Weave before you write** — enrich existing pages with `[[links]]` + a sentence of *why*; 10–15 page
+   touches beat one new page.
+4. Author **≤ 2–3 new `synthesis/` pages**, each with a real thesis + claims citing ≥ 2 distinct
+   `[[sources/…]]`. Restatement of an existing page → extend that page instead.
+5. Update `wiki/index.md`; append `## [date] cultivate | <summary>` to `wiki/log.md` **including a
+   "Considered, declined" list**. **Empty run = success state** — "no connections above threshold" is a
+   valid, logged outcome. Never pad (Goodhart guardrail).
+Commit (pull --rebase --autostash → add/commit → push, if remote).
 
 ### `sync [--since=7d]`
 The ojfbot activity feed (see `knowledge/wiki-schema.md` for the data sources):
