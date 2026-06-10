@@ -16,8 +16,10 @@ This file is the **schema** — the operating manual any agent should follow whe
 |---|---|---|
 | `raw/` | **You** (append-only) | Immutable source materials — articles, PDFs, clippings, chat/research dumps, notes you authored. The single source of truth for everything the wiki has ever read. The LLM **reads `raw/` but never edits or deletes it.** New material is *added*, never changed. `raw/assets/` holds images/PDFs/binaries. |
 | `wiki/` | **The LLM** | The compiled, interlinked knowledge. The LLM creates, updates, cross-references, and reorganizes pages here freely — keeping everything consistent. You read it; you don't normally hand-edit it (if you do, the LLM treats your edits as authoritative and works around them). |
-| `CLAUDE.md` (this file) | Shared | The schema. Change it deliberately; the `/vault` skill regenerates it from `core/.claude/skills/vault/knowledge/wiki-schema.md` on `init`. |
+| `CLAUDE.md` (this file) | Shared | The schema. Change it deliberately; the `/vault` skill regenerates it from `core/.claude/skills/vault/templates/vault-claude-md.md` on `init` — schema changes made in-vault must be mirrored there or a future `init` drops them. |
 | `templates/` | Shared | Page scaffolds matching the schemas below. |
+| `bases/` | **The LLM** | Obsidian **Bases** (`.base` files) — live, in-app table/card views over `wiki/` frontmatter (repos by sync-due, concepts by maturity, staleness, etc.). The *human* browsing layer; **additive to** the Python scripts (`scripts/vault-*.sh`), which stay authoritative for the headless box because they emit committed, diffable artifacts. Kept **outside `wiki/`** so the `wiki/`-scoped lint invariant is never touched. See [[adr-draft-obsidian-bases-views]]. |
+| `canvas/` | **The LLM** | Obsidian **JSON Canvas** (`.canvas` files) — curated, hand-arranged spatial maps (e.g. `kepano-adoption.canvas`). For the load-bearing diagrams a force-directed graph can't hold still. Also outside `wiki/`. |
 | `prompts/` | Shared | Reusable prompts kept in the vault. `session-handoff.md` — copy its body into a foreign chat agent (Dia, claude.ai) to export *that* session as a handoff bundle. |
 | `.obsidian/` | Shared | Obsidian config — tuned graph view (color groups by folder), bundled plugins. Open this folder in Obsidian to browse the wiki as a graph; Excalibrain gives the orbit-around-a-note view. |
 
@@ -65,6 +67,7 @@ tags: [topic, …]
 ---
 type: entity
 kind: person | org | product | tool | repo
+aliases: ["Surname", "Common name"]   # optional — alt names (Obsidian uses them for link autocomplete + fewer broken links). People → surname; products/tools → common short name; repos → display name. Quote every value (YAML-safe).
 # for kind: repo, also:
 repo: <repo-slug>
 ports: [<dev>, <preview>]
@@ -175,6 +178,8 @@ For wrapping up a working session (this one). Build a **handoff bundle** in the 
 ## Browsing it
 
 Open `~/selfco` in Obsidian. The graph view (tuned in `.obsidian/graph.json`) colours clusters by folder — `wiki/entities`, `wiki/concepts`, `wiki/sources`, `wiki/synthesis`, `raw` — with `wiki/index.md` as the big hub node.
+
+**Bases & Canvas (the kepano/obsidian-skills layer).** `bases/*.base` give live, in-app table/card views over the `wiki/` frontmatter (the `bases` core plugin is enabled): `repos` (sync-due), `concepts` (by maturity), `sources` (recency), `entities` (by kind), `synthesis`, `maintenance` (live staleness — the dynamic twin of `scripts/vault-stale.sh`). They are the *human* browsing surface and are **additive to** the Python scripts, which stay authoritative for the headless box. `canvas/*.canvas` (JSON Canvas) hold curated spatial maps. Both live **outside `wiki/`** so the `wiki/`-scoped lint never sees them. Rationale + the scripts-vs-bases split: [[synthesis/adr-draft-obsidian-bases-views]].
 
 The community plugins are *downloaded* into `.obsidian/plugins/` but **not auto-enabled** — go to **Settings → Community plugins** and enable the ones you want (that path version-checks each against your Obsidian; auto-enabling one whose `minAppVersion` is newer than your app crashes the vault on open): **Obsidian Mind Map** (render a note as a tree), **Graph Analysis** (centrality/clustering), **Persistent Graph** (stable saved layout), and **Excalibrain** (TheBrain-style orbit around the current note — it draws onto an **Excalidraw** canvas, so enable Excalidraw too; both need a recent Obsidian, ≥1.5.7). To re-download after a clone: `core/.claude/skills/vault/scripts/install-obsidian-plugins.sh`.
 
