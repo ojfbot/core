@@ -1,9 +1,10 @@
-# ADR-XXXX: Promote vault lint from shadow mode to a commit gate
+# ADR-0089: Promote vault lint from shadow mode to a commit gate
 slug: lint-shadow-to-gate
-serial: draft
+serial: 0089
 rev:
 Date: 2026-06-10
-Status: Proposed
+Date accepted: 2026-06-10
+Status: Accepted
 domain: observation
 type: policy
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
@@ -67,4 +68,4 @@ documented escape valve for an intentional mid-refactor dangling link is
 | --- | --- |
 | Zero-point | selfco `wiki/synthesis/adr-draft-lint-shadow-to-gate.md` (2026-06-10, vault best-practices audit § Robustness) |
 | Implementation start | 2026-06-10 (core: `lint.py --gate`; selfco-box: gate in `commitAndPush()`) |
-| Implementation end | _pending_ |
+| Implementation end | 2026-06-10 (merged: core PR #145 + selfco-box PR #4) |

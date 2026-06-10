@@ -88,6 +88,10 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0079 | [Vault page-lifecycle policy — promoter-side ingest gate + graph-aware staleness signal](adr/0079-vault-page-lifecycle-policy.md) | policy | Proposed |
 | 0080 | [Vault staleness scanner — graph-aware signal, surface-only, layered on `/vault lint`](adr/0080-vault-staleness-scanner.md) | tooling | Proposed |
 | 0085 | [The `selfco` LLM Wiki and the `/vault` skill](adr/0085-selfco-vault-and-skill.md) | tooling | Accepted |
+| 0088 | [Obsidian Bases as the vault's dynamic browsing layer](adr/0088-obsidian-bases-views.md) | tooling | Accepted |
+| 0089 | [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) | policy | Accepted |
+| 0090 | [defuddle as a reversible, shadow-mode ingest trial](adr/0090-defuddle-ingest-fetch.md) | tooling | Accepted |
+| 0091 | [Semantic link-suggester for cultivate](adr/0091-semantic-link-suggester.md) | tooling | Accepted |
 
 ### UI Components (`ui-components`)
 | Serial | Title | Type | Status |
@@ -122,17 +126,6 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0087 | [Stable-identity + facet-tag ADRs — NASA Configuration Management applied to decision records](adr/0087-stable-identity-and-facet-tags.md) | convention | Accepted |
 
 - For a flat chronological view: `/adr list --by-serial`.
-
-### Proposed (unnumbered)
-
-Drafts awaiting `/adr accept` — identity is the slug; the serial is assigned at accept (ADR-0087).
-
-| Slug | Title | Domain | Type |
-|------|-------|--------|------|
-| `obsidian-bases-views` | [Obsidian Bases as the vault's dynamic browsing layer](adr/draft-obsidian-bases-views.md) | observation | tooling |
-| `lint-shadow-to-gate` | [Promote vault lint from shadow mode to a commit gate](adr/draft-lint-shadow-to-gate.md) | observation | policy |
-| `defuddle-ingest-fetch` | [defuddle as a reversible, shadow-mode ingest trial](adr/draft-defuddle-ingest-fetch.md) | observation | tooling |
-| `semantic-link-suggester` | [Semantic link-suggester for cultivate](adr/draft-semantic-link-suggester.md) | observation | tooling |
 
 ---
 
