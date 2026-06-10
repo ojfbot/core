@@ -21,8 +21,15 @@ the index hub doesn't make everything a common neighbour. Output is candidates o
 applies semantic judgment and writes the read-only `wiki/_suggested-links.md` sidecar; nothing is
 ever auto-inserted into a canonical page.
 
+With `--gate` (adr:lint-shadow-to-gate): exit 1 when either of the two deterministic,
+single-correct-answer checks fails — broken [[links]] or raw-without-source. Orphans and
+stale pages stay advisory (judgment calls, not errors). The gate BLOCKS, it never fixes:
+no file is ever mutated. Escape valve for an intentional dangling link mid-refactor:
+SELFCO_LINT_GATE_OVERRIDE=1 reports what would have blocked and exits 0.
+
 Vault root: positional argument, or $SELFCO_VAULT, or ~/selfco. A path ending in /wiki is
-accepted as a convenience (vault root inferred). Exit 0 always (it's a report).
+accepted as a convenience (vault root inferred). Exit 0 always unless --gate finds a
+blocking class (it's a report otherwise).
 """
 from __future__ import annotations
 
@@ -259,6 +266,12 @@ def main() -> int:
         help="Vault root or wiki/ dir. Default: $SELFCO_VAULT or ~/selfco",
     )
     ap.add_argument(
+        "--gate",
+        action="store_true",
+        help="Exit 1 on blocking findings: broken [[links]] or raw/ items without a wiki/sources/ page. "
+        "Orphans/stale stay advisory. Never fixes anything. Override: SELFCO_LINT_GATE_OVERRIDE=1.",
+    )
+    ap.add_argument(
         "--stale",
         action="store_true",
         help="Also report stale pages (ADR-0080: orphan ∧ no edits in --days ∧ not log-mentioned since creation)",
@@ -335,7 +348,10 @@ def main() -> int:
     raw_items: list[Path] = []
     if raw.is_dir():
         for p in raw.rglob("*"):
-            if p.is_file() and "assets" not in p.parts:
+            # Skip assets and hidden dot-entries (.DS_Store, the gitignored
+            # raw/.defuddle-shadow/ trial dir — scratch, not source material).
+            rel_parts = p.relative_to(raw).parts
+            if p.is_file() and "assets" not in rel_parts and not any(part.startswith(".") for part in rel_parts):
                 raw_items.append(p)
     referenced_raw: set[str] = set()
     for sp in (wiki / "sources").rglob("*.md") if (wiki / "sources").is_dir() else []:
@@ -410,6 +426,28 @@ def main() -> int:
 
     print("\n(Semantic checks — contradictions, stale claims, missing cross-refs — are the LLM's job; "
           "see /vault lint.)")
+
+    # --gate: the two deterministic checks block; everything else stays advisory
+    # (adr:lint-shadow-to-gate, the ADR-0086 Brassboard → Operational promotion).
+    # Block-only by design — the gate never mutates a page.
+    if args.gate:
+        n_blocking = len(broken) + len(raw_unprocessed)
+        if n_blocking == 0:
+            print("\nGATE OK: 0 broken [[links]], 0 raw-without-source. (Orphans/stale are advisory.)")
+        elif os.environ.get("SELFCO_LINT_GATE_OVERRIDE") == "1":
+            print(
+                f"\nGATE OVERRIDDEN (SELFCO_LINT_GATE_OVERRIDE=1): {len(broken)} broken [[link(s)]], "
+                f"{len(raw_unprocessed)} raw-without-source would have blocked.",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"\nGATE FAILED: {len(broken)} broken [[link(s)]], {len(raw_unprocessed)} raw/ item(s) "
+                f"with no wiki/sources/ page. Fix the pages (the gate never auto-fixes), or set "
+                f"SELFCO_LINT_GATE_OVERRIDE=1 for an intentional mid-refactor exception.",
+                file=sys.stderr,
+            )
+            return 1
     return 0
 
 

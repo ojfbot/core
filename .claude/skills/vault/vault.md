@@ -112,6 +112,9 @@ it a `wiki/sources/` page, then write/update the `concepts/` or `synthesis/` pag
 broken `[[links]]`); you do the semantic part — contradictions between pages, claims superseded by newer sources,
 missing cross-refs, data gaps. Report findings grouped by type. Only mutate the wiki if `--fix` (or the user says
 so), then append `## [date] lint | <n findings, m fixed>` to `wiki/log.md`.
+With `--gate` (adr:lint-shadow-to-gate) the script exits 1 on the two deterministic blocking classes — broken
+`[[links]]` and raw-without-source (orphans/stale stay advisory) — and never fixes anything; the selfco-box runs
+it pre-commit on its push path. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
 
 ### `cultivate`
 The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it compound (full procedure in
