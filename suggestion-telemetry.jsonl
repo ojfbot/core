@@ -128,3 +128,31 @@
 {"ts":"2026-06-11T04:41:33Z","event":"skill:no-match","prompt_prefix":"impement ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
 {"ts":"2026-06-11T05:12:56Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
 {"ts":"2026-06-11T05:12:56Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:03:02Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:03:02Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:18:03Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:18:03Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:45:58Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:45:58Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T13:46:27Z","event":"skill:suggestion-ignored","skill":"deepen","suggested_at":"2026-06-11T03:26:41Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T13:46:27Z","event":"skill:suggested","skill":"recon","reason":"trigger 'get oriented'","prompt_prefix":"can you help me get selfco-box fixed? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T13:54:21Z","event":"skill:suggestion-ignored","skill":"recon","suggested_at":"2026-06-11T13:46:27Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T13:54:21Z","event":"skill:suggested","skill":"scaffold","reason":"trigger 'build the skeleton'","prompt_prefix":"is the rest of ci good? can you start that app from clean build and confirm that wasnt a break? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:03:25Z","event":"skill:suggestion-ignored","skill":"scaffold","suggested_at":"2026-06-11T13:54:21Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:03:25Z","event":"skill:suggested","skill":"gastown","reason":"trigger 'update gastown issue'","prompt_prefix":"yes i didn't realize it was such a drain. we need to re-audit that or even point it at local gwen. talk me through the i","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:19:09Z","event":"skill:suggestion-ignored","skill":"gastown","suggested_at":"2026-06-11T14:03:25Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:19:09Z","event":"skill:suggested","skill":"summarize","reason":"trigger 'what does X do'","prompt_prefix":"what is the selfco box actually doing? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:22:50Z","event":"skill:suggestion-ignored","skill":"summarize","suggested_at":"2026-06-11T14:19:09Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:26:24Z","event":"skill:suggestion-ignored","skill":"summarize","suggested_at":"2026-06-11T14:19:09Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:26:24Z","event":"skill:no-match","prompt_prefix":"ok i need to kill it and make sure traffic isn't hitting it until we can safely delvier the moving the friction between ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
+{"ts":"2026-06-11T14:48:36Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T14:48:36Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T15:24:44Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T15:24:44Z","event":"skill:no-match","prompt_prefix":"<task-notification> <task-id>bf84i6f0x</task-id> <tool-use-id>toolu_01WH6MEBDGuM8PwwfBFQBJ9x</tool-use-id> <output-file>","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T15:51:35Z","event":"skill:suggestion-ignored","skill":"setup-ci-cd","suggested_at":"2026-06-11T02:26:55Z","repo":"ojfbot","session_id":"5f663e8a-c58f-4d89-8cef-991358928423"}
+{"ts":"2026-06-11T15:51:35Z","event":"skill:suggested","skill":"validate","reason":"trigger 'run validation'","prompt_prefix":"last night's dev log run failed. look into it ","repo":"ojfbot","session_id":"5f663e8a-c58f-4d89-8cef-991358928423"}
+{"ts":"2026-06-11T16:16:33Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T16:16:33Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T16:18:56Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T16:18:56Z","event":"skill:no-match","prompt_prefix":"<task-notification> <task-id>b1ho2nnk1</task-id> <tool-use-id>toolu_0163EMaqKWpUQRRvZN2P8z7T</tool-use-id> <output-file>","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
+{"ts":"2026-06-11T16:24:43Z","event":"skill:suggested","skill":"daily-logger","reason":"trigger 'daily-logger'","prompt_prefix":"can you run my frame daily standup skill (and get it as a core claude skill?). I am trying to check last nights daily-lo","repo":"ojfbot","session_id":"27a81166-98b7-44a0-a231-edf561328209"}

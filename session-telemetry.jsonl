@@ -96,3 +96,5 @@
 {"ts":"2026-06-11T03:55:37Z","event":"session:start","session_id":"b916a1ce-2d20-49e9-9604-fe3488d1b3bd","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-06-11T03:57:17Z","event":"session:start","session_id":"3dddd2d5-a3e1-4e0c-991f-3bbd9a9d33f6","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-06-11T03:59:12Z","event":"session:start","session_id":"3f5f66e9-de67-46fe-b7bc-701525202d33","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-11T15:51:27Z","event":"session:start","session_id":"cc4654cf-2710-4e22-9a73-000a6faa304a","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-11T16:24:02Z","event":"session:start","session_id":"27a81166-98b7-44a0-a231-edf561328209","source":"startup","model":"claude-fable-5","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
