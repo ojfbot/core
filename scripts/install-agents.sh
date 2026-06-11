@@ -66,7 +66,7 @@ if [[ "$USER_SCOPE" == "true" ]]; then
 
   mkdir -p "$USER_SKILLS_DIR"
 
-  for skill in grill-with-docs tdd deepen triage; do
+  for skill in grill-with-docs tdd deepen triage frame-standup; do
     if [[ -d "$CORE_SKILLS_DIR/$skill" ]]; then
       ln -sfn "$CORE_SKILLS_DIR/$skill" "$USER_SKILLS_DIR/$skill"
       echo "  symlinked $skill"

@@ -32,6 +32,7 @@ Before introducing new vocabulary in code, docs, or commits:
 - `/tdd` — red-green-refactor loop with escalation gates
 - `/deepen` — Ousterhout-style depth audit
 - `/triage` — Pocock-style triage rubric
+- `/frame-standup` — sync repos, audit the latest daily-logger post, produce a prioritized day plan
 
 Skills resolve through symlinks to `/Users/yuri/ojfbot/core/.claude/skills/`. If those paths break, re-run `core/scripts/install-agents.sh --user-scope` to repair.
 
