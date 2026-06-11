@@ -51,6 +51,7 @@ codebase."** You own `wiki/`; the user reads it.
   So when this skill writes from the Mac: `git -C $V pull --rebase --autostash` *before*, and `git -C $V push`
   *after* its commit, whenever `$V` has a remote (the scripts do this; do it yourself if writing pages directly).
 - **No secrets.** Never write tokens, `.env` values, or credentials into the vault.
+- **Canvas nodes are sized to content — enforced, not eyeballed.** Whenever you create or edit a `.canvas`, finish with `python {skill}/scripts/canvas-fit.py <file> --vault $V` (grow-only: text nodes → rendered lines, file-nodes → ≥420×310, overlaps pushed apart, groups re-expanded; never shrinks or repositions deliberate placement). `--check` exits 1 without writing, for review flows. ADR-0088 rev A.
 - **Don't call it a "second brain."** "The vault" / "the wiki" / "source, entity, concept, synthesis pages".
 
 ## Modes
@@ -215,7 +216,7 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `knowledge/connectors.md` — reaching the vault from the Claude apps (GitHub connector / mcp-obsidian / Phase-B tunnel)
 - `consumer/SKILL.md` + `consumer/README.md` — the consumer-app `/vault` Agent Skill (ingest/query/note/orient/handoff)
 - `templates/{vault-claude-md,source,entity,concept,synthesis,session-handoff-prompt}.md`
-- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, semantic-suggest.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
+- `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, semantic-suggest.py, canvas-fit.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
 - `${SELFCO_VAULT:-$HOME/selfco}/prompts/session-handoff.md` — the copy-paste session-export prompt (seeded by `init`)
 - ADR-0085 (`decisions/adr/0085-selfco-vault-and-skill.md`) + ADR-0070 (`…/0070-vault-multi-surface-access.md`), `domain-knowledge/selfco-vault.md`
 - Karpathy's LLM Wiki: <https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>
