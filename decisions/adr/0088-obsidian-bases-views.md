@@ -1,8 +1,8 @@
 # ADR-0088: Obsidian Bases as the vault's dynamic browsing layer
 slug: obsidian-bases-views
 serial: 0088
-rev:
-Date: 2026-06-10
+rev: A
+Date: 2026-06-10 (revised 2026-06-10 — canvas node-sizing convention promoted from guidance to enforcement: canvas-fit.py, operator feedback after the first hand-resize)
 Date accepted: 2026-06-10
 Status: Accepted
 domain: observation
