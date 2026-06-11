@@ -78,8 +78,9 @@ After the project skeleton is created, the new repo must be registered in fleet-
 5. **Security scan workflow** — Copy the fleet-standard TruffleHog security scan workflow into `.github/workflows/security-scan.yml`. Use any existing fleet repo as the canonical source.
 6. **`frame-ui-components` CI clone** (if the app consumes shared components) — Add the `git clone https://github.com/ojfbot/frame-ui-components` step before `pnpm install` in CI so the `file:../frame-ui-components` dep resolves.
 7. **`@carbon/styles` peer dep** (if the app uses `frame-ui-components`) — Add `@carbon/styles` as an explicit dependency in the app's `package.json` (peer dep gap in `frame-ui-components` until patched upstream).
+8. **selfco vault entity** — Create `~/selfco/wiki/entities/<slug>.md` (kind: `repo`, status: `unstarted`, per the schema in `~/selfco/CLAUDE.md` and `templates/entity.md` in the vault), add its `- [[<slug>]] — <one-liner>` line to `wiki/index.md`, and append a `## [date] sync | new repo <slug>` entry to `wiki/log.md` (then commit/push the vault per its git-mirror rule). Equivalently: run `/vault sync` after the repo's first commit. Without this, the repo is invisible to `/vault query`/`orient` and to every future cultivate pass — the knowledge-space twin of the daily-logger sweep omission below.
 
-> **Why this step exists:** `seh-study` shipped 15 commits in one day and the daily-logger missed all of them because the repo was never added to the sweep. This checklist prevents that class of omission for every future app.
+> **Why this step exists:** `seh-study` shipped 15 commits in one day and the daily-logger missed all of them because the repo was never added to the sweep. Likewise `lofi-beaver`, `morning-cockpit`, and `workstation-yuri` shipped for weeks with no vault entity page (caught 2026-06-11). This checklist prevents that class of omission for every future app.
 
 ### 8. Output next-steps checklist
 

@@ -123,6 +123,12 @@ Edit `scripts/frame-dev.sh` in the **core repo** to add:
 
 Add the new app to the repo inventory table in `domain-knowledge/frame-os-context.md`.
 
+Also register the app in the selfco vault: create `~/selfco/wiki/entities/<slug>.md` (kind: `repo`,
+status: `unstarted`, per `~/selfco/CLAUDE.md` + the vault's `templates/entity.md`), add the
+`- [[<slug>]] — <one-liner>` line to `wiki/index.md`, and append a `## [date] sync | new repo <slug>`
+entry to `wiki/log.md` (commit/push the vault per its git-mirror rule). Equivalently run `/vault sync`
+after the first commit. Skipping this leaves the app invisible to `/vault query`/`orient`/`cultivate`.
+
 ### Step 8 — Initialize git + install + build
 
 ```bash
