@@ -73,3 +73,8 @@
 {"ts":"2026-06-10T05:09:11Z","event":"session:start","session_id":"5f663e8a-c58f-4d89-8cef-991358928423","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-06-10T05:09:12Z","event":"session:start","session_id":"b2b4f26b-d7b2-4250-9730-711cd87cda8d","source":"resume","model":"","repo":"lofi-beaver","branch":"docs/pr-discipline","cwd":"/Users/yuri/ojfbot/lofi-beaver"}
 {"ts":"2026-06-10T05:09:18Z","event":"session:start","session_id":"a93166f6-b3d1-49b3-bd22-254474223776","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-10T13:09:35Z","event":"session:start","session_id":"5f663e8a-c58f-4d89-8cef-991358928423","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-10T13:17:40Z","event":"session:start","session_id":"59ee7c41-fe1c-4f17-b838-17bf9d1e2bf5","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-10T13:17:41Z","event":"session:start","session_id":"b2b4f26b-d7b2-4250-9730-711cd87cda8d","source":"resume","model":"","repo":"lofi-beaver","branch":"docs/pr-discipline","cwd":"/Users/yuri/ojfbot/lofi-beaver"}
+{"ts":"2026-06-11T01:20:53Z","event":"session:start","session_id":"1628b190-0142-418a-8c71-e730eae88c1c","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-11T01:23:33Z","event":"session:start","session_id":"593dc05f-1ac2-4d3b-8c96-3318a64f22ef","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
