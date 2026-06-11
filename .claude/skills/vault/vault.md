@@ -121,9 +121,12 @@ The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it com
 `$V/CLAUDE.md` § Workflows). Runs unattended daily on the selfco-box (`selfco-box cultivate`, vendored
 procedure: `selfco-box/src/prompts/cultivate-procedure.md`) and on demand here. Two candidate channels
 feed the run, both suggestion-only into `wiki/_suggested-links.md`: `lint.py --suggest-links`
-(structural, Adamic-Adar on co-citation) and `semantic-suggest.py` (embeddings; prototype,
+(structural, Adamic-Adar on co-citation; `--band-sample` mixes the score tail in, since the head is
+hub-mediated near-siblings) and `semantic-suggest.py` (embeddings; prototype,
 adr:semantic-link-suggester — surfaces pairs with ZERO shared citations, the ones co-citation is blind
-to; Voyage embeddings with `$VOYAGE_API_KEY`, labelled TF-IDF fallback without):
+to; Voyage embeddings with `$VOYAGE_API_KEY`, labelled TF-IDF fallback without). Both generators
+default-read `wiki/_resolved-pairs.tsv` — the machine memory of rejected pairs (cultivate appends a
+line per rejection; applied pairs self-exclude via adjacency) — so litigated pairs never re-emit:
 1. Orient on the delta — `wiki/index.md` + `wiki/log.md` entries since the last `cultivate` entry.
 2. Read 2–4 mutually-unlinked clusters *together*; hunt non-obvious connections (shared mechanisms,
    transferable methods, contradictions, same idea under two names).

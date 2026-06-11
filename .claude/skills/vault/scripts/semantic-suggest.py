@@ -158,6 +158,12 @@ def main() -> int:
     ap.add_argument("--model", default="voyage-3.5-lite", help="Voyage embedding model (default voyage-3.5-lite).")
     ap.add_argument("--focus", action="append", default=[], help="Restrict one side of every pair to these slugs (repeatable) — e.g. the cultivate delta set.")
     ap.add_argument("--cache", default=str(Path.home() / ".cache/selfco/semantic-embeddings.json"), help="Embedding cache file (outside the vault).")
+    ap.add_argument(
+        "--resolved",
+        default="auto",
+        help="TSV of already-litigated pairs to exclude (shared with lint.py --suggest-links). "
+        "Default 'auto' = wiki/_resolved-pairs.tsv if present; 'none' disables.",
+    )
     args = ap.parse_args()
 
     v = lint.resolve_vault_root(args.path)
@@ -185,9 +191,21 @@ def main() -> int:
 
     focus = {f.strip() for f in args.focus if f.strip()}
 
+    # Resolved-pairs memory (shared with lint.py --suggest-links): never re-emit a pair the
+    # cultivate pass already rejected.
+    if args.resolved == "auto":
+        resolved_path = wiki / "_resolved-pairs.tsv"
+    elif args.resolved.lower() == "none":
+        resolved_path = None
+    else:
+        resolved_path = Path(args.resolved).expanduser()
+    resolved = lint.load_resolved_pairs(resolved_path) if resolved_path else set()
+
     rows: list[tuple[str, str, float]] = []
     for a, b in combinations(ids, 2):
         if focus and not ({a, a.split("/")[-1]} & focus or {b, b.split("/")[-1]} & focus):
+            continue
+        if (a, b) in resolved:  # ids are sorted, so (a, b) is already the normalized form
             continue
         na, nb = neighbours.get(a, set()), neighbours.get(b, set())
         if b in na:  # already directly linked
@@ -202,6 +220,8 @@ def main() -> int:
 
     print(f"semantic-suggest: {v}/wiki  ({len(ids)} pages; provider: {provider})\n")
     print(f"== semantic candidate links (zero shared citations; cosine >= {min_score}, top {args.top}): {len(rows)} ==")
+    if resolved:
+        print(f"(resolved-pairs memory: {len(resolved)} litigated pairs excluded)")
     if rows:
         print()
         print("| Cosine | Page A | Page B |")

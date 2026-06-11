@@ -21,6 +21,19 @@ the index hub doesn't make everything a common neighbour. Output is candidates o
 applies semantic judgment and writes the read-only `wiki/_suggested-links.md` sidecar; nothing is
 ever auto-inserted into a canonical page.
 
+Two refinements keep the daily queue fresh instead of re-emitting an exhausted top-30
+(2026-06-10 depth audit: 80% of the top-30 was already-litigated; ~970 unlitigated candidates
+sat below the cutoff):
+- Resolved-pairs memory: `wiki/_resolved-pairs.tsv` (one litigated pair per line,
+  `a<TAB>b<TAB>verdict<TAB>date[<TAB>reason]`, folder-qualified slugs) is loaded by default
+  and those pairs are excluded before the top-N cut. Only REJECTED pairs need recording —
+  applied pairs become adjacent, which already excludes them. The cultivate agent appends a
+  line per rejection; the queue file's prose "Resolved" sections stay the human-readable record.
+  `--resolved none` disables; `--resolved <path>` overrides.
+- `--band-sample`: emit the top half by score plus an even stride-sample across the remaining
+  candidate distribution. High Adamic-Adar score correlates with near-sibling/hub-mediated
+  pairs (the bulk of historical rejections); the genuinely serendipitous pairs live lower.
+
 With `--gate` (adr:lint-shadow-to-gate): exit 1 when either of the two deterministic,
 single-correct-answer checks fails — broken [[links]] or raw-without-source. Orphans and
 stale pages stay advisory (judgment calls, not errors). The gate BLOCKS, it never fixes:
@@ -221,17 +234,60 @@ def build_link_graph(wiki: Path) -> dict[str, set[str]]:
     return neighbours
 
 
+def load_resolved_pairs(path: Path) -> set[tuple[str, str]]:
+    """Parse wiki/_resolved-pairs.tsv: one litigated pair per line,
+    `a<TAB>b<TAB>verdict<TAB>date[<TAB>reason]` (extra columns tolerated; `#` comments and
+    blank lines skipped). Slugs are folder-qualified canonical ids; pairs are normalized to
+    sorted tuples. Generators exclude these so the queue never re-emits a pair the cultivate
+    pass already rejected. Applied pairs don't need recording (adjacency excludes them) but
+    are tolerated if present."""
+    pairs: set[tuple[str, str]] = set()
+    if not path.is_file():
+        return pairs
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        cols = line.split("\t")
+        if len(cols) >= 2 and cols[0].strip() and cols[1].strip():
+            a, b = sorted((cols[0].strip(), cols[1].strip()))
+            pairs.add((a, b))
+    return pairs
+
+
+def band_sample_rows(rows: list, top: int) -> list:
+    """Top half by score + an even stride-sample of the rest of the candidate distribution.
+    Deterministic (no RNG): serendipity lives below the head of the score ranking, so pure
+    top-N starves the queue of exactly the pairs cultivate is hunting."""
+    if len(rows) <= top:
+        return rows
+    head_n = top - top // 2
+    head, rest = rows[:head_n], rows[head_n:]
+    k = top // 2
+    step = len(rest) / k
+    return head + [rest[int(i * step)] for i in range(k)]
+
+
 def suggest_links(
-    neighbours: dict[str, set[str]], top: int, min_common: int, hub_degree: int = 0
-) -> list[tuple[str, str, float, int]]:
+    neighbours: dict[str, set[str]],
+    top: int,
+    min_common: int,
+    hub_degree: int = 0,
+    resolved: set[tuple[str, str]] | None = None,
+    band_sample: bool = False,
+) -> tuple[list[tuple[str, str, float, int]], int]:
     """Adamic-Adar over the wikilink graph: for each shared neighbour c, every non-adjacent pair
     of c's neighbours scores 1/log(deg(c)) — rare shared neighbours weigh more than hubs. Returns
-    (a, b, score, shared_count) for the top non-adjacent pairs with >= min_common shared neighbours.
+    ((a, b, score, shared_count) rows, n_excluded_by_resolved-memory) for the top non-adjacent
+    pairs with >= min_common shared neighbours.
 
     hub_degree > 0 hard-excludes any page with degree > hub_degree from acting as a shared
     neighbour — beyond Adamic-Adar's soft damping. On selfco this strips catalog-sibling noise
     (e.g. two repos that merely co-appear in ecosystem-map/cluster-status), leaving genuine
-    conceptual co-citation. 0 disables the cutoff (pure Adamic-Adar)."""
+    conceptual co-citation. 0 disables the cutoff (pure Adamic-Adar).
+
+    resolved pairs (see load_resolved_pairs) are dropped before the top-N cut; band_sample
+    swaps pure top-N for head + stride-sample (see band_sample_rows)."""
     aa: dict[tuple[str, str], float] = defaultdict(float)
     common: dict[tuple[str, str], int] = defaultdict(int)
     for c, nbrs in neighbours.items():
@@ -247,13 +303,19 @@ def suggest_links(
             key = (a, b)
             aa[key] += weight
             common[key] += 1
-    rows = [
-        (a, b, score, common[(a, b)])
-        for (a, b), score in aa.items()
-        if common[(a, b)] >= min_common
-    ]
+    resolved = resolved or set()
+    rows = []
+    n_excluded = 0
+    for (a, b), score in aa.items():
+        if common[(a, b)] < min_common:
+            continue
+        if (a, b) in resolved:  # aa keys are already sorted tuples (combinations over sorted)
+            n_excluded += 1
+            continue
+        rows.append((a, b, score, common[(a, b)]))
     rows.sort(key=lambda r: (-r[2], -r[3]))
-    return rows[:top]
+    rows = band_sample_rows(rows, top) if band_sample else rows[:top]
+    return rows, n_excluded
 
 
 def main() -> int:
@@ -304,6 +366,19 @@ def main() -> int:
         type=int,
         default=0,
         help="With --suggest-links: exclude pages with degree > N as shared neighbours (strips catalog-sibling noise; 0 = pure Adamic-Adar). Try ~15 on selfco.",
+    )
+    ap.add_argument(
+        "--resolved",
+        default="auto",
+        help="With --suggest-links: TSV of already-litigated pairs to exclude (a<TAB>b<TAB>verdict<TAB>date). "
+        "Default 'auto' = wiki/_resolved-pairs.tsv if present; 'none' disables.",
+    )
+    ap.add_argument(
+        "--band-sample",
+        action="store_true",
+        help="With --suggest-links: emit top half by score + an even stride-sample of the remaining "
+        "candidates, instead of pure top-N (high score correlates with hub-mediated near-siblings; "
+        "serendipity lives lower).",
     )
     args = ap.parse_args()
 
@@ -406,15 +481,29 @@ def main() -> int:
     # and writes the wiki/_suggested-links.md sidecar. Never auto-inserts into a canonical page.
     if args.suggest_links:
         neighbours = build_link_graph(wiki)
-        rows = suggest_links(neighbours, args.top, args.min_common, args.hub_degree)
+        if args.resolved == "auto":
+            resolved_path = wiki / "_resolved-pairs.tsv"
+        elif args.resolved.lower() == "none":
+            resolved_path = None
+        else:
+            resolved_path = Path(args.resolved).expanduser()
+        resolved = load_resolved_pairs(resolved_path) if resolved_path else set()
+        srows, n_excluded = suggest_links(
+            neighbours, args.top, args.min_common, args.hub_degree,
+            resolved=resolved, band_sample=args.band_sample,
+        )
         hub_note = f", hub-degree {args.hub_degree}" if args.hub_degree else ""
+        band_note = ", band-sampled" if args.band_sample else ""
         print(f"\n== suggested links (structural; Adamic-Adar, top {args.top}, "
-              f"min-common {args.min_common}{hub_note}): {len(rows)} ==")
-        if rows:
+              f"min-common {args.min_common}{hub_note}{band_note}): {len(srows)} ==")
+        if resolved:
+            print(f"(resolved-pairs memory: {len(resolved)} litigated pairs loaded, "
+                  f"{n_excluded} candidates excluded)")
+        if srows:
             print()
             print("| Score | Shared | Page A | Page B |")
             print("|---|---|---|---|")
-            for a, b, score, shared in rows:
+            for a, b, score, shared in srows:
                 print(f"| {score:.2f} | {shared} | [[{a}]] | [[{b}]] |")
         print(
             "\n(Candidates are non-adjacent page pairs sharing >= --min-common neighbours in the "
