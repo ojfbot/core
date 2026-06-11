@@ -8,6 +8,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## A
 
+**Attention contract** — What a run canvas's summary node owes the operator, in order: needs-you-now (gates as URL doors + downstream-block counts), status, learnings, unknowns-by-blocking. Rendered by the run renderer on every pass. (ADR draft `run-banner-attention-contract`, 2026-06-11)
+
 **ADR (Architecture Decision Record)** — A dated, sequentially-numbered markdown file documenting a non-obvious architectural decision: context, decision, consequences, alternatives. Lives in `decisions/adr/`. Template: `decisions/adr/template.md`. Created via `/adr new "<title>"`.
 
 **Agent (Claude Code)** — A specialized subagent invoked via the `Agent` tool with a `subagent_type` (Explore, Plan, general-purpose, etc.). Distinct from Gas Town agents.
@@ -107,6 +109,12 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## G
 
 **Gas Town** — Steve Yegge's multi-agent coding orchestrator. Manages 20-30+ parallel CLI coding agents. Source of bead/hook/GUPP/molecule vocabulary adopted by Frame.
+
+**Gate service** — The single read/write authority over experience-plane run-gate state (`selfco-box src/gate/`): `list` (pending gates + urgency), `brief` (gate-session context bundle), `decide` (gated emission). Every surface — canvas URL door, Claude Code session, cockpit panel — is a thin client. (ADR draft `experience-plane-gate-service`, 2026-06-11)
+
+**Gate session** — An agent conversation opened with a gate service `brief`, following the protocol: brief the operator at any depth → deliberate → draft the decision → the operator signs via gated emission. The agent can assemble the draft but cannot sign. (ADR draft `experience-plane-gate-service`)
+
+**Gated emission** — The fleet's HITL write grammar, generalized from morning-cockpit ADR-0005: draft → preview → explicit human confirmation (TTY-typed word or authenticated click) → attributable git commit. For run gates this is the approval *signature*; canvas recolor is the fallback input channel. (ADR draft `gate-approval-by-emission`, 2026-06-11)
 
 **GasCity** — Wasteland-era federation node concept (forthcoming).
 
@@ -271,6 +279,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Trigger (skill)** — String in a skill's `triggers` array. Matched word-overlap by `suggest-skill.sh` against user prompts.
 
 ## U
+
+**URL door** — An `ojfbot://` link on a rendered surface (canvas card, banner) that opens the appropriate client with context loaded — e.g. `ojfbot://gate/<run>/<task>` → Terminal running a Claude Code gate session. Routed by `OjfbotRouter.app` + `selfco-box scripts/ojfbot-routes.json`; new surfaces are config rows. (ADR draft `experience-plane-gate-service`, 2026-06-11)
 
 **Ubiquitous language (DDD)** — Shared vocabulary used consistently in code, docs, prompts, conversations. CONTEXT.md + this glossary are the canonical artifacts. (Pocock framing.)
 
