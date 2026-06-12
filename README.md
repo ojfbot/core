@@ -12,7 +12,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos (shared UI components use [npm publishing](https://github.com/ojfbot/frame-ui-components) with Vite alias for local dev)
-- **90+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge, [ADR-0085](decisions/adr/ADR-0085.md)/[ADR-0070](decisions/adr/ADR-0070.md) for vault reachability)
+- **90+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge, [ADR-0085](decisions/adr/ADR-0085.md)/[ADR-0070](decisions/adr/ADR-0070.md) for vault reachability, [ADR-0089](decisions/adr/ADR-0089.md) for vault lint as commit gate, [ADR-0090](decisions/adr/ADR-0090.md) for defuddle shadow mode, [ADR-0091](decisions/adr/ADR-0091.md) for semantic link-suggester)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
@@ -96,7 +96,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0091+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0088–0091 vault audit follow-through)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0091+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0089 vault lint gate, ADR-0090 defuddle shadow mode)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
