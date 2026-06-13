@@ -1,20 +1,3 @@
-{"ts":"2026-06-11T13:03:02Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:03:02Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:18:03Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:18:03Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:45:58Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:45:58Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
-{"ts":"2026-06-11T13:46:27Z","event":"skill:suggestion-ignored","skill":"deepen","suggested_at":"2026-06-11T03:26:41Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T13:46:27Z","event":"skill:suggested","skill":"recon","reason":"trigger 'get oriented'","prompt_prefix":"can you help me get selfco-box fixed? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T13:54:21Z","event":"skill:suggestion-ignored","skill":"recon","suggested_at":"2026-06-11T13:46:27Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T13:54:21Z","event":"skill:suggested","skill":"scaffold","reason":"trigger 'build the skeleton'","prompt_prefix":"is the rest of ci good? can you start that app from clean build and confirm that wasnt a break? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:03:25Z","event":"skill:suggestion-ignored","skill":"scaffold","suggested_at":"2026-06-11T13:54:21Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:03:25Z","event":"skill:suggested","skill":"gastown","reason":"trigger 'update gastown issue'","prompt_prefix":"yes i didn't realize it was such a drain. we need to re-audit that or even point it at local gwen. talk me through the i","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:19:09Z","event":"skill:suggestion-ignored","skill":"gastown","suggested_at":"2026-06-11T14:03:25Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:19:09Z","event":"skill:suggested","skill":"summarize","reason":"trigger 'what does X do'","prompt_prefix":"what is the selfco box actually doing? ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:22:50Z","event":"skill:suggestion-ignored","skill":"summarize","suggested_at":"2026-06-11T14:19:09Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:26:24Z","event":"skill:suggestion-ignored","skill":"summarize","suggested_at":"2026-06-11T14:19:09Z","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
-{"ts":"2026-06-11T14:26:24Z","event":"skill:no-match","prompt_prefix":"ok i need to kill it and make sure traffic isn't hitting it until we can safely delvier the moving the friction between ","repo":"selfco","session_id":"cf66cc2f-8c31-48fe-b4d3-33c4b1360927"}
 {"ts":"2026-06-11T14:48:36Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
 {"ts":"2026-06-11T14:48:36Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
 {"ts":"2026-06-11T15:24:44Z","event":"skill:suggestion-ignored","skill":"techdebt","suggested_at":"2026-06-11T03:44:57Z","repo":"ojfbot","session_id":"eac803b4-a2a8-406b-8741-72a88e8ecf92"}
@@ -110,3 +93,4 @@
 {"ts":"2026-06-12T03:58:42Z","event":"skill:suggested","skill":"triage","reason":"trigger 'triage these issues'","prompt_prefix":"triage these issues in the backlog ","repo":"","session_id":"test-land-2"}
 {"ts":"2026-06-12T22:18:02Z","event":"skill:suggested","skill":"vault","reason":"trigger 'vault'","prompt_prefix":"a while back i used a model to find transcripts for apple podcasts on my local device (for team deakins). I am trying to","repo":"yuri","session_id":"92fe7a60-3067-4cc5-b40b-617db4fdb4e8"}
 {"ts":"2026-06-12T22:19:56Z","event":"skill:suggestion-ignored","skill":"vault","suggested_at":"2026-06-12T22:18:02Z","repo":"yuri","session_id":"92fe7a60-3067-4cc5-b40b-617db4fdb4e8"}
+{"ts":"2026-06-13T14:33:01Z","event":"skill:suggested","skill":"investigate","reason":"trigger 'debug'","prompt_prefix":"help me debug my obsidian mcp ","repo":"ojfbot","session_id":"3d20dc1a-ece7-4ced-b073-124462b95ba0"}
