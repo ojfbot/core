@@ -17,6 +17,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOOK = join(__dirname, '..', 'suggest-skill.sh');
+// Point the hook at this checkout so its catalog + skill-availability lookups
+// resolve on any platform (the CORE_DIR fallback is a hardcoded macOS path).
+const REPO_ROOT = join(__dirname, '..', '..', '..');
 // Matches /tdd via the 'red green refactor' trigger (verified against suggest-skills.mjs).
 const MATCH_PROMPT = 'red green refactor write the failing test first';
 
@@ -38,7 +41,7 @@ function runHook(sid) {
     hook_event_name: 'UserPromptSubmit',
   });
   return new Promise((resolve, reject) => {
-    const child = spawn('bash', [HOOK], { env: { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: '' } });
+    const child = spawn('bash', [HOOK], { env: { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: REPO_ROOT } });
     child.on('error', reject);
     child.on('close', (code) => resolve(code));
     child.stdin.write(input);
