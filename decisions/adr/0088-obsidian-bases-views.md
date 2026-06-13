@@ -1,14 +1,14 @@
 # ADR-0088: Obsidian Bases as the vault's dynamic browsing layer
 slug: obsidian-bases-views
 serial: 0088
-rev: A
-Date: 2026-06-10 (revised 2026-06-10 — canvas node-sizing convention promoted from guidance to enforcement: canvas-fit.py, operator feedback after the first hand-resize)
+rev: B
+Date: 2026-06-10 (revised 2026-06-10 — canvas node-sizing convention promoted from guidance to enforcement: canvas-fit.py, operator feedback after the first hand-resize; revised 2026-06-13 rev B — canvas-fit also spaces obscured edge labels and is wired into `lint.py --gate`, operator feedback after the opav-loop-roadmap canvas shipped with overflowing nodes and captions hidden under nodes)
 Date accepted: 2026-06-10
 Status: Accepted
 domain: observation
 type: tooling
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
-Commands affected: /vault (init template, knowledge note)
+Commands affected: /vault (init template, vault.md rule, canvas-fit.py, lint.py --gate)
 Repos affected: selfco (bases/, canvas/, CLAUDE.md — already enacted), core (vault skill template + schema note)
 traces:
   amends: selfco-vault-and-skill
@@ -45,6 +45,7 @@ actually reads.
 ## Consequences
 
 ### Gains
+- Canvas readability is now structural, not advisory (rev B): `canvas-fit.py` sizes text nodes to *wrapped* lines, pushes node overlaps apart, and widens left↔right edge-label gaps so unboxed captions clear the nodes they connect; `lint.py --gate` runs `--check` over every hand-authored canvas so an unfit one blocks. Vertical/corner labels stay hand-placed (the fitter flags, never force-moves them); generated run canvases (`canvas/runs/`) are the renderer's domain and out of gate scope.
 - Live dashboards over existing frontmatter at zero scripting cost; the structured frontmatter pays off for the human, not just the lint engine.
 - No change to the headless loop or the lint invariant (`bases/`/`canvas/` are outside `wiki/`).
 - A future `/vault init` regenerates a `CLAUDE.md` that keeps the adopted layer instead of silently dropping it.

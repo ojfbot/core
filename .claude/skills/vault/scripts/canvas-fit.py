@@ -7,7 +7,7 @@ delivered canvas shipped 100-120px-tall file-node strips and every node had to b
 hand before anything was readable. This script makes the size-nodes-to-content convention
 structural: run it after authoring or editing any .canvas.
 
-What it does (grow-only — it NEVER shrinks a node or moves one sideways, so deliberate
+What it does (grow-only / push-apart — it NEVER shrinks a node, so deliberate
 hand-arrangement survives):
 - text nodes  -> height grown to fit the wrapped line count at the node's width.
 - file nodes  -> grown to at least FILE_MIN_W x FILE_MIN_H (title + frontmatter properties
@@ -15,7 +15,13 @@ hand-arrangement survives):
                  is left alone.
 - overlaps    -> after growing, any pair of overlapping non-group nodes is resolved by
                  pushing the lower node further down (y only).
-- groups      -> expanded to re-contain the (grown) nodes they originally contained.
+- edge labels -> an edge's label renders as unboxed text at the gap midpoint; when two
+                 horizontally-adjacent nodes are closer than the label is wide, the label
+                 spills under both. For that case (left<->right edges) the right-hand node
+                 is pushed further right until the gap clears the label. Vertical and
+                 corner/loop-back labels are NOT auto-moved (placement is deliberate) —
+                 if one still sits under a third node it is FLAGGED as an advisory WARNING.
+- groups      -> expanded to re-contain the (grown/moved) nodes they originally contained.
 - validation  -> JSON shape, and every file-node path resolves inside the vault.
 
 Modes: default fixes in place and reports; --check reports and exits 1 if anything WOULD
@@ -41,6 +47,11 @@ CHAR_W = 8
 TEXT_MIN_H = 60
 GROUP_PAD = 20
 GAP = 20  # vertical clearance inserted when separating overlapping nodes
+# Edge-label metrics: the label renders smaller than node body text (~13px) and unboxed.
+EDGE_CHAR_W = 7      # conservative average glyph width for an edge label
+LABEL_PAD = 16       # breathing room on each side of the label text
+LABEL_H = 28         # approximate rendered height of a one-line edge label
+LABEL_MIN_CLEAR = 8  # extra px added when opening a gap so the label never touches a node
 
 
 def wrapped_lines(text: str, width: float) -> int:
@@ -82,10 +93,40 @@ def contains(group: dict, node: dict) -> bool:
     )
 
 
+def label_width(text: str) -> float:
+    """Estimate the rendered width of an unboxed edge label."""
+    return len(text) * EDGE_CHAR_W + 2 * LABEL_PAD
+
+
+def edge_axis(from_side: str, to_side: str) -> str:
+    """'h' for left<->right edges, 'v' for top<->bottom, 'mixed' for corner routes."""
+    horizontal, vertical = {"left", "right"}, {"top", "bottom"}
+    if from_side in horizontal and to_side in horizontal:
+        return "h"
+    if from_side in vertical and to_side in vertical:
+        return "v"
+    return "mixed"
+
+
+def side_point(n: dict, side: str) -> tuple[float, float]:
+    """The (x, y) point where an edge attaches to a node side."""
+    if side == "left":
+        return (n["x"], n["y"] + n["height"] / 2)
+    if side == "right":
+        return (n["x"] + n["width"], n["y"] + n["height"] / 2)
+    if side == "top":
+        return (n["x"] + n["width"] / 2, n["y"])
+    if side == "bottom":
+        return (n["x"] + n["width"] / 2, n["y"] + n["height"])
+    return (n["x"] + n["width"] / 2, n["y"] + n["height"] / 2)
+
+
 def fit(canvas: dict, vault: Path) -> list[str]:
     """Apply the sizing pass in place; return a list of human-readable change lines."""
     changes: list[str] = []
     nodes = canvas.get("nodes", [])
+    edges = canvas.get("edges", [])
+    by_id = {n["id"]: n for n in nodes if "id" in n}
     groups = [n for n in nodes if n.get("type") == "group"]
     solid = [n for n in nodes if n.get("type") != "group"]
     # remember original membership before anything grows
@@ -93,6 +134,31 @@ def fit(canvas: dict, vault: Path) -> list[str]:
 
     def label(n: dict) -> str:
         return n.get("file") or n.get("label") or (n.get("text", "")[:30].replace("\n", " ") + "…")
+
+    def space_edge_labels() -> bool:
+        """Push the right-hand node of a labeled left<->right edge until the gap clears
+        the label. Returns True if anything moved. Vertical/mixed edges are left to the
+        flag pass — auto-moving them would disturb deliberate corner/loop-back placement."""
+        moved = False
+        for e in edges:
+            lab = (e.get("label") or "").strip()
+            if not lab or edge_axis(e.get("fromSide", ""), e.get("toSide", "")) != "h":
+                continue
+            a, b = by_id.get(e.get("fromNode")), by_id.get(e.get("toNode"))
+            if not a or not b or a.get("type") == "group" or b.get("type") == "group":
+                continue
+            left, right = (a, b) if a["x"] <= b["x"] else (b, a)
+            gap = right["x"] - (left["x"] + left["width"])
+            need = label_width(lab)
+            if gap < need:
+                delta = need - gap + LABEL_MIN_CLEAR
+                right["x"] += delta
+                changes.append(
+                    f"edge label '{lab[:30]}': gap {int(gap)}->{int(need)}px "
+                    f"(moved '{label(right)}' right {int(delta)}px)"
+                )
+                moved = True
+        return moved
 
     # 1. grow undersized nodes
     for n in solid:
@@ -111,9 +177,11 @@ def fit(canvas: dict, vault: Path) -> list[str]:
                 changes.append(f"text node '{label(n)}': height {n['height']} -> {h}")
                 n["height"] = h
 
-    # 2. resolve overlaps among non-group nodes by pushing the lower node down
-    for _ in range(50):
-        moved = False
+    # 2. open edge-label gaps (push right) and resolve node overlaps (push down) to a
+    #    joint fixpoint — opening a gap can create an overlap and vice versa. The two
+    #    act on different axes (x vs y), so they converge rather than oscillate.
+    for _ in range(100):
+        moved = space_edge_labels()
         ordered = sorted(solid, key=lambda n: (n["y"], n["x"]))
         for i, a in enumerate(ordered):
             for b in ordered[i + 1 :]:
@@ -122,7 +190,7 @@ def fit(canvas: dict, vault: Path) -> list[str]:
                     upper = a if lower is b else b
                     delta = upper["y"] + upper["height"] + GAP - lower["y"]
                     lower["y"] += delta
-                    changes.append(f"moved '{label(lower)}' down {delta}px to clear '{label(upper)}'")
+                    changes.append(f"moved '{label(lower)}' down {int(delta)}px to clear '{label(upper)}'")
                     moved = True
         if not moved:
             break
@@ -140,6 +208,30 @@ def fit(canvas: dict, vault: Path) -> list[str]:
         if any(new[k] != g[k] for k in new):
             changes.append(f"group '{g.get('label', '?')}' expanded to contain grown members")
             g.update(new)
+
+    # 4. flag (advisory) any labeled edge whose label still sits under a non-endpoint node.
+    #    Catches vertical/corner labels we don't auto-move and the rare third-node overlap.
+    #    Warnings never block on their own (they aren't auto-fixable) — they surface for a
+    #    human to widen the gap or shorten the label.
+    for e in edges:
+        lab = (e.get("label") or "").strip()
+        if not lab:
+            continue
+        a, b = by_id.get(e.get("fromNode")), by_id.get(e.get("toNode"))
+        if not a or not b:
+            continue
+        (ax, ay), (bx, by) = side_point(a, e.get("fromSide", "")), side_point(b, e.get("toSide", ""))
+        lw, lh = label_width(lab), LABEL_H
+        lrect = {"x": (ax + bx) / 2 - lw / 2, "y": (ay + by) / 2 - lh / 2, "width": lw, "height": lh}
+        for n in solid:
+            if n is a or n is b or n.get("type") == "group":
+                continue
+            if overlaps(lrect, n):
+                changes.append(
+                    f"WARNING: edge label '{lab[:40]}' may be obscured by node '{label(n)}' "
+                    f"— widen the gap or shorten the label"
+                )
+                break
 
     return changes
 
