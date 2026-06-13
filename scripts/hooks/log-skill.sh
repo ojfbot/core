@@ -42,10 +42,13 @@ log_telemetry "$SKILL_TELEMETRY_FILE" "$LINE"
 
 # Check if this skill was recently suggested in this session → close the funnel
 if [[ -f "$SUGGESTION_TELEMETRY_FILE" && -s "$SUGGESTION_TELEMETRY_FILE" ]]; then
-  # Look for a skill:suggested event matching this skill + session in the last 30 minutes
-  SUGGESTED=$(jq -r --arg sid "$SESSION_ID" --arg skill "$SKILL" \
-    'select(.session_id == $sid and .event == "skill:suggested" and .skill == $skill) | .ts' \
+  # Most recent matching skill:suggested event (skill + session). Capture both its
+  # ts and SUGGESTION_ID so the follow joins back to its originating suggestion.
+  MATCH=$(jq -rc --arg sid "$SESSION_ID" --arg skill "$SKILL" \
+    'select(.session_id == $sid and .event == "skill:suggested" and .skill == $skill) | {ts, suggestion_id}' \
     "$SUGGESTION_TELEMETRY_FILE" 2>/dev/null | tail -1)
+  SUGGESTED=$(echo "$MATCH" | jq -r '.ts // empty' 2>/dev/null || echo "")
+  SUGGESTION_ID=$(echo "$MATCH" | jq -r '.suggestion_id // empty' 2>/dev/null || echo "")
 
   if [[ -n "$SUGGESTED" ]]; then
     FOLLOW_LINE=$(jq -nc \
@@ -55,7 +58,8 @@ if [[ -f "$SUGGESTION_TELEMETRY_FILE" && -s "$SUGGESTION_TELEMETRY_FILE" ]]; the
       --arg suggested_at "$SUGGESTED" \
       --arg repo "$REPO" \
       --arg sid "$SESSION_ID" \
-      '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid}')
+      --arg suggestion_id "$SUGGESTION_ID" \
+      '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid, suggestion_id:$suggestion_id}')
     log_telemetry "$SKILL_TELEMETRY_FILE" "$FOLLOW_LINE"
   fi
 fi

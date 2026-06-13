@@ -54,20 +54,41 @@ fi
 DEDUP_FILE="/tmp/claude-skill-suggest-${SESSION_ID:-default}"
 DEDUP_WINDOW=300  # seconds
 
-if [[ -f "$DEDUP_FILE" && -f "$SKILL_TELEMETRY_FILE" ]]; then
-  PREV_SKILL=$(head -1 "$DEDUP_FILE" 2>/dev/null || echo "")
-  PREV_TS=$(tail -1 "$DEDUP_FILE" 2>/dev/null || echo "0")
+# Dedup file is a 3-line record: skill / epoch-ts / SUGGESTION_ID (line 3 may be
+# absent on legacy files or the /init path — treated as empty).
+if [[ -f "$DEDUP_FILE" ]]; then
+  PREV_SKILL=$(sed -n '1p' "$DEDUP_FILE" 2>/dev/null || echo "")
+  PREV_TS=$(sed -n '2p' "$DEDUP_FILE" 2>/dev/null || echo "0")
+  PREV_SUGGESTION_ID=$(sed -n '3p' "$DEDUP_FILE" 2>/dev/null || echo "")
 
   if [[ -n "$PREV_SKILL" && "$PREV_SKILL" != "init" ]]; then
-    # Check if suggestion-followed was logged for this skill+session since PREV_TS
     PREV_ISO=$(date -u -r "$PREV_TS" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
     if [[ -n "$PREV_ISO" ]]; then
-      FOLLOWED=$(jq -r --arg sid "${SESSION_ID:-}" --arg skill "$PREV_SKILL" --arg since "$PREV_ISO" \
-        'select(.session_id == $sid and .event == "skill:suggestion-followed" and .skill == $skill and .ts >= $since) | .ts' \
-        "$SKILL_TELEMETRY_FILE" 2>/dev/null | head -1)
+      # Funnel-close signal 1 (legacy): an explicit skill:suggestion-followed,
+      # emitted only on the Skill-tool path (log-skill.sh). Read fail-open.
+      FOLLOWED=""
+      if [[ -f "$SKILL_TELEMETRY_FILE" ]]; then
+        FOLLOWED=$(jq -r --arg sid "${SESSION_ID:-}" --arg skill "$PREV_SKILL" --arg since "$PREV_ISO" \
+          'select(.session_id == $sid and .event == "skill:suggestion-followed" and .skill == $skill and .ts >= $since) | .ts' \
+          "$SKILL_TELEMETRY_FILE" 2>/dev/null | head -1)
+      fi
 
+      # Funnel-close signal 2 (S0 fix): an INLINE follow that bypasses the Skill
+      # tool (ADR-0092) — a SKILL.md Read in tool-telemetry, or a forward-compat
+      # skill:acted. Single source of truth: corroborate-follow.mjs (exit 0 =
+      # corroborated). Only consulted when the legacy signal is absent.
+      CORROBORATED=1
       if [[ -z "$FOLLOWED" ]]; then
-        # Suggestion was ignored — log it
+        if node "$HOOK_DIR/corroborate-follow.mjs" \
+            --session="${SESSION_ID:-}" --skill="$PREV_SKILL" --since="$PREV_ISO" \
+            >/dev/null 2>&1; then
+          CORROBORATED=0
+        fi
+      fi
+
+      if [[ -z "$FOLLOWED" && "$CORROBORATED" -ne 0 ]]; then
+        # Genuinely ignored — log it, carrying the prior SUGGESTION_ID so the
+        # ignored event joins to its originating suggestion (invariant #1).
         IGN_TS=$(iso_now)
         IGN_LINE=$(jq -nc \
           --arg ts "$IGN_TS" \
@@ -76,7 +97,8 @@ if [[ -f "$DEDUP_FILE" && -f "$SKILL_TELEMETRY_FILE" ]]; then
           --arg suggested_at "$PREV_ISO" \
           --arg repo "$REPO" \
           --arg sid "${SESSION_ID:-}" \
-          '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid}')
+          --arg suggestion_id "$PREV_SUGGESTION_ID" \
+          '{ts:$ts, event:$event, skill:$skill, suggested_at:$suggested_at, repo:$repo, session_id:$sid, suggestion_id:$suggestion_id}')
         log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$IGN_LINE"
       fi
     fi
@@ -136,10 +158,10 @@ if [[ $BEST_COUNT -eq 0 || -z "$BEST_SKILL" ]]; then
   exit 0
 fi
 
-# Check deduplication
+# Check deduplication (line 1 = skill, line 2 = epoch ts, line 3 = SUGGESTION_ID)
 if [[ -f "$DEDUP_FILE" ]]; then
-  LAST_SKILL=$(head -1 "$DEDUP_FILE" 2>/dev/null || echo "")
-  LAST_TS=$(tail -1 "$DEDUP_FILE" 2>/dev/null || echo "0")
+  LAST_SKILL=$(sed -n '1p' "$DEDUP_FILE" 2>/dev/null || echo "")
+  LAST_TS=$(sed -n '2p' "$DEDUP_FILE" 2>/dev/null || echo "0")
   NOW=$(date +%s)
   ELAPSED=$((NOW - LAST_TS))
 
@@ -148,28 +170,63 @@ if [[ -f "$DEDUP_FILE" ]]; then
   fi
 fi
 
-# Write dedup state (atomic: single write to avoid race conditions)
-printf '%s\n%s\n' "$BEST_SKILL" "$(date +%s)" > "$DEDUP_FILE"
+# Mint a durable SUGGESTION_ID — the single join key threaded through the whole
+# OPAV loop (cross-slice invariant #1). Portable across macOS/Linux/CI.
+SUGGESTION_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "sug-$(date +%s)-${RANDOM}${RANDOM}")
 
-# Log skill:suggested event
+# Write dedup state (atomic: single write to avoid race conditions)
+printf '%s\n%s\n%s\n' "$BEST_SKILL" "$(date +%s)" "$SUGGESTION_ID" > "$DEDUP_FILE"
+
+# Availability check: a matched skill is only invokable if it's symlinked at
+# user scope or in the current project. Otherwise the agent can still follow it
+# by reading its SKILL.md from core directly — say so instead of suggesting a
+# slash command that doesn't exist in this session.
+SKILL_INSTALLED=false
+if [[ -e "$HOME/.claude/skills/$BEST_SKILL" || -e "${CLAUDE_PROJECT_DIR:-/nonexistent}/.claude/skills/$BEST_SKILL" ]]; then
+  SKILL_INSTALLED=true
+fi
+
+if [[ "$SKILL_INSTALLED" == "true" ]]; then
+  EVENT="skill:suggested"
+else
+  EVENT="skill:suggested-uninstalled"
+fi
+
+# Log suggestion event (carries the SUGGESTION_ID for the whole-loop join)
 LINE=$(jq -nc \
   --arg ts "$TIMESTAMP" \
-  --arg event "skill:suggested" \
+  --arg event "$EVENT" \
   --arg skill "$BEST_SKILL" \
   --arg reason "$BEST_REASON" \
   --arg prompt_prefix "$PROMPT_PREFIX" \
   --arg repo "$REPO" \
   --arg sid "$SESSION_ID" \
-  '{ts:$ts, event:$event, skill:$skill, reason:$reason, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid}')
+  --arg suggestion_id "$SUGGESTION_ID" \
+  '{ts:$ts, event:$event, skill:$skill, reason:$reason, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid, suggestion_id:$suggestion_id}')
 log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
 
 # Output suggestion as additionalContext
-jq -nc \
-  --arg skill "$BEST_SKILL" \
-  --arg reason "$BEST_REASON" \
-  '{
-    hookSpecificOutput: {
-      hookEventName: "UserPromptSubmit",
-      additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)). Consider invoking it for structured, repeatable output.")
-    }
-  }'
+if [[ "$SKILL_INSTALLED" == "true" ]]; then
+  jq -nc \
+    --arg skill "$BEST_SKILL" \
+    --arg reason "$BEST_REASON" \
+    '{
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)). Consider invoking it for structured, repeatable output.")
+      }
+    }'
+else
+  SKILL_MD="$CORE_DIR/.claude/skills/$BEST_SKILL/SKILL.md"
+  jq -nc \
+    --arg skill "$BEST_SKILL" \
+    --arg reason "$BEST_REASON" \
+    --arg skill_md "$SKILL_MD" \
+    --arg core "$CORE_DIR/.claude/skills/$BEST_SKILL" \
+    '{
+      hookSpecificOutput: {
+        hookEventName: "UserPromptSubmit",
+        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)), but it is NOT loaded in this session. Read \($skill_md) and follow it inline. To install permanently: ln -sfn \($core) ~/.claude/skills/\($skill) (or flag it scope:[\"user\"] in skill-catalog.json and re-run install-agents.sh --user-scope).")
+      }
+    }'
+fi
