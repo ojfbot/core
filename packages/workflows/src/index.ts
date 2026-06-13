@@ -28,3 +28,39 @@ export * from "./llm.js";
 export * from "./subagent.js";
 export * from "./fileBackedWorkflow.js";
 export * from "./workflows/techdebt/schema.js";
+// Deliverable-tracking spine (adr:deliverable-tracking-spine)
+export * from "./tracking/types/tracking-event.js";
+export * from "./tracking/types/canvas.js";
+export { EventLedger, DEFAULT_TRACKING_ROOT } from "./tracking/ledger.js";
+export {
+  eventEmit,
+  assertHonest,
+  requiresEvidence,
+  violatesHonesty,
+  isResolvable,
+  HonestyContractError,
+} from "./tracking/emit.js";
+export {
+  projectCanvas,
+  canvasProjector,
+  rollupColor,
+  renderFence,
+  latestPerGate,
+  parseCorrelation,
+  GATE_STATUS_OPEN,
+  GATE_STATUS_CLOSE,
+  type Projector,
+} from "./tracking/projector.js";
+export { reconcile, DEFAULT_SLA_MS } from "./tracking/reconciler.js";
+export type {
+  ReconcileReport,
+  ReconcileOptions,
+  Divergence,
+  EvidenceViolation,
+  Staleness,
+} from "./tracking/reconciler.js";
+export { readCanvas, writeCanvas, serializeCanvas } from "./tracking/canvas-io.js";
+export { gateEvent, buildGateEvent } from "./tracking/gate-event.js";
+export type { GateEventArgs, GateEventResult } from "./tracking/gate-event.js";
+export { buildSkillActed } from "./tracking/skill-acted.js";
+export type { SkillActedArgs } from "./tracking/skill-acted.js";

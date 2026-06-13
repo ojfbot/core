@@ -115,6 +115,21 @@ Spec axis: [PASS | NOTES | FAIL]   ·   Standards axis: [PASS | NOTES | BLOCKED]
 1. ...
 ```
 
+## Deliverable-tracking emission (scope-appropriate efforts only)
+
+If this validation is a **gate in a gated-slice effort** (multi-slice/gate; see TD-006 scope gate),
+emit the transition onto the tracking spine — **emit-not-magic**: a semantic gate pass has no Claude
+Code tool event, so you emit it explicitly. The reconciler hook only audits; it never writes.
+
+- **On starting validation:** `node scripts/gate-event.mjs <program> <slice> <gate> validating`
+- **On verdict PASS:** `node scripts/gate-event.mjs <program> <slice> <gate> passed --evidence=<ref>`
+- **On verdict BLOCKED/fail:** `node scripts/gate-event.mjs <program> <slice> <gate> failed`
+
+The **honesty contract** is enforced at emit: a `passed` with no resolvable `--evidence` (the validation
+report, test output, or PR — `path:…`/`pr:…`/`tpm:…`/`test:…`) is **rejected, nothing written**. The
+canvas is a projection of the ledger; never hand-edit a gate-status block. Skip this entirely for
+single-PR work (the scope gate). See `adr:deliverable-tracking-spine`.
+
 ## Constraints
 
 - Auth/ownership/secrets failures always produce BLOCKED.
