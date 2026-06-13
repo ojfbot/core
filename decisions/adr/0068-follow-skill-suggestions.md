@@ -12,13 +12,26 @@ Repos affected: all (rule is user-scope, applies cluster-wide)
 
 ---
 
+> **Correction (2026-06-13) — the 0.8% baseline is struck.** A telemetry-identity
+> audit (see `adr:suggestion-identity-and-denominator`, Slice 0 of the OPAV-loop
+> plan) found the 0.8% follow-rate below has **invalid provenance**: the lone
+> historical "follow" was a `skill:init` (`/init` acceptance, beaverGame,
+> 2026-04-27), **not** a skill action. It never measured the thing the loop gates
+> on. Two compounding defects also poisoned the denominator: no durable suggestion
+> identity, and an ignored-detector that mislabelled every ADR-0092 *inline* follow
+> (SKILL.md read instead of a Skill-tool call) as `suggestion-ignored`. **Do not
+> cite 0.8% as a baseline.** The action-rate baseline (AR0) is to be **re-derived**
+> under the corroborated `SUGGESTION_ID` definition after Slice 1
+> (`adr:skill-action-instrumentation`) lands. The figures at lines 21 and 83 below
+> are retained for the historical record only.
+
 ## Context
 
 The skill-telemetry system has been operating for months but the metrics report consistently shows ~0 skill invocations. On 2026-05-05 a focused audit was run via `/skill-metrics` to diagnose. Findings:
 
 - **Telemetry pipeline is healthy.** End-to-end test: invoking `skill-metrics:skill-metrics` via the Skill tool landed in both `~/.claude/skill-telemetry.jsonl` (as `event: skill:invoked`) and `~/.claude/tool-telemetry.jsonl` (as `tool:used`) within seconds, with correct session_id, skill name, args, repo, cwd, source. The hooks (`log-skill.sh`, `bead-session.sh`, wired in `core/.claude/settings.json` PostToolUse with matchers `Skill` and `Bash`) fire as designed.
 
-- **Adoption is 0.8%.** In the 30-day window: 8 skill invocations against 120 suggestions = **1/120 followed**. Lifetime: 73 raw events.
+- **Adoption is 0.8%.** ~~In the 30-day window: 8 skill invocations against 120 suggestions = **1/120 followed**.~~ Lifetime: 73 raw events. *[Struck 2026-06-13 — invalid provenance; the 1 "follow" was a `skill:init`, not a skill action. See correction banner above and `adr:suggestion-identity-and-denominator`.]*
 
 - **All 5 ADR-defined skill targets at 0:**
   | Target | Goal | Observed | Source |
@@ -80,7 +93,7 @@ A companion feedback memory at `~/.claude/projects/-Users-yuri-ojfbot-core/memor
 
 1. `grep "skill suggestion" ~/.claude/CLAUDE.md` returns the new rule.
 2. Memory file `feedback_follow_skill_suggestions.md` exists; `MEMORY.md` index references it.
-3. After one week of sessions: re-run `/skill-metrics`. Suggestion-followed rate should be > 0.8%. If still flat, the rule isn't taking and we'll need to diagnose (e.g., a follow-up ADR or a hook-level nudge).
+3. ~~After one week of sessions: re-run `/skill-metrics`. Suggestion-followed rate should be > 0.8%.~~ *[Struck 2026-06-13 — 0.8% is not a valid baseline (see correction banner). Re-derive AR0 under the `SUGGESTION_ID` definition post-Slice-1, then track movement against the corroborated rate, not this number.]* If still flat, the rule isn't taking and we'll need to diagnose (e.g., a follow-up ADR or a hook-level nudge).
 4. Targets visibility: at next monthly run, ADR-0045/0046 targets should be moving.
 
 ## Related
