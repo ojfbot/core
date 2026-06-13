@@ -62,7 +62,9 @@ if [[ -f "$DEDUP_FILE" ]]; then
   PREV_SUGGESTION_ID=$(sed -n '3p' "$DEDUP_FILE" 2>/dev/null || echo "")
 
   if [[ -n "$PREV_SKILL" && "$PREV_SKILL" != "init" ]]; then
-    PREV_ISO=$(date -u -r "$PREV_TS" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
+    # epoch → ISO, portable: BSD `date -r EPOCH` (macOS) first, GNU `date -d @EPOCH` (Linux/CI) fallback.
+    PREV_ISO=$(date -u -r "$PREV_TS" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null \
+      || date -u -d "@$PREV_TS" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || echo "")
     if [[ -n "$PREV_ISO" ]]; then
       # Funnel-close signal 1 (legacy): an explicit skill:suggestion-followed,
       # emitted only on the Skill-tool path (log-skill.sh). Read fail-open.

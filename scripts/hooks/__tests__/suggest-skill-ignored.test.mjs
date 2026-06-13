@@ -18,6 +18,10 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const HOOK = join(__dirname, '..', 'suggest-skill.sh');
+// Point the hook at this checkout so its catalog gate resolves on any platform —
+// the hook's CORE_DIR fallback is a hardcoded macOS path absent on CI, which would
+// make it exit early before the ignored-detector ever runs.
+const REPO_ROOT = join(__dirname, '..', '..', '..');
 
 // A prompt that matches no skill trigger — keeps the focus on the ignored-detector
 // for the PREVIOUS suggestion (which runs before current-prompt matching).
@@ -46,7 +50,7 @@ function runHook() {
     hook_event_name: 'UserPromptSubmit',
   });
   return new Promise((resolve, reject) => {
-    const child = spawn('bash', [HOOK], { env: { ...process.env, HOME: home } });
+    const child = spawn('bash', [HOOK], { env: { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: REPO_ROOT } });
     let stderr = '';
     child.stderr.on('data', (d) => (stderr += d));
     child.on('error', reject);
