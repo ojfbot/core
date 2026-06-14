@@ -13,7 +13,7 @@ import os from 'os';
 import path from 'path';
 import { EventLedger } from '../tracking/ledger.js';
 import { eventEmit } from '../tracking/emit.js';
-import { buildSkillActed } from '../tracking/skill-acted.js';
+import { buildSkillActed, lintSkillActed } from '../tracking/skill-acted.js';
 
 let tmpDir: string;
 beforeEach(async () => {
@@ -49,5 +49,80 @@ describe('skill:acted on the shared spine', () => {
     await eventEmit(ledger, buildSkillActed({ suggestionId: 'SUG-1', skill: 'validate', evidence: { scheme: 'pr', ref: '9' } }));
     const events = await ledger.read();
     expect(events.map((e) => e.event_type)).toContain('skill:acted');
+  });
+});
+
+describe('C0 — skill:acted schema', () => {
+  it('carries mode and expected_artifact in the payload', () => {
+    const ev = buildSkillActed({
+      suggestionId: 'SUG-c0',
+      skill: 'adr',
+      mode: 'shadow',
+      expectedArtifact: 'decisions/adr/NNNN-*.md',
+      evidence: { scheme: 'path', ref: '/tmp/x' },
+    });
+    expect(ev.payload).toMatchObject({
+      skill: 'adr',
+      mode: 'shadow',
+      expected_artifact: 'decisions/adr/NNNN-*.md',
+    });
+  });
+
+  const wellFormed = () =>
+    buildSkillActed({
+      suggestionId: 'SUG-ok',
+      skill: 'adr',
+      mode: 'active',
+      expectedArtifact: 'decisions/adr/NNNN-*.md',
+      evidence: { scheme: 'path', ref: '/tmp/x' },
+    });
+
+  it('lintSkillActed accepts a well-formed event', () => {
+    const lint = lintSkillActed(wellFormed());
+    expect(lint.valid).toBe(true);
+    expect(lint.errors).toEqual([]);
+  });
+
+  it('rejects a missing or empty correlation_id (the SUGGESTION_ID join key)', () => {
+    const ev = { ...wellFormed(), correlation_id: '' };
+    const lint = lintSkillActed(ev);
+    expect(lint.valid).toBe(false);
+    expect(lint.errors.join(' ')).toMatch(/correlation_id/);
+  });
+
+  it('rejects a missing op_id (idempotency key)', () => {
+    const ev = { ...wellFormed(), op_id: '' };
+    expect(lintSkillActed(ev).errors.join(' ')).toMatch(/op_id/);
+  });
+
+  it('rejects an unknown mode', () => {
+    const ev = wellFormed();
+    const bad = { ...ev, payload: { ...ev.payload, mode: 'live' } };
+    expect(lintSkillActed(bad).errors.join(' ')).toMatch(/mode/);
+  });
+
+  it('rejects a missing expected_artifact', () => {
+    const ev = wellFormed();
+    const bad = { ...ev, payload: { ...ev.payload, expected_artifact: undefined } };
+    expect(lintSkillActed(bad).errors.join(' ')).toMatch(/expected_artifact/);
+  });
+
+  it('rejects a wrong event_type / to_state', () => {
+    expect(lintSkillActed({ ...wellFormed(), event_type: 'gate-event' }).valid).toBe(false);
+    expect(lintSkillActed({ ...wellFormed(), to_state: 'passed' }).valid).toBe(false);
+  });
+
+  it('lints a 20-event well-formed fixture 20/20 (C0 TPM)', () => {
+    const fixture = Array.from({ length: 20 }, (_, i) =>
+      buildSkillActed({
+        suggestionId: `SUG-${i}`,
+        skill: i % 2 ? 'tdd' : 'validate',
+        mode: i % 3 ? 'shadow' : 'active',
+        expectedArtifact: 'some/artifact.md',
+        evidence: { scheme: 'tpm', ref: `TPM-${i}` },
+      }),
+    );
+    const passing = fixture.filter((ev) => lintSkillActed(ev).valid).length;
+    expect(passing).toBe(20);
   });
 });
