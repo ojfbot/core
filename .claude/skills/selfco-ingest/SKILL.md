@@ -1,6 +1,6 @@
 ---
 name: selfco-ingest
-description: "description: Stage a URL (YouTube video, blog article, paper, podcast) into the selfco knowledge base via the Notion inbox. Discuss the source with James, build a structured wiki/sources/ draft, and write it to Notion with suggested wikilinks for the local promoter to resolve. Use this whenever James drops a URL, says \"ingest this,\" \"save this for selfco,\" \"let's discuss this video,\" or otherwise wants source material captured into his vault. The skill handles the chat side of the ingest workflow only — the local promoter on his network is what lands files on disk."
+description: "Stage a URL (YouTube video, blog article, paper, podcast) into the selfco knowledge base via the Notion inbox. Discuss the source with James, build a structured wiki/sources/ draft, and write it to Notion with suggested wikilinks for the local promoter to resolve. Use this whenever James drops a URL, says \"ingest this,\" \"save this for selfco,\" \"let's discuss this video,\" or otherwise wants source material captured into his vault. The skill handles the chat side of the ingest workflow only — the local promoter on his network is what lands files on disk."
 ---
 
 ###### selfco-ingest
