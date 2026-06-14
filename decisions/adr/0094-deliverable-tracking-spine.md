@@ -1,11 +1,12 @@
-# ADR (draft): Deliverable-tracking spine — gate-transition ledger → vault canvas projection (hook-audited)
+# ADR-0094: Deliverable-tracking spine — gate-transition ledger → vault canvas projection (hook-audited)
 
 slug: deliverable-tracking-spine
-serial: (unassigned — draft)
+serial: 0094
 domain: workflow-engine
 type: architecture
 
-- **Status:** Proposed (draft) — the robust form of TD-006 (canvas sync); applies to any scope-appropriate gated-slice effort
+- **Status:** Accepted — the robust form of TD-006 (canvas sync); applies to any scope-appropriate gated-slice effort. Shipped to `main` via PR #157.
+- **Date accepted:** 2026-06-14
 - **Related:** ADR-0086 (gated-slice), `skill-action-instrumentation` (the same emit-not-magic + honesty-contract pattern), `duplex-work-item-sync` (ledger-canonical / idempotent projection / no-drift), ADR-0085 (selfco vault), TD-006
 
 ---
