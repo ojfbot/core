@@ -17,11 +17,21 @@
 
 import type { EvidenceRef, TrackingEvent } from './types/tracking-event.js';
 
+/**
+ * Capture mode. SHADOW-first (OPAV-S1): the cross-check validator observes and
+ * annotates but quarantines nothing until the C4 RIDM promotion to `active`.
+ */
+export type SkillActedMode = 'shadow' | 'active';
+
 export interface SkillActedArgs {
   /** The S0 SUGGESTION_ID this action corresponds to — the correlation key. */
   suggestionId: string;
   /** The skill that was acted on (e.g. 'tdd', 'validate'). */
   skill: string;
+  /** Capture mode — defaults to 'shadow' (observe-only) per SHADOW-first. */
+  mode?: SkillActedMode;
+  /** Skill-specific artifact the action is expected to produce (the honesty target). */
+  expectedArtifact?: string;
   /** Evidence the action really happened (honesty contract — required, same as gate outcomes). */
   evidence?: EvidenceRef;
   actor?: string;
@@ -40,6 +50,42 @@ export function buildSkillActed(args: SkillActedArgs): TrackingEvent {
     actor: args.actor ?? 'stop-hook',
     to_state: 'acted',
     evidence_ref: args.evidence ?? null,
-    payload: { skill: args.skill, ...args.payload },
+    payload: {
+      skill: args.skill,
+      mode: args.mode ?? 'shadow',
+      expected_artifact: args.expectedArtifact,
+      ...args.payload,
+    },
   };
+}
+
+const MODES: readonly SkillActedMode[] = ['shadow', 'active'];
+
+/** Result of a schema-lint over a `skill:acted` event. */
+export interface SkillActedLint {
+  valid: boolean;
+  errors: string[];
+}
+
+const nonEmptyString = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0;
+
+/**
+ * Schema-lint a `skill:acted` event (C0). Structural well-formedness only — NOT the
+ * honesty contract (that's `assertHonest` at emit) nor provenance (that's the C2
+ * validator). Asserts the join key, idempotency key, terminal state, and the S1
+ * payload triple `{skill, mode, expected_artifact}` are present and well-formed.
+ */
+export function lintSkillActed(ev: TrackingEvent): SkillActedLint {
+  const errors: string[] = [];
+  if (ev.event_type !== 'skill:acted') errors.push(`event_type must be 'skill:acted', got '${ev.event_type}'`);
+  if (ev.to_state !== 'acted') errors.push(`to_state must be 'acted', got '${ev.to_state}'`);
+  if (!nonEmptyString(ev.correlation_id)) errors.push('correlation_id (SUGGESTION_ID) is required and non-empty');
+  if (!nonEmptyString(ev.op_id)) errors.push('op_id is required and non-empty');
+
+  const payload = (ev.payload ?? {}) as Record<string, unknown>;
+  if (!nonEmptyString(payload.skill)) errors.push('payload.skill is required and non-empty');
+  if (!MODES.includes(payload.mode as SkillActedMode)) errors.push(`payload.mode must be one of ${MODES.join('|')}`);
+  if (!nonEmptyString(payload.expected_artifact)) errors.push('payload.expected_artifact is required and non-empty');
+
+  return { valid: errors.length === 0, errors };
 }
