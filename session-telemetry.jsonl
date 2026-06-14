@@ -17,3 +17,9 @@
 {"ts":"2026-06-13T20:09:00Z","event":"session:start","session_id":"c4f0fea6-df5d-4232-8faf-c0fc2f2241df","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-06-13T20:17:57Z","event":"session:start","session_id":"650e71b3-136d-45bb-a5ab-7241ad5e9f99","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-06-14T02:27:51Z","event":"session:start","session_id":"ceb6fe78-cf55-44f9-b592-fde5182b05fa","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-14T02:41:58Z","event":"session:start","session_id":"ceb6fe78-cf55-44f9-b592-fde5182b05fa","source":"compact","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-14T02:45:53Z","event":"session:start","session_id":"650e71b3-136d-45bb-a5ab-7241ad5e9f99","source":"compact","model":"claude-opus-4-8","repo":"core-s1","branch":"adr/skill-action-instrumentation","cwd":"/Users/yuri/ojfbot/core-s1"}
+{"ts":"2026-06-14T02:52:23Z","event":"session:start","session_id":"b1102ef2-43c8-4cfe-af99-062d6d54eac4","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-14T03:01:01Z","event":"session:start","session_id":"9179054e-3bd9-4546-b613-4f09055cbb86","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-14T03:11:17Z","event":"session:start","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-14T13:37:10Z","event":"session:start","session_id":"14839959-a320-4d0f-8c19-452a929e2bde","source":"startup","model":"claude-opus-4-8","repo":"selfco","branch":"main","cwd":"/Users/yuri/selfco"}
