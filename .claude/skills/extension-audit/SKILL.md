@@ -91,6 +91,14 @@ Single `IAIProvider` interface? Factory pattern? Easy to add new providers?
 - User-controlled content in prompts → minimum HIGH severity.
 - Content script bundle size violation → BLOCKING.
 
+## Gotchas
+
+- **Bundle size means the content-script bundle, not the repo total.** The trap is reporting the popup or background bundle (which can be large and fine) and missing that the content script silently imports the AI SDK or a background package. The blocking number is the *injected* bundle; trace its imports, don't read `dist/` totals.
+- **DOM text in a prompt is HIGH even when the page "looks safe."** The model under-rates injection because the test page is benign. But the threat model is a *hostile* page feeding the content script — any unsanitized DOM→prompt path is minimum HIGH regardless of how trustworthy the demo site is. Severity tracks the path's existence, not the current page.
+- **An unused permission is a finding, not a footnote.** It's tempting to wave through `manifest.json` permissions that "seem reasonable." Each one is attack surface and a review-store rejection risk; for every permission, prove it's actually exercised in code or flag it for narrowing/removal.
+- **MV2 vs MV3 changes which checks even apply.** Running the MV3 CSP checklist (no `eval`, no remote scripts) against an MV2 extension produces false BLOCKERs and misses MV2's real gaps. Read the manifest version in Step 1 and branch the audit — don't apply one ruleset blindly.
+- **No file modifications — and that includes the "obvious" one-line fix.** This skill outputs findings only. The reflex to just tighten a CSP string or narrow a permission inline violates the contract; emit the recommendation and let the developer apply it.
+
 ---
 
 $ARGUMENTS

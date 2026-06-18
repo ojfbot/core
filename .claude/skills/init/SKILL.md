@@ -141,3 +141,10 @@ Present a structured summary:
 
 If `$ARGUMENTS` specified a focus area, weight the suggestions and context
 loading toward that area.
+
+## Gotchas
+
+- **A failed health check is not the same as a service being down.** `lsof -i :PORT` returning nothing means *nothing is listening on that port here* — not that the repo is broken. Report "not running" as a neutral fact, not an alarm; the user often hasn't started the dev server yet and doesn't need it for the session.
+- **The sentinel-file and bead lookups silently no-op, and that's by design.** When `/tmp/claude-bead-session-*` is absent or Dolt is unreachable, `AGENT_ID` is "none" and `active-sessions` returns nothing. Don't treat empty output as an error or invent agent identities — render "Agent: none" and move on. The brief must still be useful with the whole bead layer cold.
+- **The skill-suggestion table is a starting point, not a verdict.** Suggesting `/push-all` because the tree is dirty is fine; suggesting it when the dirt is a half-finished feature the user is mid-thought on is noise. Weight suggestions against `$ARGUMENTS` and the actual git/issue state — a brief that fires every row of the table trains the user to skip the brief.
+- **Don't let context-loading balloon the orientation.** This is a Tier-0 situational-awareness pass, not `/recon`. Read the one matching architecture file and `standup.md` if present — do not start tracing data flows or reading source. The output is a brief the user skims in ten seconds, then picks a real skill.

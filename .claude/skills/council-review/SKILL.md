@@ -107,6 +107,14 @@ Produce a final version of the document that:
 - Do not merge persona voices — each critique must be distinct.
 - The synthesized version must not be longer than 150% of the original draft unless the gaps were structural.
 
+## Gotchas
+
+- **Personas collapse into one voice if you let them.** The default failure is every persona raising the same three generic concerns in slightly different words. Each critique must reflect *that persona's* lens and what *they specifically* challenge — if two personas' "Questions you'd ask" are interchangeable, you stopped embodying them.
+- **Synthesis answers questions from context; it does not invent answers.** When a reviewer's question can't be answered from available material, acknowledge the gap in one sentence — do not paper over it with confident-sounding filler. Fabricating an answer to satisfy a persona is worse than the gap they flagged.
+- **"What lands" is a protection list, not flattery.** Items praised must survive into the synthesized version. The trap is rewriting so thoroughly that a strength a persona singled out gets edited away — track preserved elements explicitly in the change log.
+- **Synthesis is a revision, not a rewrite.** Keep the original sections and structure; the 150% length cap exists to stop the council's questions from ballooning the draft into a different document. If you're restructuring wholesale, you've overstepped.
+- **No `personas/` directory means halt, not improvise.** Don't invent plausible reviewers when the repo has no persona files — the skill is only as good as the real personas, and fabricated ones produce fake authority. Halt and tell the user.
+
 ---
 
 $ARGUMENTS

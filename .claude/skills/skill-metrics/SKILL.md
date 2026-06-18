@@ -127,6 +127,14 @@ The report is the receipt — it's what we measured, frozen in time, queryable l
 - **Monthly:** full run, `/council-review` the findings, write follow-up ADR if a target needs adjustment.
 - **Retrospective (e.g. 30-day Pocock retro):** full run + interpretation, lands as ADR-0050+ retrospective.
 
+## Gotchas
+
+- **"30 events" is almost never 30 user invocations — report both numbers or you mislead.** Knowledge-file loads are logged as `skill:invoked` and the script filters them out; the raw total is typically several times the filtered count. Surfacing only the raw number inflates adoption, surfacing only the filtered number hides activity. The non-obvious filter is the single highest-misread part of the output.
+- **The ADR targets are aspirational, not observed — never present them as achieved.** ADR-0044–0050 state what adoption *should* be; the JSONL states what it *is*. The skill's whole reason for existing is to show that gap honestly, so an empty telemetry file produces "0 invocations against a target of N," not a hedge.
+- **Frame every gap in the ADR's own number, not your opinion.** "ADR-0045 wants 10 grill invocations / 30 days; we have 0" is auditable; "we should use grill more" is noise that trains the reader to ignore the report.
+- **One recommendation, not a backlog.** When multiple targets miss, the instinct is to list them all — which dilutes attention and gets nothing done. Pick the single most-leveraged move (usually the suggestion-followed rate, since it gates everything downstream) and name who/what/when.
+- **No numbers without the script — if it errors, the output is the error.** Eyeballing the JSONL or reconstructing counts from memory is how fabricated metrics enter an ADR. The script is the source of truth; a failed run is a reported failure, not an excuse to estimate.
+
 ---
 
 $ARGUMENTS

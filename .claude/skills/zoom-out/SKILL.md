@@ -52,6 +52,13 @@ Confirm the target. Find the file and its module/package.
 **If you need more:** <"run /recon for the full repo map" | "run /agent-debug for the graph" — only if warranted>
 ```
 
+## Gotchas
+
+- **Drifting downward into the file's internals is the failure mode that makes this `/recon` with extra steps.** The user already sees the internals — they asked to zoom *out*. Explain what contains and calls this code, not how it works inside. The moment you start narrating the function body, you've answered the wrong question.
+- **Naming callers from imports or filenames instead of grepping is a guess dressed as orientation.** "This is probably called by the route handler" is exactly the false-confidence the skill forbids — grep for actual importers/callers. A wrong blast radius is worse than none, because the user will make a change decision on it.
+- **The one-screen budget is a routing signal, not a style preference.** If the honest answer needs more than ~25 lines, the user wanted `/recon` (full map) or `/agent-debug` (graph) — say so and stop. Cramming a repo-scale answer into the brief format gives a shallow version of the thing they actually need.
+- **A blast radius with no failure-loudness is half an answer.** "These three modules import it" doesn't tell the user whether a change breaks loudly at compile time or silently at runtime. Name *how* each dependent breaks, because that's what decides whether the edit is safe to make now.
+
 ---
 
 $ARGUMENTS

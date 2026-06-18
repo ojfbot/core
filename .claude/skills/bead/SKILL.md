@@ -88,3 +88,11 @@ When invoked as `/bead --compact` (or the user says "compact this conversation",
 ```
 
 This is the lightweight counterpart to the full orient → work → handoff bead protocol above — same purpose (inter-session continuity), less ceremony.
+
+## Gotchas
+
+- **Orient is a session-start gate, not an optional courtesy.** When a project has `.handoff/`, reading recent beads *before* acting is the whole point — skipping straight to work means you re-derive context the last actor already wrote down, and may redo or contradict a decision. If `.handoff/` exists, orient first, every time.
+- **Beads record what's worth remembering, not what happened.** The strongest failure mode is turning a bead into a chat transcript or a play-by-play. Empty sections are fine; omitted is better than padded. A `discovery` bead is one gotcha, not a session diary.
+- **Corrections are new beads, never edits.** `.handoff/` is append-only and nothing auto-merges. When a prior bead is wrong, write a new one that supersedes it via `refs` — do not edit or delete the old file, or you break the ledger's auditability.
+- **`actor` is a durable identity, not the session.** Use stable names (`chat-claude`, `code-claude`, a human username) — inventing a fresh per-session actor breaks "the next session of code-claude" continuity that addressed `brief` beads depend on.
+- **`--compact` references artifacts, it doesn't reproduce them.** The temptation is to paste plans/diffs/ADR bodies into the handoff doc. Link them by path/SHA/URL instead — a compact handoff that inlines content is neither compact nor a clean baton-pass, and it goes stale the moment the source changes.

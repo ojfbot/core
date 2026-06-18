@@ -219,6 +219,14 @@ Session
 James: "fold this conversation into selfco"
 Claude: [reviews the conversation, identifies topics, drafts, decisions] "Staging as session-2026-05-15-frame-shell-architecture-rethink, 840 words of summary covering the TL;DR / Key points / Decisions / Open questions / Discussion thread, plus the two drafts we worked on (Frame shell adapter spec, beaverGame portal sketch) included verbatim under Artifacts. Tags: selfco, frame, architecture. It files within ~5 min; watch for status=promoted: <url>."
 
+## Gotchas
+
+- **This skill never writes to disk — the local promoter does.** It stages a row to the Notion inbox; the deliverable is a well-formed inbox row, not a file in `~/selfco/`. Trying to write the vault directly from chat fails (no network path to his box) — that's the whole reason the inbox pattern exists.
+- **A row ingests once; later edits don't re-sync.** Finish the body before staging. Refinements happen in the vault (git history) afterward, not by editing the promoted Notion row (ADR-0073).
+- **Wrap wikilinks as inline code — `` `[[page]]` `` — or Notion's formatter eats the brackets.** The promoter strips the code wrapper on write; a bare `[[page]]` can arrive mangled.
+- **Discuss → structure → write, in that order.** Jumping straight to a drafted source page skips the step where James shapes what's actually worth keeping; the discussion is where the connections that aren't in the original source surface.
+- **Staged ≠ filed.** Watch for `status=promoted` (with a commit ref); `status=failed` with an `error` means it never landed. Don't tell James it's in the vault until the row flips.
+
 Related
 
 - selfco — Inbox (Notion database, data_source_id 7b88b47f-cbc8-452d-ad03-c45006989db8)

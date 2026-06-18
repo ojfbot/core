@@ -59,6 +59,14 @@ Effort: S (< 1h) | M (half day) | L (> 1 day)
 - Rank by severity × effort: high-severity, low-effort items first.
 - Any HIGH severity finding in auth or payments: flag at the top.
 
+## Gotchas
+
+- **A clean security pass is not a clean audit.** The model finishes the security dimension, finds little, and declares the code hardened — skipping resilience and observability. Missing timeouts, naive retries, and silent error paths are how this stack actually fails in production. All three dimensions get checked every run; "secure" ≠ "hardened."
+- **Severity is impact, not exploit difficulty.** A hard-to-reach auth bypass is still HIGH because the consequence is total; an easy-to-find verbose log line is LOW because the consequence is minor. The reflex to rank by "how easy is this to trigger" inverts the ranking — rank by what happens when it's triggered.
+- **The mandate is targeted findings, not a rewrite.** Resilience gaps tempt grand proposals ("introduce a circuit-breaker layer"). That's out of scope and won't ship. Every suggestion is a concrete, small change with an S/M/L effort tag; if the only real fix is architectural, say so as a finding and stop — don't design the rewrite.
+- **A skipped checklist isn't a passed checklist.** When a dimension's knowledge file doesn't apply (e.g. no extension, so the DOM→prompt section is moot), say "N/A" explicitly. Silently omitting it reads as "checked and clean," which is a false all-clear.
+- **Findings only — even for the HIGH auth finding you're certain about.** The strongest pull to "just fix it" is the obvious credential-in-source. The skill flags it at the top and stops; auth/payment fixes route to human review, never an inline patch from this pass.
+
 ---
 
 $ARGUMENTS

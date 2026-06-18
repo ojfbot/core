@@ -74,6 +74,11 @@ Unusual patterns, tech debt hot-spots, security surface, missing tests, dead cod
 - [observation] description
 ```
 
----
+## Gotchas
+
+- **A directory tree restated in prose is not reconnaissance.** The model's default is to walk the folder structure and narrate it — which any `ls` could do. The value is in the "Notable observations": what's unusual, where the tech debt clusters, which entry point is load-bearing. If every line could be derived from the file listing, you haven't read the code.
+- **Trace data flow from the entry points, not from the file you opened first.** Recon that starts deep in a util file and works outward maps the codebase the model happened to land in, not the one that exists. Start at the real entry points (binaries, routes, exported packages) and follow data through — that's how you find where state actually lives.
+- **`CLAUDE.md` is the map, not the territory — read it first, then verify it.** It tells you the intended architecture, but recon's job is partly to catch where the code has drifted from it. A report that just paraphrases CLAUDE.md misses stale docs, which are themselves a notable observation worth flagging.
+- **"Dense and technical" is a constraint against executive-summary drift.** The audience is an engineer who needs to be productive in an hour, not a stakeholder who needs reassurance. Skip the "this is a well-structured modern codebase" filler; every sentence should name a file, a pattern, or a concrete risk.
 
 $ARGUMENTS

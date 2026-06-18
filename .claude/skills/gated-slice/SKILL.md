@@ -154,6 +154,15 @@ SHADOW) audits canvas==ledger + evidence-on-pass + validating-staleness; **auto-
 - **Use the SEH terms precisely**, and **flag the two harness extensions** (vertical slice, shadow
   mode) every time — they are not NASA terms.
 
+## Gotchas
+
+- **Every action-taking control gets a shadow stage — no exceptions, no "this one's obviously safe."** The instinct to skip Brassboard for a control that "clearly works" is the exact anti-pattern this skill exists to kill. A PreToolUse block, CI gate, or state mutation runs observe-only first, emitting its TPMs, before it's ever Operational. Straight-to-enforce is the failure.
+- **A Success Criterion with no number is a smell, not a pass.** The trap is writing "improves quality" or "reduces errors" as exit criteria. Each must be a TPM: MOE (qualitative goal) → MOP (quantitative measure) → TPM (measure vs baseline, with a breach threshold). If you can't number it, it's a one-shot Verification check at best — say so explicitly.
+- **Promotion is RIDM on data, never on a hunch or a clean demo.** Shadow → Operational flips only when named TPMs clear named thresholds. "It looked good in shadow" is not a promotion criterion; state which metrics gate the decision and what breach does (stay shadow / roll back).
+- **"Vertical slice" and "shadow mode" are harness extensions — flag them every time.** They are not NASA SEH terms (closest: life-cycle phase/WBS, and Brassboard+TRL). Silently using them as if they're canonical SEH erodes the vocabulary precision the whole skill trades on.
+- **Don't reach for this on a one-PR feature.** Naming Control Gates, MOEs, and TPMs for a change with a clear test matrix is overhead theater — that's `/plan-feature`. This skill earns its weight only when the effort is too big for one PR *or* introduces an action-taking control.
+- **Measure-first slice ordering is usually forced, not optional.** You cannot gate on TPMs you don't yet collect, so a slice that enforces before a slice that instruments is out of order. Order slices value-first, but respect that instrumentation is a prerequisite for any later gate.
+
 ## Composition
 
 - Upstream of `/plan-feature` (one slice → its spec/test-matrix) and `/orchestrate` (executing a slice

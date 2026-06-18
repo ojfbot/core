@@ -102,6 +102,14 @@ Observed behavior
 - If the symptom is in auth, payment, or data integrity paths: flag prominently and recommend human review.
 - If you cannot trace the root cause with available information, say so explicitly and list what additional context is needed.
 
+## Gotchas
+
+- **Reading source before stating the symptom poisons the investigation.** The single most common failure is anchoring on the first plausible cause in the code you happen to open. Phase 1 (symptom) and Phase 2's "do NOT read source until the symptom is stated" exist precisely to prevent this — honor the ordering even when the bug "looks obvious."
+- **The first reproducible cause is usually the proximate cause, not the root.** Stopping at the proximate cause produces fixes that suppress the symptom and let it resurface elsewhere. Keep asking "what enabled this?" until the answer is structural.
+- **Phase 7 persistence silently breaks if the session ID isn't resolvable.** The `~/.claude/last-investigation-${SESSION_ID}.md` write is what feeds the PR comment via `bead-session.sh`; if `$SESSION_ID`/`$CLAUDE_SESSION_ID` isn't accessible and you skip the write, the RCA never reaches the reviewer and `/investigate` isn't credited as covered. Always write the file (use a stable fallback marker) and state the path used.
+- **"Can't find it" is a valid output.** When evidence is insufficient, listing what's missing beats inventing a confident-sounding root cause — a wrong root cause is more expensive than an honest gap, because someone will build a fix on it.
+- **Auth/payment/data-integrity paths are flag-and-stop, not flag-and-fix.** Even a high-confidence candidate fix in these paths must route to human review; the skill's no-edits rule is load-bearing here, not ceremonial.
+
 ## Postflight (optional)
 
 After completing the investigation:

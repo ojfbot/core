@@ -140,6 +140,14 @@ Result: <N passed / M failed / K skipped>
 - Postflight escalation routes to `/deepen` when shallow-design smells appear.
 - Anti-pattern: invoking `/tdd` repeatedly to drive a multi-feature change. TDD is per-behavior. Multi-feature work should pass through `/plan-feature` first.
 
+## Gotchas
+
+- **A red for the wrong reason is a fake red.** An import typo, a syntax error, or a runner crash makes the test "fail," and the model treats that as license to write green code. The failure message must match the assertion you wrote (`expected 'foo' got undefined`) — fix invalid reds (import/syntax/setup pollution) and re-run *before* touching implementation.
+- **A test that passes on first run is testing the wrong thing.** Usually it doesn't exercise the new behavior, occasionally the behavior already exists, sometimes a default mock returns the expected value by accident. Don't celebrate a green-on-write test — rewrite it to actually call the new path, or confirm the feature already exists and move on.
+- **"Smallest change to green" really does mean hardcoding.** The instinct is to write the general implementation now because the next test is obvious. That's speculation the current red doesn't cover. `return 42` is a valid green; the next test forces generality. Writing branches for untested cases is the most common discipline break.
+- **Green-on-the-new-test is not green.** The minimal change often breaks an adjacent test — that's signal the change interacts with other behavior. Run the *full* suite, not just the edited file, before declaring green; a passing new test over a red suite is a regression in disguise.
+- **3+ awkward tests is a design signal, not a testing problem.** When tests need heavy mocking, 30 lines of setup for a one-character fix, or keep fighting you, the reflex is to push harder on the test. Stop — that's a shallow module. Escalate to `/deepen`; don't contort the test to fit a bad surface.
+
 ---
 
 $ARGUMENTS

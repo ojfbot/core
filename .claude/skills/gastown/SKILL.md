@@ -223,4 +223,14 @@ After any audit finding:
 
 ---
 
+## Gotchas
+
+- **A `grep` hit is "evidence found," not ADOPTED.** The audit greps for type names — but a defined `FrameBead` type that's never wired into the agent-graph is IN-PROGRESS, not ADOPTED (the status rubric requires "wired + tests pass"). Marking IN-PROGRESS as ADOPTED makes the next sprint plan skip the real work; read the wiring, don't trust the symbol match.
+- **Checking G-series before confirming A1+A2 are ADOPTED produces a meaningless audit.** Dependency order is law (Core Principle 2): G-series requires A1+A2. Auditing `goal_parent` adoption in a repo that has no FrameBead yet reports gaps that can't be acted on — gate the G-series checks behind the A1+A2 result, as the knowledge file states.
+- **Planning primitive work inside a sub-app issue is a scope violation, not a convenience.** `core` owns all primitives; sub-apps consume them (Core Principle 4). If a sub-app audit surfaces a missing primitive, the action is a `core` blocker line, not a task in the sub-app's plan — collapsing that boundary is how the dependency tree rots.
+- **Use Frame vocabulary inside the report, Gas Town/Paperclip terms only at the boundary.** The three-layer model has one owner per plane and terms are translated at the border (`worker`/`witness`/`mayor` inside Frame). Leaking raw Gas Town vocabulary into a Frame-facing audit blurs the layer ownership the whole skill is built to enforce.
+- **`--mode=sync` never edits without showing the diff and getting confirmation.** The instinct after an audit is to tick the now-true checkboxes directly, but the sync mode explicitly requires showing proposed `gh issue edit` changes first. An auto-edited roadmap issue that's wrong is worse than a stale one — it launders a bad audit into the system of record.
+
+---
+
 $ARGUMENTS

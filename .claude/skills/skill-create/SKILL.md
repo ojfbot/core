@@ -24,6 +24,7 @@ You are a skill author. Given a workflow description or session pattern, you pro
 3. **Examples over explanations** — show a script call or tool invocation rather than describing it in prose. Trust the LLM to fill in obvious steps.
 4. **Generic, not specific** — skills must not hardcode project names (cv-builder, LangGraph, Carbon, blogengine). Reference `domain-knowledge/` dynamically.
 5. **Triggers must earn their triggers** — phrases must be specific enough to avoid false positives but natural enough to match real usage.
+6. **Architecture-rubric compliance** — every new skill is born compliant with `skill-audit/knowledge/architecture-rubric.md`: exactly one `category` (use `methodology-meta` if it's off the nine, don't force a fit), a `## Gotchas` section seeded from day one, a model-facing `description` (trigger words, not human prose), and reference material in `knowledge/` once `SKILL.md` exceeds ~400 words. This is what stops catalog/structure drift from recurring.
 
 ## Workflow
 
@@ -82,7 +83,9 @@ Create the following files:
 **When deterministic scripts are needed:**
 - `.claude/skills/<name>/scripts/<verb>-<noun>.js` — CommonJS, `--help` flag, proper exit codes
 
-Write each file using the conventions in `knowledge/skill-template.md`. Read back the generated `SKILL.md` and verify: YAML frontmatter present (`name` matching the directory + concise `description`), ≤250 lines, no hardcoded project names, JIT directives point to real files.
+Write each file using the conventions in `knowledge/skill-template.md`. **Every `SKILL.md` must include a `## Gotchas` section** — seed it with the failure modes you already know (it accretes over time, Day-1 → Month-3; Anthropic calls Gotchas the highest-signal content in any skill). If you genuinely know none yet, add a single honest placeholder line rather than omitting the heading.
+
+Read back the generated `SKILL.md` and verify: YAML frontmatter present (`name` matching the directory + a model-facing `description`), ≤250 lines, no hardcoded project names, JIT directives point to real files, **a `## Gotchas` section exists**, and the description doesn't restate default Claude behavior.
 
 ### Step 5 — Register the skill
 
@@ -93,13 +96,14 @@ Add an entry to `.claude/skills/skill-loader/knowledge/skill-catalog.json`:
   "name": "<name>",
   "tier": <1|2|3>,
   "phase": "<phase>",
+  "category": "<one of: library-api-reference | product-verification | data-analysis | business-automation | code-scaffolding | code-quality-review | cicd-deployment | runbooks | infrastructure-ops | methodology-meta>",
   "tags": ["<tag1>", "<tag2>"],
   "description": "<one sentence — what it does and what it produces>",
   "triggers": ["<skill-name>", "<natural phrase 2>", "<natural phrase 3>"]
 }
 ```
 
-Insert it adjacent to related skills (e.g., after `plan-feature` if it's a planning skill).
+The `category` field is **required** (controlled vocab above; see `skill-audit/knowledge/architecture-rubric.md`). Pick exactly one — if the skill genuinely spans two unrelated categories, that's a smell: prefer splitting it. If you keep it deliberately broad, add `"straddle": true` so `/skill-audit` tracks it. Insert the entry adjacent to related skills (e.g., after `plan-feature` if it's a planning skill).
 
 ### Step 6 — Output the registration summary
 
@@ -121,7 +125,15 @@ Manual step — add to CLAUDE.md:
     <updated /plan-feature → ... line>
 ```
 
+## Gotchas
+
+- **The catalog entry is the skill's existence, not the directory.** A skill dir with a SKILL.md works locally but is invisible to `/skill-loader`, `suggest-skill`, and `/skill-audit` until Step 5 registers it in `skill-catalog.json`. Skipping Step 5 is the #1 source of drift — never call the skill "created" until it's in the catalog.
+- **`category` is required and easy to fudge.** When tempted to give a skill two categories, that's a signal it does too much — split it, or set `"straddle": true` so the audit tracks the debt. Don't invent categories outside the controlled vocab; off-taxonomy skills are `methodology-meta`, not a new value.
+- **A seeded Gotchas section beats a perfect-but-absent one.** You rarely know all the failure modes at authoring time. Seed it with what you know (and an honest placeholder if truly nothing) — the section accretes; omitting the heading guarantees it never does.
+- **Don't restate default Claude behavior to hit a line count.** A skill that explains what Claude already does adds context cost without value. If the knowledge doesn't push Claude *out* of its default, cut it.
+
 ## Postflight
 
 After creating the skill, offer:
 > Run `/spec-review` on the generated `SKILL.md` to catch structural issues before using it in a real session.
+> Run `/skill-audit --scorecard=<name>` to confirm the new skill passes the architecture rubric (category, Gotchas, model-facing description, progressive disclosure).

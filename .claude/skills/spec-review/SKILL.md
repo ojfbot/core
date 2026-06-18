@@ -141,6 +141,14 @@ Are any "open questions" already answered in domain-knowledge? Flag them as clos
 | PASS WITH NOTES | No CRITICAL errors; ≥1 SIGNIFICANT or MINOR finding |
 | PASS | No findings, or only MINOR items with no implementation impact |
 
+## Gotchas
+
+- **Existence claims are wrong in both directions.** The model checks "does X exist that the spec says to build?" but forgets the reverse: a spec that *relies* on something already existing when it doesn't is an equally CRITICAL hidden dependency, discovered at runtime mid-implementation. Verify both: build-what-exists (wasted sprint) AND assume-exists-but-doesn't (missing dep).
+- **Domain-knowledge docs can be stale — code is the tiebreaker.** Validating a spec only against `*-architecture.md` inherits whatever drift those docs carry. When a doc and the actual code disagree, code wins (code > docs > spec claims); flag the doc drift as its own finding rather than silently trusting the doc.
+- **Don't inflate the CRITICAL bucket.** A missing field or an ungrounded assumption feels alarming, but CRITICAL is reserved for "breaks the implementation if uncorrected" — wrong port, wrong domain, invariant violation, duplicate/missing dependency. Demoting genuine CRITICALs or promoting SIGNIFICANTs both make the verdict useless; calibrate against "what actually breaks `/scaffold`."
+- **Surface contradictions; do not resolve them.** When two sources conflict, the reflex is to pick the one that seems right and move on. That hides the decision. Flag the inconsistency, name the more authoritative source, and leave the choice to the author — silently resolving it defeats the point of a peer review.
+- **Wrong ports and prod domains fail at runtime, not compile time.** These read as trivial typos, so the model down-ranks them. But a wrong port or production hostname compiles clean and breaks only when run — that's CRITICAL, not MINOR. Cross-reference every port/URL/env-var against the env tables, don't eyeball them.
+
 ## Postflight
 
 If the spec references stale domain-knowledge (e.g., a doc says "X is missing" but X was shipped):

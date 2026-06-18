@@ -197,6 +197,14 @@ Report validation results table (28 items), then output:
 - If `domain-knowledge/app-templates.md` and this skill conflict: prefer this skill (it's newer).
 - All CSS class names must be prefixed with the app name to avoid collisions in shell.
 
+## Gotchas
+
+- **A green `pnpm build` is not a working remote — the validation gate is.** The app can compile cleanly and still be invisible in the shell because a single registration (the `AppType` union, `REMOTE_LOADERS`, the MF `vite.config.ts` entry, the `DomainType` route) was missed. Run all 28 checks in Step 9; the shell-integration gate (items 16–24) is exactly where "builds fine" diverges from "renders in the host."
+- **The config order in `vite.config.ts` is load-bearing: `cssInjectedByJs` BEFORE `federation`.** Reversed, the remote builds but ships Carbon styles that never inject in shell-mode — a blank or unstyled panel that passes every build check. Same trap for the double-Provider wrap (`<Provider>` + `<QueryClientProvider>`) and the singleton `@carbon/react` shared map: omit either and the remote mounts but throws at runtime inside the host.
+- **`moduleResolution: "bundler"`, not NodeNext; API tsconfig needs `declaration: false`.** These two TS settings are the difference between a clean 4-package build and TS2742/resolution errors that look like dependency problems. They're called out as mandatory in Step 3 precisely because the default instinct (NodeNext, declarations on) breaks the MF + Express combination.
+- **This skill writes into three repos — shell and core edits are silently easy to forget.** Steps 5–7 modify the shell repo and `core/scripts/frame-dev.sh`; an agent focused on the new project directory will scaffold a perfect app that the shell can't load and `frame-dev` can't start. The constraint permits exactly those three repos — don't stop at the new directory.
+- **Register the vault entity (Step 7) or the app is born invisible to `/vault`.** Same omission class that left `lofi-beaver`/`morning-cockpit` unknown to `/vault query`/`orient`. Author the entity + index line + log entry, or emit "run `/vault sync` after first commit" — don't treat it as optional cleanup.
+
 ---
 
 $ARGUMENTS

@@ -88,6 +88,14 @@ Next: <apply, or /grill-with-docs for contested blocks, or move to next repo>
 - Produces the per-repo decomposition for the ADR-0081 rollout; the gate (ADR-0081 §Decision) routes write-time hits *into* this skill / `/grill-with-docs`.
 - `footprint.mjs` (measure) is deterministic; this skill (decide) is the judgment. Never merge them.
 
+## Gotchas
+
+- **Line count is the smell, not the target.** The reflex is to chase a smaller number, so the model invents Layer-1/Layer-2 splits for content that is genuinely always-relevant. A command-catalog CLAUDE.md (like core's) is *correctly* Layer-0-heavy — a near-zero projected drop is the right answer, not a failure to decompose harder.
+- **A "see X.md" pointer is a claim, not evidence.** The most damaging move is deleting a block because it "looks duplicated elsewhere" without `ls`-ing the target. If the file is missing or the content differs, you have silently destroyed the only copy. Verify the file exists AND holds the same content; otherwise relocate (same footprint drop, zero loss).
+- **`@import` feels like routing but isn't.** Imports resolve at startup, so moving a block to an `@import` leaves the always-loaded footprint unchanged — pure theater. Every non-Layer-0 block goes to a nested `CLAUDE.md`, a `rules/` glob, or a tracked docs dir; never to an import target.
+- **`domain-knowledge/` is a trap as a Layer-2 destination.** In fleet repos it's a gitignored symlink farm into `core/`. Writing Layer-2 docs there fails to commit (broken pointer) and can corrupt core. Run `git check-ignore domain-knowledge` first; prefer the repo's existing tracked `documentation/`/`docs/`.
+- **When unsure, over-keep — eviction is the silent failure.** Wrongly evicting an always-true rule means it's missed on every non-matching edit path, with no error to signal it. Over-keeping only costs some footprint. The bar to move a block out is "this *clearly* only matters in subtree X," not "this *might* be conditional."
+
 ## See Also
 - ADR-0081 (`decisions/adr/0081-path-scoped-rules-dir-adoption.md`) — the governing decision
 - `scripts/claude-md/footprint.mjs` — the M1 measurement

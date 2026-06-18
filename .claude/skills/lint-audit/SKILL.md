@@ -103,6 +103,14 @@ Read `TECHDEBT.md` and check if any lint findings map to open debt items:
 - Don't auto-fix — show findings and let the developer choose.
 - If the project has no TECHDEBT.md, skip the cross-reference step.
 
+## Gotchas
+
+- **Never fabricate a finding from the rules table.** The biggest failure mode is reading the `@frame/eslint-plugin` rules reference and reporting violations you *expect* exist rather than running the linter. Every finding must come from actual `eslint --format json` output with a real file:line. If ESLint didn't run, you have no findings — say so.
+- **A missing linter is not a clean repo.** If `@frame/eslint-plugin` (or any ESLint config) isn't installed, the correct output is "no lint configured, here's how to add it" — not an empty report that reads as "passed." A skipped scan and a clean scan look identical in a summary table unless you label it.
+- **No `dist/` means the artifact scan is unrun, not green.** The post-build scanner catches source-map and key leaks that ESLint can't see. If there's no build output, the source-map/API-key leak surface is simply unchecked — state "run `pnpm build` first," don't imply the artifact layer is clean.
+- **Warning vs error is the developer's blocking line — don't relabel it.** Inflating a `warn`-severity rule to "must fix" or burying an `error` as a suggestion misrepresents what CI will actually block on. Report ESLint's own severity verbatim; the cross-reference to TECHDEBT is context, not a severity override.
+- **A TECHDEBT cross-reference is a real mapping, not a guess.** Only link a finding to TD-XXX when the rule genuinely corresponds to that item (per the documented mapping). Inventing plausible-looking debt links pollutes the tracker and erodes trust in the report.
+
 ---
 
 $ARGUMENTS

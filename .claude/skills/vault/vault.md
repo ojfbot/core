@@ -54,6 +54,35 @@ codebase."** You own `wiki/`; the user reads it.
 - **Canvas nodes _and edge labels_ are sized/spaced to content — enforced, not eyeballed.** Whenever you create or edit a `.canvas`, finish with `python {skill}/scripts/canvas-fit.py <file> --vault $V` (grow-only / push-apart: text nodes → wrapped rendered lines, file-nodes → ≥420×310, node overlaps pushed down, **left↔right edge-label gaps widened so the caption clears both nodes**, groups re-expanded; never shrinks a node). An edge label renders as unboxed text at the gap midpoint, so when two horizontally-adjacent nodes are closer than the label is wide it spills under them — keep the gap ≥ the label width (the fitter does this for you). Vertical/corner labels aren't auto-moved; if one sits under a third node the fitter prints a `WARNING` to widen the gap or shorten the label by hand. `--check` exits 1 without writing, and **`lint.py --gate` runs `--check` over every hand-authored `.canvas`, so an unfit canvas blocks the gate** (run canvases under `canvas/runs/` are the renderer's domain, out of gate scope). ADR-0088 rev A.
 - **Don't call it a "second brain."** "The vault" / "the wiki" / "source, entity, concept, synthesis pages".
 
+## I/O Layer — tool priority
+
+**Always prefer the Obsidian MCP over direct filesystem tools.** MCP writes hit the live Obsidian index (backlinks, Dataview, graph update in real-time); filesystem writes do not.
+
+**Before the first substantive read or write in any mode**, probe availability with one lightweight MCP call (`mcp__obsidian__vault_list` at `/`). If it succeeds, use MCP throughout the session. If it fails (connection refused, timeout, any error), emit this alert and then proceed with filesystem tools for the rest of the session — do not probe again:
+
+> ⚠️ **Obsidian MCP unavailable.** Obsidian may be closed or the Local REST API plugin may be disabled.
+> Falling back to direct filesystem tools — vault edits will not refresh Obsidian's live index until it reopens.
+> To restore: open Obsidian → enable Local REST API plugin → run `/mcp` → reconnect in Claude Code.
+
+**Operation mapping:**
+
+| Operation | MCP (preferred) | Filesystem (fallback) |
+|---|---|---|
+| Read a vault file | `mcp__obsidian__vault_read` | `Read` tool |
+| Write / overwrite a vault page | `mcp__obsidian__vault_write` | `Write` tool |
+| Append (log.md, etc.) | `mcp__obsidian__vault_append` | `Edit` (append pattern) |
+| Surgical patch (frontmatter, one section) | `mcp__obsidian__vault_patch` | `Edit` tool |
+| List files in a directory | `mcp__obsidian__vault_list` | `Bash ls` |
+| Search across the vault | `mcp__obsidian__search_simple` / `search_query` | `Bash grep` |
+| Open file in Obsidian (bonus, MCP-only) | `mcp__obsidian__open_file` | — (skip) |
+
+**Path convention:** MCP paths are vault-relative (`wiki/index.md`, not `~/selfco/wiki/index.md`). Filesystem paths are absolute (`$V/wiki/index.md`).
+
+**Scope exclusions — always use Bash/filesystem regardless:**
+- `git` operations (`pull`, `commit`, `push`)
+- Python helper scripts (`ingest.py`, `collect.py`, `lint.py`, etc.)
+- Non-vault filesystem reads
+
 ## Modes
 
 ### `init`
@@ -205,6 +234,15 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `/handoff` is orthogonal (one module's runbook); `/vault` is the cross-project compiled knowledge.
 - Not a replacement for `/daily-logger` (published chronological blog) — complementary; a source/session page may
   *link* a daily-logger article.
+
+## Gotchas
+
+- **Write the git pull/push around every page write, or the Claude apps will clobber your work.** GitHub (`ojfbot/selfco`) is the source of truth; `~/selfco` on the Mac is just a clone, and the web/iPhone apps commit straight to GitHub. Skip the `git -C $V pull --rebase --autostash` *before* and `git -C $V push` *after*, and the next app-originated write either conflicts or silently overwrites — the scripts do this, so you must too when authoring pages directly.
+- **`raw/` is append-only and immutable — "fixing" a source there is corruption, not maintenance.** The instinct to clean up a messy ingested transcript or correct a typo in a raw file destroys the source of record. New material is *added*; corrections live in the `wiki/` page that cites it, never in `raw/`.
+- **Link, never paste.** Pulling an ADR body, a daily-logger article, or a source file's text into a wiki page duplicates content that will drift out of sync the moment the original changes. Reference by `[[path]]`/link — this is a hard constraint, and pasting is the most common way agents quietly violate it.
+- **Prefer the Obsidian MCP, but probe exactly once.** MCP writes hit the live index (backlinks, Dataview, graph); filesystem writes don't refresh it until Obsidian reopens. Probe availability with one `vault_list` call at the start — if it fails, emit the fallback alert and use filesystem tools for the rest of the session. Re-probing after a failure burns turns on a connection that isn't coming back this session.
+- **Never overwrite a hand-edited page, and never reorder `log.md`.** User edits are authoritative; `wiki/log.md` is an append-only ledger. The safe operation is "create-if-missing or merge-into," plus a new dated `## [date] <op> | …` line — a `vault_write` that blows away a page the user shaped, or a tidy-up that reorders the log, destroys exactly the human curation the wiki is supposed to preserve.
+- **An empty `cultivate` run is a success, not a prompt to invent links.** "No connections above threshold" is a valid logged outcome; padding with weak synthesis pages to look productive is a Goodhart failure that pollutes the wiki. Log the "Considered, declined" list and stop.
 
 ---
 

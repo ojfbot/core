@@ -53,6 +53,14 @@ Files created/modified, what still needs implementation, open questions from the
 - Do not modify existing tests.
 - Do not change CI/CD configs beyond adding new entries.
 
+## Gotchas
+
+- **The pull to write business logic is the failure mode this skill exists to resist.** A stub that "just returns the obvious value" is still business logic — once you write a real implementation, the spec hasn't been reviewed and the test stubs silently become assertions about code you invented. Keep `// TODO: implement` and a typed stub return; resist completing the function because it "looks trivial."
+- **`it.todo(...)`, never `it(...)`.** Writing real test bodies at scaffold time produces tests that pass against stubs returning fake values — a green suite that asserts nothing. One `describe` per module with `it.todo` entries from the spec is the contract; a passing scaffolded test is worse than no test.
+- **Wiring that changes existing behavior is out of scope, even when it's a one-line fix.** Registering a route or updating a barrel export must be additive; if integrating the skeleton requires touching an existing code path's logic, stop and flag it as an open question rather than "fixing" it inside a scaffold pass.
+- **No spec means stop, not improvise.** `/scaffold` follows `/plan-feature`; without acceptance criteria there's nothing to turn into `it.todo` entries and nothing to scope create-vs-extend against. If invoked cold, surface the missing spec instead of inventing a structure.
+- **`// SCAFFOLD:` comments are load-bearing, not decoration.** They mark every non-obvious structural choice and config placeholder so the implementer (and `/validate`) can find what still needs a real value. A config entry without `// SCAFFOLD: needs real value` reads as finished and ships a placeholder to prod.
+
 ---
 
 $ARGUMENTS

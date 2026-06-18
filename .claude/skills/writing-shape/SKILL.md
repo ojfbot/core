@@ -53,6 +53,14 @@ Notable form decisions: <e.g. "turned the 'reasons' section from bullets into pr
 Next: /council-review for a multi-persona pass before publishing, or ship it.
 ```
 
+## Gotchas
+
+- **Autopilot turns everything into bullets — that IS the failure this skill exists to prevent.** The default LLM move is bullet soup (or, for prose-mode users, an undifferentiated wall). The discipline is a *conscious* form choice per paragraph; if you find yourself bulleting because it's faster, stop. Arguments and sequenced ideas are prose; only parallel, order-independent items are lists.
+- **Letting a unit keep its incoming form is the silent default that defeats the skill.** A beats file arrives as prose; a fragments file arrives as fragments. Inheriting that form without asking "what shape serves the reader here?" means you reformatted nothing. Every paragraph's form is a decision made fresh, not inherited from the source.
+- **Shaping should remove words; if your output is longer, you padded.** The reflex to "improve" prose by elaborating runs opposite to Core Principle 4. Restated sentences die, hedges die, transitions tighten. A shaped section that grew is a section you embellished instead of shaped.
+- **Rewriting the author's jokes and asides into neutral prose is over-shaping.** You shape *structure*, not personality — their voice, humor, and digressions survive the pass intact. The trap is treating voice as noise to clean up; it's the reason anyone reads the piece over a generic explainer.
+- **Sprinkling headings to break up text makes a fake skim-path.** A heading promises a chunk of related content (Core Principle 6). Adding one every few paragraphs to relieve visual density creates headings that lie about structure — the whole-article pass (Step 3) checks that headings form a *coherent* skim-path, so don't manufacture ones that don't.
+
 ---
 
 $ARGUMENTS

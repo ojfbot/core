@@ -76,6 +76,14 @@ Graph: [file], Node: [name], Symptom: [one sentence]
 - Do not modify any files. Diagnosis only.
 - If checkpointer database is accessible, query it to reconstruct state.
 
+## Gotchas
+
+- **Skipping Step 2 (graph map) and jumping to the failing node loses the routing context that explains it.** The symptom node is rarely where the bug lives — a state-schema mismatch (FM-2) or reducer conflict (FM-5) is authored upstream and only surfaces downstream. Map the subgraph and its routing edges first; the node that *threw* is usually the victim, not the culprit.
+- **A graph that "completes" is not a graph that succeeded.** FM-4 (uncaught tool failure) and FM-5 (reducer silently replacing instead of appending) both produce a clean run with wrong output and no error. Don't treat "reached END" as a pass — reconstruct the state at exit and check it against what the final node was supposed to write.
+- **Reconstructing state by reading node code instead of the checkpointer invents state that never existed.** Core Principle 2 says use the checkpointer — if it's accessible, query it. Inferred state hides the desync (FM-3) that is often the actual bug; a stale or replayed checkpoint looks identical to correct code until you read what was actually persisted.
+- **`messages: list` without `Annotated[..., add_messages]` is the single highest-frequency cause and it never raises.** Before chasing exotic hypotheses, grep the state schema for un-annotated accumulator fields (FM-5). The default reducer replaces, so accumulation silently fails with no error — the most common real bug presents as the most innocuous code.
+- **An async/sync mismatch (FM-6) masquerades as a hang, not an error.** `graph.invoke()` on an async graph, or a missing `await` in a node, surfaces as "the agent froze" — easily misdiagnosed as a timeout or rate limit (FM-1). Check the invoker/node async-ness before concluding it's a model or network problem.
+
 ---
 
 $ARGUMENTS

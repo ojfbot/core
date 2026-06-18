@@ -81,6 +81,14 @@ For skills currently installed that are NOT relevant:
 - Never remove skills automatically.
 - If core is not a sibling, note it and skip availability check.
 
+## Gotchas
+
+- **The "never execute" rule is the load-bearing constraint — emit commands, run none.** The instinct, having decided a skill is relevant, is to just `ln -sf` it. Don't. This skill outputs `ln`/`rm` commands for the user to run; symlinking or deleting on their behalf removes their veto over their own command namespace and is exactly the autonomy this skill withholds.
+- **`rm` recommendations are the dangerous output — a marginal skill kept costs less than a needed one removed.** "Consider removing" lines get pasted and run. Before suggesting removal, be confident the skill is genuinely irrelevant to the stated purpose, not merely unmatched by your tag filter. When unsure, leave it installed and say why you're unsure.
+- **Match on semantic intent, not trigger-string keywords.** The catalog ships triggers, but ranking by literal keyword overlap recommends `/handoff` for any prompt containing "hand" and misses `/investigate` for "why is this broken." Read the use-case tags and the actual purpose; fuzzy intent overlap is the design, exact matching is the anti-pattern.
+- **"Install everything available" defeats the skill.** The point is less-is-more — every installed skill pollutes the namespace and burns the suggestion engine's budget. A recommendation that lists 20 skills for a focused purpose is noise; rank direct > adjacent > peripheral and recommend the few that match, not the catalog.
+- **Stale install state produces confident-but-wrong commands.** Glob the actual `.claude/skills/` in both the current repo and the core sibling every run — recommending an install for something already symlinked, or a remove for something absent, signals you didn't check. If core isn't a sibling, say so and skip the availability half rather than guessing what's installable.
+
 ---
 
 $ARGUMENTS

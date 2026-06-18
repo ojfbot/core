@@ -75,6 +75,13 @@ Last updated: YYYY-MM-DD
 | TD-001 | HIGH | security | src/auth/middleware.ts:42 | ... | M | open |
 ```
 
+## Gotchas
+
+- **The propose-mode and apply-mode allowlists are not the same set — trust `knowledge/allowed-paths.md`, not the body's shorthand.** This skill's propose rules name three roots, but apply-mode's real allowlist (`isAllowedPath()`) also includes `packages/cli/`, `scripts/`, and `decisions/`, while blocking `*.test.*`, lock files, and `.github/**` outright. Load `allowed-paths.md` before any apply so you don't propose a patch that will silently `SKIP` — or worse, assume a test-file fix is in-scope when tests are explicitly never auto-patched.
+- **Scan mode's job is to *not* re-file what's already there.** The strong pull is to emit a fresh TD-NNN for every smell you see; but the skill appends to an existing `TECHDEBT.md`, so re-scanning a path duplicates open items under new IDs and rots the ledger. Read the existing table first and increment from the real max ID — a duplicate entry is worse than a missed one.
+- **A scan finding is not a propose-able incident.** Scan emits ledger rows; propose needs a *real* structured incident with a concrete `filePatch`. Don't manufacture an incident from a hypothetical "this could be cleaner" — Core Principle 1 means proposals trace to something that actually happened (an `/investigate` postflight, a failed run), not to speculative tidiness.
+- **`apply` without `--dryRun` writes to disk immediately, and there is no spec axis catching you.** Unlike `/validate`, nothing here re-checks correctness — the patch lands as-given. Show the proposal and get approval (Core Principle 3) before applying; a malformed `filePatch` in an allowed path will be written faithfully wrong.
+
 ---
 
 $ARGUMENTS

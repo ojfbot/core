@@ -57,6 +57,14 @@ Over-broad allows: <entries to tighten — or "none">
 Recommendation: <e.g. "run /git-guardrails install" | "policy fully covered, nothing to do">
 ```
 
+## Gotchas
+
+- **A `deny` rule on `Bash(git push --force*)` does nothing against `git push -f` (and vice versa).** The dangerous git surface has multiple spellings of the same operation — `--force` / `-f`, `reset --hard` / `restore .`, `add -A` / `add .`. A guardrail that pattern-matches one spelling leaves the synonym wide open. When auditing coverage, enumerate the aliases, don't trust a single matched rule to cover the class.
+- **A `.git/hooks/pre-push` is not versioned and not shared.** It lives outside the working tree, so it protects only the machine that ran `install`, vanishes on a fresh clone, and gives a false sense of fleet-wide safety. Say so explicitly: the durable guard is the `.claude/settings.json` deny rules plus CI branch protection; the local hook is a per-machine convenience.
+- **This skill's default mode is read-only — running it must not edit settings.** `audit` is the default; `install` only fires on explicit request. The temptation when you spot a gap is to "just fix it" by editing `.claude/settings.json` directly. Don't — route edits through `/update-config`, show the diff, and wait for sign-off, exactly as the workflow states.
+- **An over-broad `allow` entry silently defeats the `deny` rules you just added.** A blanket `Bash(git push:*)` in the allow list can shadow a narrower deny, so the guardrail reads as "covered" while force-push still goes through. Audit the `allow` list as carefully as `deny`/`ask` — over-broad allows are the gap that doesn't show up as a missing rule.
+- **`push --force` to `main`/`master` is always-refuse, not ask-and-confirm.** The policy table draws a line: history rewrite on shared refs gets a confirmation gate, but force-pushing the trunk is in the never-on-standing-authorization tier. Don't downgrade it to an `ask` rule the user can wave through in the moment.
+
 ---
 
 $ARGUMENTS

@@ -54,6 +54,14 @@ What was changed, what stubs were created, and what still needs a human to fill 
 - Do not invent architecture you can't verify from the code.
 - Mermaid only for diagrams.
 
+## Gotchas
+
+- **"Update the docs" is not a license to invent architecture.** The strongest failure mode is writing confident prose about how a system works without verifying it against the code — producing docs that are *worse* than stale because they read as authoritative. When you can't confirm something from source, mark it `<!-- TODO: verify -->`; don't guess.
+- **Never delete — stub or archive.** Removing an outdated section destroys the only record that the thing existed. Replace stale content or move it to an archive with a `# TODO` header; deletion loses information a future reader needs.
+- **A gap is a stub, not a silent omission.** When a canonical doc/ directory or section is missing, create it with a `# TODO` header so the absence is visible and tracked. Leaving it out entirely makes the docs *look* complete while hiding what's undocumented.
+- **Diagrams are Mermaid source, full stop.** No PNG/SVG generation — the constraint exists so diagrams stay diffable and editable in-repo. A generated image binary can't be reviewed in a PR or updated by the next refactor.
+- **Syncing CLAUDE.md means verifying its commands run, not trusting them.** Build/test commands in CLAUDE.md drift silently after refactors. Confirm the current invocation (and pnpm-not-npm) against the actual scripts before declaring it synced.
+
 ---
 
 $ARGUMENTS

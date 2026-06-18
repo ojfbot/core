@@ -104,6 +104,14 @@ After `start`, surface the key bindings:
 - Do not run package installs.
 - Do not edit `core/scripts/launcher/` files unless the user asks; registrations live in `core/scripts/launcher/registrations/` and follow the schema at `core/scripts/launcher/schema/registration.schema.json`.
 
+## Gotchas
+
+- **`start` returns instantly because it detaches — a clean exit is not a healthy session.** The launcher creates the session and returns non-blocking before any `ready_signal` has matched. Reporting "started" off the script's exit code masks windows still in `idle_active` or already flipped to `broken`. Confirm state with `tmux list-windows -F '#{@rig_state}'`, not the launch command's return.
+- **`start` without `--window` against a live session is the rebuild-everything trap.** Bare `start` rebuilds the whole topology; to restart one crashed rig you must pass `--window <id>`. Omitting it tears down healthy windows the user was working in. A `broken` window never auto-restarts by design — target it explicitly.
+- **`kill` takes a session name, and the default is shared.** `tmux kill-session -t ojfbot` with no arg destroys the default `ojfbot` session — which may not be the one the user meant if they launched under a custom name. Echo the exact session being killed and confirm it's the intended one; there is no undo on a kill.
+- **Prereqs are environmental, not code — a missing `jq`/`node`/256-color terminal fails opaquely.** The launcher refuses to start on a terminal that can't render `colour33`, and panes silently idle if Dolt isn't up on `127.0.0.1:3307`. Run Step 2's prereq checks first; a launch that "did nothing" is usually an unmet prereq, not a bug.
+- **A red (`✗`) window means a real failure to surface, not noise to restart past.** `broken` is set on non-zero exit, a failed ready signal, or a deacon quality flag — blindly re-running `launch.sh --window <id>` without reading that window's `/tmp/frame-dev-logs/*.log` just re-triggers the same failure. Investigate the log before rebuilding.
+
 ---
 
 $ARGUMENTS

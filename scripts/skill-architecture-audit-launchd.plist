@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ojfbot.skill-architecture-audit</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuri/ojfbot/core/scripts/skill-architecture-audit.sh</string>
+    </array>
+
+    <!-- Weekly: Monday 03:45 CDT — after the daily sync-telemetry job, shadow-stage observation only -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>1</integer>
+        <key>Hour</key>
+        <integer>3</integer>
+        <key>Minute</key>
+        <integer>45</integer>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/skill-architecture-audit.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/skill-architecture-audit.err</string>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/yuri/ojfbot/core</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>/Users/yuri</string>
+        <key>CLAUDE_PROJECT_DIR</key>
+        <string>/Users/yuri/ojfbot/core</string>
+    </dict>
+</dict>
+</plist>

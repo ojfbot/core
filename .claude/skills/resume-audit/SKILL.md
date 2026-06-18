@@ -145,6 +145,14 @@ Confidence: High / Medium / Low
 - If the resume and bio data conflict, flag it — don't silently resolve.
 - If a True Gap exists on a Hard requirement, say so clearly. Don't soften it.
 
+## Gotchas
+
+- **"Not Evident" accepted at face value is the exact bug this skill exists to prevent.** The Airbnb false negative — scoring mobile collaboration as missing despite Swift training and GraphQL mobile coordination — happened because no one probed. Step 3 is mandatory for *every* sub-Met rating: a gap that hasn't survived technology/role/achievement inference is a hypothesis, not a finding.
+- **The line between a tuning knob and fabrication is whether the evidence already exists.** Reframing "GraphQL platform for 15+ teams" to name the mobile clients it served is surfacing buried experience; adding "led iOS team" when the bio shows none is lying. When the evidence source is "inference," mark confidence Low and route it to user verification — never promote an inference to a stated fact.
+- **A high percentage score with a True Gap on a Hard requirement is still a fail.** Don't let an 80% overall number soften a missing must-have — the verdict rubric makes True Gaps on Hard requirements SIGNIFICANT GAPS regardless of the aggregate. A recruiter rejects on the one hard miss, not the average.
+- **Inflated ratings are as damaging as missed gaps — both produce a resume that fails the real screen.** Scoring "Met" to be encouraging sends the candidate into an interview unprepared for the gap. Every rating cites specific resume text; "Strongly Met" with no quotable evidence is an unearned score that the 30-second skim will expose.
+- **Compound requirements scored as one requirement hide half the gaps.** "React and Angular" or "design and ship" must split into separate IDs in Step 1 — a single rating averages a strength and a hole into a misleading "Partially Met" that surfaces neither.
+
 ---
 
 $ARGUMENTS

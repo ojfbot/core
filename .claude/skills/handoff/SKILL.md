@@ -37,6 +37,13 @@ Understand entry points, data flows, and failure modes from the actual implement
 - Do not omit known problems.
 - Keep it short enough to actually be read.
 
+## Gotchas
+
+- **A handoff written from the diff or your memory of the session is fiction.** The single highest-value move is Step 1 — reading the actual entry points and error strings. A runbook that says "check the logs" instead of "grep for `[segment-store] ERROR`" was written without opening the code, and the next engineer will notice the first time it's wrong.
+- **The "open items" section is the one that gets dropped, and it's the most valuable.** A polished overview with no honest list of what's fragile, half-finished, or known-broken is worse than no handoff — it projects false confidence. If you found a hack while reading the code, it goes in open items even if nobody asked.
+- **Don't re-document what the architecture doc already covers.** A handoff that restates `frame-os-context.md` or the package layout is filler. The value is the operational knowledge that lives only in your head right now: the deploy gotcha, the env var that must be set, the test that's flaky for a reason.
+- **Debug instructions must name real signals, not categories.** "Look for errors" is not a debug pattern. Load `knowledge/debug-patterns.md` and tie each failure mode to the exact log line, exit code, or state you'd actually see — a debug section you can't follow under pressure is decoration.
+
 ---
 
 $ARGUMENTS
