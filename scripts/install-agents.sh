@@ -160,6 +160,38 @@ PY
     fi
   fi
 
+  # ── Skill-action capture (OPAV-S1, ADR-0095) ─────────────────────────────
+  # The independent per-session disposition recorder. USER-SCOPE so it fires
+  # across all repos + chat/desktop + subagents — the inline-follow signal is
+  # user-scope (log-tool-use), so capture must be too. SHADOW/observe-only,
+  # async, non-blocking; no-ops until `pnpm --filter @core/workflows build`.
+  RECONCILE_HOOK="$CORE_DIR/scripts/hooks/reconcile-skill-acted.mjs"
+  RECONCILE_CMD="node \"$RECONCILE_HOOK\""
+  USER_SETTINGS="${HOME}/.claude/settings.json"
+  if command -v jq >/dev/null 2>&1; then
+    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
+    if jq -e --arg p "$RECONCILE_HOOK" 'any(.. | objects | .command? // empty; contains($p))' "$USER_SETTINGS" >/dev/null 2>&1; then
+      echo "  reconcile-skill-acted.mjs already in ~/.claude/settings.json — skipping"
+    else
+      if jq -e '.hooks.Stop' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$RECONCILE_CMD" \
+          '.hooks.Stop += [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$RECONCILE_CMD" \
+          '.hooks.Stop = [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      else
+        jq --arg cmd "$RECONCILE_CMD" \
+          '. + {"hooks":{"Stop":[{"hooks":[{"type":"command","command":$cmd,"async":true}]}]}}' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      fi
+      echo "  added reconcile-skill-acted.mjs → ~/.claude/settings.json (Stop, async)"
+    fi
+  else
+    echo "  WARN: jq not found — add reconcile-skill-acted.mjs to ~/.claude/settings.json Stop manually"
+  fi
+
   echo ""
   echo "User-scope install complete."
   exit 0
