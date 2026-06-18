@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-// skill-metrics.mjs — adoption metrics from skill-telemetry.jsonl + suggestion-telemetry.jsonl.
-// No external deps. Reads JSONL, computes invocation counts, sequencing pairs,
-// suggestion-followed rate, optional baseline diff. Outputs markdown or JSON.
+// skill-metrics.mjs — adoption metrics from the live disposition ledger (ADR-0095) +
+// suggestion-telemetry.jsonl. No external deps. Reads JSONL, computes invocation counts,
+// sequencing pairs, suggestion-followed rate, optional baseline diff. Markdown or JSON.
+// Invocations derive from skill-dispositions.jsonl (engaged:true); the legacy
+// skill-telemetry stream is frozen (2026-05-12) and kept only via --skill-telemetry
+// for the historical baseline. Override the live source with --dispositions=PATH.
 //
 // Usage:
 //   node scripts/skill-metrics.mjs                                       # default paths, last 30 days, markdown
@@ -19,7 +22,13 @@ import { homedir } from "node:os";
 import { resolve } from "node:path";
 
 const args = parseArgs(process.argv.slice(2));
+// skill-telemetry.jsonl (PostToolUse Skill) went dark on 2026-05-12: ADR-0092 routes
+// most skills to an inline follow that bypasses the Skill tool, so it stopped recording
+// "which skill ran". The live source is now the OPAV-S1 disposition ledger (ADR-0095) —
+// a skill was USED when its disposition record has engaged:true. We keep --skill-telemetry
+// for the historical baseline (its events fall outside the default 30d window → contribute 0).
 const skillPath = expandHome(args["skill-telemetry"] ?? "~/.claude/skill-telemetry.jsonl");
+const dispositionPath = expandHome(args["dispositions"] ?? "~/selfco/tracking/skill-dispositions.jsonl");
 const suggestionPath = expandHome(args["suggestion-telemetry"] ?? "~/.claude/suggestion-telemetry.jsonl");
 const standupPath = expandHome(args["standup-telemetry"] ?? "~/.claude/standup-telemetry.jsonl");
 const baselinePath = args.baseline ? expandHome(args.baseline) : null;
@@ -45,7 +54,19 @@ const SEQUENCING_PAIRS = parseSequencingPairs(args.pairs) ?? [
   { from: "grill-with-docs", to: "plan-feature", target: 0.5, source: "ADR-0045: ≥50% of /plan-feature preceded by /grill-with-docs" },
 ];
 
-const skillEvents = readJsonl(skillPath);
+// Map the live disposition ledger into invocation-shaped events: a record with
+// engaged:true means the skill's SKILL.md was read in-session (it was used). This is
+// the live "which skill ran" signal that replaces the dead skill-telemetry stream.
+// NOTE (carried C3 finding): dispositions are SUGGESTION-scoped, so skills used without
+// a prior suggestion are undercounted, and `engaged` is a SKILL.md Read — an authoring/
+// audit read can read-without-using. Absence here is not yet proof of disuse; the litter
+// surface must add a use-vs-maintenance discriminator before it acts on these counts.
+const dispositionEvents = readJsonl(dispositionPath);
+const dispositionInvocations = dispositionEvents
+  .filter((d) => d.event === "skill:disposition" && d.engaged)
+  .map((d) => ({ event: "skill:invoked", skill: d.skill, session_id: d.session_id, ts: d.ts }));
+
+const skillEvents = [...readJsonl(skillPath), ...dispositionInvocations];
 const suggestionEvents = readJsonl(suggestionPath);
 
 const skillInWindow = skillEvents.filter((e) => inWindow(e.ts));
@@ -70,6 +91,7 @@ const report = {
   },
   sources: {
     skill_telemetry: skillPath,
+    dispositions: dispositionPath,
     suggestion_telemetry: suggestionPath,
     standup_telemetry: funnelMode ? standupPath : null,
     baseline: baselinePath,
@@ -393,7 +415,7 @@ function renderMarkdown(r) {
   lines.push("");
   lines.push(`Generated: ${r.generated_at}  `);
   lines.push(`Window: ${r.window.since} → ${r.window.until} (${r.window.days} days)`);
-  lines.push(`Sources: \`${r.sources.skill_telemetry}\`, \`${r.sources.suggestion_telemetry}\`${r.sources.baseline ? `, baseline=\`${r.sources.baseline}\`` : ""}`);
+  lines.push(`Sources: invocations from \`${r.sources.dispositions}\` (live, ADR-0095; \`skill-telemetry\` frozen since 2026-05-12), suggestions from \`${r.sources.suggestion_telemetry}\`${r.sources.baseline ? `, baseline=\`${r.sources.baseline}\`` : ""}`);
   lines.push("");
 
   lines.push(`## Totals`);
