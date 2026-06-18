@@ -52,6 +52,14 @@ Count: <N> fragments across <M> kinds (story, claim, example, definition, object
 Next: run /writing-beats <path> to shape these into a structured journey.
 ```
 
+## Gotchas
+
+- **Smoothing the user's phrasing into your own voice destroys the one thing you're here to capture.** The reflex to "clean up" their answer strips the asset — their voice, their odd metaphor, their actual word choice. Write fragments verbatim-ish (lightly tidied at most); `/writing-shape` decides final phrasing later. A polished fragment in your voice is worse than a rough one in theirs.
+- **Batching questions collapses the interview into a survey.** One pointed question at a time, building on the last answer, is what pulls out the material people don't know they have. A list of five questions gets five short, flat answers — the tangents that produce the best fragments only surface when you follow the previous answer.
+- **Chasing depth on one thread starves variety, which is the actual goal.** When a great anecdote lands, the pull is to mine it dry. Resist — the brief is ~8–15 fragments across *kinds* (story, claim, example, definition, objection, metaphor). A file that's all stories and no objections gives `/writing-beats` nothing to build tension from.
+- **Structuring while gathering is premature and contaminates the next step.** The urge to outline or order fragments as they arrive defeats the design — fragments are unordered on purpose so `/writing-beats` can find the spine fresh. Tag obvious pairs at consolidation, but don't sequence; an early outline anchors the article before you know what you have.
+- **`mktemp` plus not reading an existing file clobbers prior material.** If a fragments file already exists for this project, append to it — read it first. Spinning up a fresh temp file mid-project silently abandons earlier fragments the user expects to still be there.
+
 ---
 
 $ARGUMENTS

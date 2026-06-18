@@ -241,6 +241,24 @@ parse it — the closures are written directly to the telemetry file.
 
 Pass `--dry-run` during testing to preview without writing.
 
+### Step 5.6 — Skill-architecture drift readout (OPAV Observation)
+
+Surface skill-library health as part of the daily observation. Run the
+deterministic audit (it appends a summary line to
+`~/.claude/skill-architecture-audit.jsonl` — the Observation substrate):
+
+```bash
+node "$CLAUDE_PROJECT_DIR/.claude/skills/skill-audit/scripts/audit-architecture.mjs" --format=json \
+  | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const s=JSON.parse(d).summary;console.log(\`drift:\${s.drift_count} uncategorized:\${s.uncategorized_count} missing-gotchas:\${s.missing_gotchas_count}/\${s.skills_on_disk} straddlers:\${s.straddle_count} gaps:[\${s.coverage_gaps.join(',')}] thin:[\${s.coverage_thin.join(',')}]\`)})" \
+  || true   # never block the standup flow
+```
+
+Report the one-liner under "Skill-architecture drift" in the output. This is a
+**shadow-stage** readout per ADR-0086 — it observes and reports, it never blocks.
+If `drift_count > 0` or a new straddler/gap appeared since the last line in the
+jsonl, offer to file a `/techdebt` proposal or a `/bead`. Run the full
+`/skill-audit` only on demand — this step is a cheap daily pulse, not the deep pass.
+
 ### Step 6 — Present interactive options
 
 Do NOT generate full prompts yet. Output the day plan summary, then present
@@ -324,6 +342,14 @@ invoke the appropriate framework command directly with rich context.
 
 ---
 
+## Gotchas
+
+- **The daily-logger is the thing under audit, not the source of truth.** Core Principle 1 inverts the natural reading order: a post that *claims* X shipped is a claim to verify against git, not a fact to plan around. Treat `status: "draft"` articles as AI-generated and unverified (tag every claim `[DRAFT]`); planning on an unaudited post propagates yesterday's hallucination into today's priorities.
+- **Generating all the expansion prompts upfront is the waste this skill is designed to avoid.** Step 6 presents options as interactive choices *first*; prompts are expanded only for what the user selects (Core Principle 2). Pre-building six full Layer-1 prompts burns context on five that get thrown away — present, then expand on demand.
+- **Every telemetry/audit call ends in `|| true` for a reason — never let it block the standup.** Steps 0.5, 5.5, 5.6, and 7 emit events; the bead store may be unreachable, Dolt may be down, the audit script may fail. These are best-effort observability, not gates. If one errors, note it and proceed — a standup that halts because telemetry failed is broken.
+- **The Step 5.6 skill-architecture readout is shadow-stage: it observes, it never blocks (ADR-0086).** Surfacing `drift_count > 0` is a prompt to *offer* a `/techdebt` or `/bead`, not to stop and fix the skill library mid-standup. Conflating this daily pulse with the full `/skill-audit` derails the actual job, which is planning the day.
+- **Diagram input overrides daily-logger for ranking, but does not cancel the audit.** When `/diagram-intake` priorities are present (Step 1.5) they win on ordering — yet Step 3's audit still runs to validate claims and surface context. Skipping the audit because "the user already told me the priorities" loses the accuracy check that catches stale roadmap state.
+
 ## Output template
 
 ```
@@ -348,6 +374,10 @@ Verdict: ACCURATE | PARTIALLY ACCURATE | STALE
 
 | Claim | Verified? | Correction |
 |-------|-----------|------------|
+
+### Skill-architecture drift
+<one-liner from Step 5.6: drift / uncategorized / missing-gotchas / straddlers / coverage gaps>
+
 
 ### Today
 

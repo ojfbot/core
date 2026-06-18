@@ -120,6 +120,14 @@ After any write:
 When a decision lands on a branch, the merge commit carries `ADR: <slug>` (canonical) **and**
 `ADR: <serial>` (back-compat); branch naming is `adr/<slug>` (ADR-0065 as amended by ADR-0087).
 
+## Gotchas
+
+- **The number is born at `accept`, nowhere else.** The instinct is to "reserve" a serial when drafting so cross-refs can point at it — that reservation is exactly the phantom-rot ADR-0087 kills. Drafts carry `serial: draft`; cross-refs use `adr:<slug>`. Never assign or reserve a number before `accept`.
+- **`revise` vs `supersede` is a semantic fork, not a size call.** A corrected detail or evolved decision bumps `rev:` in place (slug/serial/filename frozen). A genuinely *replaced* decision gets a new ADR via `supersede`. Picking `revise` for a real replacement silently rewrites history; picking `supersede` for a typo fix spawns junk ADRs.
+- **`supersede` writes both files or it writes neither correctly.** The trap is editing only the new ADR's `supersedes:` and forgetting the old ADR's `superseded-by:`. One-sided traces fail the `publish` dangling-trace lint — set both sides before reporting.
+- **`publish` lints before it writes — a dangling trace halts the rebuild.** Don't treat the lint as advisory and regenerate the index anyway. Any `traces:` slug that doesn't resolve to a file on disk is an error that stops `publish`; fix the reference first.
+- **Resolve identity through the helper, not by eyeballing filenames.** `scripts/adr-slugs.sh` is the single source for slug↔serial↔file. Guessing a file path from a serial breaks on gaps (gaps are meaningless by design and never filled) and on revised ADRs whose heading serial you might misread.
+
 ## See Also
 - `decisions/adr/0087-stable-identity-and-facet-tags.md` — the identity + facet scheme.
 - `/doc-refactor` to propagate the decision into docs; `/plan-feature` to plan implementation.

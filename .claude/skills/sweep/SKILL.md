@@ -56,6 +56,14 @@ Fix everything marked "safe to apply automatically." Log each change. Do not tou
 - Do not rename public APIs or exported types without checking all call sites.
 - If a TODO references a real GitHub issue number, leave it and note it.
 
+## Gotchas
+
+- **"Unused import" is a claim the bundler can disprove.** An import with no obvious reference may still be a side-effecting module, a type-only import, or pulled in for ambient declarations. Removing it on appearance breaks the build in ways that don't show in the diff. When in doubt, flag for judgment — don't auto-apply.
+- **`--apply` only touches items the catalog marks safe.** The pull is to also fix the "obviously dead" commented-out block or the magic-number duplication while you're there. Those need judgment and stay in the report. Auto-applying anything not explicitly classified safe is how a cleanup pass introduces a regression.
+- **Commented-out code can be load-bearing documentation.** A commented block may be a deliberate example, a disabled-on-purpose path, or a reference the team kept intentionally. Deleting it as "noise" loses context that wasn't in version control's reach for that reader. Flag it; let a human decide.
+- **A TODO tied to a real issue is not stale.** Before flagging a TODO/FIXME, check for a tracking reference (issue number, ticket). Those are intentional markers, not rot — leave them and note the link. Sweeping them away erases the backlog's breadcrumbs.
+- **Hands off business logic — config duplication is the edge.** Magic strings repeated 3+× look like a trivial extract-constant, but consolidating them can change behavior if the values diverged on purpose. Report the duplication; don't refactor logic or rename public APIs/exports without checking every call site.
+
 ---
 
 $ARGUMENTS

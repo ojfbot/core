@@ -93,6 +93,14 @@ Include the fleet registration items from Step 7 that require changes in other r
 - Do not run package installs.
 - If `domain-knowledge/app-templates.md` and `domain-knowledge/shared-stack.md` conflict: prefer app-templates.md.
 
+## Gotchas
+
+- **Step 7 is the whole point — skipping it is how `seh-study` shipped 15 invisible commits.** The skeleton on disk is the easy 80%; the fleet registrations (daily-logger sweep / SYSTEM_PROMPT / KNOWN_REPOS, shell remote, vault entity) are the part agents drop because they live in *other* repos. The skill can't write those files (constraint below), so they MUST surface as explicit checklist items in Step 8 — a registration you only "mention" never happens.
+- **The vault entity is a registration, not a nicety.** Forgetting `~/selfco/wiki/entities/<slug>.md` (Step 7.8) is the knowledge-space twin of the daily-logger omission — `lofi-beaver`/`morning-cockpit`/`workstation-yuri` went weeks invisible to `/vault query`. Either author the three vault touches (entity + index line + log entry) or emit "run `/vault sync` after first commit" as a checklist item; don't silently skip it.
+- **Don't invent dependency versions.** Step 2 exists because the canonical versions live in `app-templates.md`, not in your training data — a plausible-but-wrong version pins a lockfile to something that doesn't resolve or drifts the new repo off the fleet baseline. Read the spec; copy exact versions.
+- **A non-empty target directory is a stop, not a merge.** Writing a skeleton on top of existing files silently clobbers or interleaves them. Step 3 says warn and stop — honor it rather than "scaffolding around" what's already there.
+- **Use pnpm in every generated file — `npm` leaks in via muscle memory.** Generated CLAUDE.md commands, CI workflows, and READMEs must use `pnpm`; a stray `npm install` in a scaffolded script creates a phantom `package-lock.json` and breaks the workspace's hoisted resolution on first run.
+
 ---
 
 $ARGUMENTS

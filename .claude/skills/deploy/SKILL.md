@@ -82,6 +82,14 @@ Watch: [metric/log/alert] for [expected behavior]
 - Do not trigger deployments autonomously. Plan and checklist; execution is manual.
 - If `/validate` has open blocking issues, refuse to proceed and say so.
 
+## Gotchas
+
+- **A rollback plan that can't actually run is worse than none.** The trap is writing "revert the deploy" without checking the migration: if the deploy ran an irreversible migration (column drop/rename, data backfill), reverting the code points old code at a schema it can't read, and there is no clean way back. Confirm a down migration exists *and* that old code tolerates the new schema before you call the change rollback-safe — "added nullable column" is reversible, "dropped column" is not.
+- **"CI green" is a stale fact the moment you read it.** The pre-flight checklist's `[BLOCK]` items (build, test, `/validate`) describe the deploy branch *now*, not the commit CI last ran. A merge or rebase since the last green run invalidates it — re-confirm against the actual SHA being shipped, don't trust a passing badge.
+- **Skipping `/validate` because "it's a small change" defeats the prerequisite.** This skill's whole premise is that `/validate` ran clean first. The temptation on a one-line fix is to wave it through, but the auth/secret/ownership auto-blockers `/validate` catches don't scale with diff size. No clean `/validate` → refuse to produce a go-ahead plan, regardless of change size.
+- **Monitoring targets are not boilerplate.** Listing generic "watch error rate and latency" without naming the specific metric for *this* change leaves the operator blind to the failure mode the deploy actually introduces. Tie each monitoring target to a blast-radius item: if you changed an SSE pipeline, the target is stream-completion rate, not CPU.
+- **Down migrations run before the code revert, not after — and never without a backup.** The rollback order is load-bearing: revert code first and the new code may have already written rows the old schema rejects. Run the down migration first, on a backed-up database, then revert code.
+
 ---
 
 $ARGUMENTS

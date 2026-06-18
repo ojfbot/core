@@ -1,11 +1,12 @@
 {
-  "version": "1.8",
-  "updated": "2026-06-04",
+  "version": "1.10",
+  "updated": "2026-06-18",
   "skills": [
     {
       "name": "plan-feature",
       "tier": 2,
       "phase": "planning",
+      "category": "methodology-meta",
       "tags": [
         "plan",
         "spec",
@@ -23,12 +24,16 @@
         "write acceptance criteria"
       ],
       "suggested_after": [],
-      "layer_affinity": [0, 1]
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "claude-md-audit",
       "tier": 2,
       "phase": "implementation",
+      "category": "code-quality-review",
       "tags": [
         "claude-md",
         "loading-discipline",
@@ -47,12 +52,16 @@
         "route claude.md"
       ],
       "suggested_after": [],
-      "layer_affinity": [0, 1]
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "claude-md-rollout",
       "tier": 2,
       "phase": "implementation",
+      "category": "business-automation",
       "tags": [
         "claude-md",
         "rollout",
@@ -67,13 +76,19 @@
         "next rollout step",
         "roll out adr-0081"
       ],
-      "suggested_after": ["/claude-md-audit"],
-      "layer_affinity": [0, 1]
+      "suggested_after": [
+        "/claude-md-audit"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "spec-review",
       "tier": 2,
       "phase": "pre-kick-off",
+      "category": "code-quality-review",
       "tags": [
         "review",
         "spec",
@@ -92,13 +107,18 @@
         "cross-check the spec",
         "peer review this plan"
       ],
-      "suggested_after": ["/plan-feature"],
-      "layer_affinity": [1]
+      "suggested_after": [
+        "/plan-feature"
+      ],
+      "layer_affinity": [
+        1
+      ]
     },
     {
       "name": "scaffold",
       "tier": 2,
       "phase": "kick-off",
+      "category": "code-scaffolding",
       "tags": [
         "build",
         "types",
@@ -115,13 +135,20 @@
         "generate types and stubs",
         "build the skeleton"
       ],
-      "suggested_after": ["/plan-feature", "/spec-review"],
-      "layer_affinity": [1, 2]
+      "suggested_after": [
+        "/plan-feature",
+        "/spec-review"
+      ],
+      "layer_affinity": [
+        1,
+        2
+      ]
     },
     {
       "name": "investigate",
       "tier": 2,
       "phase": "debugging",
+      "category": "runbooks",
       "tags": [
         "debug",
         "root-cause",
@@ -140,12 +167,19 @@
         "bug"
       ],
       "suggested_after": [],
-      "layer_affinity": [2, 3]
+      "layer_affinity": [
+        2,
+        3
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "validate",
       "tier": 2,
       "phase": "quality-gate",
+      "category": "code-quality-review",
       "tags": [
         "review",
         "quality",
@@ -164,13 +198,23 @@
         "verify this works",
         "pre-merge check"
       ],
-      "suggested_after": ["/scaffold", "/investigate"],
-      "layer_affinity": [2, 3]
+      "suggested_after": [
+        "/scaffold",
+        "/investigate"
+      ],
+      "layer_affinity": [
+        2,
+        3
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "deploy",
       "tier": 2,
       "phase": "release",
+      "category": "cicd-deployment",
       "tags": [
         "ship",
         "release",
@@ -185,13 +229,17 @@
         "prepare for deployment",
         "what do I need to ship"
       ],
-      "suggested_after": ["/validate", "/push-all"],
+      "suggested_after": [
+        "/validate",
+        "/push-all"
+      ],
       "layer_affinity": []
     },
     {
       "name": "handoff",
       "tier": 2,
       "phase": "post-ship",
+      "category": "methodology-meta",
       "tags": [
         "runbook",
         "docs",
@@ -208,13 +256,16 @@
         "prepare handoff docs",
         "handoff documentation"
       ],
-      "suggested_after": ["/deploy"],
+      "suggested_after": [
+        "/deploy"
+      ],
       "layer_affinity": []
     },
     {
       "name": "hardening",
       "tier": 2,
       "phase": "pre-milestone",
+      "category": "code-quality-review",
       "tags": [
         "security",
         "resilience",
@@ -233,12 +284,16 @@
         "check for security issues"
       ],
       "suggested_after": [],
-      "layer_affinity": [2, 3]
+      "layer_affinity": [
+        2,
+        3
+      ]
     },
     {
       "name": "doc-refactor",
       "tier": 2,
       "phase": "post-mvp",
+      "category": "methodology-meta",
       "tags": [
         "docs",
         "readme",
@@ -256,13 +311,17 @@
         "update documentation",
         "documentation is out of date"
       ],
-      "suggested_after": ["/deploy", "/handoff"],
+      "suggested_after": [
+        "/deploy",
+        "/handoff"
+      ],
       "layer_affinity": []
     },
     {
       "name": "test-expand",
       "tier": 2,
       "phase": "after-milestones",
+      "category": "code-quality-review",
       "tags": [
         "tests",
         "coverage",
@@ -282,12 +341,16 @@
         "expand test coverage"
       ],
       "suggested_after": [],
-      "layer_affinity": [2, 3]
+      "layer_affinity": [
+        2,
+        3
+      ]
     },
     {
       "name": "sweep",
       "tier": 2,
       "phase": "daily-weekly",
+      "category": "code-quality-review",
       "tags": [
         "cleanup",
         "maintenance",
@@ -309,6 +372,7 @@
       "name": "techdebt",
       "tier": 3,
       "phase": "continuous",
+      "category": "methodology-meta",
       "tags": [
         "debt",
         "scan",
@@ -333,6 +397,7 @@
       "name": "setup-ci-cd",
       "tier": 2,
       "phase": "poc-to-mvp",
+      "category": "cicd-deployment",
       "tags": [
         "ci",
         "cd",
@@ -356,6 +421,7 @@
       "name": "push-all",
       "tier": 2,
       "phase": "daily-ops",
+      "category": "cicd-deployment",
       "tags": [
         "commit",
         "push",
@@ -370,13 +436,18 @@
         "commit and push",
         "make a commit"
       ],
-      "suggested_after": ["/validate"],
-      "layer_affinity": [3]
+      "suggested_after": [
+        "/validate"
+      ],
+      "layer_affinity": [
+        3
+      ]
     },
     {
       "name": "observe",
       "tier": 2,
       "phase": "production",
+      "category": "runbooks",
       "tags": [
         "logs",
         "metrics",
@@ -400,6 +471,7 @@
       "name": "recon",
       "tier": 1,
       "phase": "orientation",
+      "category": "methodology-meta",
       "tags": [
         "explore",
         "map",
@@ -416,12 +488,16 @@
         "what does this repo do"
       ],
       "suggested_after": [],
-      "layer_affinity": [0, 1]
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "summarize",
       "tier": 1,
       "phase": "any",
+      "category": "methodology-meta",
       "tags": [
         "read",
         "explain",
@@ -442,6 +518,7 @@
       "name": "roadmap",
       "tier": 2,
       "phase": "strategy",
+      "category": "methodology-meta",
       "tags": [
         "strategy",
         "plan",
@@ -455,12 +532,16 @@
         "what should we build next",
         "prioritize features",
         "what's the plan"
+      ],
+      "scope": [
+        "user"
       ]
     },
     {
       "name": "scaffold-app",
       "tier": 2,
       "phase": "new-project",
+      "category": "code-scaffolding",
       "tags": [
         "new-project",
         "template",
@@ -481,6 +562,8 @@
       "name": "frame-standup",
       "tier": 3,
       "phase": "continuous",
+      "category": "business-automation",
+      "straddle": true,
       "tags": [
         "daily",
         "planning",
@@ -500,12 +583,16 @@
         "check the daily-logger and plan work",
         "what did we ship yesterday",
         "daily kickoff"
+      ],
+      "scope": [
+        "user"
       ]
     },
     {
       "name": "gastown",
       "tier": 3,
       "phase": "continuous",
+      "category": "business-automation",
       "tags": [
         "gas-town",
         "gastown",
@@ -535,6 +622,7 @@
       "name": "workbench",
       "tier": 1,
       "phase": "daily-ops",
+      "category": "infrastructure-ops",
       "tags": [
         "tmux",
         "dev-env",
@@ -554,6 +642,7 @@
       "name": "agent-debug",
       "tier": 2,
       "phase": "debugging",
+      "category": "runbooks",
       "tags": [
         "langgraph",
         "agent",
@@ -573,6 +662,7 @@
       "name": "pr-review",
       "tier": 2,
       "phase": "review",
+      "category": "code-quality-review",
       "tags": [
         "review",
         "pr",
@@ -588,12 +678,15 @@
         "code review"
       ],
       "suggested_after": [],
-      "layer_affinity": [3]
+      "layer_affinity": [
+        3
+      ]
     },
     {
       "name": "screenshot-audit",
       "tier": 2,
       "phase": "ci-review",
+      "category": "product-verification",
       "tags": [
         "visual",
         "regression",
@@ -613,6 +706,7 @@
       "name": "rag-audit",
       "tier": 2,
       "phase": "audit",
+      "category": "code-quality-review",
       "tags": [
         "rag",
         "vector-store",
@@ -632,6 +726,7 @@
       "name": "extension-audit",
       "tier": 2,
       "phase": "pre-release",
+      "category": "code-quality-review",
       "tags": [
         "extension",
         "chrome",
@@ -652,6 +747,7 @@
       "name": "council-review",
       "tier": 2,
       "phase": "pre-publish",
+      "category": "methodology-meta",
       "tags": [
         "review",
         "personas",
@@ -672,6 +768,7 @@
       "name": "skill-loader",
       "tier": 3,
       "phase": "init",
+      "category": "methodology-meta",
       "tags": [
         "meta",
         "skills",
@@ -685,12 +782,16 @@
         "what skills are available",
         "load skills for this repo",
         "install skills"
+      ],
+      "scope": [
+        "user"
       ]
     },
     {
       "name": "skill-create",
       "tier": 2,
       "phase": "meta",
+      "category": "methodology-meta",
       "tags": [
         "meta",
         "skill",
@@ -712,6 +813,7 @@
       "name": "daily-logger",
       "tier": 1,
       "phase": "orientation",
+      "category": "methodology-meta",
       "tags": [
         "daily-logger",
         "council",
@@ -725,12 +827,16 @@
         "how does the council work",
         "explain the council of experts",
         "article pipeline"
+      ],
+      "scope": [
+        "user"
       ]
     },
     {
       "name": "lint-audit",
       "tier": 2,
       "phase": "quality-gate",
+      "category": "code-quality-review",
       "tags": [
         "lint",
         "eslint",
@@ -755,6 +861,7 @@
       "name": "resume-audit",
       "tier": 2,
       "phase": "quality-gate",
+      "category": "methodology-meta",
       "tags": [
         "resume",
         "audit",
@@ -781,6 +888,7 @@
       "name": "adr",
       "tier": 1,
       "phase": "any",
+      "category": "methodology-meta",
       "tags": [
         "adr",
         "decisions",
@@ -799,12 +907,16 @@
         "why did we decide",
         "record this architecture decision",
         "document architecture decisions"
+      ],
+      "scope": [
+        "user"
       ]
     },
     {
       "name": "init",
       "tier": 0,
       "phase": "orientation",
+      "category": "methodology-meta",
       "tags": [
         "init",
         "session",
@@ -829,6 +941,7 @@
       "name": "grill-with-docs",
       "tier": 2,
       "phase": "alignment",
+      "category": "methodology-meta",
       "tags": [
         "grill",
         "align",
@@ -851,12 +964,18 @@
         "before we plan"
       ],
       "suggested_after": [],
-      "layer_affinity": [0]
+      "layer_affinity": [
+        0
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "tdd",
       "tier": 2,
       "phase": "implementation",
+      "category": "code-quality-review",
       "tags": [
         "tdd",
         "test",
@@ -874,13 +993,23 @@
         "enforce TDD",
         "TDD this change"
       ],
-      "suggested_after": ["/scaffold", "/plan-feature"],
-      "layer_affinity": [2, 3]
+      "suggested_after": [
+        "/scaffold",
+        "/plan-feature"
+      ],
+      "layer_affinity": [
+        2,
+        3
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "deepen",
       "tier": 2,
       "phase": "architecture",
+      "category": "code-quality-review",
       "tags": [
         "refactor",
         "architecture",
@@ -899,13 +1028,24 @@
         "audit module depth",
         "consolidate utilities"
       ],
-      "suggested_after": ["/recon", "/sweep", "/lint-audit"],
-      "layer_affinity": [1, 2]
+      "suggested_after": [
+        "/recon",
+        "/sweep",
+        "/lint-audit"
+      ],
+      "layer_affinity": [
+        1,
+        2
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "triage",
       "tier": 2,
       "phase": "planning",
+      "category": "methodology-meta",
       "tags": [
         "triage",
         "labels",
@@ -922,13 +1062,23 @@
         "prioritize the issues",
         "apply triage labels"
       ],
-      "suggested_after": ["/roadmap", "/orchestrate"],
-      "layer_affinity": [0, 1]
+      "suggested_after": [
+        "/roadmap",
+        "/orchestrate"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "skill-metrics",
       "tier": 2,
       "phase": "observation",
+      "category": "data-analysis",
       "tags": [
         "metrics",
         "telemetry",
@@ -948,12 +1098,16 @@
         "pocock retrospective"
       ],
       "suggested_after": [],
-      "layer_affinity": [0]
+      "layer_affinity": [
+        0
+      ]
     },
     {
       "name": "vault",
       "tier": 1,
       "phase": "meta",
+      "category": "data-analysis",
+      "straddle": true,
       "tags": [
         "vault",
         "selfco",
@@ -985,88 +1139,451 @@
         "export this session to my vault",
         "wrap up this session into selfco"
       ],
-      "suggested_after": ["/bead", "/handoff"],
-      "layer_affinity": [0]
+      "suggested_after": [
+        "/bead",
+        "/handoff"
+      ],
+      "layer_affinity": [
+        0
+      ],
+      "scope": [
+        "user"
+      ]
     },
     {
       "name": "prototype",
       "tier": 2,
       "phase": "kick-off",
-      "tags": ["prototype", "spike", "throwaway", "experiment", "design-exploration", "ui-variants"],
+      "category": "methodology-meta",
+      "tags": [
+        "prototype",
+        "spike",
+        "throwaway",
+        "experiment",
+        "design-exploration",
+        "ui-variants"
+      ],
       "description": "Build throwaway code that answers one question: an interactive terminal harness for logic/state-machine edge cases, or N radically different UI variants switchable by URL param. Record the verdict, then delete.",
-      "triggers": ["prototype", "spike this", "throwaway prototype", "try a quick experiment", "explore a few UI options", "build a scratch version to test X"],
-      "suggested_after": ["/plan-feature", "/scaffold"],
-      "layer_affinity": [1, 2]
+      "triggers": [
+        "prototype",
+        "spike this",
+        "throwaway prototype",
+        "try a quick experiment",
+        "explore a few UI options",
+        "build a scratch version to test X"
+      ],
+      "suggested_after": [
+        "/plan-feature",
+        "/scaffold"
+      ],
+      "layer_affinity": [
+        1,
+        2
+      ]
     },
     {
       "name": "caveman",
       "tier": 1,
       "phase": "continuous",
-      "tags": ["caveman", "terse", "compressed", "low-token", "communication", "brevity"],
+      "category": "methodology-meta",
+      "tags": [
+        "caveman",
+        "terse",
+        "compressed",
+        "low-token",
+        "communication",
+        "brevity"
+      ],
       "description": "Ultra-compressed communication mode — drops articles, hedging, preamble, recap; keeps full technical accuracy, paths, commands, code. Stays on until the user says 'normal mode'.",
-      "triggers": ["caveman", "caveman mode", "be terse", "compress your replies", "stop the preamble", "low-token mode"],
+      "triggers": [
+        "caveman",
+        "caveman mode",
+        "be terse",
+        "compress your replies",
+        "stop the preamble",
+        "low-token mode"
+      ],
       "suggested_after": [],
-      "layer_affinity": [0, 1, 2]
+      "layer_affinity": [
+        0,
+        1,
+        2
+      ]
     },
     {
       "name": "zoom-out",
       "tier": 1,
       "phase": "continuous",
-      "tags": ["zoom-out", "context", "orientation", "call-graph", "blast-radius", "navigation"],
+      "category": "methodology-meta",
+      "tags": [
+        "zoom-out",
+        "context",
+        "orientation",
+        "call-graph",
+        "blast-radius",
+        "navigation"
+      ],
       "description": "In-loop orientation for code you're already working in: walk up the call graph and module boundaries — who calls this, what it depends on, blast radius if changed. No report file; for a full cold-start repo overview use /recon.",
-      "triggers": ["zoom out", "give me the bigger picture", "what's the broader context here", "how does this fit into the system", "I'm lost in this file", "step back"],
+      "triggers": [
+        "zoom out",
+        "give me the bigger picture",
+        "what's the broader context here",
+        "how does this fit into the system",
+        "I'm lost in this file",
+        "step back"
+      ],
       "suggested_after": [],
-      "layer_affinity": [1, 2]
+      "layer_affinity": [
+        1,
+        2
+      ]
     },
     {
       "name": "writing-fragments",
       "tier": 2,
       "phase": "continuous",
-      "tags": ["writing", "article", "fragments", "brain-dump", "interview", "raw-material"],
+      "category": "methodology-meta",
+      "tags": [
+        "writing",
+        "article",
+        "fragments",
+        "brain-dump",
+        "interview",
+        "raw-material"
+      ],
       "description": "Interview the user to extract varied raw material for an article (stories, claims, examples, definitions, objections); consolidate into a fragments file. Step 1 of the writing pipeline (then /writing-beats, then /writing-shape).",
-      "triggers": ["writing-fragments", "help me brain-dump for an article", "extract my raw material", "interview me for a post", "gather fragments"],
+      "triggers": [
+        "writing-fragments",
+        "help me brain-dump for an article",
+        "extract my raw material",
+        "interview me for a post",
+        "gather fragments"
+      ],
       "suggested_after": [],
-      "layer_affinity": [0]
+      "layer_affinity": [
+        0
+      ]
     },
     {
       "name": "writing-beats",
       "tier": 2,
       "phase": "continuous",
-      "tags": ["writing", "article", "beats", "structure", "outline", "reader-journey"],
+      "category": "methodology-meta",
+      "tags": [
+        "writing",
+        "article",
+        "beats",
+        "structure",
+        "outline",
+        "reader-journey"
+      ],
       "description": "Structure an article as an ordered sequence of beats (reader-journey decision points), then develop one beat at a time with sign-off. Step 2 of the writing pipeline; takes a fragments file, hands beats to /writing-shape.",
-      "triggers": ["writing-beats", "outline this article as a journey", "structure my post", "what's the beat sheet for this piece", "develop this section by section"],
-      "suggested_after": ["/writing-fragments"],
-      "layer_affinity": [0, 1]
+      "triggers": [
+        "writing-beats",
+        "outline this article as a journey",
+        "structure my post",
+        "what's the beat sheet for this piece",
+        "develop this section by section"
+      ],
+      "suggested_after": [
+        "/writing-fragments"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "writing-shape",
       "tier": 2,
       "phase": "continuous",
-      "tags": ["writing", "article", "shape", "prose", "formatting", "polish"],
+      "category": "methodology-meta",
+      "tags": [
+        "writing",
+        "article",
+        "shape",
+        "prose",
+        "formatting",
+        "polish"
+      ],
       "description": "Turn rough or beat-drafted markdown into finished article prose, deciding the form (prose/list/table/callout/code/heading) of every paragraph rather than defaulting to walls of text or bullet soup. Step 3 of the writing pipeline.",
-      "triggers": ["writing-shape", "shape this into an article", "turn my notes into prose", "polish this draft", "format this article"],
-      "suggested_after": ["/writing-beats", "/writing-fragments"],
-      "layer_affinity": [0, 1]
+      "triggers": [
+        "writing-shape",
+        "shape this into an article",
+        "turn my notes into prose",
+        "polish this draft",
+        "format this article"
+      ],
+      "suggested_after": [
+        "/writing-beats",
+        "/writing-fragments"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ]
     },
     {
       "name": "git-guardrails",
       "tier": 1,
       "phase": "continuous",
-      "tags": ["git", "guardrails", "safety", "permissions", "force-push", "settings"],
+      "category": "infrastructure-ops",
+      "tags": [
+        "git",
+        "guardrails",
+        "safety",
+        "permissions",
+        "force-push",
+        "settings"
+      ],
       "description": "State the dangerous-git policy and audit or wire the repo's guardrails — .claude/settings.json deny/ask rules (via /update-config) and an optional pre-push hook. Read-only by default; only edits settings when asked.",
-      "triggers": ["git-guardrails", "block dangerous git commands", "stop me force-pushing main", "add git safety rails", "set up git protections"],
+      "triggers": [
+        "git-guardrails",
+        "block dangerous git commands",
+        "stop me force-pushing main",
+        "add git safety rails",
+        "set up git protections"
+      ],
       "suggested_after": [],
-      "layer_affinity": [0]
+      "layer_affinity": [
+        0
+      ]
     },
     {
       "name": "gated-slice",
       "tier": 2,
       "phase": "planning",
-      "tags": ["decomposition", "vertical-slice", "control-gate", "tpm", "shadow-mode", "ridm", "seh", "enforcement", "planning"],
+      "category": "methodology-meta",
+      "tags": [
+        "decomposition",
+        "vertical-slice",
+        "control-gate",
+        "tpm",
+        "shadow-mode",
+        "ridm",
+        "seh",
+        "enforcement",
+        "planning"
+      ],
       "description": "Decompose a large effort into Control-Gated Slices (ADR-0086): independently-shippable vertical slices, each delivered through ordered Control Gates with Entrance + Success Criteria expressed as TPMs (MOE → MOP → TPM), with any action-taking enforcement control required to mature through a Brassboard/shadow (observe-only) stage before going Operational, promoted by a data-gated RIDM decision. Plan only, no code. Distinct from /plan-feature (single-feature spec→test-matrix) and /orchestrate (execution).",
-      "triggers": ["gated-slice", "control gated slices", "decompose this initiative", "slice this up", "plan a big effort", "shadow mode then enforce", "how do I roll out this gate", "stage this enforcement", "control gates"],
-      "suggested_after": ["/grill-with-docs"],
-      "layer_affinity": [0]
+      "triggers": [
+        "gated-slice",
+        "control gated slices",
+        "decompose this initiative",
+        "slice this up",
+        "plan a big effort",
+        "shadow mode then enforce",
+        "how do I roll out this gate",
+        "stage this enforcement",
+        "control gates"
+      ],
+      "suggested_after": [
+        "/grill-with-docs"
+      ],
+      "layer_affinity": [
+        0
+      ]
+    },
+    {
+      "name": "bead",
+      "tier": 2,
+      "phase": "session-boundary",
+      "category": "methodology-meta",
+      "tags": [
+        "handoff",
+        "continuity",
+        "session",
+        "orient",
+        "brief",
+        "decision",
+        "discovery",
+        "daily-ops"
+      ],
+      "description": "Inter-session continuity via beads — small dated markdown files in a .handoff/ ledger that let any future session (chat or Code) reconstruct context. Distinct from /handoff (post-ship runbook docs).",
+      "triggers": [
+        "bead",
+        "orient me",
+        "pick up where we left off",
+        "what was the last session about",
+        "write a brief for claude code",
+        "log this decision",
+        "capture this discovery",
+        "write a bead",
+        "compact this conversation",
+        "hand this off"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1
+      ],
+      "scope": [
+        "user"
+      ]
+    },
+    {
+      "name": "diagram-intake",
+      "tier": 2,
+      "phase": "orientation",
+      "category": "methodology-meta",
+      "tags": [
+        "diagram",
+        "intake",
+        "priorities",
+        "photo",
+        "standup",
+        "goals"
+      ],
+      "description": "Read a hand-drawn priority diagram (photo), map goals to canonical repos, cross-reference roadmap + open blockers, output structured per-app priorities compatible with /frame-standup Step 7.",
+      "triggers": [
+        "diagram-intake",
+        "read my diagram",
+        "here are today's goals",
+        "interpret this photo",
+        "morning priorities"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "frame-dev",
+      "tier": 1,
+      "phase": "daily-ops",
+      "category": "infrastructure-ops",
+      "tags": [
+        "frame",
+        "dev-server",
+        "start",
+        "stop",
+        "status",
+        "daily-ops"
+      ],
+      "description": "Start, stop, or check status of all Frame OS dev servers. Displays a clickable URL guide on completion.",
+      "triggers": [
+        "frame-dev",
+        "start the dev servers",
+        "stop dev servers",
+        "are the servers running"
+      ]
+    },
+    {
+      "name": "orchestrate",
+      "tier": 3,
+      "phase": "execution",
+      "category": "methodology-meta",
+      "tags": [
+        "orchestrate",
+        "decomposition",
+        "pipeline",
+        "agents",
+        "execute",
+        "worktree"
+      ],
+      "description": "4-layer progressive decomposition pipeline: takes per-app priorities from /frame-standup or /diagram-intake, decomposes into tasks via planning agents, then executes via worktree-isolated implementation agents. Context narrowing at each layer.",
+      "triggers": [
+        "orchestrate",
+        "run the decomposition",
+        "execute priorities",
+        "decompose tasks",
+        "plan and execute"
+      ],
+      "suggested_after": [
+        "/frame-standup",
+        "/diagram-intake"
+      ],
+      "layer_affinity": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "name": "scaffold-frame-app",
+      "tier": 2,
+      "phase": "new-project",
+      "category": "code-scaffolding",
+      "tags": [
+        "frame",
+        "scaffold",
+        "module-federation",
+        "remote",
+        "carbon",
+        "monorepo"
+      ],
+      "description": "Scaffold a new Frame OS client application with full architecture patterns pre-wired: 4-package monorepo, Module Federation remote, Carbon tabbed dashboard, side panel, shell integration, and deterministic build+test validation (28-item checklist).",
+      "triggers": [
+        "scaffold-frame-app",
+        "new frame app",
+        "create a frame sub-app",
+        "scaffold a frame remote"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        1,
+        2
+      ]
+    },
+    {
+      "name": "skill-audit",
+      "tier": 2,
+      "phase": "observation",
+      "category": "code-quality-review",
+      "tags": [
+        "meta",
+        "skills",
+        "audit",
+        "architecture",
+        "coverage",
+        "gotchas",
+        "taxonomy"
+      ],
+      "description": "Audit the skill library against the Anthropic skill-architecture patterns (nine categories + authoring tips): coverage gaps, straddlers, drift, missing Gotchas. Deterministic signals from a script; judgment from an LLM pass. Read-only — reports, never edits skills.",
+      "triggers": [
+        "skill-audit",
+        "audit my skills",
+        "are my skills well-structured",
+        "score the skill library",
+        "which skill categories am I missing",
+        "check skill architecture",
+        "skill coverage map",
+        "find straddler skills"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0
+      ]
+    },
+    {
+      "name": "selfco-ingest",
+      "tier": 1,
+      "phase": "meta",
+      "category": "data-analysis",
+      "tags": [
+        "selfco",
+        "vault",
+        "ingest",
+        "notion",
+        "inbox",
+        "knowledge",
+        "sources",
+        "chat-side"
+      ],
+      "description": "Stage a URL or chat session into the selfco vault via the Notion inbox (chat-side only — the local promoter lands files on disk). Discuss the source, structure a wiki/sources/ draft, write to inbox with suggested wikilinks.",
+      "triggers": [
+        "selfco-ingest",
+        "ingest this",
+        "save this for selfco",
+        "let's discuss this video",
+        "capture into my vault"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0
+      ]
     }
   ]
 }

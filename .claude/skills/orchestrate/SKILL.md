@@ -367,3 +367,11 @@ Common decomposition archetypes:
   test output and suggest manual investigation via `/investigate`.
 - **Merge conflicts between parallel PRs:** Expected when parallel tasks touch
   adjacent code. Report which PRs may conflict and suggest merge order.
+
+## Gotchas
+
+- **The convoy/bead bookkeeping is observability, not the work — never let it block a run.** Every `bead-emit.mjs` call ends in `|| echo` / `|| true` on purpose: when Dolt is down the convoy ID file is empty and all slot updates silently degrade. If you stop and "fix" the missing convoy instead of proceeding, you've inverted the design. Run the orchestration; the tracking is best-effort.
+- **Context narrowing is the entire point — leaking architecture into Layer 3 defeats it.** The failure mode is handing a Layer 3 execution agent the app's full CLAUDE.md and architecture doc "to be safe." Layer 3 sees only the files it changes and its exact change description. If you find yourself pasting the whole decomposition into a worker prompt, you've collapsed the pipeline into one fat agent.
+- **`plan+execute` without a confirmation checkpoint is a runaway.** Step 3 must stop and get explicit sign-off before any Layer 3 agent runs. Auto-proceeding from decomposition to parallel worktree PRs is how a vague priority becomes a dozen unwanted branches. When in doubt, present the plan and wait.
+- **Spawning parallel agents into a repo another session is editing causes the merge conflicts you can't see coming.** The Step 5 `active-sessions` pre-flight exists for this — overlapping `repos_touched` means warn and offer to skip, not push through. Skipping the check because Dolt is slow trades a 2-second query for a tangle of conflicting PRs.
+- **A failed Layer 3 task is a stop-and-report, not a retry loop.** Don't re-spawn an agent on a failing task hoping it lands; report the test output, mark dependents as blocked, and route to `/investigate`. Auto-retrying burns worktrees and buries the real failure signal under near-identical attempts.

@@ -136,6 +136,14 @@ single-PR work (the scope gate). See `adr:deliverable-tracking-spine`.
 - Do not auto-fix. Output findings only.
 - If findings reveal a systemic pattern, suggest `/techdebt --mode=scan` as a follow-up.
 
+## Gotchas
+
+- **A passing test suite is not a PASS.** The model's strongest failure mode here is declaring victory because tests are green — tests can be green and the spec still unmet (criterion never tested → UNTESTED, not PASS). Mark untested criteria UNTESTED explicitly; never let green tests paper over a missing acceptance criterion.
+- **"No auth middleware visible" ≠ "auth missing."** Auth is sometimes applied at the router/parent level, not the route file in the diff. Before emitting BLOCKED for missing auth, check where the route is mounted — a false BLOCKED erodes trust in the gate as much as a false PASS.
+- **Step 4.5 silently degrades when the plugin is absent.** If `@frame/eslint-plugin` isn't installed the lint check is skipped, which can read as "lint passed." Say "No automated lint" explicitly — a skipped check is not a passed check.
+- **Don't re-judge the whole repo.** `/validate` is a gate on *the change*, not an audit of everything it touches. Scope to the diff/working tree; pre-existing debt in untouched code is a `/techdebt` item, not a blocking finding on this change.
+- **PASS WITH NOTES is not a soft BLOCKED.** Auth/ownership/secrets are the only auto-blockers. Resist inflating style or ADR-coverage notes into blocks — that trains the user to bypass the gate.
+
 ---
 
 $ARGUMENTS

@@ -140,6 +140,15 @@ Structured markdown:
 - **Stop when aligned**, not when you've exhausted questions. Performative grilling is a failure mode.
 - **Cap ADR stubs at 3** per session. More than that = work is too big; suggest splitting.
 
+## Gotchas
+
+- **Stop when aligned, not when you run out of questions.** The signature failure is performative grilling — asking a fifth and sixth question after the shared design concept is already settled, which burns the user's patience and trains them to skip the skill. Convergence on a mental model is the exit condition, not an empty question queue.
+- **One question per turn — batching is where ambiguity hides.** Stacking three questions in one message lets the user answer the easy one and skate past the load-bearing one. Ask the single highest-leverage question, wait, update the tree, then ask the next.
+- **Ask the root question first, or you're guessing at the leaves.** If decision A determines decision B, asking B in a vacuum produces an answer that A may invalidate. Sketch the decision tree (Step 3) and start at the node whose answer changes the most downstream branches.
+- **No silent edits — CONTEXT.md/GLOSSARY.md/ADR changes are *proposed* diffs.** The trap is "helpfully" writing the file. This skill outputs diffs the user applies; silently mutating the ubiquitous-language layer or committing an ADR (instead of leaving `/adr new` to the user) violates the no-silent-edit rule that keeps the user in control of their own vocabulary.
+- **More than 3 ADR stubs means the work is too big, not that you should keep drafting.** Hitting the cap is a signal to suggest splitting the effort — not a quota to fill. Likewise, finishing a grill and immediately wanting to grill again means the first grill failed to converge.
+- **"No code" means not even snippets.** The output is conceptual — a design concept, diffs, ADR stubs. Dropping in a "quick example" of the implementation jumps the gun on planning and anchors the user on a solution before the problem is agreed.
+
 ## Composition
 
 - This skill is the heavyweight version of the default grilling posture in `agent-defaults.md`. Default posture fires every session; this skill is invoked when the work warrants formal artifacts (CONTEXT.md updates, ADR stubs).

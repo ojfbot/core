@@ -69,6 +69,14 @@ Read `CLAUDE.md` to understand the project. For OJF projects, read the relevant 
 - Monitoring gap identified: [describe]
 ```
 
+## Gotchas
+
+- **A hypothesis stated as a cause is the failure mode this skill exists to prevent.** Core Principle 1 is explicit: state only what the data shows, label hypotheses as hypotheses. A confident root cause with no log line behind it sends responders down the wrong path during an incident — every cause claim needs an evidence line or a HIGH/MEDIUM/LOW confidence tag.
+- **A 401/403 spike is not self-explanatory.** It reads as "auth is broken" but is just as often an expired token, a clock-skewed JWT, or a downstream service rejecting a valid request. Don't pin severity or root cause on the status code alone — correlate with deploy timing and which route/component is throwing before naming the cause.
+- **Severity is about blast radius, not log volume.** A flood of P3 warnings can bury one P0 line, and a single quiet error can be the outage. Rank by what's actually down or degraded for users — a noisy-but-harmless retry loop is not a P0, and "lots of red" is not a severity input.
+- **The same symptom (hang, truncation, 429) has different causes in a LangGraph stack.** A timeout can be an infinite tool-call loop, context overflow, or model rate-limiting (`langgraph-failure-patterns.md`) — each needs a different immediate action. Load the LangGraph patterns before classifying, or the "immediate action" you emit will be generic and non-executable, violating Core Principle 2.
+- **Immediate actions must be runnable now; follow-ups are for later.** The output separates the two for a reason — putting "investigate the retry logic" under Immediate actions wastes a responder's first move. Immediate = restart/rollback/scale/failover; design changes belong in Follow-up.
+
 ---
 
 $ARGUMENTS

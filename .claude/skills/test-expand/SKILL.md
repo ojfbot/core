@@ -69,6 +69,14 @@ If `--write`: actual test file additions using the repo's test framework.
 - Do not delete or modify existing tests.
 - Match existing test style exactly.
 
+## Gotchas
+
+- **Coverage percentage hides the gaps that matter.** A module at 90% line coverage can have every error path and boundary case untested — the covered 90% is the happy path. Map untested *branches* (error states, null/empty/malformed inputs, async failures), not uncovered lines; a high coverage number is not a reason to stop.
+- **Prioritize by risk, not by what's easy to write.** The pull is to fill in happy-path completeness because those tests are quick. Security/data-integrity paths come first, then error paths, then business-logic branches — a missing auth-failure test outranks ten missing getter tests, however tidy the latter look.
+- **"Tests only" includes the tempting one-line implementation fix.** While mapping gaps you'll spot a bug. The contract is tests only — propose a test that *exposes* the bug and note it; do not edit the implementation, and do not modify or delete existing tests to make room.
+- **Matching style is structural, not cosmetic.** New tests must use the repo's actual framework, assertion style, and mock patterns (Vitest setup, Zod fixtures, async helpers) — not a generically "correct" Jest-flavored test. A test in the wrong dialect won't run and signals the gap-map wasn't grounded in the real suite.
+- **A described test and a runnable test are different deliverables.** Without `--write`, output is a prioritized plan with enough detail to implement. With `--write`, the additions must actually run in the existing harness. Don't emit pseudo-tests under `--write`, and don't silently write files when only a plan was asked for.
+
 ---
 
 $ARGUMENTS

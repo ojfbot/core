@@ -47,6 +47,14 @@ If no `$ARGUMENTS`: produce the orientation summary above, list the current pers
 **Dry run:** `DRY_RUN=true` → print to stdout, no file writes
 **GitHub Actions:** runs nightly, posts to BlogEngine via `BLOGENGINE_API_URL`
 
+## Gotchas
+
+- **This is an orientation skill — confirm understanding before you touch code.** The trap is jumping to "fix the council" after reading the brief. Step 2 (state the phases, the call sites, the call count, the invariants) is the deliverable; skipping it means you act on a half-loaded mental model of the pipeline.
+- **The Claude-call count is N+1 with council, 1 without — and it's a cost invariant.** A change that adds a per-persona call or breaks `SKIP_COUNCIL=true` silently multiplies nightly API spend. Always state the call math before and after any pipeline edit.
+- **Read the actual `src/` after the brief, not instead of it.** `knowledge/architecture-brief.md` orients; `src/council.ts`, `src/index.ts`, and `src/types.ts` are ground truth. The brief can lag the code — when the orientation summary contradicts the source, the source wins, and flag the drift.
+- **The load-bearing invariants are easy to break and invisible in tests.** Fallbacks, deduplication, and the 7-day previous-articles window are what keep the nightly run from posting duplicate or empty articles. Name them in Step 2 so a later change doesn't quietly remove one.
+- **`personas/` lives in the daily-logger repo, not core.** This skill runs against `../daily-logger`; reading core's personas or paths produces an orientation for the wrong repo.
+
 ---
 
 $ARGUMENTS

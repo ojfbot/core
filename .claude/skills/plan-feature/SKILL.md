@@ -83,6 +83,14 @@ If `--format=github-issue`: output a GitHub issue title + body only, formatted f
 - If the feature touches auth, payments, or PII: add a "Security considerations" section.
 - If the feature modifies a state machine / agent graph: add a "State schema changes" section listing new fields with types.
 
+## Gotchas
+
+- **The pull toward writing code is strongest exactly when the design feels clear.** Once the architecture sketch lands, the instinct is to "just show the handler." Don't — the moment you emit implementation code the spec stops being reviewable as a spec and `/scaffold`/`/tdd` lose their job. Name the modules and the change type; leave the bodies empty.
+- **"Acceptance criterion" that can't fail isn't a criterion.** "Handles errors gracefully" or "performant" pass no matter what ships. Every item must be falsifiable — a concrete input/state and an observable expected result. If you can't write the failing test for it, rewrite it until you can (load `knowledge/acceptance-criteria-guide.md`).
+- **`--from-conversation` is a hard stop, not a fast path.** When synthesizing from a `/grill-with-docs` transcript, surface the 3 implicit assumptions and *wait* for confirmation before Step 3. Skipping the confirmation bakes the conversation's unspoken guesses into the spec, and a wrong assumption here propagates through every downstream skill.
+- **Vague requirements are the input to challenge, not the thing to faithfully transcribe.** A spec that smoothly restates a fuzzy ask has hidden the ambiguity instead of resolving it. Surface what's underspecified in Open Questions; making the gaps visible is more valuable than a tidy document that papers over them.
+- **An ADR stub is for genuine trade-offs, not every design choice.** Stubbing an ADR for an obvious, alternative-free decision is ceremony that dilutes the real ones. Reserve it for choices where an alternative was rejected and a future reader would otherwise be confused.
+
 ---
 
 $ARGUMENTS

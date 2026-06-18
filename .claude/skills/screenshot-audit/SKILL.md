@@ -74,6 +74,14 @@ If `--update-baseline`: list exact commands to copy screenshots to `docs/screens
 - Do not overwrite baseline screenshots. List commands only.
 - Regressions require explicit confirmation before baseline update.
 
+## Gotchas
+
+- **When regression and intentional-change are indistinguishable, the default is `regression`.** The model's bias is to read a diff as "probably intended" and wave it through; the classification guide inverts that — treat it as a regression until the PR description or source confirms intent. A false PASS on a regression is the one outcome this skill exists to prevent.
+- **Don't let false-positives quietly inflate or deflate the count.** Timestamps, spinners caught mid-frame, random avatars, and focus-ring shifts are diffs with no product meaning — but classifying a *real* break as a false-positive to clear the board is the same failure as the inverse. Tie each false-positive to a concrete dynamic-content signal, and recommend masking it in the test rather than just dismissing it.
+- **"Improved" is not automatically `enhancement`.** An enhancement requires *no* degradation anywhere in the frame; a change that tightens spacing but truncates a label is a regression wearing an enhancement's clothes. Check the whole image, not the part that drew your eye.
+- **This skill classifies and recommends — it never updates baselines.** Even with `--update-baseline` the output is *commands to copy*, not executed copies, and only after explicit human confirmation. Auto-approving a baseline is how a regression becomes the new "correct" reference and stops being caught forever.
+- **A missing artifact is a blocking finding, not a clean run.** If `tmp/screenshots/` or the baseline dir is empty/absent, say so — an audit over zero pairs reads as "no regressions" when it actually means the visual pipeline never produced output to compare.
+
 ---
 
 $ARGUMENTS

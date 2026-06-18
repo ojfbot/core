@@ -127,6 +127,14 @@ If labels are missing, output the `gh label create` commands needed, but do not 
 - Pairs with `/plan-feature` for high-priority items (turn a triaged issue into an actionable spec).
 - Pairs with `/sweep` weekly maintenance (closing stale items).
 
+## Gotchas
+
+- **Author urgency masquerading as severity is the failure that quietly corrupts the whole order.** "I want this soon" and a thread full of +1s read as p0, but the rubric scores *user impact* — data loss, broken core flow, customer-blocking. Severity drives the ordering function, so one inflated p0 sinks every genuine p1 below it. Reason from the exposure, not the author's tone.
+- **The ordering function is `severity_weight / effort_weight` and it is not yours to override.** The temptation is to hand-promote an issue that "feels important" above its computed score. Don't — reproducibility across sessions is the skill's contract. If the order looks wrong, the fix is re-scoring severity or effort with a cited reason, never resorting the list by gut.
+- **Refusing to pick one label per axis is the default-mode failure.** "p1 or p2," "s or m" feels honest but produces an unsortable backlog. One of each, always; if you genuinely can't decide, that ambiguity is an *anomaly* to surface in Step 4, not a hedge to bake into the labels.
+- **`--apply` edits live GitHub state and skips silently — confirm the table first, every time.** Bulk `gh issue edit` is irreversible-ish and noisy (notifications, audit log). Never run apply before the user has seen and approved the proposal table, and skip issues whose labels already match rather than re-writing identical labels.
+- **Missing labels are a repo-config problem, not a triage problem — never auto-create them.** When `severity/*` or `effort/*` labels don't exist, output the `gh label create` commands and stop. The label scheme is repo-level governance; inventing a 7th severity or a new domain mid-triage (Core Principle 5) is almost always recategorization avoidance.
+
 ---
 
 $ARGUMENTS

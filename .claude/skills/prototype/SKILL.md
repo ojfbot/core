@@ -80,6 +80,14 @@ Run: <exact command or variant URLs>
 Deleted | Kept (marked) — <why>
 ```
 
+## Gotchas
+
+- **The verdict is the deliverable; the code is scaffolding for it.** The failure mode is building a slick prototype, admiring it, and never writing down what it proved. If Step 3's observation + verdict and Step 4's "recorded in" aren't filled, the prototype was wasted motion — the durable answer is the only thing that survives deletion.
+- **A prototype that doesn't get deleted becomes the worst kind of production code.** Throwaway code has no tests, no error handling, no abstractions — leaving it in the tree means someone will import it. Delete it after recording the verdict; keep it only on explicit user request, and only with its `// PROTOTYPE` marker intact.
+- **UI mode with variants that are merely tweaks answers nothing.** If `?variant=1` and `?variant=2` differ by a font size, you've built a prototype that confirms a non-decision. The variants must be *radically* different takes — different layouts, different interaction models — or the comparison teaches you nothing you couldn't have reasoned about.
+- **Drive the hard cases by hand, or the harness is theater.** Logic mode exists to fire the out-of-order, cancelled, double-submit, empty-input events nobody can reason about on a whiteboard. Running it once through the happy path and declaring "the logic holds" tests the case you already trusted and skips the one you built the prototype for.
+- **"No abstractions" is the rule, and the engineering instinct will fight it.** The urge to add a type, factor a helper, or handle an edge case is exactly the polish a prototype must skip. Speed-to-answer is the whole value; if it starts looking like code you'd ship, you've stopped prototyping and started building the thing before you've validated it.
+
 ---
 
 $ARGUMENTS

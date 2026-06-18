@@ -143,6 +143,14 @@ For each proposal where "ADR required" is yes, output a draft ADR stub inline. U
 - Routes to `/scaffold` (new structure) and `/tdd` (drive the move).
 - Outputs ADR stubs for cross-package proposals; user commits via `/adr`.
 
+## Gotchas
+
+- **Low export count is not depth.** The metrics flag thin public surface, but a barrel re-export, an intentional facade over a third-party lib, or a well-tested utility namespace all score "shallow" while being correct. Surface these as filtered-out false positives — proposing to consolidate them is the most common wrong output of this skill.
+- **Shallow + comfortable is not a candidate.** The model wants to fix everything the metrics light up. But a thin module that is stable, tested, and pleasant to work with should be left alone — the trigger for a proposal is shallow *and painful*, not shallow alone. "Looks thin on the dashboard" is not a reason to refactor.
+- **Whole-repo scope produces an unusable wall.** Running without `--scope` (or asking the user to narrow) yields a proposal list too large to act on; signal drowns. Narrow scope first, cap at 5 proposals — more than 5 means the scope was too wide, not that you found more.
+- **Consolidation can manufacture a deep tangle.** Merging five thin wrappers into one module is usually a win, but if the wrappers serve genuinely different callers you've just created a god-module with a wide interface. Check the seam — the proposed public surface must actually be *small*, or you've traded shallow-many for shallow-one.
+- **A proposal without a cited metric is hand-waving.** "This looks shallow to me" is exactly the intuition the script exists to discipline. Every proposal names which files measured shallow and on which metric; no metric, no proposal.
+
 ---
 
 $ARGUMENTS

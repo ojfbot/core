@@ -147,3 +147,11 @@ After outputting priorities:
 - Each goal retains the user's original phrasing alongside the canonical mapping
 - The Specificity field determines how many decomposition layers the orchestrator needs
 - Category goals become cross-app coordination constraints for the orchestrator
+
+## Gotchas
+
+- **Illegible handwriting is a clarify-don't-guess moment.** The diagram is JFO's actual priority for the day — inventing a goal from a smudged scrawl can send a whole orchestration pass at the wrong work. State what you can read, name the specific illegible items, and ask. A wrong reading here is expensive downstream.
+- **Map app labels through `context-map.md` before interpreting goals.** "Blog" maps to either blogengine *or* daily-logger depending on context; guessing wrong files goals against the wrong repo's roadmap and blockers. Resolve every label to a canonical repo first (Step 2), and flag any label that doesn't map.
+- **`Specificity` is the field orchestration actually keys on — don't inflate it.** Marking an aspirational goal ("make it better") as `high` tells the orchestrator to decompose straight into implementation tasks with no planning pass. Be honest: high = concrete task, medium = area not exact work, low = needs a planning cycle.
+- **Preserve the human's phrasing alongside the mapping, don't replace it.** Rewriting goals into engineering jargon loses JFO's intent and makes the output unverifiable against the original diagram. Keep both: original phrasing + canonical mapping.
+- **Cross-reference against roadmap and blockers — a diagram goal isn't automatically valid work.** A goal that diverges from the app's current phase, or that has no matching roadmap item, is a signal (possibly new work needing `/plan-feature`), not something to silently rubber-stamp as P1.

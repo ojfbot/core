@@ -58,6 +58,14 @@ Beats: <N> drafted, in order
 Next: run /writing-shape <path> to turn these beats into finished article prose.
 ```
 
+## Gotchas
+
+- **The "one beat at a time" rule breaks the instant you draft beat 3 while showing beat 2.** The strong pull is to keep momentum and run ahead — but the whole point of beat-at-a-time is that a rejected beat 2 invalidates the beats built on it. Draft, show, wait for the yes, *then* advance. Running ahead silently wastes the work you're proud of.
+- **A beat sheet approved too fast is the expensive mistake.** Reordering beats is cheap on the sheet and ruinous after they're drafted as prose. If the user waves the sheet through, push once on the spine — "does this order actually carry the argument?" — because Step 3 assumes the sequence is settled.
+- **Polishing prose here steals work from `/writing-shape` and wastes it.** Beats are *provisional, slightly rough* prose by design. Time spent perfecting sentences in a beat is time `/writing-shape` will overwrite when it decides the paragraph should be a table or a list. Draft for "does the idea land," not "does it read finished."
+- **A beat that only summarizes earlier beats earns no place.** Every beat must change a belief, supply needed info, or pay off a promise (Core Principle 1). "Recap" beats and throat-clearing transitions feel safe but violate the rule — cut them, or fold them into the beat they're propping up.
+- **Naming the Risk/branch point is the part most likely to get skipped.** Where a reader objects or gets lost is exactly where articles fail, and the beat-sheet template has a Risk field precisely so you confront it. Leaving it as "—" by reflex papers over the hard transitions; fill it honestly or the journey has a hidden cliff.
+
 ---
 
 $ARGUMENTS

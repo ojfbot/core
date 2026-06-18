@@ -71,6 +71,14 @@ Key invariants:
 - [ ] .gitignore excludes DB file
 ```
 
+## Gotchas
+
+- **MemoryVectorStore is a P0 even when the demo works perfectly.** An ephemeral store retrieves fine in dev and silently loses everything on restart — the failure is invisible until production. Its presence is an automatic blocker regardless of how well retrieval currently behaves; "it works locally" is exactly the symptom, not a counter-argument.
+- **Embedding-model consistency is the silent corrupter.** If the index was built with one model and queries use another (or a different dimension/version), retrieval degrades to near-noise with zero errors thrown. Check the model is *identical* at index time and query time — this is harder to spot than a missing store and more damaging than a bad `k`.
+- **No empty-results handling is a blocker, not a polish item.** Code that assumes the retriever always returns hits will feed an empty (or undefined) context to the LLM and hallucinate confidently. Verify the empty-result branch exists; absence is a real finding, not a "nice to have."
+- **A seeding script that isn't idempotent fails on the second run.** The trap is checking only that seeding *exists*. Re-running a non-idempotent seeder duplicates vectors or crashes; confirm idempotency and a startup health check that verifies the store is actually populated, not just that the file exists.
+- **Don't grade chunking by feel.** "Chunk size looks reasonable" is not an audit. Tie chunk size and overlap to the embedding model's context window — a chunk that overflows the model's window is truncated silently at index time, which no error surfaces.
+
 ---
 
 $ARGUMENTS

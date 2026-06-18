@@ -30,3 +30,11 @@ Mac desktop): `consumer/SKILL.md`.
 **not** by the Skill tool — so when this skill is invoked via the Skill tool, treat `{skill}` as **this
 skill's own directory** (the directory containing this `SKILL.md` and `vault.md`). Resolve every
 `{skill}/scripts/…`, `{skill}/templates/…`, and `{skill}/knowledge/…` path against it.
+
+## Gotchas
+
+The full set lives in `vault.md` under `## Gotchas` (read it on invocation) — the dispatcher-level traps that bite before you even reach a mode:
+
+- **This `SKILL.md` is a stub, not the procedure — read `vault.md` first.** Acting on the modes from this file alone skips the core principles, the git-mirror rules, and the constraints. The authoritative body is `vault.md`; then read `${SELFCO_VAULT:-$HOME/selfco}/CLAUDE.md`, which wins if it ever disagrees.
+- **`{skill}/` is not a literal path under the Skill tool.** The TS engine substitutes it; the Skill tool does not. Resolve every `{skill}/scripts/…` against *this skill's own directory* — a literal `{skill}/scripts/ingest.py` invocation just fails.
+- **No vault, no modes but `init`.** If `${SELFCO_VAULT:-$HOME/selfco}/CLAUDE.md` doesn't exist, every mode except `init` is invalid — tell the user to run `/vault init` rather than scaffolding pieces ad hoc.

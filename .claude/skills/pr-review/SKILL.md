@@ -81,6 +81,14 @@ If `--comment`: output only the Summary section as a standalone GitHub PR commen
 - Auth/thread ownership/secrets findings → BLOCKED always.
 - Do not auto-apply changes. Review output only.
 
+## Gotchas
+
+- **Review the diff, not the repo.** The model drifts into auditing pre-existing code the PR merely touches, then BLOCKs on debt the author didn't introduce. Scope findings to the changed lines; flag adjacent debt as a non-blocking note or a `/techdebt` item, never as a reason to REQUEST CHANGES on this PR.
+- **"No auth in the diff" can mean auth lives at the router.** Before emitting BLOCKED for a missing middleware, check where the route is mounted — auth is often applied at the parent router, not the handler file in the patch. A false security BLOCK trains the author to override the gate, which is worse than the miss.
+- **Green CI is not correctness coverage.** Passing tests can leave an acceptance criterion entirely unexercised. Mark each criterion PASS / FAIL / UNTESTED from the diff itself; never let a green check mark a criterion PASS that no test actually asserts.
+- **REQUEST CHANGES is not a soft BLOCKED.** Only auth/ownership/secrets auto-block. Resist escalating style nits, naming, or ADR-coverage notes into a block — "teach, don't just block" means explaining a suggestion, not gating the merge on it.
+- **`--comment` outputs the Summary only.** The trap is dumping the full per-line findings table into a GitHub comment. In comment mode, emit just the one-paragraph Summary section — the detailed findings stay in the local review output.
+
 ---
 
 $ARGUMENTS
