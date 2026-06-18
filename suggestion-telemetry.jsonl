@@ -105,3 +105,5 @@
 {"ts":"2026-06-18T01:21:24Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"bldgblog-corpus","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5"}
 {"ts":"2026-06-18T01:28:55Z","event":"skill:suggestion-ignored","skill":"summarize","suggested_at":"2026-06-18T00:31:46Z","repo":"bldgblog-corpus","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5","suggestion_id":"CD01210F-2D1E-4BC4-8D2A-CD7E1BE53667"}
 {"ts":"2026-06-18T01:28:55Z","event":"skill:suggested-uninstalled","skill":"skill-metrics","reason":"trigger 'are we using the new skills'","prompt_prefix":"are we using prompt caching? ","repo":"bldgblog-corpus","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5","suggestion_id":"1002D530-2BE8-4E79-8851-2A92E7B2E60E"}
+{"ts":"2026-06-18T15:12:25Z","event":"skill:suggestion-ignored","skill":"skill-metrics","suggested_at":"2026-06-18T01:28:55Z","repo":"bldgblog-corpus","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5","suggestion_id":"1002D530-2BE8-4E79-8851-2A92E7B2E60E"}
+{"ts":"2026-06-18T15:12:25Z","event":"skill:no-match","prompt_prefix":"status? ","repo":"bldgblog-corpus","session_id":"e619559f-172c-48ba-9cfa-443bc3e6f6b5"}
