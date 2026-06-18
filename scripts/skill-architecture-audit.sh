@@ -9,6 +9,21 @@ set -euo pipefail
 CORE_DIR="${CLAUDE_PROJECT_DIR:-/Users/yuri/ojfbot/core}"
 AUDIT="$CORE_DIR/.claude/skills/skill-audit/scripts/audit-architecture.mjs"
 
+# Resolve node. Under launchd the PATH is minimal and this box manages node with
+# fnm, whose per-shell shims aren't on it. Prefer the version-stable `default`
+# alias so the job survives node upgrades; fall back to homebrew / fnm env.
+if ! command -v node >/dev/null 2>&1; then
+  for d in "$HOME/.local/share/fnm/aliases/default/bin" "$HOME/.fnm/aliases/default/bin" /opt/homebrew/bin; do
+    [ -x "$d/node" ] && { PATH="$d:$PATH"; break; }
+  done
+  command -v node >/dev/null 2>&1 || { command -v fnm >/dev/null 2>&1 && eval "$(fnm env 2>/dev/null)"; }
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "skill-architecture-audit: node not found on PATH or via fnm (non-fatal)" >&2
+  exit 0
+fi
+
 if [[ ! -f "$AUDIT" ]]; then
   echo "skill-architecture-audit: $AUDIT not found" >&2
   exit 0   # never fail the schedule
