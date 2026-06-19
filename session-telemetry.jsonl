@@ -1,3 +1,2 @@
-{"ts":"2026-06-17T13:42:03Z","event":"session:start","session_id":"be768f7c-2487-487f-9bec-ffae18594d0d","source":"compact","model":"claude-opus-4-8","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-06-18T18:11:08Z","event":"session:start","session_id":"e315b7ca-8ec6-41e5-8a78-351f48bf9436","source":"startup","model":"claude-opus-4-8","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-06-18T19:38:28Z","event":"session:start","session_id":"5cac3ef1-5cba-4dca-a7da-f7f361eed5b9","source":"startup","model":"claude-opus-4-8","repo":"core","branch":"adr/suggestion-identity-and-denominator","cwd":"/Users/yuri/ojfbot/core"}
