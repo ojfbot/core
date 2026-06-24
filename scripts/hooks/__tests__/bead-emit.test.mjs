@@ -611,5 +611,22 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       expect(typeof e.summary).toBe('string');
       expect(e.timestamp).toBeTruthy();
     });
+
+    it('S2: agent-* events carry actor = the agent bead id (enables liveness GROUP BY actor)', async () => {
+      // namespaced app so we never touch a real core-agent-* bead
+      const agent = parseOutput(await emit('agent-create', {
+        role: 'worker',
+        app: 'testevt',
+        'session-id': 'test-evt-actor',
+      }));
+      const [rows] = await pool.execute(
+        "SELECT actor, event_type FROM bead_events WHERE bead_id = ? AND event_type LIKE 'agent-%' LIMIT 1",
+        [agent.id],
+      );
+      expect(rows.length).toBe(1);
+      // The differentiator vs S1: agent events are keyed to the agent, not the uniform 'claude-code'.
+      expect(rows[0].actor).toBe(agent.id);
+      expect(rows[0].actor).not.toBe('claude-code');
+    });
   });
 });

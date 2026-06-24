@@ -535,6 +535,8 @@ async function run() {
           await emitEvent(pool, {
             event_type: 'agent-resume',
             bead_id: bead.id,
+            // actor = the agent's own bead id (not 'claude-code') so liveness can GROUP BY actor (S2).
+            actor: bead.id,
             summary: `${role} agent resumed: ${app}`,
             payload: { role, app, session_id: sessionId },
           });
@@ -567,6 +569,8 @@ async function run() {
           await emitEvent(pool, {
             event_type: 'agent-create',
             bead_id: id,
+            // actor = the agent's own bead id (not 'claude-code') so liveness can GROUP BY actor (S2).
+            actor: id,
             summary: `${role} agent created: ${app}`,
             payload: { role, app, session_id: sessionId, reports_to: reportsTo || undefined },
           });
@@ -600,6 +604,8 @@ async function run() {
         await emitEvent(pool, {
           event_type: 'agent-idle',
           bead_id: agentId,
+          // actor = the agent's own bead id (not 'claude-code') so liveness can GROUP BY actor (S2).
+          actor: agentId,
           summary: 'agent idle',
         });
         await doltCommit(pool, `agent:idle ${agentId}`);
@@ -633,6 +639,8 @@ async function run() {
         await emitEvent(pool, {
           event_type: 'agent-sling',
           bead_id: agentId,
+          // actor = the agent's own bead id (not 'claude-code') so liveness can GROUP BY actor (S2).
+          actor: agentId,
           summary: `slung ${beadId}`,
           payload: { hook_bead_id: beadId },
         });
