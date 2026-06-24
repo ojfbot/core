@@ -629,4 +629,68 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       expect(rows[0].actor).not.toBe('claude-code');
     });
   });
+
+  // ── Unassigned queue (S3 — queue-post) ────────────────────────────────
+  describe('queue-post (S3)', () => {
+    it('mints a posted task: status=created, hook NULL, queue=available + reserved labels', async () => {
+      const out = parseOutput(await emit('queue-post', {
+        title: 'Test task queued',
+        repo: 'core',
+        kind: 's',
+      }));
+      expect(out.status).toBe('posted');
+      expect(out.queue).toBe('available');
+
+      const bead = await queryBead(out.id);
+      expect(bead.type).toBe('task');
+      expect(bead.status).toBe('created');
+      expect(bead.hook).toBeNull(); // unassigned
+      expect(bead.labels.queue).toBe('available');
+      expect(bead.labels.kind).toBe('s');
+      expect(bead.labels.autonomy).toBe('human_only'); // conservative default
+      expect(bead.labels.posted_at).toBeTruthy();
+      // s = 2-day TTL
+      const ttlMs = Date.parse(bead.labels.expires_at) - Date.parse(bead.labels.posted_at);
+      expect(Math.round(ttlMs / 86_400_000)).toBe(2);
+    });
+
+    it('respects --autonomy and defaults kind to m', async () => {
+      const out = parseOutput(await emit('queue-post', {
+        title: 'Test task queued agent-eligible',
+        repo: 'core',
+        autonomy: 'agent_eligible',
+      }));
+      const bead = await queryBead(out.id);
+      expect(bead.labels.autonomy).toBe('agent_eligible');
+      expect(bead.labels.kind).toBe('m');
+      const ttlMs = Date.parse(bead.labels.expires_at) - Date.parse(bead.labels.posted_at);
+      expect(Math.round(ttlMs / 86_400_000)).toBe(5); // m = 5d
+    });
+
+    it('emits a queue-post event in the same commit as the bead', async () => {
+      const out = parseOutput(await emit('queue-post', { title: 'Test task queued evt', repo: 'core' }));
+      const [rows] = await pool.execute(
+        "SELECT event_type FROM bead_events WHERE bead_id = ? AND event_type = 'queue-post'",
+        [out.id],
+      );
+      expect(rows.length).toBe(1);
+      // same single commit (no second commit) — bead and its queue-post event share a hash
+      expect(await lastCommitForEvent(out.id)).toBe(await lastCommitForBead(out.id));
+    });
+
+    it('--bead-id promotes an existing task onto the queue', async () => {
+      const task = parseOutput(await emit('task-create', { title: 'Test task to promote', repo: 'core' }));
+      let bead = await queryBead(task.id);
+      expect(bead.labels.queue).toBeUndefined(); // not yet queued
+
+      const out = parseOutput(await emit('queue-post', { 'bead-id': task.id, kind: 'l' }));
+      expect(out.status).toBe('posted');
+
+      bead = await queryBead(task.id);
+      expect(bead.labels.queue).toBe('available');
+      expect(bead.labels.kind).toBe('l');
+      const ttlMs = Date.parse(bead.labels.expires_at) - Date.parse(bead.labels.posted_at);
+      expect(Math.round(ttlMs / 86_400_000)).toBe(10); // l = 10d
+    });
+  });
 });
