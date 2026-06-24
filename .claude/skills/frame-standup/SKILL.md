@@ -307,6 +307,28 @@ free-text (the priority's title or a stable hash of it). Telemetry lands in
 correlating these events with `~/.claude/skill-telemetry.jsonl` (launched
 within 24h, same session_id).
 
+#### Step 7b — Post unassigned work to the queue (coordination rollout S3)
+
+Any surfaced priority the user did **not** select for immediate dispatch is
+*unassigned, pickable work*. Post each to the real unassigned queue so it
+appears in the morning-cockpit **Available** lane (ADR-0002, `labels.queue=available`):
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" queue-post \
+  --title="<priority text>" \
+  --repo="<repo>" \
+  --kind="<s|m|l>" \
+  --autonomy=human_only \
+  || true   # never block the standup flow
+```
+
+Rules: default `--autonomy=human_only` — **never** auto-escalate autonomy from
+the standup (graduating an item-class is a deliberate, gated decision, not a
+side effect; see ADR-0002 §autonomy + the shadow-first rollout). Skip items
+already dispatched via `/orchestrate` (those become convoy slots, not queue
+items). Posting is the only queue write the standup makes; **claiming** is a
+separate human/agent action (S4).
+
 Then, for each selected option, generate a **Layer 1 orchestrator prompt**
 suitable for `/orchestrate` consumption. The prompt format extends the
 canonical structure from `knowledge/prompt-format.md`:

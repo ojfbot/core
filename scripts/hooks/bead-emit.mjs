@@ -26,6 +26,21 @@ import crypto from 'crypto';
 const DOLT_PORT = parseInt(process.env.DOLT_PORT ?? '3307', 10);
 const DB = '.beads-dolt';
 
+/**
+ * RESERVED_QUEUE_LABELS — the unassigned-queue label contract (ADR-0002, coordination rollout S3).
+ * Mirrored in morning-cockpit packages/shared/src/dolt-bead.ts. Set by queue-post; enforced by
+ * queue-claim (S4). The schema home is packages/workflows/src/bead-store/dolt-schema.sql.
+ *
+ *   labels.queue      'available' | 'claimed' | 'expired' | 'incubating'
+ *                     — 'available' marks a DELIBERATELY posted task, vs default-'created' cruft.
+ *   labels.kind       's' | 'm' | 'l'  — size/TTL class (TTL below).
+ *   labels.autonomy   'human_only' (default) | 'agent_eligible' | 'either'  — who may claim.
+ *   labels.posted_at  ISO — when queue-post ran.
+ *   labels.expires_at ISO — posted_at + kind TTL. Expired-but-available renders STALE.
+ */
+const QUEUE_KIND_TTL_DAYS = { s: 2, m: 5, l: 10 };
+const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
+
 const [, , command, ...rawArgs] = process.argv;
 
 function parseArgs(args) {
@@ -649,9 +664,70 @@ async function run() {
         break;
       }
 
+      case 'queue-post': {
+        // Post a task to the unassigned queue (ADR-0002, coordination rollout S3). Either mint a
+        // new posted task, or promote an existing one with --bead-id. Sets the reserved queue
+        // labels (see RESERVED_QUEUE_LABELS at top); claiming is S4 (queue-claim). Read-only for
+        // the cockpit — only this verb writes the queue.
+        const ttlDays = QUEUE_KIND_TTL_DAYS[args.kind] ? args.kind : 'm';
+        const kind = ttlDays; // 's' | 'm' | 'l'
+        const autonomy = QUEUE_AUTONOMY.includes(args.autonomy) ? args.autonomy : 'human_only';
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const expiresAt = new Date(now.getTime() + QUEUE_KIND_TTL_DAYS[kind] * 86_400_000).toISOString();
+
+        if (args['bead-id']) {
+          // Promote an existing task onto the queue.
+          const beadId = args['bead-id'];
+          const [rows] = await pool.execute('SELECT id, labels FROM beads WHERE id = ?', [beadId]);
+          if (rows.length === 0) { console.error(`Bead not found: ${beadId}`); process.exit(1); }
+          const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : (rows[0].labels ?? {});
+          labels.queue = 'available';
+          labels.kind = kind;
+          labels.autonomy = autonomy;
+          labels.posted_at = nowIso;
+          labels.expires_at = expiresAt;
+          await pool.execute('UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?', [JSON.stringify(labels), nowIso, beadId]);
+          await emitEvent(pool, {
+            event_type: 'queue-post',
+            bead_id: beadId,
+            summary: `posted ${beadId} to queue (${kind}/${autonomy})`,
+            payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, promoted: true },
+          });
+          await doltCommit(pool, `queue:post ${beadId}`);
+          console.log(JSON.stringify({ id: beadId, status: 'posted', queue: 'available', kind, autonomy }));
+          break;
+        }
+
+        // Mint a new posted task — status='created', hook NULL (unassigned).
+        const id = `${args.prefix ?? (args.repo ? args.repo.slice(0, 4) : 'hq')}-task-${crypto.randomBytes(4).toString('hex')}`;
+        const labels = {
+          queue: 'available',
+          kind,
+          autonomy,
+          repo: args.repo ?? '',
+          posted_at: nowIso,
+          expires_at: expiresAt,
+        };
+        await pool.execute(
+          `INSERT INTO beads (id, type, status, title, body, labels, actor, refs, created_at, updated_at)
+           VALUES (?, 'task', 'created', ?, '', ?, 'claude-code', '[]', ?, ?)`,
+          [id, args.title ?? 'Unassigned task', JSON.stringify(labels), nowIso, nowIso],
+        );
+        await emitEvent(pool, {
+          event_type: 'queue-post',
+          bead_id: id,
+          summary: args.title ?? 'posted to queue',
+          payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, repo: args.repo ?? '' },
+        });
+        await doltCommit(pool, `queue:post ${id}`);
+        console.log(JSON.stringify({ id, status: 'posted', queue: 'available', kind, autonomy }));
+        break;
+      }
+
       default:
         console.error(`Unknown command: ${command}`);
-        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|active-sessions>');
+        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|queue-post|active-sessions>');
         process.exit(1);
     }
   } finally {
