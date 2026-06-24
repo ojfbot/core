@@ -62,18 +62,47 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
     await pool.end();
   });
 
+  // Title patterns that identify beads created by this suite (safe to purge).
+  const TEST_TITLE_CLAUSE =
+    "(title LIKE '%test-emit%' OR title LIKE '%Test session%' OR title LIKE '%Test task%' " +
+    "OR title LIKE '%Test convoy%' OR title LIKE '%Test PR%' OR title LIKE '%Test agent%' " +
+    "OR title LIKE '%agent: testevt%')";
+
   beforeEach(async () => {
-    // Clean test artifacts — delete beads created by these tests
-    await pool.execute("DELETE FROM beads WHERE actor = 'claude-code' AND title LIKE '%test-emit%'");
-    await pool.execute("DELETE FROM beads WHERE actor = 'claude-code' AND title LIKE '%Test session%'");
-    await pool.execute("DELETE FROM beads WHERE actor = 'claude-code' AND title LIKE '%Test task%'");
-    await pool.execute("DELETE FROM beads WHERE actor = 'claude-code' AND title LIKE '%Test convoy%'");
-    await pool.execute("DELETE FROM beads WHERE actor = 'claude-code' AND title LIKE '%Test PR%'");
+    // Purge events for our test beads first (keep the shared bead_events log clean), then the beads.
+    await pool.execute(
+      `DELETE FROM bead_events WHERE bead_id IN (SELECT id FROM beads WHERE actor = 'claude-code' AND ${TEST_TITLE_CLAUSE})`,
+    );
+    await pool.execute(`DELETE FROM beads WHERE actor = 'claude-code' AND ${TEST_TITLE_CLAUSE}`);
     try {
       await pool.execute("CALL DOLT_ADD('-A')");
       await pool.execute("CALL DOLT_COMMIT('-m', 'test: cleanup')");
     } catch { /* no changes */ }
   });
+
+  /** Count bead_events rows for a specific bead — keyed off OUR ids, so concurrent agents can't skew it. */
+  async function countEventsFor(beadId) {
+    const [rows] = await pool.execute('SELECT COUNT(*) AS n FROM bead_events WHERE bead_id = ?', [beadId]);
+    return Number(rows[0].n);
+  }
+
+  /** The Dolt commit hash that last changed this bead row (via the dolt_diff_beads system table). */
+  async function lastCommitForBead(beadId) {
+    const [rows] = await pool.execute(
+      'SELECT to_commit FROM dolt_diff_beads WHERE to_id = ? ORDER BY to_commit_date DESC LIMIT 1',
+      [beadId],
+    );
+    return rows.length ? rows[0].to_commit : null;
+  }
+
+  /** The Dolt commit hash that introduced this bead's event row (via dolt_diff_bead_events). */
+  async function lastCommitForEvent(beadId) {
+    const [rows] = await pool.execute(
+      'SELECT to_commit FROM dolt_diff_bead_events WHERE to_bead_id = ? ORDER BY to_commit_date DESC LIMIT 1',
+      [beadId],
+    );
+    return rows.length ? rows[0].to_commit : null;
+  }
 
   /** Query a bead by ID from Dolt. */
   async function queryBead(id) {
@@ -516,6 +545,71 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       const result = await emit('not-a-command');
       expect(result.code).not.toBe(0);
       expect(result.stderr).toContain('Unknown command');
+    });
+  });
+
+  // ── Event spine (S1 — coordination rollout) ───────────────────────────
+  // The bead_events table existed but was never written. Every mutating verb must now
+  // append exactly one event row, committed in the SAME DOLT_COMMIT as its bead write.
+
+  describe('event spine (S1)', () => {
+    it('C1: each mutating verb class emits a bead_events row (session/task/pr/convoy/agent)', async () => {
+      const session = parseOutput(await emit('session-start', {
+        skill: 'test-emit',
+        'session-id': 'test-evt-session',
+      }));
+      expect(await countEventsFor(session.id)).toBeGreaterThanOrEqual(1);
+
+      const task = parseOutput(await emit('task-create', { title: 'Test task evt', repo: 'core' }));
+      expect(await countEventsFor(task.id)).toBeGreaterThanOrEqual(1);
+
+      // pr-created with no --session-id → single bead, single commit (no pr-count side-write)
+      const pr = parseOutput(await emit('pr-created', { repo: 'core', pr: '77' }));
+      expect(await countEventsFor(pr.id)).toBeGreaterThanOrEqual(1);
+
+      const convoy = parseOutput(await emit('convoy-create', { title: 'Test convoy evt' }));
+      expect(await countEventsFor(convoy.id)).toBeGreaterThanOrEqual(1);
+
+      // namespaced app 'testevt' so we never collide with a real core-agent-worker bead
+      const agent = parseOutput(await emit('agent-create', {
+        role: 'worker',
+        app: 'testevt',
+        'session-id': 'test-evt-session',
+      }));
+      expect(await countEventsFor(agent.id)).toBeGreaterThanOrEqual(1);
+    });
+
+    it('C2: the event lands in the SAME dolt commit as its bead (no second commit)', async () => {
+      const task = parseOutput(await emit('task-create', { title: 'Test task same-commit', repo: 'core' }));
+      const beadCommit = await lastCommitForBead(task.id);
+      const eventCommit = await lastCommitForEvent(task.id);
+      expect(beadCommit).not.toBeNull();
+      expect(eventCommit).not.toBeNull();
+      // Same hash ⇒ DOLT_ADD -A staged both rows into one DOLT_COMMIT. A second commit would diverge.
+      expect(eventCommit).toBe(beadCommit);
+    });
+
+    it('C2: event count == verb count over a sequence (parity, one event per verb)', async () => {
+      const ids = [];
+      ids.push(parseOutput(await emit('session-start', { skill: 'test-emit', 'session-id': 'test-evt-seq' })).id);
+      ids.push(parseOutput(await emit('task-create', { title: 'Test task seq', repo: 'core' })).id);
+      ids.push(parseOutput(await emit('task-done', { title: 'Test task seq done', repo: 'core' })).id);
+      ids.push(parseOutput(await emit('convoy-create', { title: 'Test convoy seq' })).id);
+
+      let total = 0;
+      for (const id of ids) total += await countEventsFor(id);
+      expect(total).toBe(ids.length);
+    });
+
+    it('event row shape matches dolt-schema (event_type, actor, summary, timestamp)', async () => {
+      const task = parseOutput(await emit('task-create', { title: 'Test task shape', repo: 'core' }));
+      const [rows] = await pool.execute('SELECT * FROM bead_events WHERE bead_id = ? LIMIT 1', [task.id]);
+      expect(rows.length).toBe(1);
+      const e = rows[0];
+      expect(e.event_type).toBe('task-create');
+      expect(e.actor).toBe('claude-code');
+      expect(typeof e.summary).toBe('string');
+      expect(e.timestamp).toBeTruthy();
     });
   });
 });

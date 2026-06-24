@@ -69,6 +69,12 @@ async function run() {
             now,
           ],
         );
+        await emitEvent(pool, {
+          event_type: 'session-start',
+          bead_id: id,
+          summary: `session started: ${args.skill && args.skill !== 'none' ? args.skill : 'interactive'}`,
+          payload: { session_id: args['session-id'] ?? '', skill: args.skill ?? '' },
+        });
         await doltCommit(pool, `session:start ${id}`);
         // Output the bead ID so the hook can capture it
         console.log(JSON.stringify({ id, status: 'created' }));
@@ -117,6 +123,12 @@ async function run() {
           `UPDATE beads SET ${updateFields.join(', ')} WHERE id = ?`,
           updateParams,
         );
+        await emitEvent(pool, {
+          event_type: 'session-update',
+          bead_id: bead.id,
+          summary: `session updated${args.repos ? `: +${args.repos}` : ''}`,
+          payload: { repos: args.repos ?? '', pr_count: args['pr-count'] ?? '', skill: args.skill ?? '' },
+        });
         await doltCommit(pool, `session:update ${bead.id}`);
         console.log(JSON.stringify({ id: bead.id, status: 'updated' }));
         break;
@@ -138,6 +150,11 @@ async function run() {
           "UPDATE beads SET status = 'closed', closed_at = ?, updated_at = ?, labels = JSON_SET(labels, '$.audit_locked', 'true') WHERE id = ?",
           [now, now, beads[0].id],
         );
+        await emitEvent(pool, {
+          event_type: 'session-close',
+          bead_id: beads[0].id,
+          summary: 'session closed',
+        });
         await doltCommit(pool, `session:close ${beads[0].id}`);
         console.log(JSON.stringify({ id: beads[0].id, status: 'closed' }));
         break;
@@ -167,6 +184,12 @@ async function run() {
             now, now, now,
           ],
         );
+        await emitEvent(pool, {
+          event_type: 'task-done',
+          bead_id: id,
+          summary: args.title ?? 'task completed',
+          payload: { repo: args.repo ?? '', session_id: args['session-id'] ?? '' },
+        });
         await doltCommit(pool, `task:done ${id}`);
         console.log(JSON.stringify({ id, status: 'created' }));
         break;
@@ -199,9 +222,8 @@ async function run() {
             now, now,
           ],
         );
-        await doltCommit(pool, `pr:created ${id}`);
-
-        // Also update session bead pr_count
+        // Bump session pr_count in the SAME working set so the PR bead, the session update,
+        // and the pr-created event all land in ONE DOLT_COMMIT (S1 C2 — no second commit).
         if (args['session-id']) {
           const [rows] = await pool.execute(
             "SELECT id, labels FROM beads WHERE type = 'session' AND JSON_EXTRACT(labels, '$.session_id') = ? LIMIT 1",
@@ -214,9 +236,16 @@ async function run() {
               'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
               [JSON.stringify(labels), now, rows[0].id],
             );
-            await doltCommit(pool, `session:pr-count ${rows[0].id}`);
           }
         }
+
+        await emitEvent(pool, {
+          event_type: 'pr-created',
+          bead_id: id,
+          summary: `PR #${args.pr ?? '?'} on ${args.repo ?? 'unknown'}`,
+          payload: { repo: args.repo ?? '', pr_number: args.pr ?? '', session_id: args['session-id'] ?? '' },
+        });
+        await doltCommit(pool, `pr:created ${id}`);
 
         console.log(JSON.stringify({ id, status: 'created' }));
         break;
@@ -246,6 +275,12 @@ async function run() {
             now, now,
           ],
         );
+        await emitEvent(pool, {
+          event_type: 'task-create',
+          bead_id: id,
+          summary: args.title ?? 'task created',
+          payload: { repo: args.repo ?? '', convoy_id: args['convoy-id'] ?? '', session_id: args['session-id'] ?? '' },
+        });
         await doltCommit(pool, `task:create ${id}`);
         console.log(JSON.stringify({ id, status: 'created' }));
         break;
@@ -287,6 +322,12 @@ async function run() {
           } catch { /* best effort */ }
         }
 
+        await emitEvent(pool, {
+          event_type: 'convoy-create',
+          bead_id: id,
+          summary: args.title ?? 'convoy created',
+          payload: { session_bead_id: args['session-bead-id'] ?? '' },
+        });
         await doltCommit(pool, `convoy:create ${id}`);
         console.log(JSON.stringify({ id, status: 'created' }));
         break;
@@ -324,6 +365,12 @@ async function run() {
           'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
           [JSON.stringify(labels), new Date().toISOString(), convoyId],
         );
+        await emitEvent(pool, {
+          event_type: 'convoy-add-slot',
+          bead_id: convoyId,
+          summary: `slot added: ${beadId}`,
+          payload: { slot_bead_id: beadId, agent_id: args['agent-id'] ?? '', slot_count: slots.length },
+        });
         await doltCommit(pool, `convoy:add-slot ${beadId} → ${convoyId}`);
         console.log(JSON.stringify({ convoy_id: convoyId, slot_count: slots.length, status: 'added' }));
         break;
@@ -355,6 +402,12 @@ async function run() {
           'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
           [JSON.stringify(labels), new Date().toISOString(), convoyId],
         );
+        await emitEvent(pool, {
+          event_type: 'convoy-update-slot',
+          bead_id: convoyId,
+          summary: `slot ${beadId} → ${slotStatus}`,
+          payload: { slot_bead_id: beadId, slot_status: slotStatus },
+        });
         await doltCommit(pool, `convoy:slot-update ${beadId} → ${slotStatus}`);
         console.log(JSON.stringify({ convoy_id: convoyId, bead_id: beadId, slot_status: slotStatus }));
         break;
@@ -388,6 +441,12 @@ async function run() {
           'UPDATE beads SET status = ?, labels = ?, updated_at = ?, closed_at = ? WHERE id = ?',
           [beadStatus, JSON.stringify(labels), now, closedAt, convoyId],
         );
+        await emitEvent(pool, {
+          event_type: 'convoy-finalize',
+          bead_id: convoyId,
+          summary: `convoy → ${finalStatus}`,
+          payload: { final_status: finalStatus, slot_count: slots.length },
+        });
         await doltCommit(pool, `convoy:finalize ${convoyId} → ${finalStatus}`);
         console.log(JSON.stringify({ convoy_id: convoyId, final_status: finalStatus }));
         break;
@@ -473,6 +532,12 @@ async function run() {
             'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
             [JSON.stringify(labels), now, bead.id],
           );
+          await emitEvent(pool, {
+            event_type: 'agent-resume',
+            bead_id: bead.id,
+            summary: `${role} agent resumed: ${app}`,
+            payload: { role, app, session_id: sessionId },
+          });
           await doltCommit(pool, `agent:resume ${bead.id}`);
           console.log(JSON.stringify({ id: bead.id, status: 'resumed', role, app }));
         } else {
@@ -499,6 +564,12 @@ async function run() {
               now,
             ],
           );
+          await emitEvent(pool, {
+            event_type: 'agent-create',
+            bead_id: id,
+            summary: `${role} agent created: ${app}`,
+            payload: { role, app, session_id: sessionId, reports_to: reportsTo || undefined },
+          });
           await doltCommit(pool, `agent:create ${id}`);
           console.log(JSON.stringify({ id, status: 'created', role, app }));
         }
@@ -526,6 +597,11 @@ async function run() {
           'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
           [JSON.stringify(labels), now, agentId],
         );
+        await emitEvent(pool, {
+          event_type: 'agent-idle',
+          bead_id: agentId,
+          summary: 'agent idle',
+        });
         await doltCommit(pool, `agent:idle ${agentId}`);
         console.log(JSON.stringify({ id: agentId, status: 'idle' }));
         break;
@@ -554,6 +630,12 @@ async function run() {
           'UPDATE beads SET hook = ?, labels = ?, updated_at = ? WHERE id = ?',
           [beadId, JSON.stringify(labels), now, agentId],
         );
+        await emitEvent(pool, {
+          event_type: 'agent-sling',
+          bead_id: agentId,
+          summary: `slung ${beadId}`,
+          payload: { hook_bead_id: beadId },
+        });
         await doltCommit(pool, `agent:sling ${beadId} → ${agentId}`);
         console.log(JSON.stringify({ agentId, beadId, status: 'slung' }));
         break;
@@ -607,6 +689,25 @@ async function doltCommit(pool, message) {
     await pool.execute("CALL DOLT_ADD('-A')");
     await pool.execute("CALL DOLT_COMMIT('-m', ?)", [message]);
   } catch { /* no changes */ }
+}
+
+/**
+ * Append ONE row to bead_events in the current working set — never commits on its own.
+ *
+ * Invariant (S1 C2 — transaction-integrity): call this immediately BEFORE the verb's single
+ * `doltCommit()`. `DOLT_ADD('-A')` then stages the bead mutation AND this event together, so
+ * both land in the SAME `DOLT_COMMIT`. Calling DOLT_COMMIT here — or running emitEvent after
+ * the verb's commit — would split the event into a second commit and break parity. Don't.
+ *
+ * Errors propagate (not swallowed): a bead committed without its event is a measurement gap,
+ * and this is measure-first instrumentation — fail loud rather than commit a silent half-write.
+ */
+async function emitEvent(pool, { event_type, bead_id, actor = 'claude-code', summary = '', payload = null }) {
+  await pool.execute(
+    `INSERT INTO bead_events (event_type, bead_id, actor, summary, timestamp, payload)
+     VALUES (?, ?, ?, ?, NOW(), ?)`,
+    [event_type, bead_id, actor, summary, payload == null ? null : JSON.stringify(payload)],
+  );
 }
 
 run().catch((err) => {
