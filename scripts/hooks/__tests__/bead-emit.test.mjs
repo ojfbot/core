@@ -693,4 +693,111 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       expect(Math.round(ttlMs / 86_400_000)).toBe(10); // l = 10d
     });
   });
+
+  // ── Claim / renew / sweep (S4 — lease lifecycle) ──────────────────────
+  describe('queue-claim / renew / sweep (S4)', () => {
+    /** Force a label to a value on an existing bead + commit (for controlled expiry/lease times). */
+    async function setLabel(id, jsonPath, value) {
+      await pool.execute('UPDATE beads SET labels = JSON_SET(labels, ?, ?) WHERE id = ?', [jsonPath, value, id]);
+      try {
+        await pool.execute("CALL DOLT_ADD('-A')");
+        await pool.execute("CALL DOLT_COMMIT('-m', 'test setLabel')");
+      } catch { /* no-op */ }
+    }
+    const post = (args) => emit('queue-post', { repo: 'core', ...args }).then(parseOutput);
+
+    it('C1: human claim sets hook, queue=claimed, lease_until + emits a queue-claim event', async () => {
+      const p = await post({ title: 'Test task claim-human' });
+      const out = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'human:yuri', human: 'true' }));
+      expect(out.status).toBe('claimed');
+
+      const bead = await queryBead(p.id);
+      expect(bead.hook).toBe('human:yuri');
+      expect(bead.labels.queue).toBe('claimed');
+      expect(bead.labels.lease_until).toBeTruthy();
+      expect(bead.labels.claimed_by_kind).toBe('human');
+
+      const [evs] = await pool.execute(
+        "SELECT event_type FROM bead_events WHERE bead_id = ? AND event_type = 'queue-claim'",
+        [p.id],
+      );
+      expect(evs.length).toBe(1);
+    });
+
+    it('C0: a second claim on the same bead is lost (atomic CAS — no double-claim)', async () => {
+      const p = await post({ title: 'Test task claim-cas' });
+      const first = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'human:a', human: 'true' }));
+      expect(first.status).toBe('claimed');
+      const second = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'human:b', human: 'true' }));
+      expect(second.status).toBe('lost');
+
+      const bead = await queryBead(p.id);
+      expect(bead.hook).toBe('human:a'); // first claimer holds
+    });
+
+    it('C1: an expired post (expires_at < now) cannot be claimed', async () => {
+      const p = await post({ title: 'Test task claim-expired' });
+      await setLabel(p.id, '$.expires_at', '2000-01-01T00:00:00.000Z'); // rotted
+      const out = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'human:a', human: 'true' }));
+      expect(out.status).toBe('lost');
+    });
+
+    it('C1: autonomy=human_only — a human claims, an agent is refused', async () => {
+      const human = await post({ title: 'Test task claim-humanonly', autonomy: 'human_only' });
+      const agentTry = parseOutput(await emit('queue-claim', { 'bead-id': human.id, claimer: 'agent:w1', agent: 'true' }));
+      expect(agentTry.status).toBe('lost'); // agent ineligible on human_only
+
+      const humanTry = parseOutput(await emit('queue-claim', { 'bead-id': human.id, claimer: 'human:a', human: 'true' }));
+      expect(humanTry.status).toBe('claimed'); // human bypasses
+    });
+
+    it('C1: autonomy=agent_eligible — an agent may claim', async () => {
+      const p = await post({ title: 'Test task claim-agentok', autonomy: 'agent_eligible' });
+      const out = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'agent:w1', agent: 'true' }));
+      expect(out.status).toBe('claimed');
+      const bead = await queryBead(p.id);
+      expect(bead.labels.claimed_by_kind).toBe('agent');
+    });
+
+    it('C2: queue-renew bumps lease_until for the holder only', async () => {
+      const p = await post({ title: 'Test task renew' });
+      await emit('queue-claim', { 'bead-id': p.id, claimer: 'human:a', human: 'true' });
+      // push the lease into the near past so the renew delta is unambiguous
+      await setLabel(p.id, '$.lease_until', '2000-01-01T00:00:00.000Z');
+
+      const wrong = parseOutput(await emit('queue-renew', { 'bead-id': p.id, claimer: 'human:not-holder' }));
+      expect(wrong.status).toBe('lost'); // only the holder renews
+
+      const ok = parseOutput(await emit('queue-renew', { 'bead-id': p.id, claimer: 'human:a' }));
+      expect(ok.status).toBe('renewed');
+      const bead = await queryBead(p.id);
+      expect(Date.parse(bead.labels.lease_until)).toBeGreaterThan(Date.parse('2000-01-01T00:00:00.000Z'));
+    });
+
+    it('C2: queue-sweep returns an expired-lease claim to available (hook cleared)', async () => {
+      const p = await post({ title: 'Test task sweep-lease', autonomy: 'agent_eligible' });
+      const claim = parseOutput(await emit('queue-claim', { 'bead-id': p.id, claimer: 'agent:dead', agent: 'true' }));
+      expect(claim.status).toBe('claimed'); // guard: the claim must land for the sweep to have work
+      await setLabel(p.id, '$.lease_until', '2000-01-01T00:00:00.000Z'); // dead lease
+
+      const out = parseOutput(await emit('queue-sweep'));
+      expect(out.reclaimed).toBeGreaterThanOrEqual(1);
+
+      const bead = await queryBead(p.id);
+      expect(bead.labels.queue).toBe('available');
+      expect(bead.hook).toBeNull();
+      expect(bead.status).toBe('created');
+    });
+
+    it('C2: queue-sweep flips a rotted available post to queue=expired', async () => {
+      const p = await post({ title: 'Test task sweep-rotted' });
+      await setLabel(p.id, '$.expires_at', '2000-01-01T00:00:00.000Z');
+
+      const out = parseOutput(await emit('queue-sweep'));
+      expect(out.expired).toBeGreaterThanOrEqual(1);
+
+      const bead = await queryBead(p.id);
+      expect(bead.labels.queue).toBe('expired');
+    });
+  });
 });

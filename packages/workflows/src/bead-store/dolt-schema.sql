@@ -32,6 +32,11 @@ CREATE INDEX idx_beads_actor ON beads(actor);
 --   labels.posted_at  : ISO 8601 — when queue-post ran.
 --   labels.expires_at : ISO 8601 — posted_at + kind TTL (s=2d, m=5d, l=10d). Expired-but-available
 --                       renders STALE; `queue-sweep` (S4+) flips it to queue='expired'.
+-- Set on claim (S4) by `queue-claim` (+ `hook` = the claimer; renewed by `queue-renew`):
+--   labels.claimed_at      : ISO 8601 — when the claim landed.
+--   labels.claimed_by_kind : 'human' | 'agent'.
+--   labels.lease_until     : ISO 8601 — self-expiring hold (human ~8h, agent ~min). Past-due leases
+--                            are returned to 'available' by `queue-sweep` (dead-claim safety valve).
 
 CREATE TABLE IF NOT EXISTS bead_events (
   id INTEGER PRIMARY KEY AUTO_INCREMENT,

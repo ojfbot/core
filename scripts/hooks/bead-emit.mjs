@@ -40,6 +40,9 @@ const DB = '.beads-dolt';
  */
 const QUEUE_KIND_TTL_DAYS = { s: 2, m: 5, l: 10 };
 const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
+// Lease TTL by claimer kind (ADR-0002 dead-claim safety valve): humans get a long renewable hold,
+// agents a short one so a crashed worker frees its work quickly. queue-sweep reclaims expired leases.
+const QUEUE_LEASE_MS = { human: 8 * 3_600_000, agent: 5 * 60_000 };
 
 const [, , command, ...rawArgs] = process.argv;
 
@@ -725,9 +728,121 @@ async function run() {
         break;
       }
 
+      case 'queue-claim': {
+        // Claim an unassigned-queue task with a self-expiring lease (ADR-0002, coordination S4).
+        // ONE atomic conditional UPDATE (compare-and-swap on the queue lane) — affectedRows===0
+        // means the claim was lost (already claimed, expired, or autonomy-ineligible). The
+        // queue=available marker is the authoritative gate (not status, since a promoted task is
+        // 'live' not 'created'). Humans bypass the autonomy gate; agents need agent_eligible|either.
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+        const isHuman = !args.agent; // default human unless --agent
+        const kind = isHuman ? 'human' : 'agent';
+        const claimer = args.claimer ?? kind;
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const leaseUntil = new Date(now.getTime() + QUEUE_LEASE_MS[kind]).toISOString();
+
+        const [res] = await pool.execute(
+          `UPDATE beads
+              SET hook = ?, status = 'live',
+                  labels = JSON_SET(labels, '$.queue', 'claimed', '$.claimed_at', ?,
+                                    '$.claimed_by_kind', ?, '$.lease_until', ?),
+                  updated_at = ?
+            WHERE id = ?
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.queue')) = 'available'
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.expires_at')) > ?
+              AND ( JSON_UNQUOTE(JSON_EXTRACT(labels, '$.autonomy')) IN ('agent_eligible', 'either')
+                    OR ? = 1 )`,
+          [claimer, nowIso, kind, leaseUntil, nowIso, beadId, nowIso, isHuman ? 1 : 0],
+        );
+        if (!res.affectedRows) {
+          console.log(JSON.stringify({ id: beadId, status: 'lost' }));
+          break;
+        }
+        await emitEvent(pool, {
+          event_type: 'queue-claim',
+          bead_id: beadId,
+          actor: claimer,
+          summary: `claimed by ${claimer} (${kind})`,
+          payload: { claimer, kind, lease_until: leaseUntil },
+        });
+        await doltCommit(pool, `queue:claim ${beadId} → ${claimer}`);
+        console.log(JSON.stringify({ id: beadId, status: 'claimed', hook: claimer, kind, lease_until: leaseUntil }));
+        break;
+      }
+
+      case 'queue-renew': {
+        // Cheap CAS bump of lease_until — only the current holder may renew (heartbeat).
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+        const claimer = args.claimer;
+        if (!claimer) { console.error('--claimer required'); process.exit(1); }
+        const kind = args.agent ? 'agent' : 'human';
+        const now = new Date();
+        const nowIso = now.toISOString();
+        const leaseUntil = new Date(now.getTime() + QUEUE_LEASE_MS[kind]).toISOString();
+
+        const [res] = await pool.execute(
+          `UPDATE beads SET labels = JSON_SET(labels, '$.lease_until', ?), updated_at = ?
+            WHERE id = ? AND hook = ?
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.queue')) = 'claimed'`,
+          [leaseUntil, nowIso, beadId, claimer],
+        );
+        if (!res.affectedRows) {
+          console.log(JSON.stringify({ id: beadId, status: 'lost' }));
+          break;
+        }
+        await emitEvent(pool, {
+          event_type: 'queue-renew',
+          bead_id: beadId,
+          actor: claimer,
+          summary: `lease renewed by ${claimer}`,
+          payload: { lease_until: leaseUntil },
+        });
+        await doltCommit(pool, `queue:renew ${beadId}`);
+        console.log(JSON.stringify({ id: beadId, status: 'renewed', lease_until: leaseUntil }));
+        break;
+      }
+
+      case 'queue-sweep': {
+        // Self-healing: return dead-lease claims to the pool, and flip rotted posts to expired.
+        // The dead-claim safety valve — agent liveness is unreliable, so a crashed claimant must
+        // not lock work forever (ADR-0002). Run from frame-standup / cron.
+        const nowIso = new Date().toISOString();
+        const [reclaim] = await pool.execute(
+          `UPDATE beads SET hook = NULL, status = 'created',
+                  labels = JSON_SET(labels, '$.queue', 'available')
+            WHERE type = 'task'
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.queue')) = 'claimed'
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.lease_until')) < ?`,
+          [nowIso],
+        );
+        const [expire] = await pool.execute(
+          `UPDATE beads SET labels = JSON_SET(labels, '$.queue', 'expired')
+            WHERE type = 'task'
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.queue')) = 'available'
+              AND JSON_UNQUOTE(JSON_EXTRACT(labels, '$.expires_at')) < ?`,
+          [nowIso],
+        );
+        const reclaimed = reclaim.affectedRows ?? 0;
+        const expired = expire.affectedRows ?? 0;
+        if (reclaimed + expired > 0) {
+          await emitEvent(pool, {
+            event_type: 'queue-sweep',
+            bead_id: null,
+            summary: `swept ${reclaimed} dead-lease → available, ${expired} → expired`,
+            payload: { reclaimed, expired },
+          });
+          await doltCommit(pool, `queue:sweep ${reclaimed}+${expired}`);
+        }
+        console.log(JSON.stringify({ status: 'swept', reclaimed, expired }));
+        break;
+      }
+
       default:
         console.error(`Unknown command: ${command}`);
-        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|queue-post|active-sessions>');
+        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|queue-post|queue-claim|queue-renew|queue-sweep|active-sessions>');
         process.exit(1);
     }
   } finally {
