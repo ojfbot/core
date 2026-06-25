@@ -1,2 +1,2 @@
-{"ts":"2026-06-23T01:17:00Z","event":"session:start","session_id":"fea41053-5221-4fe9-a88e-0f19060e1a64","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-06-24T01:19:25Z","event":"session:start","session_id":"fea41053-5221-4fe9-a88e-0f19060e1a64","source":"compact","model":"claude-opus-4-8","repo":"morning-cockpit","branch":"feat/cockpit-redesign-s6-chat-polish","cwd":"/Users/yuri/ojfbot/morning-cockpit"}
+{"ts":"2026-06-25T02:05:59Z","event":"session:start","session_id":"200439ce-b2b2-4c0f-8590-bc09bd6e0264","source":"startup","model":"claude-opus-4-8","repo":"yuri","branch":"","cwd":"/Users/yuri"}
