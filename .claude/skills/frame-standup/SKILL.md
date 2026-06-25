@@ -307,9 +307,18 @@ free-text (the priority's title or a stable hash of it). Telemetry lands in
 correlating these events with `~/.claude/skill-telemetry.jsonl` (launched
 within 24h, same session_id).
 
-#### Step 7b — Post unassigned work to the queue (coordination rollout S3)
+#### Step 7b — Sweep dead leases, then post unassigned work to the queue (S3/S4)
 
-Any surfaced priority the user did **not** select for immediate dispatch is
+First **sweep** the queue (coordination rollout S4): return any claim whose lease
+expired (a crashed/abandoned worker) back to `available`, and flip rotted posts to
+`expired`. This is the dead-claim safety valve — run it once at standup so the day
+starts from a truthful queue (ADR-0002):
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" queue-sweep || true
+```
+
+Then any surfaced priority the user did **not** select for immediate dispatch is
 *unassigned, pickable work*. Post each to the real unassigned queue so it
 appears in the morning-cockpit **Available** lane (ADR-0002, `labels.queue=available`):
 
