@@ -1,6 +1,6 @@
 {
-  "version": "1.11",
-  "updated": "2026-06-25",
+  "version": "1.12",
+  "updated": "2026-06-26",
   "skills": [
     {
       "name": "plan-feature",
@@ -1617,6 +1617,38 @@
       "suggested_after": [],
       "layer_affinity": [
         0
+      ]
+    },
+    {
+      "name": "adopt-stack",
+      "tier": 2,
+      "phase": "planning",
+      "category": "methodology-meta",
+      "tags": [
+        "adopt",
+        "integrate",
+        "dependency",
+        "library",
+        "framework",
+        "wrap-absorb-reject",
+        "evaluation",
+        "build-vs-buy"
+      ],
+      "description": "Decide how to integrate a mature external stack into an opinionated one: a library-vs-application gate, then per-opinion wrap/absorb/reject calls. Output: a measurement table + a recorded decision table. Read-only — proposes integration shape, writes no production code.",
+      "triggers": [
+        "adopt-stack",
+        "should I use this library",
+        "integrate this tool",
+        "integrate this framework",
+        "evaluate this dependency",
+        "wrap absorb or reject",
+        "is this worth adopting",
+        "vendor this or build it"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1
       ]
     }
   ]
