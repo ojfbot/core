@@ -19,6 +19,11 @@ registry:
     app: cv-builder
     path: ../cv-builder/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  - slug: l1-morning-cockpit
+    tier: L1
+    app: morning-cockpit
+    path: ../morning-cockpit/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
