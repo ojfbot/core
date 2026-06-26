@@ -1,6 +1,6 @@
 {
-  "version": "1.10",
-  "updated": "2026-06-18",
+  "version": "1.11",
+  "updated": "2026-06-25",
   "skills": [
     {
       "name": "plan-feature",
@@ -1411,6 +1411,40 @@
         "write a bead",
         "compact this conversation",
         "hand this off"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1
+      ],
+      "scope": [
+        "user"
+      ]
+    },
+    {
+      "name": "resume",
+      "tier": 2,
+      "phase": "session-boundary",
+      "category": "methodology-meta",
+      "tags": [
+        "resume",
+        "pickup",
+        "continuity",
+        "provenance",
+        "verify",
+        "session",
+        "ground-truth",
+        "daily-ops"
+      ],
+      "description": "Hardened, evidence-tiered session pickup — reconstructs a provenance ledger from [git]/[PR] (ground truth) + [DOLT]/[READ] beads (self-report), tagging every claim VERIFIED/UNVERIFIED/CONFLICT/GAP so an agent cannot confabulate completed work. Preflight STOPs on untrustworthy ground; --verify backfills git-grounded report beads for work that shipped with no self-report. Distinct from /bead orient (cheap markdown glance) and /handoff (post-ship runbooks).",
+      "triggers": [
+        "resume",
+        "pick up the session",
+        "pick up where we left off",
+        "what did the last session actually do",
+        "what's the real state here",
+        "verify what shipped",
+        "reconstruct session state"
       ],
       "suggested_after": [],
       "layer_affinity": [
