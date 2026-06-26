@@ -202,6 +202,26 @@ or milestone file exists, extract the deadline and remaining days.
 counts by state (`untouched`/`pr-open`/`merged`) and the next repo due. Offer `/claude-md-rollout --step`
 as a one-click day-plan item (ADR-0081, the paced loading-discipline rollout). Skip silently if absent.
 
+### Step 4.6 — Load the active northstar(s)
+
+Load the three-tier northstar so the day plan can frame each priority against a measurable
+property (`draft-three-tier-northstar`). Always loads the **L2 ojfbot** northstar (the default
+frame); pass `--focus` for the apps surfaced in Step 4 to also load their **L1** northstars:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/.claude/skills/frame-standup/scripts/read-northstar.mjs" \
+  --focus="<comma-separated apps from today's priorities>" \
+  || true   # additive context — never block the standup
+```
+
+Returns `{ available, default: <L2 ojfbot>, focus: [<L1 per app>] }`; each property carries its
+`ref` (`ns:<slug>#P<n>`), `current` %, and `last_movement`. If unavailable, skip silently. Then
+surface one shadow line from the lint (twin of Step 5.6 — observe, never block):
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/northstar-lint.mjs" --format=summary || true
+```
+
 ### Step 5 — Generate the day plan
 
 Cross-reference: daily-logger suggested actions + open action backlog +
@@ -214,6 +234,13 @@ Produce a ranked list of 3–6 actions for today:
 
 When structured actions are available, prefer them over free-text extraction.
 Map each action's `command` field to the corresponding framework skill.
+
+**Frame each priority against a northstar property (Step 4.6).** Append to each ranked action
+the property it advances — `· advances ns:<slug>#P<n> (NN%)` — using the focused **L1** for the
+action's app when loaded, else the **L2 ojfbot** property. A priority that advances no property
+is flagged `[no-northstar]` — a signal, not a block (the work is either mis-scoped or its app
+still needs a northstar). This is the anti-drift check: work that doesn't advance the vision
+shouldn't lead the day.
 
 ### Step 5.5 — Audit yesterday's pending suggestions (ADR-0054)
 
@@ -390,6 +417,7 @@ Open actions backlog: <N> (<repo1>: N, <repo2>: N, ...)
 Recently closed: <N> in last 7 days
 Diagram input: yes/no
 Standup extensions: <N> repos with .claude/standup.md
+Northstar: l2-ojfbot — P1 <n>% · P2 <n>% (+ focused L1s) · lint: <summary line>
 
 ### Repo sync
 | Repo | Branch | Status |
@@ -412,10 +440,10 @@ Verdict: ACCURATE | PARTIALLY ACCURATE | STALE
 
 ### Today
 
-P0  <title> · <repo> · /<command> · specificity: high|medium|low
+P0  <title> · <repo> · /<command> · specificity: high|medium|low · advances ns:<slug>#P<n> (NN%)
 P0  ...
 P1  ...
-P2  ...
+P2  ...  [no-northstar]
 
 [STALE] <title> · <repo> · /<command> (from <sourceDate>)
 ```
@@ -435,3 +463,11 @@ If P0 items are overdue (scheduled date passed):
 
 If open action backlog has items older than 7 days:
 > Surface them as `[STALE]` warnings and suggest triage.
+
+If today's work advanced a northstar property:
+> Offer to **record the movement** — append a line to `decisions/northstar/status.jsonl`
+> (`{date, northstar, property, from, to, evidence, actor, source:"frame-standup"}`) and bump the
+> property's `current` in its northstar file. Movement is recorded, not remembered.
+
+If `northstar-lint --format=summary` (Step 4.6) reported errors or drift:
+> Surface the one-liner (shadow — observe, don't block). Offer a fix or `/adr` only if asked.
