@@ -2,3 +2,7 @@
 {"ts":"2026-06-25T02:11:31Z","event":"session:start","session_id":"8d5fca70-c582-43ee-9ddb-d80f0bba9722","source":"startup","model":"claude-opus-4-8","repo":"selfco","branch":"main","cwd":"/Users/yuri/selfco"}
 {"ts":"2026-06-25T21:00:35Z","event":"session:start","session_id":"51bfad0a-5b64-49bc-a80a-b0ac31845da7","source":"startup","model":"claude-opus-4-8","repo":"morning-cockpit","branch":"main","cwd":"/Users/yuri/ojfbot/morning-cockpit"}
 {"ts":"2026-06-25T22:35:06Z","event":"session:start","session_id":"008cad30-6bd8-493b-be8a-1a81028a2696","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-26T14:44:32Z","event":"session:start","session_id":"144f3fdb-2f4b-49c4-a080-db92d216f81f","source":"startup","model":"claude-opus-4-8","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-06-26T14:44:47Z","event":"session:start","session_id":"b24fa8b8-adac-4bee-b28b-3508e2142378","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-26T14:44:47Z","event":"session:start","session_id":"2a4ccccb-d08d-4146-b551-2ea8e9939c96","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-06-26T14:44:48Z","event":"session:start","session_id":"011020af-7158-48d0-b821-f1f93ed595b0","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
