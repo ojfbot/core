@@ -1,0 +1,30 @@
+{
+  "name": "@core/read-model-contract",
+  "version": "0.1.0",
+  "description": "Canonical read-model SDL — the fleet-wide GraphQL contract for human UI + agent readers. Workspace-internal, never published; consumed by morning-cockpit via CI git-clone (ADR-0013). Query-only.",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./schema.graphql": "./schema.graphql"
+  },
+  "files": [
+    "dist",
+    "schema.graphql"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "graphql": "^16.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}
