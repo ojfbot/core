@@ -66,14 +66,29 @@ if [[ "$USER_SCOPE" == "true" ]]; then
 
   mkdir -p "$USER_SKILLS_DIR"
 
-  for skill in grill-with-docs tdd deepen triage; do
+  # Catalog-driven (ADR: catalog-scoped-user-skills): symlink every skill whose
+  # skill-catalog.json entry is flagged scope:["user"] — not a hardcoded list. `vault`
+  # is excluded here; it stays opt-in via --with-selfco (it scaffolds ~/selfco) below.
+  CATALOG="$CORE_SKILLS_DIR/skill-loader/knowledge/skill-catalog.json"
+  USER_SKILLS="$(python3 -c "
+import json
+d = json.load(open('$CATALOG'))
+print('\n'.join(s['name'] for s in d['skills']
+                 if 'user' in (s.get('scope') or []) and s['name'] != 'vault'))
+" 2>/dev/null)"
+
+  if [[ -z "$USER_SKILLS" ]]; then
+    echo "  WARN: no scope:[\"user\"] skills found in $CATALOG — nothing to symlink"
+  fi
+  while IFS= read -r skill; do
+    [[ -z "$skill" ]] && continue
     if [[ -d "$CORE_SKILLS_DIR/$skill" ]]; then
       ln -sfn "$CORE_SKILLS_DIR/$skill" "$USER_SKILLS_DIR/$skill"
       echo "  symlinked $skill"
     else
-      echo "  WARN: $CORE_SKILLS_DIR/$skill missing — has the Pocock stack merged to main?"
+      echo "  WARN: $CORE_SKILLS_DIR/$skill flagged scope:[\"user\"] but the skill dir is missing"
     fi
-  done
+  done <<< "$USER_SKILLS"
 
   if [[ ! -f "$TEMPLATE" ]]; then
     echo "Error: template not found at $TEMPLATE"
