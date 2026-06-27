@@ -1,5 +1,5 @@
 {
-  "version": "1.12",
+  "version": "1.13",
   "updated": "2026-06-26",
   "skills": [
     {
@@ -1644,6 +1644,37 @@
         "wrap absorb or reject",
         "is this worth adopting",
         "vendor this or build it"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1
+      ]
+    },
+    {
+      "name": "speculative-pass",
+      "tier": 3,
+      "phase": "research",
+      "category": "methodology-meta",
+      "tags": [
+        "speculative",
+        "research",
+        "fleet",
+        "sub-agents",
+        "orthogonal",
+        "stances",
+        "divergent",
+        "harness"
+      ],
+      "description": "Generate a fleet of speculative research sub-agents pointed at one subsystem, each entering from an oblique angle yet forced to land on something buildable on the real substrate. Emits n disjoint stances (native domain / forced landing / anti-pattern / seed prompt), optionally runs k inline, and writes a handoff for the rest. The harness is the asset; the subsystem is disposable.",
+      "triggers": [
+        "speculative pass",
+        "speculative-pass",
+        "point a fleet at",
+        "attack X obliquely",
+        "weird agents on",
+        "orthogonal angles on",
+        "generate stances for"
       ],
       "suggested_after": [],
       "layer_affinity": [
