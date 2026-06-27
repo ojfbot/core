@@ -28,12 +28,15 @@ Before introducing new vocabulary in code, docs, or commits:
 
 ## Skills available across all sessions
 
-- `/grill-with-docs` — structured pre-work grilling with citation requirements
-- `/tdd` — red-green-refactor loop with escalation gates
-- `/deepen` — Ousterhout-style depth audit
-- `/triage` — Pocock-style triage rubric
+Every skill flagged `scope:["user"]` in core's `skill-catalog.json` is symlinked into
+`~/.claude/skills/`, so it works in any session on this machine — not just inside ojfbot. Today that
+includes the Pocock stack (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`), session-boundary skills
+(`/bead`, `/resume`), the daily flow (`/frame-standup`, `/adr`, `/skill-loader`, `/daily-logger`), and
+the lifecycle gates (`/investigate`, `/validate`, `/roadmap`). `/vault` is opt-in via `--with-selfco`.
 
-Skills resolve through symlinks to `/Users/yuri/ojfbot/core/.claude/skills/`. If those paths break, re-run `core/scripts/install-agents.sh --user-scope` to repair.
+The set is **catalog-driven** — flag a skill `scope:["user"]` in the catalog and re-run
+`core/scripts/install-agents.sh --user-scope` to sync. Skills resolve through symlinks to
+`/Users/yuri/ojfbot/core/.claude/skills/`; if those paths break, the same command repairs them.
 
 <!-- managed:end -->
 
