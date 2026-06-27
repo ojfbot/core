@@ -47,11 +47,15 @@ against.
 ### Step 2 — Gate 0: library or application?
 > **Load `knowledge/framework.md`** for the measurement table and thresholds.
 
-Measure empirically (never install blind — `pnpm view` first):
+Measure empirically (never install blind — `pnpm view` first). Use the deterministic script —
+**it owns the numbers** (pulls them from the registry, says "unknown" and exits non-zero rather than
+guessing); the LLM owns only the judgment:
 ```bash
-pnpm view <pkg> dist.unpackedSize dependencies engines
-pnpm view <pkg> dependencies --json   # count; grep for amplitude|sentry|rrweb|segment|posthog
+node .claude/skills/adopt-stack/scripts/measure-pkg.mjs <pkg>[@version]   # markdown table; --json for machine output
 ```
+Under the hood it is the `pnpm view` data — unpacked size, direct dep count, declared engines,
+install/postinstall scripts, and telemetry/embedded-DB name-pattern signals; transitive tree size and
+native builds it flags as requiring a throwaway install rather than inventing them.
 If it's an **application** (heavy tree, telemetry, embedded DB/server/auth, native postinstall): the
 only candidate boundaries are **process/protocol** (drive its CLI/MCP out-of-process) or **REJECT**.
 Record the measurement table. If a real dogfood is warranted, do it in a throwaway dir (scratchpad),
