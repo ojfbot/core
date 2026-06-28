@@ -29,6 +29,7 @@ Reserve the following bead prefixes, extending the adoption-plan A1 routing tabl
 | `lib-` | Game Library (TBD name) | frame (future) | reserved; may be superseded if final name dictates a different prefix |
 | `lean-` | lean-canvas | frame | reserved (was implicit; now explicit) |
 | `seh-` | seh-study | frame | reserved (was implicit; now explicit) |
+| `f1-` | f1-pit-wall + f1-substrate | non-frame | active (2026-06-27; one namespace for the f1 stack pair — `beadPrefix` splits on the first `-`, so both repos route to `~/.beads/f1/`. Also added to `BEAD_PREFIX_MAP`) |
 
 The prefixes work today via `/bead` markdown frontmatter (`prefix: fnd-`). When A1 FrameBead lands, the `FilesystemBeadStore` reads the same prefixes; no migration needed.
 

@@ -102,6 +102,7 @@ export const BEAD_PREFIX_MAP: Record<string, string> = {
   'lean': 'lean',
   'gt':   'gt',
   'hq':   'hq',
+  'f1':   'f1',
 } as const;
 
 /** Extract the prefix segment from a bead ID (everything before the first '-'). */

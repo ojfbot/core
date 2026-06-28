@@ -83,6 +83,8 @@ const ECOSYSTEM_RIG_IDS = [
   'landing',
   'beavergame',
   'asset-foundry',
+  'f1-pit-wall',
+  'f1-substrate',
   // Template placeholder used by registrations/_examples/template.json.
   'your-rig',
 ];
