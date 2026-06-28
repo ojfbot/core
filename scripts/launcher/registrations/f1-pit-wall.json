@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0.0",
+  "id": "f1-pit-wall",
+  "bead_prefix": "f1",
+  "display_name": "F1 pit-wall dashboard (replay + NL chat)",
+  "repo": {
+    "url": "https://github.com/ojfbot/f1-pit-wall",
+    "local_path": "${HOME}/ojfbot/f1-pit-wall",
+    "branch": "main"
+  },
+  "priority_tier": "active",
+  "rig_profile": "non-frame",
+  "order": 51,
+  "tags": ["f1", "dashboard", "typescript", "react"],
+  "panes": [
+    {
+      "name": "pit-wall",
+      "command": "env PORT=3041 pnpm dev || (echo 'pit-wall dev unavailable; idle' && tail -f /dev/null)",
+      "size": "60%",
+      "ready_signal": {
+        "type": "stdout_match",
+        "pattern": "Local:.*http://localhost",
+        "timeout_seconds": 60
+      }
+    },
+    {
+      "name": "claude-headless",
+      "command": "node ${HOME}/ojfbot/core/scripts/hooks/bead-emit.mjs agent-create --role=worker --app=f1-pit-wall --session-id=launcher && echo '✓ f1-pit-wall-agent-worker registered' && tail -f /dev/null",
+      "size": "40%",
+      "split": "horizontal"
+    }
+  ],
+  "claude_sessions": {
+    "headless": { "enabled": true, "role": "worker" },
+    "interactive": { "key_binding": "M-7" }
+  }
+}
