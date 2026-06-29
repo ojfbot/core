@@ -24,6 +24,24 @@ registry:
     app: morning-cockpit
     path: ../morning-cockpit/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # Reconciled 2026-06-28 from on-disk L1s that worker agents authored but never registered.
+  # (Two further on-disk copies — mc-perf, mc-motion — are duplicate l1-morning-cockpit scratch
+  #  worktrees, NOT distinct apps, so they are intentionally excluded.)
+  - slug: l1-f1-pit-wall
+    tier: L1
+    app: f1-pit-wall
+    path: ../f1-pit-wall/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+  - slug: l1-f1-substrate
+    tier: L1
+    app: f1-substrate
+    path: ../f1-substrate/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+  - slug: buddy-check                         # NB: shipped with a bare slug (no l1- prefix); slug is
+    tier: L1                                   # immutable identity (ADR-0087), so it is registered as-is.
+    app: buddy-check
+    path: ../buddy-check/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
