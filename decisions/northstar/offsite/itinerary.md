@@ -48,6 +48,7 @@ A `★` repo already has a first-cut northstar on disk → its leg is **review-a
 | # | app | status | note |
 |---|-----|--------|------|
 | 11a | GameWorld (cluster) | briefed | THE cluster conversation — first real cluster-tier instance; CC lands its block as design evidence, not a v1.1 file |
+| 11b | F1 (cluster) | briefed | PRE-DRAFTED quick-confirm from the landed f1 L1s (~5 min); decides ladder topology for all clusters. NOTE: f1's depends_on edge is schema-doc-only — not in pit-wall's file, not linted; retrofit lands in the cluster-tier build slice |
 | 11 | asset-foundry | briefed | rendering/production arm; feeds beaverGame; sync seam untested |
 | 12 | beaverGame (CozyBeaver) | briefed | 3D client; depends_on candidate edge to foundry |
 | 13 | lofi-beaver | briefed | 1-bit iso story-world + sprite pipeline (2nd-consumer gate — CarrierPigeon is the candidate) |
