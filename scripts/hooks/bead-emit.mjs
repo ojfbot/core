@@ -37,6 +37,16 @@ const DB = '.beads-dolt';
  *   labels.autonomy   'human_only' (default) | 'agent_eligible' | 'either'  — who may claim.
  *   labels.posted_at  ISO — when queue-post ran.
  *   labels.expires_at ISO — posted_at + kind TTL. Expired-but-available renders STALE.
+ *
+ * Roadmap-dispatch labels (roadmap-schema.md; set by roadmap-compile.mjs via queue-post flags).
+ * A queue bead carrying roadmap_ref is a compiled DISPATCH PROJECTION of a roadmap slice — the
+ * markdown file is canonical, the bead is the projection; the compiler reconciles by roadmap_ref.
+ *
+ *   labels.roadmap_ref   'rm:<slug>#S<n>' — the slice this bead projects. Idempotency key.
+ *   labels.advances      'ns:<slug>#P<n>' — the northstar property the slice moves.
+ *   labels.autonomy_gate 'gate-0' | 'gate-1' | 'gate-2' — the MERGE gate (progressive-autonomy-
+ *                        gates ADR). Distinct from labels.autonomy (claim eligibility) above.
+ *   labels.why           short human line: what merging this delivers.
  */
 const QUEUE_KIND_TTL_DAYS = { s: 2, m: 5, l: 10 };
 const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
@@ -678,6 +688,13 @@ async function run() {
         const now = new Date();
         const nowIso = now.toISOString();
         const expiresAt = new Date(now.getTime() + QUEUE_KIND_TTL_DAYS[kind] * 86_400_000).toISOString();
+        // Roadmap-dispatch labels (see RESERVED_QUEUE_LABELS): only set when provided, so
+        // hand-posted tasks stay unchanged.
+        const roadmapLabels = {};
+        if (args['roadmap-ref']) roadmapLabels.roadmap_ref = args['roadmap-ref'];
+        if (args.advances) roadmapLabels.advances = args.advances;
+        if (args['autonomy-gate']) roadmapLabels.autonomy_gate = args['autonomy-gate'];
+        if (args.why) roadmapLabels.why = args.why;
 
         if (args['bead-id']) {
           // Promote an existing task onto the queue.
@@ -690,6 +707,7 @@ async function run() {
           labels.autonomy = autonomy;
           labels.posted_at = nowIso;
           labels.expires_at = expiresAt;
+          Object.assign(labels, roadmapLabels);
           await pool.execute('UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?', [JSON.stringify(labels), nowIso, beadId]);
           await emitEvent(pool, {
             event_type: 'queue-post',
@@ -711,6 +729,7 @@ async function run() {
           repo: args.repo ?? '',
           posted_at: nowIso,
           expires_at: expiresAt,
+          ...roadmapLabels,
         };
         await pool.execute(
           `INSERT INTO beads (id, type, status, title, body, labels, actor, refs, created_at, updated_at)
