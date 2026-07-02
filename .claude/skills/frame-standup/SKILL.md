@@ -216,11 +216,19 @@ node "$CLAUDE_PROJECT_DIR/.claude/skills/frame-standup/scripts/read-northstar.mj
 
 Returns `{ available, default: <L2 ojfbot>, focus: [<L1 per app>] }`; each property carries its
 `ref` (`ns:<slug>#P<n>`), `current` %, and `last_movement`. If unavailable, skip silently. Then
-surface one shadow line from the lint (twin of Step 5.6 — observe, never block):
+surface one shadow line from each lint (twin of Step 5.6 — observe, never block):
 
 ```bash
 node "$CLAUDE_PROJECT_DIR/scripts/northstar-lint.mjs" --format=summary || true
+node "$CLAUDE_PROJECT_DIR/scripts/roadmap-lint.mjs" --format=summary || true
 ```
+
+**Roadmap readiness (adr:roadmap-under-northstar).** For each focused app with a registered
+roadmap (`roadmaps:` in `decisions/northstar/README.md`), read its `<app>/.claude/roadmap.md`
+frontmatter and surface the delivery state: slices `ready` (dispatchable today), `queued` slices
+whose entrance criteria now look satisfied (offer to flip `status: queued → ready` — that flip is
+THIS step's human judgment, the one thing the compiler never does), and `delivered` slices
+awaiting the merge ritual. These feed Step 5 ranking and Step 7b dispatch.
 
 ### Step 5 — Generate the day plan
 
@@ -365,6 +373,19 @@ already dispatched via `/orchestrate` (those become convoy slots, not queue
 items). Posting is the only queue write the standup makes; **claiming** is a
 separate human/agent action (S4).
 
+**Then compile the roadmaps** (adr:roadmap-under-northstar) so every `ready`
+slice is projected onto the same queue — idempotent, so re-running is free:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/roadmap-compile.mjs" || true
+```
+
+Compiled slices carry their own `claimable_by`/`autonomy_gate` from the roadmap
+file (a reviewed artifact), so the never-auto-escalate rule above is not
+violated by the compiler. If the user wants the runner to take the day's
+dispatchable slices now, hand off to `/day-run` (it starts at Step 4 of that
+skill: dry-run preview → confirm → run).
+
 Then, for each selected option, generate a **Layer 1 orchestrator prompt**
 suitable for `/orchestrate` consumption. The prompt format extends the
 canonical structure from `knowledge/prompt-format.md`:
@@ -465,9 +486,11 @@ If open action backlog has items older than 7 days:
 > Surface them as `[STALE]` warnings and suggest triage.
 
 If today's work advanced a northstar property:
-> Offer to **record the movement** — append a line to `decisions/northstar/status.jsonl`
-> (`{date, northstar, property, from, to, evidence, actor, source:"frame-standup"}`) and bump the
-> property's `current` in its northstar file. Movement is recorded, not remembered.
+> Offer to **record the movement** via `node scripts/record-movement.mjs` — from a merged roadmap
+> slice: `--ref rm:<slug>#S<n> --pr <number> [--apply]` (reads the merged PR's movement proposal;
+> refuses unmerged PRs); for non-slice work: `--northstar <slug> --property P<n> --from N --to M
+> --evidence "..." --source frame-standup`. Movement is recorded from evidence, not remembered —
+> and never from a session's self-report.
 
 If `northstar-lint --format=summary` (Step 4.6) reported errors or drift:
 > Surface the one-liner (shadow — observe, don't block). Offer a fix or `/adr` only if asked.

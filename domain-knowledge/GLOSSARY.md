@@ -64,11 +64,15 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Daily-logger** — Auto-committed dev log app at log.jim.software. 4-phase pipeline: collect → draft → council → synthesize. (`daily-logger-architecture.md`)
 
+**Day-runner** — The Gate-0 dispatch runner (`core/scripts/day-runner.mjs`, surfaced as `/day-run`): the GUPP loop mechanized. Claims agent-eligible dispatch beads, runs one headless session per slice in an isolated worktree (under `~/.cache/day-runner/`, outside `~/ojfbot`), verifies the slice-boundary contract (branch pushed · PR + movement proposal · report beads), never merges. Morning-invoked, not a daemon. (adr:dispatch-queue-and-day-runner)
+
 **Deacon** — Infrastructure daemon agent (heartbeat, health checks). Gas Town role; Frame mapping is shell health monitoring.
 
 **Decisions/** — Repo directory containing `adr/` and `okr/`. In core, real directories. In siblings, symlinked from core for cross-repo read-only access.
 
 **Deepen** — Skill `/deepen` (Phase 3, scaffolded as of 2026-04-28). Ousterhout-style depth analysis: find shallow modules, propose deepening refactors. Read-only by default.
+
+**Dispatch queue** — The unassigned queue (cockpit ADR-0002 label contract) doubling as the roadmap's dispatch surface: `roadmap-compile.mjs` projects `ready` slices as `queue=available` beads carrying `roadmap_ref`/`advances`/`autonomy_gate`/`why` labels. One queue for humans (cockpit Available lane + Claim), the standup (Step 7b), and the day-runner — no parallel truth. A compiled bead is a **projection**; the roadmap file is canonical. (adr:dispatch-queue-and-day-runner)
 
 **Dolt** — SQL database with Git semantics (branch/merge/PR/fork on tables). Backing store for Gas Town beads. DoltHub is the public remote.
 
@@ -164,9 +168,13 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Molecule** — Chain of beads representing a multi-step workflow with checkpointing. Instantiated from a Formula. Frame: compiles to a LangGraph graph.
 
+**Movement record** — One append-only line in `core/decisions/northstar/status.jsonl`: `{date, northstar, property, from, to, evidence, actor, source}` — the `Property #N: X% → Y%` odometer. Written only by `record-movement.mjs` from **merged** evidence (the verb refuses unmerged PRs); sessions *propose* movement in their PR body, never record it. (`roadmap-schema.md` § Movement contract; adr:three-tier-northstar)
+
 ## N
 
 **NDI (Nondeterministic Idempotence)** — Workflows are durable because molecule steps are atomic checkpoints. Any agent can resume any step.
+
+**Northstar** — A project's compass (adr:three-tier-northstar): one-paragraph vision + fixed named **properties**, each with a target, an honest hand-asserted `current` %, and a verification. Three tiers — L1 per app (`<app>/.claude/northstar.md`) → L2 per venture → L3 shared apex — laddered by resolve-or-fail `ns:<slug>#P<n>` refs. Schema: `decisions/northstar/schema.md`; lint shadow-only. The compass does not move; understanding sharpens; movement is recorded, not remembered.
 
 **Nudge** — Operation to kick a stalled agent back into action. `gt nudge <agent>`.
 
@@ -200,6 +208,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Refinery** — Merge processor agent. Handles PRs, resolves conflicts. Gas Town role; built into Frame `witness`.
 
+**Roadmap** — The file-canonical delivery artifact under a northstar (one per northstar; `<app>/.claude/roadmap.md` beside the L1): ordered **phases** of **slices** that close a property gap. Registered in the `roadmaps:` list of the northstar registry; schema `decisions/northstar/roadmap-schema.md`; `roadmap-lint.mjs` shadow-only; `roadmap-compile.mjs` projects ready slices onto the dispatch queue. Files canonical, beads a projection. (adr:roadmap-under-northstar)
+
 **RemoteComponent** — Module Federation remote loaded at runtime by AppFrame.
 
 **raw/ (selfco wiki)** — The append-only, immutable source layer of the selfco LLM Wiki (`~/selfco/raw/`): articles, PDFs, clippings, research dumps, notes you authored. The single source of truth for everything the wiki was built from. The LLM reads it but never edits or deletes it. (`selfco-vault.md`)
@@ -227,6 +237,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Shell** — Module Federation host (port 4000). Owns app registry, routing, layout, theme. Repo: `shell`.
 
 **Sibling repo** — Any ojfbot repo other than core. Receives skills + domain-knowledge + decisions/ via `install-agents.sh` symlinks.
+
+**Slice (roadmap)** — The atomic delivery unit of a roadmap: exactly one agentic session's work, with stable id `rm:<slug>#S<n>`, `advances: ns:<slug>#P<n>`, expected movement (`moves_from`/`moves_to`), a named deliverable, entrance/success gates, a merge gate (`autonomy: gate-0|1|2`), and lifecycle `queued → ready → dispatched → delivered → merged` (or `dropped`). *Disambiguate from* **Vertical Slice** (the `/gated-slice` planning method's unit — a plan shape); a roadmap slice is the durable, dispatchable artifact form. (`roadmap-schema.md`)
 
 **Sling** — Operation to assign a bead to an agent's hook. `gt sling <bead> <agent>`.
 
