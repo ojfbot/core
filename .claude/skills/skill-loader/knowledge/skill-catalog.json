@@ -1,6 +1,6 @@
 {
   "version": "1.13",
-  "updated": "2026-06-26",
+  "updated": "2026-07-02",
   "skills": [
     {
       "name": "plan-feature",
@@ -273,7 +273,7 @@
         "audit",
         "gaps"
       ],
-      "description": "Security/resilience/observability gap analysis. No fixes — audit and ranked finding list.",
+      "description": "Security/resilience/observability gap analysis. No fixes \u2014 audit and ranked finding list.",
       "triggers": [
         "hardening",
         "security audit",
@@ -925,7 +925,7 @@
         "context",
         "orientation"
       ],
-      "description": "Session initializer — load environment context, check services, show active sessions, suggest skills. Run at the start of any session for full situational awareness.",
+      "description": "Session initializer \u2014 load environment context, check services, show active sessions, suggest skills. Run at the start of any session for full situational awareness.",
       "triggers": [
         "init",
         "initialize",
@@ -984,7 +984,7 @@
         "discipline",
         "test-first"
       ],
-      "description": "Red-green-refactor loop. Writes failing test first, verifies red, makes minimal change to green, offers refactor. Guidance — does not block edits.",
+      "description": "Red-green-refactor loop. Writes failing test first, verifies red, makes minimal change to green, offers refactor. Guidance \u2014 does not block edits.",
       "triggers": [
         "tdd",
         "red green refactor",
@@ -1019,7 +1019,7 @@
         "consolidation",
         "module-depth"
       ],
-      "description": "Find shallow modules and propose deepening refactors. Ousterhout depth metric (interface simplicity × implementation richness). No edits.",
+      "description": "Find shallow modules and propose deepening refactors. Ousterhout depth metric (interface simplicity \u00d7 implementation richness). No edits.",
       "triggers": [
         "deepen",
         "improve codebase architecture",
@@ -1119,7 +1119,7 @@
         "obsidian",
         "second-brain"
       ],
-      "description": "Maintain the selfco LLM Wiki (~/selfco) — a Karpathy-style Obsidian vault: append-only raw/ source layer + LLM-owned wiki/ of source/entity/concept/synthesis pages + index.md + log.md, with ~/selfco/CLAUDE.md as the schema. Modes: init (scaffold + write schema + Obsidian plugins + repo entity stubs), ingest <path|url> (land a source → summary page → update entity/concept pages → index → log), research <topic> (ingest but fetch the sources), query <question> (answer from the wiki w/ citations, file explorations back), lint (health-check), sync [--since=7d] (fold the ojfbot activity feed into repo entity pages), handoff (fold the current session into the vault — summary + full text of every artifact), orient, note <title>. There's also a tool-agnostic consumer-app Agent Skill (core/.claude/skills/vault/consumer/SKILL.md) covering ingest/query/note/orient/handoff for claude.ai web / iPhone / Claude Desktop via the GitHub connector on ojfbot/selfco or a local mcp-obsidian server, and a copy-paste export prompt ~/selfco/prompts/session-handoff.md for foreign chat agents (Dia, claude.ai) — see knowledge/connectors.md, ADR-0085/0070. Distinct from /daily-logger (chronological blog) and /bead (per-repo handoff).",
+      "description": "Maintain the selfco LLM Wiki (~/selfco) \u2014 a Karpathy-style Obsidian vault: append-only raw/ source layer + LLM-owned wiki/ of source/entity/concept/synthesis pages + index.md + log.md, with ~/selfco/CLAUDE.md as the schema. Modes: init (scaffold + write schema + Obsidian plugins + repo entity stubs), ingest <path|url> (land a source \u2192 summary page \u2192 update entity/concept pages \u2192 index \u2192 log), research <topic> (ingest but fetch the sources), query <question> (answer from the wiki w/ citations, file explorations back), lint (health-check), sync [--since=7d] (fold the ojfbot activity feed into repo entity pages), handoff (fold the current session into the vault \u2014 summary + full text of every artifact), orient, note <title>. There's also a tool-agnostic consumer-app Agent Skill (core/.claude/skills/vault/consumer/SKILL.md) covering ingest/query/note/orient/handoff for claude.ai web / iPhone / Claude Desktop via the GitHub connector on ojfbot/selfco or a local mcp-obsidian server, and a copy-paste export prompt ~/selfco/prompts/session-handoff.md for foreign chat agents (Dia, claude.ai) \u2014 see knowledge/connectors.md, ADR-0085/0070. Distinct from /daily-logger (chronological blog) and /bead (per-repo handoff).",
       "triggers": [
         "vault",
         "selfco",
@@ -1194,7 +1194,7 @@
         "communication",
         "brevity"
       ],
-      "description": "Ultra-compressed communication mode — drops articles, hedging, preamble, recap; keeps full technical accuracy, paths, commands, code. Stays on until the user says 'normal mode'.",
+      "description": "Ultra-compressed communication mode \u2014 drops articles, hedging, preamble, recap; keeps full technical accuracy, paths, commands, code. Stays on until the user says 'normal mode'.",
       "triggers": [
         "caveman",
         "caveman mode",
@@ -1223,7 +1223,7 @@
         "blast-radius",
         "navigation"
       ],
-      "description": "In-loop orientation for code you're already working in: walk up the call graph and module boundaries — who calls this, what it depends on, blast radius if changed. No report file; for a full cold-start repo overview use /recon.",
+      "description": "In-loop orientation for code you're already working in: walk up the call graph and module boundaries \u2014 who calls this, what it depends on, blast radius if changed. No report file; for a full cold-start repo overview use /recon.",
       "triggers": [
         "zoom out",
         "give me the bigger picture",
@@ -1336,7 +1336,7 @@
         "force-push",
         "settings"
       ],
-      "description": "State the dangerous-git policy and audit or wire the repo's guardrails — .claude/settings.json deny/ask rules (via /update-config) and an optional pre-push hook. Read-only by default; only edits settings when asked.",
+      "description": "State the dangerous-git policy and audit or wire the repo's guardrails \u2014 .claude/settings.json deny/ask rules (via /update-config) and an optional pre-push hook. Read-only by default; only edits settings when asked.",
       "triggers": [
         "git-guardrails",
         "block dangerous git commands",
@@ -1365,7 +1365,7 @@
         "enforcement",
         "planning"
       ],
-      "description": "Decompose a large effort into Control-Gated Slices (ADR-0086): independently-shippable vertical slices, each delivered through ordered Control Gates with Entrance + Success Criteria expressed as TPMs (MOE → MOP → TPM), with any action-taking enforcement control required to mature through a Brassboard/shadow (observe-only) stage before going Operational, promoted by a data-gated RIDM decision. Plan only, no code. Distinct from /plan-feature (single-feature spec→test-matrix) and /orchestrate (execution).",
+      "description": "Decompose a large effort into Control-Gated Slices (ADR-0086): independently-shippable vertical slices, each delivered through ordered Control Gates with Entrance + Success Criteria expressed as TPMs (MOE \u2192 MOP \u2192 TPM), with any action-taking enforcement control required to mature through a Brassboard/shadow (observe-only) stage before going Operational, promoted by a data-gated RIDM decision. Plan only, no code. Distinct from /plan-feature (single-feature spec\u2192test-matrix) and /orchestrate (execution).",
       "triggers": [
         "gated-slice",
         "control gated slices",
@@ -1399,7 +1399,7 @@
         "discovery",
         "daily-ops"
       ],
-      "description": "Inter-session continuity via beads — small dated markdown files in a .handoff/ ledger that let any future session (chat or Code) reconstruct context. Distinct from /handoff (post-ship runbook docs).",
+      "description": "Inter-session continuity via beads \u2014 small dated markdown files in a .handoff/ ledger that let any future session (chat or Code) reconstruct context. Distinct from /handoff (post-ship runbook docs).",
       "triggers": [
         "bead",
         "orient me",
@@ -1436,7 +1436,7 @@
         "ground-truth",
         "daily-ops"
       ],
-      "description": "Hardened, evidence-tiered session pickup — reconstructs a provenance ledger from [git]/[PR] (ground truth) + [DOLT]/[READ] beads (self-report), tagging every claim VERIFIED/UNVERIFIED/CONFLICT/GAP so an agent cannot confabulate completed work. Preflight STOPs on untrustworthy ground; --verify backfills git-grounded report beads for work that shipped with no self-report. Distinct from /bead orient (cheap markdown glance) and /handoff (post-ship runbooks).",
+      "description": "Hardened, evidence-tiered session pickup \u2014 reconstructs a provenance ledger from [git]/[PR] (ground truth) + [DOLT]/[READ] beads (self-report), tagging every claim VERIFIED/UNVERIFIED/CONFLICT/GAP so an agent cannot confabulate completed work. Preflight STOPs on untrustworthy ground; --verify backfills git-grounded report beads for work that shipped with no self-report. Distinct from /bead orient (cheap markdown glance) and /handoff (post-ship runbooks).",
       "triggers": [
         "resume",
         "pick up the session",
@@ -1575,7 +1575,7 @@
         "gotchas",
         "taxonomy"
       ],
-      "description": "Audit the skill library against the Anthropic skill-architecture patterns (nine categories + authoring tips): coverage gaps, straddlers, drift, missing Gotchas. Deterministic signals from a script; judgment from an LLM pass. Read-only — reports, never edits skills.",
+      "description": "Audit the skill library against the Anthropic skill-architecture patterns (nine categories + authoring tips): coverage gaps, straddlers, drift, missing Gotchas. Deterministic signals from a script; judgment from an LLM pass. Read-only \u2014 reports, never edits skills.",
       "triggers": [
         "skill-audit",
         "audit my skills",
@@ -1606,7 +1606,7 @@
         "sources",
         "chat-side"
       ],
-      "description": "Stage a URL or chat session into the selfco vault via the Notion inbox (chat-side only — the local promoter lands files on disk). Discuss the source, structure a wiki/sources/ draft, write to inbox with suggested wikilinks.",
+      "description": "Stage a URL or chat session into the selfco vault via the Notion inbox (chat-side only \u2014 the local promoter lands files on disk). Discuss the source, structure a wiki/sources/ draft, write to inbox with suggested wikilinks.",
       "triggers": [
         "selfco-ingest",
         "ingest this",
@@ -1634,7 +1634,7 @@
         "evaluation",
         "build-vs-buy"
       ],
-      "description": "Decide how to integrate a mature external stack into an opinionated one: a library-vs-application gate, then per-opinion wrap/absorb/reject calls. Output: a measurement table + a recorded decision table. Read-only — proposes integration shape, writes no production code.",
+      "description": "Decide how to integrate a mature external stack into an opinionated one: a library-vs-application gate, then per-opinion wrap/absorb/reject calls. Output: a measurement table + a recorded decision table. Read-only \u2014 proposes integration shape, writes no production code.",
       "triggers": [
         "adopt-stack",
         "should I use this library",
@@ -1680,6 +1680,30 @@
       "layer_affinity": [
         0,
         1
+      ]
+    },
+    {
+      "name": "day-run",
+      "tier": 2,
+      "phase": "daily-ops",
+      "category": "infrastructure-ops",
+      "tags": [
+        "roadmap",
+        "northstar",
+        "dispatch",
+        "day-runner",
+        "queue",
+        "gate-0",
+        "delivery"
+      ],
+      "description": "Dispatch the day's ready roadmap slices: compile file-canonical roadmaps onto the queue, run the Gate-0 day-runner (isolated worktrees, branch+PR+movement-proposal at each slice boundary), then the human merge ritual records movement.",
+      "triggers": [
+        "day-run",
+        "run the day",
+        "dispatch the roadmap",
+        "run today's slices",
+        "start the day runner",
+        "dispatch slices"
       ]
     }
   ]

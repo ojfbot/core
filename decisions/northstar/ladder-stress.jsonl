@@ -1,0 +1,4 @@
+{"date":"2026-07-02","app":"shell","northstar":"l1-shell","parent":"ns:l2-ojfbot#P1","verdict":"strain","reason":"P1 wording ('Frame-composed surfaces') strains against standalone-instance surfaces; 2nd instance of the L2-P1-widening pressure (f1-substrate leg was 1st); gate trips at 3. Asserted in voice 2026-06-28, landed 2026-07-02.","actor":"chat-james"}
+{"date":"2026-07-02","app":"shell","northstar":"l1-shell","parent":"ns:l2-ojfbot#P2","verdict":"clean","reason":"","actor":"chat-james"}
+{"date":"2026-07-02","app":"blogengine","northstar":"l1-blogengine","parent":"ns:l2-ojfbot#P1","verdict":"clean","reason":"","actor":"chat-james"}
+{"date":"2026-07-02","app":"blogengine","northstar":"l1-blogengine","parent":"ns:l2-ojfbot#P2","verdict":"clean","reason":"","actor":"chat-james"}

@@ -47,6 +47,15 @@ registry:
   #   tier: L2
   #   path: ~/selfco/tracking/northstar-selfco.md   # in the vault, OUTSIDE wiki/ (lint scope)
   #   ladders_up_to: l3-shared
+# Roadmap registry (roadmap-schema.md) — one delivery roadmap per northstar, same path rules.
+# roadmap-lint.mjs and roadmap-compile.mjs parse this list.
+roadmaps:
+  - slug: rm-l1-morning-cockpit
+    northstar: l1-morning-cockpit
+    path: ../morning-cockpit/.claude/roadmap.md
+  - slug: rm-l2-ojfbot
+    northstar: l2-ojfbot
+    path: decisions/northstar/roadmap-l2-ojfbot.md
 ---
 
 # Northstar — three-tier vision tracking
