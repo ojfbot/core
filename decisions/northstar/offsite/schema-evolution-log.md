@@ -47,3 +47,25 @@ build-on-evidence, never build-on-imagination.
 
 ---
 _Next pressures land here as legs surface them._
+
+## [SCHEMA ITERATION 5] — semver pins on refs (`ns:<slug>@<semver>#P<n>`) · DESIGNED (Frame leg)
+- **Pressure:** the `@v2` re-point concern (ITERATION 2) needs a non-silent mechanism; the Frame leg's
+  CONFIRMED block pinned every ref `@0.1.0` (pre-1.0 = free to break; a child pinned against a
+  MAJOR-bumped target is flagged for re-validation).
+- **From:** leg 5 (Frame), chat — FRAMEWORK FLAGS in the confirmed block.
+- **Disposition:** **designed, not built.** Landed files strip the pins (schema v1.1 has no pin
+  syntax; the lint index would fail to resolve them); pins are recorded here + in the relay. Build
+  when the first re-validation event actually occurs.
+
+## [SCHEMA ITERATION 6] — cluster tier (`ns:cluster-<name>@<semver>#P<n>`) · DESIGNED (Frame leg)
+- **Pressure:** shell P4 (runtime cluster management) and the F1 stack want the cluster as a unit;
+  an optional rung between L1 and L2 (apps may ladder to a cluster property OR directly to L2).
+- **From:** leg 5 (Frame), chat.
+- **Disposition:** **designed, not built.** Evidence gates: leg 3's golf cluster (is it one app or
+  a cluster?) and any leg that needs a cluster ref in an actual `ladders_up_to`/`depends_on`.
+
+## [PRESSURE COUNTER] — L2-P1 widening: 2 of 3
+- "Ships demoable **Frame OS** surfaces" strains against standalone-instance surfaces.
+  Instances: (1) f1-substrate leg 1; (2) shell leg 5 (landed 2026-07-02, 3 property verdicts share
+  the one strain). Candidate 3rd: the `landing` card (leg 5, briefed 2026-07-02 — flagged in-card).
+  At 3, the roadtrip freezes for a deliberate parent-revision session (never hot-patched mid-leg).
