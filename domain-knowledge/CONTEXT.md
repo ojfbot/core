@@ -70,6 +70,8 @@ The infrastructure that turns prompts into structured workflows. Lives in core; 
 - `Telemetry` — `~/.claude/skill-telemetry.jsonl` (invocations) and `~/.claude/suggestion-telemetry.jsonl` (suggestions). Append-only, JSONL, user-level.
 - `WorkflowEngine` — TypeScript runtime in `packages/workflows/`. Provides `runWorkflow()` for CLI/CI use; reads the same `.claude/skills/` files via `fileBackedWorkflow`.
 - `FrameDev` — multi-app dev-server orchestrator at `scripts/frame-dev.sh`, surfaced as `/frame-dev`. Registers each runnable rig with start/stop/status semantics; logs land in `/tmp/frame-dev-logs/<app>.log`. Dispatches by `RigProfile`: frame rigs use `pnpm dev:all` (web + API), non-frame rigs declare a custom `start_cmd` (e.g. `pnpm dev` Vite for beaverGame, `pnpm gen-asset --watch`-equivalent for asset-foundry). Idempotent port-checks; safe to re-run. See ADR-0051.
+- `Northstar` — _(adr:three-tier-northstar)_ a project's compass: vision paragraph + fixed named properties, each with target / hand-asserted `current` % / verification. Three tiers (L1 `<app>/.claude/northstar.md` → L2 venture → L3 shared apex) laddered by resolve-or-fail `ns:<slug>#P<n>` refs. Registry + schema in `decisions/northstar/`; `northstar-lint.mjs` shadow-only. Movement is recorded (`status.jsonl`), never remembered.
+- `Roadmap` — _(proposed, adr:roadmap-under-northstar)_ the file-canonical delivery artifact under a northstar: ordered `Phase`s of `Slice`s that close a property gap. A slice = one agentic session's work with stable id `rm:<slug>#S<n>`, `advances: ns:<slug>#P<n>`, expected movement, deliverable, entrance/success gates, merge gate (`autonomy: gate-0|1|2`, adr:progressive-autonomy-gates), lifecycle `queued → ready → dispatched → delivered → merged`. Registered beside the northstar registry; `roadmap-lint.mjs` shadow-only; **files canonical, queue beads a projection** (`roadmap-compile.mjs`).
 - `EnvisionedCapability` — _(proposed, adr:envisioned-capability-marker)_ a desired-but-unbuilt capability (lib, app, integration, or future `Skill`) captured as a note carrying the frontmatter field `envisioned: idea | shaped | ready-to-build`. **Presence of the field ⇒ the thing does not exist yet**; absence ⇒ real (graduation = deleting the field). Quarantined by *marker, not location* — the note lives beside related code or in `SelfcoVault`. The maturity ladder gates allowed detail: `idea` (name + why) → `shaped` (prose shape, no signatures) → `ready-to-build` (interfaces allowed, build imminent). Orthogonal to the skill `status:` lifecycle (active/in-progress/deprecated, ADR-0083) and the vault page `status:` (seedling/growing/evergreen). Captured/advanced via `/envision`; enforced by the `envisioned-lint` Hook.
 
 **Entities / value objects**
@@ -96,6 +98,8 @@ The bead-and-hook protocol governing agent work, adopted from Steve Yegge's Gas 
 - `Convoy` — named group of related beads representing a feature or sprint. Tracks N/M progress.
 - `Molecule` — chain of beads representing a multi-step workflow with checkpointing. Instantiated from a `Formula` (TOML template). Compiles to a LangGraph graph in Frame.
 - `Rig` — a codebase + its agent team (witness, refinery, crew, polecats). Each ojfbot sub-app is a rig.
+- `DispatchIntent` — _(proposed, adr:dispatch-queue-and-day-runner)_ a compiled `queue=available` task bead projecting a roadmap `Slice` onto the unassigned queue (ADR-0002 label contract + `roadmap_ref`/`advances`/`autonomy_gate`/`why`). One queue serves the cockpit Available lane + Claim, `/frame-standup` Step 7b, and the `DayRunner` — no parallel truth. Idempotency key: `labels.roadmap_ref`.
+- `DayRunner` — _(proposed, adr:dispatch-queue-and-day-runner)_ the Gate-0 GUPP loop (`scripts/day-runner.mjs`, `/day-run`): claims agent-eligible `DispatchIntent`s, runs one headless session per slice in an isolated worktree outside `~/ojfbot`, verifies the slice-boundary contract (branch pushed · PR with `Movement proposal:` · report beads + `bead_events`), never merges. Morning-invoked CLI, not a daemon.
 - `RigProfile` — categorizes a rig by integration shape: `frame` (MF remote, Carbon, frame-agent gateway — cv-builder, blogengine, tripplanner, purefoy, lean-canvas, gastown-pilot, seh-study, core-reader) or `non-frame` (standalone build-time or runtime, no MF, no frame-agent — asset-foundry, beaverGame; future Game Library will be `frame`). Drives `install-agents.sh` skill applicability and `FrameDev` dispatch. See `.claude/SKILLS.md` per non-frame rig and ADR-0051.
 
 **Entities / value objects**
@@ -107,7 +111,9 @@ The bead-and-hook protocol governing agent work, adopted from Steve Yegge's Gas 
 **Invariants — GUPP**
 - *Gas Town Universal Propulsion Principle:* "If there is work on your hook, you must run it." Eliminates central scheduling. Every prime node implements GUPP.
 - One bead on the hook at a time per agent.
-- Mutations to bead state always go through the `gt` CLI (or its Frame equivalent), never direct DB writes.
+- Mutations to bead state always go through the `gt` CLI (or its Frame equivalent), never direct DB writes. _(The roadmap compiler and day-runner obey this: all their writes go through `bead-emit.mjs` verbs; they read Dolt read-only.)_
+- _(proposed, adr:roadmap-under-northstar)_ Roadmap files are canonical; `DispatchIntent` beads are a projection — fix plans by editing markdown and re-compiling, never by hand-editing projected beads.
+- _(proposed, adr:dispatch-queue-and-day-runner)_ A runner session never merges its own PR and never writes `status.jsonl` — movement is recorded at merge, from merged evidence (`record-movement.mjs` refuses unmerged PRs).
 
 **Frame mappings (source of truth: `gastown/knowledge/domain-model.md`)**
 - `polecat` → `worker` agent. `crew` → `crew` agent. `mayor` → `mayor` agent. `witness` → `witness` agent.
@@ -142,6 +148,7 @@ The observability layer. What gets seen, by whom, where it lands.
 - `BeadSession` — file-based per-session record produced by the `bead-session.sh` hook. Captures decisions, gotchas, and reports for inter-session continuity.
 - `Telemetry` — same JSONL stores as Workflow Engine context (skill-telemetry, suggestion-telemetry). Read by `pr-skill-audit.sh` for coverage reports.
 - `StandupFunnel` — measurement of `/frame-standup` Step 7 suggestions through four stages: suggested → launched → addressed → closed. Each stage has its own JSONL event class in `~/.claude/standup-telemetry.jsonl`. Closure: (a) bead-status closed (per ADR-0053) OR (c) priority absent from next standup. See ADR-0054.
+- `MovementRecord` — _(adr:three-tier-northstar; contract in `roadmap-schema.md`)_ one append-only `status.jsonl` line `{date, northstar, property, from, to, evidence, actor, source}` — the northstar odometer. Producer: `record-movement.mjs` at PR merge (sessions *propose* movement in the PR body; only merged evidence is recorded). Consumers: staleness lint, `/frame-standup` framing, the cockpit Delivery pane.
 - `SelfcoVault` — a personal LLM Wiki at `${SELFCO_VAULT:-~/selfco}` following Karpathy's pattern ("Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase"): an append-only `raw/` source layer (immutable; LLM reads, never edits) + an LLM-owned `wiki/` of `sources/` / `entities/` / `concepts/` / `synthesis/` pages + `index.md` (hub catalog) + `log.md` (append-only `## [date] <op> | <title>` ledger), with `~/selfco/CLAUDE.md` as the self-contained *schema*. The lookup-shaped knowledge layer (browsed by topic/entity) complementary to `DailyLogger` (published chronological feed) and `BeadSession` (per-repo handoff). The ojfbot activity stream is one input feed — every repo is an `entity` (`kind: repo`). Maintained by `/vault` (`init` / `ingest` / `research` / `query` / `lint` / `sync` / `orient` / `note`); deterministic scripts read+scaffold, the LLM authors pages. Opt-in `vault-session.sh` SessionEnd hook appends `## [date] session` stubs to `wiki/log.md` that `/vault sync` folds in. Own git repo, not symlinked into ojfbot. Not called a "second brain". See ADR-0085, `selfco-vault.md`, the Karpathy gist.
 
 **Entities / value objects**
@@ -243,6 +250,8 @@ Same word, different contexts. Resolve by surrounding context.
 | **Hook** | Shell script bound to Claude Code lifecycle event (PostToolUse, UserPromptSubmit) | Pointer on an agent to the bead it should work |
 | **Mail** | n/a | Inter-agent message built on beads (direct/queued/broadcast) |
 | **Bead** | n/a | Atomic unit of work + the file produced by `/bead` skill |
+
+**Slice** — three senses, resolve by qualifier: a **roadmap slice** (Workflow Engine — the durable, dispatchable artifact unit `rm:<slug>#S<n>`, roadmap-schema.md); a **vertical slice** (the `/gated-slice` planning method's unit — a plan shape, ADR-0086); a **coordination-rollout slice** (S1–S6 in cockpit/coordination ADRs — a phase label). When unqualified in delivery-pipeline contexts, "slice" = roadmap slice.
 
 When in doubt, prefix: "Claude Code hook" vs. "Gas Town hook"; "skill telemetry" vs. "bead telemetry."
 
