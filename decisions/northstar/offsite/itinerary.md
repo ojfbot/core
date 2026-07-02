@@ -40,17 +40,19 @@ A `★` repo already has a first-cut northstar on disk → its leg is **review-a
 ## Leg 3 — Imagery / classifier / domain MCPs  *(prompt's flagship synthesis)*
 | # | app | status | note |
 |---|-----|--------|------|
-| 8 | golf-platform-scripts / build-golf / mcp-golf | briefed | ONE card for the cluster; repo-split = sharp edge #1 (cluster-tier evidence gate) |
-| 9 | jocdive-sdi-mcp | briefed | scuba SDI MCP; parked on account-email blocker, 1 tool live |
-| 10 | dms-core | briefed | EMPTY DIRECTORY — card offers retirement as a first-class outcome |
+| 8 | golf-platform-scripts / build-golf / mcp-golf | briefed | ONE card for the cluster; repo-split = sharp edge #1 |
+| 9 | jocdive-sdi-mcp | retired | RETIRED 2026-07-02 — folds into buddy-check's roadmap (SDI portal = a buddy-check data-source concern); code + parking note kept |
+| 10 | dms-core | retired | ARCHIVED (temporary) 2026-07-02 — membership inactive; reactivation re-enters as queued |
 
-## Leg 4 — 3D / asset / game
+## Leg 4 — GameWorld cluster  *(James 2026-07-02: agentic/multi-agent game-dev cluster — rendered environments, game-state management, engine interactions, playtester-chat feedback loop. Run the CLUSTER card first; per-app ladders stay on L2 with intended cluster refs in SYNTHESIS — cluster tier is designed-not-built and this leg is its evidence.)*
 | # | app | status | note |
 |---|-----|--------|------|
-| 11 | asset-foundry | briefed | Blender asset pipeline (LangGraph + bpy); feeds beaverGame; sync seam untested |
-| 12 | beaverGame | briefed | cozy 3D beaver sim; depends_on candidate edge to foundry |
-| 13 | lofi-beaver | briefed | 1-bit iso story-world + sprite pipeline (brassboard, 2nd-consumer gate) |
-| 14 | foundry-recipes | briefed | active-vs-support = sharp edge #1; status doc may be stale |
+| 11a | GameWorld (cluster) | briefed | THE cluster conversation — first real cluster-tier instance; CC lands its block as design evidence, not a v1.1 file |
+| 11 | asset-foundry | briefed | rendering/production arm; feeds beaverGame; sync seam untested |
+| 12 | beaverGame (CozyBeaver) | briefed | 3D client; depends_on candidate edge to foundry |
+| 13 | lofi-beaver | briefed | 1-bit iso story-world + sprite pipeline (2nd-consumer gate — CarrierPigeon is the candidate) |
+| 14 | foundry-recipes | briefed | SUPPORT-MODE question resolves as a cluster-role question (knowledge arm?) |
+| 14a | CarrierPigeon | briefed | next game; pre-code scaffold (asset-foundry dir + public/, no git); primary source = the voice conversation |
 
 ## Leg 5 — Frame OS surfaces  *(MF fleet; shared Carbon stack)*
 | # | app | status | note |
