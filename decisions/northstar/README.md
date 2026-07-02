@@ -53,6 +53,9 @@ roadmaps:
   - slug: rm-l1-morning-cockpit
     northstar: l1-morning-cockpit
     path: ../morning-cockpit/.claude/roadmap.md
+  - slug: rm-l2-ojfbot
+    northstar: l2-ojfbot
+    path: decisions/northstar/roadmap-l2-ojfbot.md
 ---
 
 # Northstar — three-tier vision tracking
