@@ -88,3 +88,11 @@ _Next pressures land here as legs surface them._
   buddy-check data-source concern; session-persistence auth pattern noted as reusable).
 - **dms-core → ARCHIVED (temporary)** — membership inactive; reactivation re-enters as queued.
 - Leg 3 is now golf-only; Leg 4 is the GameWorld cluster leg (cluster card runs first).
+
+## [AUDIT FINDING] — the f1 `depends_on` edge is schema-doc-only (2026-07-02)
+- **Observed:** `depends_on` exists in schema.md (v1.1) but (a) f1-pit-wall's on-disk northstar
+  carries NO depends_on field, and (b) `northstar-lint.mjs` never received the resolve-check —
+  ITERATION 4 said "lint code lands when the pair lands"; the pair landed, the lint didn't.
+- **Disposition:** retrofit both (the pit-wall edge + the lint check) inside the cluster-tier
+  build slice, alongside cluster node syntax/loader/lint, `cluster-f1` (pre-drafted card 11b,
+  quick-confirm in voice), and `cluster-gameworld`. One slice, four artifacts, all evidence-backed.
