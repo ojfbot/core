@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const LIST_KEYS = new Set(['properties', 'registry']);
+const LIST_KEYS = new Set(['properties', 'registry', 'roadmaps', 'phases', 'slices']);
 
 function scalar(v) {
   if (v == null) return null;
@@ -98,6 +98,46 @@ export function buildPropertyIndex(northstars) {
     if (ns._missing || !Array.isArray(ns.properties)) continue;
     for (const p of ns.properties) {
       idx.set(`ns:${ns.slug}#${p.id}`, { property: p, northstar: ns });
+    }
+  }
+  return idx;
+}
+
+// ── Roadmaps (roadmap-schema.md) ────────────────────────────────────────────
+// Same constrained-frontmatter regime as northstars; the registry is the
+// `roadmaps:` list in the SAME README.md frontmatter block as `registry:`.
+
+/** Read the roadmap registry from <coreRoot>/decisions/northstar/README.md. */
+export function loadRoadmapRegistry(coreRoot) {
+  const readme = path.join(coreRoot, 'decisions', 'northstar', 'README.md');
+  if (!existsSync(readme)) return { error: `registry not found at ${readme}`, entries: [] };
+  const fm = parseFM(readFileSync(readme, 'utf8'));
+  return { entries: (fm && fm.roadmaps) || [] };
+}
+
+/** Load one roadmap file; returns the parsed object with _path/_abs, or a _missing marker. */
+export function loadRoadmap(entry, coreRoot) {
+  const abs = resolvePath(entry.path, coreRoot);
+  if (!abs || !existsSync(abs)) {
+    return { slug: entry.slug, northstar: entry.northstar, _path: entry.path, _abs: abs, _missing: true };
+  }
+  const fm = parseFM(readFileSync(abs, 'utf8')) || {};
+  return { ...fm, _path: entry.path, _abs: abs };
+}
+
+/** Load every roadmap named in the registry. */
+export function loadAllRoadmaps(coreRoot) {
+  const { entries, error } = loadRoadmapRegistry(coreRoot);
+  return { error, entries, roadmaps: entries.map((e) => loadRoadmap(e, coreRoot)) };
+}
+
+/** Build an index of "rm:<slug>#S<id>" → { slice, roadmap } across all loaded roadmaps. */
+export function buildSliceIndex(roadmaps) {
+  const idx = new Map();
+  for (const rm of roadmaps) {
+    if (rm._missing || !Array.isArray(rm.slices)) continue;
+    for (const s of rm.slices) {
+      idx.set(`rm:${rm.slug}#${s.id}`, { slice: s, roadmap: rm });
     }
   }
   return idx;
