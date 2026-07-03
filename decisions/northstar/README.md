@@ -49,6 +49,13 @@ registry:
     app: f1-press-room
     path: ../f1-press-room/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # silicon-empires: AoE-style RTS of the AI-infrastructure complex (queues, capital,
+  # energy, silicon); SPEC-canon repo, Phase 0+1 delivered 2026-07-03 (PRs #1-#6).
+  - slug: l1-silicon-empires
+    tier: L1
+    app: silicon-empires
+    path: ../silicon-empires/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -74,6 +81,9 @@ roadmaps:
   - slug: rm-l1-f1-press-room
     northstar: l1-f1-press-room
     path: ../f1-press-room/.claude/roadmap.md
+  - slug: rm-l1-silicon-empires
+    northstar: l1-silicon-empires
+    path: ../silicon-empires/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
