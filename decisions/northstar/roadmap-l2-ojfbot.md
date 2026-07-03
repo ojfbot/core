@@ -13,12 +13,12 @@ phases:
 slices:
   - id: S1
     phase: PH1
-    title: "Repair l1-cv-builder — registered northstar file missing on disk"
+    title: "Repair l1-cv-builder — registered northstar absent from the working copy"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 20
     moves_to: 22
-    deliverable: "PR in cv-builder restoring .claude/northstar.md (recover from git history or re-land from the offsite record); northstar-lint 0 errors."
-    entrance: "northstar-lint currently ERRORs: registered-but-absent l1-cv-builder (pre-existing, observed 2026-07-02)."
+    deliverable: "cv-builder working copy carries .claude/northstar.md; northstar-lint 0 errors. FINDING (2026-07-03): the file was never missing from origin/main — its tip IS the northstar commit (2a88ec1). The lint ERROR is a working-copy artifact: the checkout sits on docs/claude-md-routing (ADR-0081 rollout WIP, uncommitted changes, cut before the northstar landed). Remaining action: land/rebase that branch or switch the checkout to main — owner's call, do not touch the dirty branch."
+    entrance: "northstar-lint currently ERRORs: registered-but-absent l1-cv-builder (working-copy artifact per the 2026-07-03 finding; self-heals when the rollout branch lands)."
     success: "node core/scripts/northstar-lint.mjs shows 7/7 files present, 0 errors."
     autonomy: gate-0
     claimable_by: either
