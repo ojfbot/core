@@ -42,6 +42,13 @@ registry:
     app: buddy-check
     path: ../buddy-check/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # f1-press-room: teaching/content studio consuming the f1 pair's export seam (bootstrapped
+  # 2026-07-03, rm:rm-l1-f1-press-room#S1).
+  - slug: l1-f1-press-room
+    tier: L1
+    app: f1-press-room
+    path: ../f1-press-room/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -56,6 +63,17 @@ roadmaps:
   - slug: rm-l2-ojfbot
     northstar: l2-ojfbot
     path: decisions/northstar/roadmap-l2-ojfbot.md
+  # f1 stack (2026-07-03): substrate and pit-wall registered before press-room so the
+  # cross-roadmap depends_on refs (rm:<slug>#S<n>) resolve.
+  - slug: rm-l1-f1-substrate
+    northstar: l1-f1-substrate
+    path: ../f1-substrate/.claude/roadmap.md
+  - slug: rm-l1-f1-pit-wall
+    northstar: l1-f1-pit-wall
+    path: ../f1-pit-wall/.claude/roadmap.md
+  - slug: rm-l1-f1-press-room
+    northstar: l1-f1-press-room
+    path: ../f1-press-room/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
