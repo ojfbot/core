@@ -168,7 +168,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: daily-logger
-    status: ready
+    status: dispatched
   - id: S12
     phase: PH3
     title: "cockpit honesty pass — stale seeded chain, adapter doc claims, problems-view states"
@@ -182,7 +182,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: morning-cockpit
-    status: ready
+    status: dispatched
   - id: S13
     phase: PH3
     title: "Re-measurement cadence — weekly measurement routine with the delivery oracle inside"
