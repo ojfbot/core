@@ -10,6 +10,9 @@ phases:
   - id: PH2
     name: "Land the remaining legs"
     goal: "All 26 itinerary apps have a registered, lint-clean L1 northstar with ladder-stress verdicts logged; northstar-lint reports 0 missing files."
+  - id: PH3
+    name: "Audit hardening program (2026-07-04) — make the fleet's work self-measuring"
+    goal: "The tranche-1 slices of MULTIAGENT-SDLC-AUDIT / AGENTIC-INTEGRATION-PLAN / FLEET-COORDINATION-EXTENSIONS are merged, verified DELIVERED by scripts/audit-delivery-check.mjs, and the program shows movement at least every 14 days (the verifier's staleness gate)."
 slices:
   - id: S1
     phase: PH1
@@ -138,6 +141,92 @@ slices:
     kind: l
     repo: core
     status: queued
+  - id: S10
+    phase: PH3
+    title: "H0 ground truth — commit the OPAV master plan into core"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 20
+    moves_to: 21
+    deliverable: "OPAV-LOOP-GATED-SLICE-PLAN-2026-06-13.md committed to core (root or decisions/) so the program constitution survives the laptop; referenced beads stop pointing at a file that exists nowhere."
+    entrance: "The file exists on the operator's Mac (referenced by 3+ beads and the DeepStack evaluation). Copy it in — do not reconstruct it."
+    success: "node scripts/audit-delivery-check.mjs shows H0.1 DELIVERED."
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: ready
+  - id: S11
+    phase: PH3
+    title: "daily-logger truth pipeline — repoint dead telemetry consumer + deterministic fact-check"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 21
+    moves_to: 22
+    deliverable: "collect-telemetry.ts reads skill-dispositions.jsonl (frozen stream demoted to labeled legacy fallback); verifyFileExistenceClaims() built per TD-001 and wired post-generation; build-api.ts stops treating missing article status as implicitly accepted; CLAUDE.md purged of the phantom bead-store.ts claim."
+    entrance: "Audit findings T1, P4, P7, T11 confirmed current (re-run the verifier: H2.1, I5.1, I5.2, H0.3 all MISSING)."
+    success: "audit-delivery-check.mjs shows H2.1, I5.1, I5.2, H0.3 DELIVERED; pnpm test green in daily-logger."
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: daily-logger
+    status: ready
+  - id: S12
+    phase: PH3
+    title: "cockpit honesty pass — stale seeded chain, adapter doc claims, problems-view states"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 22
+    moves_to: 23
+    deliverable: "fleet-config.ts stale 'bead_events empty log' critical chain removed or seeded-badged in the UI; CLAUDE.md marks github/standup adapters NOT BUILT (or builds github.ts from daily-logger's collectors); deriveAgentLiveness extended with Stalled/Zombie states per the Gas Town problems-view taxonomy."
+    entrance: "Audit findings P1, P2, F5 confirmed current (verifier: H0.4, F5.1, F5.2 MISSING)."
+    success: "audit-delivery-check.mjs shows H0.4 (at least PARTIAL), F5.1, F5.2 DELIVERED; pnpm test green in morning-cockpit."
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: morning-cockpit
+    status: ready
+  - id: S13
+    phase: PH3
+    title: "Re-measurement cadence — weekly measurement routine with the delivery oracle inside"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 23
+    moves_to: 24
+    deliverable: "A scheduled weekly routine (launchd/cron/frame-standup extension) that runs skill-metrics.mjs to docs/skill-metrics-YYYY-MM-DD.md, runs audit-delivery-check.mjs --json and files the diff vs last week, and nags on vault-sync age. First run produces the cluster's second-ever metrics snapshot."
+    entrance: "audit-delivery-check.mjs merged (this PR); skill-metrics.mjs runs clean against live telemetry."
+    success: "audit-delivery-check.mjs shows H7.1 DELIVERED (>1 snapshot); two consecutive weekly artifacts exist after 14 days."
+    autonomy: gate-0
+    claimable_by: either
+    kind: m
+    repo: core
+    status: ready
+  - id: S14
+    phase: PH3
+    title: "day-runner verification stage (SHADOW) + record-movement manual-path guard"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 24
+    moves_to: 25
+    deliverable: "Post-session, day-runner runs the target repo's check command in the worktree and records checks:{tests,success_criterion} on the pr-created bead + PR body (record only, never blocks — promotion to blocking is a later RIDM decision after ~20 shadow runs); record-movement's --northstar manual path requires --override-reason and stamps source:manual-unverified."
+    entrance: "S13 merged (the weekly routine is what will surface shadow-agreement data for the eventual promotion decision)."
+    success: "audit-delivery-check.mjs shows H4.1, H4.2 DELIVERED; next overnight run's beads carry the checks field."
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S13"
+  - id: S15
+    phase: PH3
+    title: "Verifiability-sorted dispatch — autonomy_fit + machine check field in the roadmap schema"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 25
+    moves_to: 26
+    deliverable: "Roadmap schema v1.x adds an optional check: field (machine-runnable success command) and autonomy_fit derived from its presence; roadmap-compile only queues agent_eligible slices that carry check:; /triage refreshed toward the ready-for-agent/ready-for-human state machine (Pocock upstream, June 2026)."
+    entrance: "S14 merged (the verification stage is what makes check: enforceable at the slice boundary)."
+    success: "audit-delivery-check.mjs shows F1.1 DELIVERED; roadmap-lint clean; a compiled bead carries the field."
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S14"
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
@@ -165,3 +254,32 @@ S4 lands the already-confirmed Frame leg immediately (no conversation needed). S
 through the skill pair, one voice session each. Leg 3 (S6) is the standing evidence-gate for the
 designed-but-unbuilt cluster tier: if the golf cluster genuinely needs `ns:cluster-*` refs, that
 gets logged as a schema-evolution iteration — built on evidence, not imagination.
+
+## PH3 — Audit hardening program (2026-07-04)
+
+Tranche 1 of the three-document audit program (`MULTIAGENT-SDLC-AUDIT-2026-07-04.md`,
+`AGENTIC-INTEGRATION-PLAN-2026-07-04.md`, `FLEET-COORDINATION-EXTENSIONS-2026-07-04.md`), encoded
+on these rails precisely because the audit's own headline finding is that plans in this cluster
+rot when they live outside the delivery machinery.
+
+**The delivery oracle.** Every PH3 slice's `success:` is a named check in
+`scripts/audit-delivery-check.mjs` — a deterministic verifier (no LLM, no network) with one
+predicate per promised artifact, three baseline regression guards protecting what already works
+(suggestion identity, CAS claims, the merge-gated odometer), and a staleness gate: `--check`
+exits 1 if a baseline truth regresses OR if >14 days pass with undelivered slices and no commit
+touching program files. Run it any time to answer "is the audit program actually being
+delivered?" with evidence, from zero context. S13 wires it into a weekly cadence so the answer
+arrives without anyone remembering to ask.
+
+**Ordering.** S10–S13 are independent and `ready` (S10 is human-only — the OPAV plan file exists
+only on the operator's Mac). S14 depends on S13 (the weekly routine surfaces the
+shadow-agreement data that will justify promoting the verification stage to blocking); S15
+depends on S14 (a `check:` field is only honest once something enforces it at the slice
+boundary). Later tranches (I4 golden suites, I5 judge calibration, F2 hooks/GUPP, F3 escalation,
+F8 stamps) get their own slices only after tranche 1 is `merged` — six open slices is the
+attention budget; the rest of the program waits in the documents, not in the queue.
+
+**Movement-band note.** PH3 slices advance `ns:l2-ojfbot#P2` in a 20→26 band that runs parallel
+to the PH1/PH2 legs band (also baselined at 20) — the parent `current:` is hand-asserted and
+rollup is shadow (audit finding P5). Treat each band's deltas as honest within itself; the
+parent number reconciles when `northstar-rollup.mjs` exists.
