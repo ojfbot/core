@@ -1,8 +1,8 @@
 {
   "date": "2026-07-04",
   "counts": {
-    "DELIVERED": 3,
-    "MISSING": 24
+    "DELIVERED": 8,
+    "MISSING": 19
   },
   "stale": false,
   "freshness": {
@@ -55,8 +55,8 @@
       "slice": "H0/T11",
       "title": "daily-logger CLAUDE.md no longer claims nonexistent bead-store.ts",
       "repo": "daily-logger",
-      "status": "MISSING",
-      "evidence": "doc still claims absent file — daily-logger/CLAUDE.md:47: | `src/bead-store.ts` | AgentBead persistence with filesystem-fallback (ADR-0043) |"
+      "status": "DELIVERED",
+      "evidence": "no bead-store.ts reference remains"
     },
     {
       "id": "H0.4",
@@ -87,8 +87,8 @@
       "slice": "H2/T1",
       "title": "daily-logger reads the live skill-dispositions stream",
       "repo": "daily-logger",
-      "status": "MISSING",
-      "evidence": "collect-telemetry.ts still reads only the frozen skill-telemetry stream"
+      "status": "DELIVERED",
+      "evidence": "daily-logger/src/collect-telemetry.ts:7: * - 'dispositions'           — ~/selfco/tracking/skill-dispositions.jsonl (live, ADR-0095)"
     },
     {
       "id": "H4.1",
@@ -159,16 +159,16 @@
       "slice": "I5/TD-001",
       "title": "verifyFileExistenceClaims implemented",
       "repo": "daily-logger",
-      "status": "MISSING",
-      "evidence": "designed in TECHDEBT since March; still unbuilt"
+      "status": "DELIVERED",
+      "evidence": "daily-logger/src/index.ts:31: import { verifyFileExistenceClaims } from './verify-claims.js'"
     },
     {
       "id": "I5.2",
       "slice": "I5/P7",
       "title": "missing article status no longer implicitly published",
       "repo": "daily-logger",
-      "status": "MISSING",
-      "evidence": "still defaults missing status to accepted — daily-logger/src/build-api.ts:287: const status = (fm.status as string) ?? 'accepted' // older articles without status are implicitly accepted"
+      "status": "DELIVERED",
+      "evidence": "implicit-accept default removed"
     },
     {
       "id": "I8.1",
@@ -191,8 +191,8 @@
       "slice": "F5",
       "title": "cockpit liveness knows Stalled/Zombie states",
       "repo": "morning-cockpit",
-      "status": "MISSING",
-      "evidence": "liveness still only live/idle/dark"
+      "status": "DELIVERED",
+      "evidence": "morning-cockpit/packages/shared/src/liveness.ts:11: * - `stalled` — the agent's most-recent agent-* event is an assignment (`agent-sling`), it never"
     },
     {
       "id": "F5.2",
