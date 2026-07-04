@@ -1,0 +1,230 @@
+{
+  "date": "2026-07-04",
+  "counts": {
+    "DELIVERED": 3,
+    "MISSING": 24
+  },
+  "stale": false,
+  "freshness": {
+    "days": 0,
+    "note": "last program commit 2026-07-04 (0d ago)"
+  },
+  "results": [
+    {
+      "id": "BASE.1",
+      "slice": "ADR-0093",
+      "title": "suggestion_id still minted at suggestion time",
+      "repo": "core",
+      "status": "DELIVERED",
+      "evidence": "core/scripts/hooks/suggest-skill.sh:57: # Dedup file is a 3-line record: skill / epoch-ts / SUGGESTION_ID (line 3 may be"
+    },
+    {
+      "id": "BASE.2",
+      "slice": "queue",
+      "title": "queue-claim still CAS (atomic conditional claim)",
+      "repo": "core",
+      "status": "DELIVERED",
+      "evidence": "core/scripts/hooks/bead-emit.mjs:32: * queue-claim (S4). The schema home is packages/workflows/src/bead-store/dolt-schema.sql."
+    },
+    {
+      "id": "BASE.3",
+      "slice": "odometer",
+      "title": "record-movement still refuses non-merged PRs",
+      "repo": "core",
+      "status": "DELIVERED",
+      "evidence": "core/scripts/record-movement.mjs:6: * movement in the PR body; movement is RECORDED only from a MERGED PR, by the human running"
+    },
+    {
+      "id": "H0.1",
+      "slice": "H0",
+      "title": "OPAV master plan committed to the repo",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "file not found in core root or decisions/"
+    },
+    {
+      "id": "H0.2",
+      "slice": "H0/O9",
+      "title": "gate spine functional (workflows dist built or build-on-demand)",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no dist build and no build-on-demand path in gate-event.mjs"
+    },
+    {
+      "id": "H0.3",
+      "slice": "H0/T11",
+      "title": "daily-logger CLAUDE.md no longer claims nonexistent bead-store.ts",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "doc still claims absent file — daily-logger/CLAUDE.md:47: | `src/bead-store.ts` | AgentBead persistence with filesystem-fallback (ADR-0043) |"
+    },
+    {
+      "id": "H0.4",
+      "slice": "H0/P1",
+      "title": "cockpit docs honest about github/standup adapters",
+      "repo": "morning-cockpit",
+      "status": "MISSING",
+      "evidence": "docs list adapters as live; files absent"
+    },
+    {
+      "id": "I1.1",
+      "slice": "H1/I1",
+      "title": "trace_id minted/threaded in telemetry lib or bead emitter",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no trace_id in _lib.sh or bead-emit.mjs"
+    },
+    {
+      "id": "I1.2",
+      "slice": "H1/I1",
+      "title": "Claude-Session commit trailers parsed by a consumer",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "no consumer parses Claude-Session trailers"
+    },
+    {
+      "id": "H2.1",
+      "slice": "H2/T1",
+      "title": "daily-logger reads the live skill-dispositions stream",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "collect-telemetry.ts still reads only the frozen skill-telemetry stream"
+    },
+    {
+      "id": "H4.1",
+      "slice": "H4/I6",
+      "title": "day-runner records test/success-criterion checks on the slice",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "day-runner verify is still PR-shape only (no test/criterion check)"
+    },
+    {
+      "id": "H4.2",
+      "slice": "H4/O3",
+      "title": "record-movement manual path stamped/guarded",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "manual movement path has no unverified stamp or override reason"
+    },
+    {
+      "id": "H5.1",
+      "slice": "H5/F2",
+      "title": "queue has attempts/quarantine semantics",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no attempts counter or quarantined state in queue layer"
+    },
+    {
+      "id": "H6.1",
+      "slice": "H6",
+      "title": "roadmap/northstar lint wired into CI",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no CI workflow invokes roadmap-lint/northstar-lint"
+    },
+    {
+      "id": "H7.1",
+      "slice": "H7/E1",
+      "title": "a second skill-metrics snapshot exists (first re-measurement)",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "only skill-metrics-2026-04-28.md — cadence never resumed"
+    },
+    {
+      "id": "I2.1",
+      "slice": "I2",
+      "title": "outcome field captured where humans touch agent output",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no outcome field in bead emitter or article schema"
+    },
+    {
+      "id": "I3.1",
+      "slice": "I3",
+      "title": "failure taxonomy exists and is versioned",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "decisions/failure-taxonomy.md absent — the weekly error-analysis ritual has not run"
+    },
+    {
+      "id": "I4.1",
+      "slice": "I4",
+      "title": "first golden eval suite exists (daily-logger)",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "no evals/ dir or golden/eval test files"
+    },
+    {
+      "id": "I5.1",
+      "slice": "I5/TD-001",
+      "title": "verifyFileExistenceClaims implemented",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "designed in TECHDEBT since March; still unbuilt"
+    },
+    {
+      "id": "I5.2",
+      "slice": "I5/P7",
+      "title": "missing article status no longer implicitly published",
+      "repo": "daily-logger",
+      "status": "MISSING",
+      "evidence": "still defaults missing status to accepted — daily-logger/src/build-api.ts:287: const status = (fm.status as string) ?? 'accepted' // older articles without status are implicitly accepted"
+    },
+    {
+      "id": "I8.1",
+      "slice": "I8/H7",
+      "title": "frame-standup carries an SLO/error-budget block",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "standup skill has no SLO block"
+    },
+    {
+      "id": "F1.1",
+      "slice": "F1",
+      "title": "roadmap schema carries autonomy_fit / machine check field",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "schema has no machine-checkable success-command field"
+    },
+    {
+      "id": "F5.1",
+      "slice": "F5",
+      "title": "cockpit liveness knows Stalled/Zombie states",
+      "repo": "morning-cockpit",
+      "status": "MISSING",
+      "evidence": "liveness still only live/idle/dark"
+    },
+    {
+      "id": "F5.2",
+      "slice": "F5/P2",
+      "title": "stale seeded critical chain removed or badged",
+      "repo": "morning-cockpit",
+      "status": "MISSING",
+      "evidence": "resolved blocker still shown as #1 critical — morning-cockpit/packages/server/src/fleet-config.ts:68: title: 'bead_events writer — the empty log',"
+    },
+    {
+      "id": "F6.1",
+      "slice": "F6",
+      "title": "context-budgets doc carries the ~100k hard line",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no numeric context ceiling in context-budgets.md"
+    },
+    {
+      "id": "F10.1",
+      "slice": "F10",
+      "title": "Dolt >= 2.1.0 pin documented (GC/writer deadlock fix)",
+      "repo": "core",
+      "status": "MISSING",
+      "evidence": "no Dolt version pin found in docs/decisions/scripts"
+    },
+    {
+      "id": "P6.1",
+      "slice": "P6/H7",
+      "title": "selfco sync ran within 14 days",
+      "repo": "selfco",
+      "status": "MISSING",
+      "evidence": "last sync 2026-06-11 (23d ago; > 14d)"
+    }
+  ]
+}
