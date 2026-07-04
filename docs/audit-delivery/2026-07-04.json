@@ -1,8 +1,9 @@
 {
   "date": "2026-07-04",
   "counts": {
-    "DELIVERED": 8,
-    "MISSING": 19
+    "DELIVERED": 9,
+    "MISSING": 17,
+    "PARTIAL": 1
   },
   "stale": false,
   "freshness": {
@@ -63,8 +64,8 @@
       "slice": "H0/P1",
       "title": "cockpit docs honest about github/standup adapters",
       "repo": "morning-cockpit",
-      "status": "MISSING",
-      "evidence": "docs list adapters as live; files absent"
+      "status": "PARTIAL",
+      "evidence": "adapters absent but docs flag it — morning-cockpit/CLAUDE.md:61: | GitHub PRs + issues | `adapters/github.ts` | 1 | **NOT BUILT** (planned, Slice 1). The file does not exist and `aggreg"
     },
     {
       "id": "I1.1",
@@ -199,8 +200,8 @@
       "slice": "F5/P2",
       "title": "stale seeded critical chain removed or badged",
       "repo": "morning-cockpit",
-      "status": "MISSING",
-      "evidence": "resolved blocker still shown as #1 critical — morning-cockpit/packages/server/src/fleet-config.ts:68: title: 'bead_events writer — the empty log',"
+      "status": "DELIVERED",
+      "evidence": "stale 'bead_events empty log' chain gone"
     },
     {
       "id": "F6.1",
