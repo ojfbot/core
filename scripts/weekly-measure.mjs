@@ -45,11 +45,21 @@ const prior = readdirSync(oracleDir)
   .pop();
 let diffNote = "first artifact — no prior week to diff";
 if (prior) {
-  const prev = JSON.parse(readFileSync(path.join(oracleDir, prior), "utf8")).counts ?? {};
-  const keys = [...new Set([...Object.keys(counts), ...Object.keys(prev)])];
-  diffNote =
-    `vs ${prior.replace(".json", "")}: ` +
-    keys.map((k) => `${k} ${prev[k] ?? 0}→${counts[k] ?? 0}`).join(" · ");
+  const prevDoc = JSON.parse(readFileSync(path.join(oracleDir, prior), "utf8"));
+  const prev = prevDoc.counts ?? {};
+  const cur = JSON.parse(oracleJson);
+  const sameVantage =
+    !prevDoc.vantage || !cur.vantage ||
+    (prevDoc.vantage.host === cur.vantage.host &&
+      String(prevDoc.vantage.siblingsFound) === String(cur.vantage.siblingsFound));
+  if (sameVantage) {
+    const keys = [...new Set([...Object.keys(counts), ...Object.keys(prev)])];
+    diffNote =
+      `vs ${prior.replace(".json", "")}: ` +
+      keys.map((k) => `${k} ${prev[k] ?? 0}→${counts[k] ?? 0}`).join(" · ");
+  } else {
+    diffNote = `prior artifact (${prior.replace(".json", "")}) was measured from a different vantage — counts not comparable, no diff shown`;
+  }
 }
 console.log(`[1/3] delivery oracle → ${path.relative(CORE, artifact)}`);
 console.log(`      ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(" · ")}`);
