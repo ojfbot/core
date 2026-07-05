@@ -154,7 +154,7 @@ slices:
     claimable_by: human_only
     kind: s
     repo: core
-    status: dispatched
+    status: delivered
   - id: S11
     phase: PH3
     title: "daily-logger truth pipeline — repoint dead telemetry consumer + deterministic fact-check"
@@ -168,7 +168,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: daily-logger
-    status: dispatched
+    status: delivered
   - id: S12
     phase: PH3
     title: "cockpit honesty pass — stale seeded chain, adapter doc claims, problems-view states"
@@ -182,7 +182,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: morning-cockpit
-    status: dispatched
+    status: delivered
   - id: S13
     phase: PH3
     title: "Re-measurement cadence — weekly measurement routine with the delivery oracle inside"
@@ -196,7 +196,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: dispatched
+    status: delivered
   - id: S14
     phase: PH3
     title: "day-runner verification stage (SHADOW) + record-movement manual-path guard"
