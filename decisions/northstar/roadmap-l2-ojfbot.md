@@ -210,7 +210,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: dispatched
+    status: delivered
     depends_on: "rm:rm-l2-ojfbot#S13"
   - id: S15
     phase: PH3
