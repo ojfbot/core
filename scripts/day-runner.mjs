@@ -14,7 +14,11 @@
  *      headless `claude -p` in the worktree,
  *   5. verifies the slice-boundary contract on exit: branch pushed · PR opened · movement
  *      PROPOSAL in the PR body · report beads + bead_events emitted (by the runner, so the
- *      record is deterministic, not model-dependent).
+ *      record is deterministic, not model-dependent),
+ *   6. runs the SHADOW verification stage (S14): the repo's check command in the worktree +
+ *      the slice's success criterion, RECORDED on the pr-created bead and appended to the PR
+ *      body — record-only, never blocks; promotion to a blocking gate is a later RIDM
+ *      decision after ~20 shadow runs (ADR-0086).
  *
  * Gate 0 (progressive-autonomy-gates ADR): the runner NEVER merges. It leaves PRs for the
  * human merge ritual; movement is recorded at merge via record-movement.mjs — never here,
@@ -40,6 +44,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import mysql from 'mysql2/promise';
 import { loadAll, loadAllRoadmaps, buildSliceIndex } from './lib/northstar-fm.mjs';
+import { runShadowChecks, summarizeChecks } from './lib/shadow-checks.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BEAD_EMIT = path.join(HERE, 'hooks', 'bead-emit.mjs');
@@ -153,7 +158,7 @@ Everything not named in the Goal. Other slices' files. Any write outside this wo
 
 async function runSlice(item, ctx) {
   const { flags, sliceIndex, nsBySlug, claimer, date } = ctx;
-  const verdict = { ref: item.ref, bead: item.id, claimed: false, pushed: false, pr: null, proposal: false, note: '' };
+  const verdict = { ref: item.ref, bead: item.id, claimed: false, pushed: false, pr: null, proposal: false, checks: null, note: '' };
 
   const resolved = sliceIndex.get(item.ref);
   if (!resolved) { verdict.note = 'roadmap_ref no longer resolves on disk — bead is stale'; return verdict; }
@@ -219,7 +224,25 @@ async function runSlice(item, ctx) {
       if (pr) {
         verdict.pr = pr.number;
         verdict.proposal = /Movement proposal:\s*ns:/i.test(pr.body || '');
-        bead('pr-created', { repo, pr: pr.number, 'session-id': sessionId, prefix: repo.slice(0, 4) });
+
+        // 6. SHADOW verification stage (S14) — record-only, never blocks the verdict.
+        try {
+          verdict.checks = runShadowChecks({ worktree, slice });
+        } catch { /* shadow stage must never fail the run */ }
+        bead('pr-created', {
+          repo, pr: pr.number, 'session-id': sessionId, prefix: repo.slice(0, 4),
+          ...(verdict.checks ? { checks: JSON.stringify(verdict.checks) } : {}),
+        });
+        if (verdict.checks) {
+          try {
+            const section = `\n\n## Shadow checks (day-runner S14 — record-only, human still decides)\n\n` +
+              `\`${summarizeChecks(verdict.checks)}\`\n\n` +
+              `Tests: **${verdict.checks.tests.result}**${verdict.checks.tests.detail ? ` (${verdict.checks.tests.detail})` : ''}${verdict.checks.tests.reason ? ` (${verdict.checks.tests.reason})` : ''}\n` +
+              `Success criterion (recorded, not machine-evaluated): ${verdict.checks.success_criterion.text}\n`;
+            execFileSync('gh', ['pr', 'edit', String(pr.number), '--body', (pr.body || '') + section],
+              { cwd: worktree, encoding: 'utf8' });
+          } catch { /* body append is best-effort; the bead carries the record */ }
+        }
         bead('task-done', { title: `[${item.ref}] delivered — PR #${pr.number}`, 'session-id': sessionId, repo, prefix: repo.slice(0, 4) });
       }
     } catch { /* gh unavailable — verdict shows pushed but no PR */ }
@@ -262,8 +285,8 @@ async function main() {
 
   console.log('\n# day-runner verdicts');
   for (const v of verdicts) {
-    const ok = v.claimed && v.pushed && v.pr && v.proposal;
-    console.log(`- ${ok ? '✓' : '✗'} ${v.ref} · bead=${v.bead} · pushed=${v.pushed} · PR=${v.pr ?? '—'} · movement-proposal=${v.proposal} · ${v.note}`);
+    const ok = v.claimed && v.pushed && v.pr && v.proposal; // shadow checks deliberately NOT in ok — record-only until RIDM promotion
+    console.log(`- ${ok ? '✓' : '✗'} ${v.ref} · bead=${v.bead} · pushed=${v.pushed} · PR=${v.pr ?? '—'} · movement-proposal=${v.proposal} · ${summarizeChecks(v.checks)} · ${v.note}`);
   }
   console.log('\nGate 0: PRs await your merge. Record movement at merge: node scripts/record-movement.mjs --help');
 }
