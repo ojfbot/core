@@ -1,14 +1,24 @@
 {
   "date": "2026-07-05",
+  "vantage": {
+    "host": "vm",
+    "core": "/home/user/core",
+    "siblingsDir": "/home/user",
+    "siblingsFound": [
+      "daily-logger",
+      "morning-cockpit",
+      "selfco"
+    ]
+  },
   "counts": {
-    "DELIVERED": 10,
-    "MISSING": 16,
+    "DELIVERED": 11,
+    "MISSING": 15,
     "PARTIAL": 1
   },
   "stale": false,
   "freshness": {
     "days": 0,
-    "note": "last program commit 2026-07-04 (0d ago)"
+    "note": "last program commit 2026-07-05 (0d ago)"
   },
   "results": [
     {
@@ -128,8 +138,8 @@
       "slice": "H7/E1",
       "title": "a second skill-metrics snapshot exists (first re-measurement)",
       "repo": "core",
-      "status": "MISSING",
-      "evidence": "only skill-metrics-2026-04-28.md — cadence never resumed"
+      "status": "DELIVERED",
+      "evidence": "2 snapshots; latest skill-metrics-2026-07-05.md"
     },
     {
       "id": "I2.1",

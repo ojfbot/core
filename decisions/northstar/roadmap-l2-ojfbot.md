@@ -196,7 +196,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: ready
+    status: dispatched
   - id: S14
     phase: PH3
     title: "day-runner verification stage (SHADOW) + record-movement manual-path guard"

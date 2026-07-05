@@ -18,11 +18,19 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const CORE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SIBLINGS = path.resolve(CORE, "..");
+// Sibling repos live beside core in the family dir — but this script may run from a worktree
+// parked outside it (e.g. /tmp/audit-wm), where CORE/.. contains no siblings and every
+// sibling check would silently SKIP (observed 2026-07-05: a Mac worktree run reported 10 SKIP
+// and looked like a regression). Prefer the first candidate that actually holds a sibling.
+const SIBLING_REPOS = ["daily-logger", "morning-cockpit", "selfco"];
+const SIBLINGS = [path.resolve(CORE, ".."), path.join(os.homedir(), "ojfbot")].find((dir) =>
+  SIBLING_REPOS.some((r) => existsSync(path.join(dir, r)))
+) ?? path.resolve(CORE, "..");
 const STALE_DAYS = 14;
 
 const repoPath = (repo) => (repo === "core" ? CORE : path.join(SIBLINGS, repo));
@@ -468,9 +476,17 @@ const stale = fresh.days !== null && fresh.days > STALE_DAYS && undelivered > 0;
 const regressed = (counts.REGRESSED ?? 0) > 0;
 
 if (asJson) {
+  // vantage makes artifacts self-describing: a run that can't see sibling repos (worktree,
+  // partial checkout) must never be silently diffed against a full-fleet run
+  const vantage = {
+    host: os.hostname(),
+    core: CORE,
+    siblingsDir: SIBLINGS,
+    siblingsFound: SIBLING_REPOS.filter((r) => existsSync(path.join(SIBLINGS, r))),
+  };
   console.log(
     JSON.stringify(
-      { date: new Date().toISOString().slice(0, 10), counts, stale, freshness: fresh, results },
+      { date: new Date().toISOString().slice(0, 10), vantage, counts, stale, freshness: fresh, results },
       null,
       2
     )
