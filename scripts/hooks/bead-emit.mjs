@@ -54,6 +54,12 @@ const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
 // agents a short one so a crashed worker frees its work quickly. queue-sweep reclaims expired leases.
 const QUEUE_LEASE_MS = { human: 8 * 3_600_000, agent: 5 * 60_000 };
 
+// S14: --checks arrives as a JSON string from day-runner; a malformed value is recorded as
+// such rather than dropped (the shadow record must not silently vanish) or thrown (best-effort).
+function safeParseChecks(raw) {
+  try { return JSON.parse(raw); } catch { return { unparseable: String(raw).slice(0, 200) }; }
+}
+
 const [, , command, ...rawArgs] = process.argv;
 
 function parseArgs(args) {
@@ -245,6 +251,8 @@ async function run() {
               repo: args.repo ?? '',
               pr_number: args.pr ?? '',
               session_id: args['session-id'] ?? '',
+              // S14 shadow verification record (day-runner) — optional JSON: {tests, success_criterion}
+              ...(args.checks ? { checks: safeParseChecks(args.checks) } : {}),
             }),
             JSON.stringify(refs),
             now, now,
@@ -271,7 +279,10 @@ async function run() {
           event_type: 'pr-created',
           bead_id: id,
           summary: `PR #${args.pr ?? '?'} on ${args.repo ?? 'unknown'}`,
-          payload: { repo: args.repo ?? '', pr_number: args.pr ?? '', session_id: args['session-id'] ?? '' },
+          payload: {
+            repo: args.repo ?? '', pr_number: args.pr ?? '', session_id: args['session-id'] ?? '',
+            ...(args.checks ? { checks: safeParseChecks(args.checks) } : {}),
+          },
         });
         await doltCommit(pool, `pr:created ${id}`);
 

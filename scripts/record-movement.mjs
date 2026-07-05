@@ -14,7 +14,13 @@
  * Usage:
  *   node record-movement.mjs --ref rm:<slug>#S<n> --pr <number> [--actor NAME] [--apply]
  *   node record-movement.mjs --northstar <slug> --property P<n> --from N --to M \
- *                            --evidence "..." [--actor NAME] [--source ...] [--apply]
+ *                            --evidence "..." --override-reason "why no merged PR backs this" \
+ *                            [--actor NAME] [--apply]
+ *
+ * The manual (--northstar) path performs NO ground-truth verification — it is the side door
+ * the 2026-07-04 audit flagged (finding O3). It now requires --override-reason and stamps the
+ * ledger line source: "manual-unverified" + the reason, so unverified movement is always
+ * legible as such. Prefer --ref/--pr whenever a merged PR exists.
  *
  *   --apply  also patch the canonical files (northstar `current:`, roadmap slice
  *            `status: merged`). Default prints the exact edits instead — file edits stay
@@ -45,6 +51,7 @@ function parseFlags(argv) {
     else if (a === '--to') f.to = parseInt(argv[++i], 10);
     else if (a === '--evidence') f.evidence = argv[++i];
     else if (a === '--source') f.source = argv[++i];
+    else if (a === '--override-reason') f.overrideReason = argv[++i];
     else if (a === '--actor') f.actor = argv[++i];
     else if (a === '--help' || a === '-h') f.help = true;
   }
@@ -113,13 +120,22 @@ function main() {
       if (!flags[req]) { console.error(`--${req} required`); return 1; }
     }
     if (!Number.isInteger(flags.from) || !Number.isInteger(flags.to)) { console.error('--from/--to required integers'); return 1; }
+    // Audit finding O3: the manual path is unverified by construction. It stays available
+    // (bootstrap movements, non-PR evidence) but never silently — a stated reason is required
+    // and the line is stamped manual-unverified regardless of any --source passed.
+    if (!flags.overrideReason || !flags.overrideReason.trim()) {
+      console.error('--override-reason required on the manual path: this movement is not backed by a merged PR, and the ledger must say why that is acceptable. Prefer --ref/--pr when a merged PR exists.');
+      return 1;
+    }
     const key = `ns:${flags.northstar}#${flags.property}`;
     if (!propIndex.has(key)) { console.error(`'${key}' does not resolve to a property on disk`); return 1; }
     line = {
       date: new Date().toISOString().slice(0, 10),
       northstar: flags.northstar, property: flags.property,
       from: flags.from, to: flags.to,
-      evidence: flags.evidence, actor: flags.actor, source: flags.source ?? 'manual',
+      evidence: flags.evidence, actor: flags.actor,
+      source: 'manual-unverified',
+      override_reason: flags.overrideReason.trim(),
     };
   }
 
