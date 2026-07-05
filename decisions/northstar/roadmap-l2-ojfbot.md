@@ -154,7 +154,7 @@ slices:
     claimable_by: human_only
     kind: s
     repo: core
-    status: ready
+    status: dispatched
   - id: S11
     phase: PH3
     title: "daily-logger truth pipeline — repoint dead telemetry consumer + deterministic fact-check"
