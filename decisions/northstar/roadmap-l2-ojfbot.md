@@ -13,6 +13,9 @@ phases:
   - id: PH3
     name: "Audit hardening program (2026-07-04) — make the fleet's work self-measuring"
     goal: "The tranche-1 slices of MULTIAGENT-SDLC-AUDIT / AGENTIC-INTEGRATION-PLAN / FLEET-COORDINATION-EXTENSIONS are merged, verified DELIVERED by scripts/audit-delivery-check.mjs, and the program shows movement at least every 14 days (the verifier's staleness gate)."
+  - id: PH4
+    name: "Audit tranche 2 — the evaluation layer"
+    goal: "The measurement machinery tranche 1 built starts learning: the first shadow-gate promoted to CI (RIDM), a failure taxonomy feeding golden suites, human outcomes captured as eval signal, one calibrated judge, and trace identity joining queue -> session -> PR."
 slices:
   - id: S1
     phase: PH1
@@ -228,6 +231,96 @@ slices:
     check: "pnpm test && node scripts/roadmap-lint.mjs --check"
     status: merged
     depends_on: "rm:rm-l2-ojfbot#S14"
+  - id: S16
+    phase: PH4
+    title: "Promote roadmap-lint + northstar-lint into core CI (first shadow-to-operational RIDM)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 26
+    moves_to: 27
+    deliverable: "core CI workflow runs roadmap-lint --check + northstar-lint on PRs touching decisions/northstar/** (blocking on ERRORs only; WARNs stay shadow); the promotion recorded as a dated RIDM note in the northstar README — the cluster's first-ever shadow-gate promotion, exercising ADR-0086 end-to-end."
+    entrance: "Tranche 1 merged; both lints run clean-of-new-errors on main; the 5 pre-existing missing-file ERRORs are working-copy artifacts that must be scoped out (lint only registry entries whose repos the runner can see, or fix the registry) before the gate can block."
+    success: "A PR introducing a broken advances: ref fails CI; a clean PR passes; RIDM note committed."
+    check: "node scripts/roadmap-lint.mjs --check && grep -rq roadmap-lint .github/workflows/"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+  - id: S17
+    phase: PH4
+    title: "First error-analysis ritual — failure-taxonomy.md v1 (open coding with the operator)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 27
+    moves_to: 28
+    deliverable: "decisions/failure-taxonomy.md v1: 20-30 recent traces/beads/articles sampled (including the 2026-07-04 generation-failed article), failures open-coded, clusters proposed by the agent and approved by the operator; every future finding/incident gets a taxonomy tag at triage."
+    entrance: "Operator has 30-60 focused minutes (morning work). The single highest-leverage sitting in the integration plan (I3) — evals built without it measure failures we do not have."
+    success: "failure-taxonomy.md committed with >=5 evidence-linked clusters; the taxonomy names which eval to build first (feeds S19)."
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+  - id: S18
+    phase: PH4
+    title: "Outcome capture — accepted|edited|rejected|abandoned where humans touch agent output (I2)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 28
+    moves_to: 29
+    deliverable: "bead-emit close/quarantine verbs accept and record an outcome field; daily-logger editorial-accept and ADR-0038 revise paths stamp outcome on the article; a weekly cron candidate files every rejected/edited item as a candidate golden task. Own edits/rejections become the implicit-feedback eval signal."
+    entrance: "Tranche 1 merged (checks field established the labels-extension pattern in bead-emit)."
+    success: "audit-delivery-check I2.1 DELIVERED; one real item carries an outcome after a live session."
+    check: "pnpm test && grep -q outcome scripts/hooks/bead-emit.mjs"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+  - id: S19
+    phase: PH4
+    title: "First golden suite — daily-logger, 5-15 tasks seeded from the taxonomy (I4)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 29
+    moves_to: 30
+    deliverable: "daily-logger evals/ with 5-15 tasks (input fixture + deterministic assertions where possible), seeded exclusively from S17's taxonomy + real failures; vitest harness, >=3 trials for stochastic paths; CI-advisory (posts the diff vs last run, never blocks — blocking is a later S16-pattern promotion)."
+    entrance: "S17 merged (the taxonomy names which failures the suite must cover)."
+    success: "audit-delivery-check I4.1 DELIVERED; suite runs in CI advisory on a daily-logger PR."
+    check: "pnpm test"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: daily-logger
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S17"
+  - id: S20
+    phase: PH4
+    title: "Calibrate judge #1 — daily-logger article accuracy against operator labels (I5)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 31
+    deliverable: "Operator labels 30-50 historical articles pass/fail + one-line critique; judge prompt iterated to >=90% agreement; 10 labeled articles frozen as the judge-regression set, re-run monthly and on model upgrades; judge from a different model family than the drafter where feasible. This judge is the entrance criterion for ever evaluating slice success_criterion mechanically (S14's evaluated:false) and for any future prompt optimization."
+    entrance: "Operator has labeling time (can be spread over days); S19 harness merged to host the judge-regression set."
+    success: "Judge-vs-operator agreement >=90% on held-out labels; frozen regression set committed; agreement number recorded."
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: l
+    repo: daily-logger
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S19"
+  - id: S21
+    phase: PH4
+    title: "Trace identity — trace_id threaded queue -> session -> PR (I1/H1)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 31
+    moves_to: 32
+    deliverable: "A trace_id minted at queue-post/compile, carried on the bead, injected into the day-runner brief + session env, echoed in the PR body (Trace: line), and joined by a demo script proving one slice traceable prompt->PR end-to-end. Shadow: emitted, nothing consumes it yet. Field names follow OTel gen_ai vocabulary where applicable."
+    entrance: "Tranche 1 merged; the four identity systems (suggestion_id, gate correlation_id, convoy beads, rm: refs) documented in the audit remain unjoined."
+    success: "The H1 exit gate: one dispatched slice traceable end-to-end via a single join script committed as evidence."
+    check: "pnpm test && grep -q trace_id scripts/hooks/bead-emit.mjs"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
