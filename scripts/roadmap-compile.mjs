@@ -10,6 +10,11 @@
  * 'merged'). Entrance criteria are prose — a human asserts them by flipping queued → ready;
  * the compiler never adjudicates prose.
  *
+ * Verifiability-sorted dispatch (schema v1.1, S15): a slice is queued as agent-claimable only
+ * when it carries a machine-runnable `check:` command (the S14 shadow stage runs it at the
+ * slice boundary). agent_eligible/either slices WITHOUT one are demoted to human_only at
+ * compile time — logged, never silent.
+ *
  * Writes go through `bead-emit.mjs queue-post` (the sanctioned verb) — this script opens
  * Dolt READ-ONLY, only to check which refs are already projected. (Same posture as the
  * cockpit's ADR-0010: shell to the core verb, never write the store directly.)
@@ -25,6 +30,7 @@ import mysql from 'mysql2/promise';
 import {
   loadAll, loadAllRoadmaps, buildSliceIndex,
 } from './lib/northstar-fm.mjs';
+import { effectiveClaimable } from './lib/autonomy-fit.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const BEAD_EMIT = path.join(HERE, 'hooks', 'bead-emit.mjs');
@@ -104,12 +110,14 @@ async function main() {
         if (dep.slice.status !== 'merged') { skipped.push({ ref, reason: `depends_on ${s.depends_on} is ${dep.slice.status}` }); continue; }
       }
 
+      const fit = effectiveClaimable(s);
       const post = {
         ref,
         title: `[${ref}] ${s.title}`,
         repo: s.repo || app,
         kind: s.kind || 'm',
-        claimable: s.claimable_by || 'either',
+        claimable: fit.claimable,
+        demoted: fit.demoted,
         gate: s.autonomy,
         advances: s.advances,
         why: s.deliverable,
@@ -136,7 +144,7 @@ async function main() {
   const L = [`# roadmap-compile${flags.dryRun ? ' (dry-run)' : ''} — ${present.length} roadmap(s)`, ''];
   if (posted.length) {
     L.push(`## Posted (${posted.length})`);
-    posted.forEach((p) => L.push(`- ${p.ref} → ${p.id} · repo=${p.repo} · ${p.gate} · claimable=${p.claimable}`));
+    posted.forEach((p) => L.push(`- ${p.ref} → ${p.id} · repo=${p.repo} · ${p.gate} · claimable=${p.claimable}${p.demoted ? ' (DEMOTED from ' + '`claimable_by`' + ': no check: — not machine-verifiable)' : ''}`));
     L.push('');
   }
   L.push(`## Skipped (${skipped.length})`);

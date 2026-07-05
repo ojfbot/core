@@ -124,6 +124,7 @@ ${slice.title}.
 **Deliverable:** ${slice.deliverable}
 
 **Success (the gate a reviewer checks):** ${slice.success}
+${slice.check && String(slice.check).trim() ? `\n**Machine check (the runner executes this at the slice boundary — make it pass):** \`${String(slice.check).trim()}\`` : ''}
 
 ## Northstar context
 
