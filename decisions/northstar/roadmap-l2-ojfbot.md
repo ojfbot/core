@@ -226,7 +226,7 @@ slices:
     kind: m
     repo: core
     check: "pnpm test && node scripts/roadmap-lint.mjs --check"
-    status: delivered
+    status: merged
     depends_on: "rm:rm-l2-ojfbot#S14"
 ---
 
