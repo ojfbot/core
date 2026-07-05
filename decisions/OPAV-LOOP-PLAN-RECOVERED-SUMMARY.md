@@ -1,10 +1,17 @@
-# OPAV loop gated-slice plan — RECOVERED SUMMARY (not the original)
+# OPAV loop gated-slice plan — RECOVERED SUMMARY (superseded by the recovered original)
 
-> **Provenance.** The master plan `core/OPAV-LOOP-GATED-SLICE-PLAN-2026-06-13.md` was authored
+> **RESOLVED 2026-07-05.** The original was recovered from the operator's Mac (a local Claude
+> Code session ran the git-universe search; the file had gone missing from the core working
+> tree) and is now committed at its canonical path:
+> **`core/OPAV-LOOP-GATED-SLICE-PLAN-2026-06-13.md`** — read that, not this. This summary
+> stays as the index/quick-orientation view; the S2/S4 red-team addenda bodies flagged below
+> as "the largest known loss" turned out to be intact in the original. rm-l2-ojfbot#S10 done;
+> oracle H0.1 DELIVERED.
+
+> **Original provenance note (2026-07-04, historical).** The master plan was authored
 > 2026-06-13 by an 11-agent workflow (~807k tokens: 5 decompose + 5 red-team + 1 loop-closure
-> critic) and **was never committed — it exists only on the operator's Mac.** This file is a
-> reconstruction assembled 2026-07-04 **verbatim from four in-repo derived sources**, with zero
-> invented content:
+> critic) and was never committed. This file is a reconstruction assembled 2026-07-04
+> **verbatim from four in-repo derived sources**, with zero invented content:
 > `~/selfco/canvas/opav-loop-roadmap.canvas` (full slice map, same-day) ·
 > `~/selfco/wiki/log.md` §2026-06-13 (delivery entry: findings + invariants) ·
 > `core/.handoff/2026-06-13-opav-loop-program.md` (program bead) ·
