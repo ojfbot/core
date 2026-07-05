@@ -1,4 +1,4 @@
-# Roadmap schema — v1
+# Roadmap schema — v1.1
 
 The canonical, versioned schema for **roadmaps**: the delivery artifact that sits under a northstar.
 `roadmap-template.md` is the copy-me starting point, the `roadmaps:` list in `README.md` frontmatter
@@ -69,6 +69,7 @@ phase by id rather than sitting inside it; ranges are flattened to scalar pairs.
 | `deliverable` | required | string | the named artifact a reviewer can point at (PR, recording, file, endpoint) |
 | `entrance` | required | string | what must be true before dispatch (prose; asserted by the human/standup that flips `status: ready`) |
 | `success` | required | string | what the gate checks at the slice boundary — concrete enough to verify on the PR |
+| `check` | optional | string (shell command) | **v1.1 (S15, verifiability-sorted dispatch).** A machine-runnable success command, executed from the worktree root by the day-runner's S14 shadow verification stage and recorded on the `pr-created` bead + PR body. Its *presence* is the `autonomy_fit` signal: the compiler queues a slice as agent-claimable only when `check:` exists — `agent_eligible`/`either` slices without one are **demoted to `human_only` at compile time** (logged, never silent). Rationale: unattended autonomy only works against an objective, machine-evaluable criterion; a slice that can't state one belongs with the human. |
 | `autonomy` | required | `gate-0` \| `gate-1` \| `gate-2` | the **merge gate** (ADR: progressive-autonomy-gates). gate-0 = human merges; gate-1 = auto-merge on green gates for low-risk classes (data-gated promotion); gate-2 = eval-gated code auto-merge (aspirational). Compiled into the bead as `autonomy_gate` — distinct from the queue label `autonomy` (claim eligibility). |
 | `claimable_by` | optional | `human_only` \| `agent_eligible` \| `either` | who may claim the compiled bead (the queue-contract `autonomy` label). Default `either`. |
 | `kind` | optional | `s` \| `m` \| `l` | queue TTL class (ADR-0002). Default `m`. |
@@ -121,7 +122,8 @@ gate.
 
 ## Versioning & evolution
 
-Same regime as `schema.md`: this doc carries a version (**v1**); the schema sharpens through use.
+Same regime as `schema.md`: this doc carries a version (**v1.1** — v1.1 adds the optional
+`check:` field + compile-time autonomy demotion, 2026-07-05/S15); the schema sharpens through use.
 Additive optional fields are the default change; `slug` and `S<n>`/`PH<n>` ids are immutable; never
 repurpose a field. `roadmap-template.md` and `roadmap-lint.mjs` move in lockstep — a field is only
 "real" once lint enforces it or explicitly defers it as shadow.

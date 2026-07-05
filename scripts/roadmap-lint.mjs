@@ -13,7 +13,9 @@
  *           invalid autonomy/status/kind/claimable_by enum; `depends_on` not resolving to a
  *           slice on disk.
  *   WARN  — moves_from drift vs the property's live `current` (>5pp; the roadmap was planned
- *           against a % that has since moved); a `ready` slice whose depends_on is not merged.
+ *           against a % that has since moved); a `ready` slice whose depends_on is not merged;
+ *           an agent-claimable slice with no `check:` command (v1.1 — it will be demoted to
+ *           human_only at compile time; verifiability-sorted dispatch, S15).
  *
  * Usage: node roadmap-lint.mjs [--core PATH] [--format=summary] [--check]
  */
@@ -94,6 +96,15 @@ export function lint(core) {
       if (s.kind != null && !KIND.has(s.kind)) errors.push(`${sw}: kind '${s.kind}' not s|m|l`);
       if (s.claimable_by != null && !CLAIMABLE.has(s.claimable_by)) {
         errors.push(`${sw}: claimable_by '${s.claimable_by}' invalid`);
+      }
+      // v1.1 `check:` — optional machine-runnable success command (S15).
+      if (s.check != null && (typeof s.check !== 'string' || !s.check.trim())) {
+        errors.push(`${sw}: check must be a non-empty command string when present`);
+      }
+      if ((s.claimable_by === 'agent_eligible' || s.claimable_by === 'either' || s.claimable_by == null)
+        && (s.check == null || (typeof s.check === 'string' && !s.check.trim()))
+        && (s.status === 'ready' || s.status === 'queued')) {
+        warns.push(`${sw}: agent-claimable but no check: command — compile will demote to human_only (verifiability-sorted dispatch)`);
       }
 
       const from = s.moves_from; const to = s.moves_to;
