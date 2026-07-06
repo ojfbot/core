@@ -37,7 +37,7 @@ The forcing case was a real dogfood of **BuilderIO's `agent-native`** (the engin
 `visual-plan` skill), evaluated 2026-06-26. The spike findings (full receipts in
 `/adopt-stack` knowledge → `case-studies/agent-native.md`):
 
-- `@agent-native/core` is **~119 MB, 88 direct deps (~811 in the tree)**, with a native
+- `@agent-native/core` is **113.9 MB, 88 direct deps (~811 in the tree on install)**, with a native
   `better-sqlite3` postinstall — it is an *application shipped as an npm package*, not a library.
 - It **bundles Amplitude + Sentry + rrweb telemetry** and **three database drivers** (Neon/libSQL/
   better-sqlite3) plus `better-auth` and a full browser editor.
@@ -97,7 +97,7 @@ The decision and its rationale are recorded as a wrap/absorb/reject table (see t
 | Alternative | Why rejected |
 |-------------|--------------|
 | Binary adopt / don't-adopt | Cannot express "reject the dependency but absorb its idea" — the actually-correct call in the forcing case. |
-| Always wrap behind an adapter | Wrapping an *application* (119 MB, telemetry, 3 DBs) still drags it into the lockfile. WRAP is only safe once the library-vs-application gate passes. |
+| Always wrap behind an adapter | Wrapping an *application* (113.9 MB, telemetry, 3 DBs) still drags it into the lockfile. WRAP is only safe once the library-vs-application gate passes. |
 | Just write a blog post, skip codification | Loses repeatability; the next mature-harness evaluation re-derives the same reasoning from scratch. |
 
 ## Provenance

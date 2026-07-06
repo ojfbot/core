@@ -8,20 +8,32 @@ Worked example of the wrap/absorb/reject framework. Dogfooded 2026-06-26. This i
 A structured, reviewable plan artifact with a feedback loop — the value proposition of BuilderIO's
 `visual-plan` skill, which is a thin instructional wrapper over the `agent-native` app/MCP.
 
-## Step 1 — library-vs-application gate (measure first)
+## Step 1 — library-vs-application gate (`measure-pkg.mjs @agent-native/core`)
 
-| Signal | Measurement | Verdict |
-|--------|-------------|---------|
-| Unpacked size | `@agent-native/core` = **~119 MB** | application |
-| Dep count | **88 direct, ~811 in the tree** | application |
-| Native postinstall | `better-sqlite3` → `prebuild-install \|\| node-gyp rebuild` | build/supply-chain surface |
-| Bundled telemetry | `@amplitude/analytics-browser`, `@sentry/browser`, `@sentry/node`, `@rrweb/record` | phones home by construction |
-| Embedded persistence/auth | 3 DB drivers (Neon serverless, libSQL, better-sqlite3) + `better-auth` | application |
-| Embedded UI | 20+ `@tiptap/*`, 7× `@radix-ui/*`, codemirror, react-router | application |
-| Install wall-clock | **5m38s** (warm pnpm store) | the cost every frozen-lockfile CI pays |
+Numbers are the script's, not hand-typed (registry-sourced, **v0.79.17 as measured 2026-06-26** — the
+registry moves: by 2026-07-06 it was v0.88.0 / 120 MB, which is exactly why the gate is script-driven):
+
+| Signal (script) | Measurement | Verdict |
+|-----------------|-------------|---------|
+| Unpacked size | **113.9 MB** (119,389,983 bytes) | application |
+| Direct deps | **88** | application |
+| Telemetry SDKs | `@amplitude/analytics-browser`, `@rrweb/record`, `@sentry/browser`, `@sentry/node` | phones home by construction |
+| DB drivers | `@libsql/client`, `@neondatabase/serverless`, `better-sqlite3`, `drizzle-orm` | application |
+| Server / router | `nitro`, `h3`, `@react-router/*`, `i18next` | application |
+| UI frameworks | 20+ `@tiptap/*`, 7× `@radix-ui/*`, codemirror | application |
+| Auth | `better-auth` | application |
+| Native-build hint | `better-sqlite3` | build/supply-chain surface |
+| Application-shaped signals | **6/6** | application |
+
+Measured by install in a throwaway dir (not registry-provable): **~811 packages in the tree**, native
+`better-sqlite3` postinstall (`prebuild-install \|\| node-gyp rebuild`), **5m38s** install wall-clock.
 
 **Gate result: it is an application, not a library.** → never `import`ed; only candidates are a process
 boundary (drive its CLI/MCP out-of-process) or reject.
+
+> Note: the original hand-written draft said "~119 MB" (decimal-MB) and missed `drizzle-orm`, `nitro`/
+> `h3`, and `i18next`. The script's 113.9 MB (binary-MB) and complete dep list are why this gate is
+> script-driven.
 
 ## Step 2 — does the offline path even work? (yes)
 
@@ -38,7 +50,7 @@ Friction observed (the kind a process-boundary driver must paper over):
 
 | # | Opinion imposed | Call | Rationale |
 |---|-----------------|------|-----------|
-| D1 | Plan engine welded to a 119 MB / 88-dep app | **REJECT (import)** | No slim core to wrap; importing drags the whole platform + telemetry into the lockfile. |
+| D1 | Plan engine welded to a 113.9 MB / 88-dep app | **REJECT (import)** | No slim core to wrap; importing drags the whole platform + telemetry into the lockfile. |
 | D2 | Boundary type: import vs. talk-to | **WRAP at process boundary** *(only if a live render is needed)* | The honest adapter here is an out-of-process CLI/MCP driver, zero packages in our tree — not an SDK import. |
 | D3 | Bundled Amplitude/Sentry/rrweb telemetry | **REJECT** | Local-first / no-phone-home is a hard invariant. A process boundary keeps the SDKs out of our tree entirely. |
 | D4 | Hosted-DB orientation (Neon driver) | **REJECT** → local-files only | Confirmed local-files mode writes only local files. |
