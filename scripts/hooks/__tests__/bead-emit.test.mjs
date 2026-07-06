@@ -217,6 +217,144 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       const bead = await queryBead(task.id);
       expect(bead.refs).toContain(session.id);
     });
+
+    // S18: outcome capture (audit I2)
+    it('records labels.outcome and event payload outcome when --outcome given', async () => {
+      const out = parseOutput(await emit('task-done', {
+        title: 'Test task with outcome',
+        repo: 'core',
+        outcome: 'accepted',
+      }));
+
+      const bead = await queryBead(out.id);
+      expect(bead.labels.outcome).toBe('accepted');
+
+      const [events] = await pool.execute(
+        "SELECT payload FROM bead_events WHERE bead_id = ? AND event_type = 'task-done'",
+        [out.id],
+      );
+      expect(events.length).toBe(1);
+      const payload = typeof events[0].payload === 'string' ? JSON.parse(events[0].payload) : events[0].payload;
+      expect(payload.outcome).toBe('accepted');
+    });
+
+    it('omits labels.outcome entirely when --outcome not given', async () => {
+      const out = parseOutput(await emit('task-done', {
+        title: 'Test task without outcome',
+        repo: 'core',
+      }));
+      const bead = await queryBead(out.id);
+      expect(bead.labels.outcome).toBeUndefined();
+    });
+
+    it('rejects an outcome outside the enum with a clear error', async () => {
+      const result = await emit('task-done', {
+        title: 'Test task bad outcome',
+        repo: 'core',
+        outcome: 'meh',
+      });
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('--outcome must be one of accepted|edited|rejected|abandoned');
+    });
+  });
+
+  // ── S18: bead-close / bead-quarantine (outcome capture, audit I2) ─────
+
+  describe('bead-close', () => {
+    it('flips an existing live bead to closed, stamps closed_at + outcome, records an event', async () => {
+      const task = parseOutput(await emit('task-create', {
+        title: 'Test task to close',
+        repo: 'core',
+      }));
+
+      const result = await emit('bead-close', { 'bead-id': task.id, outcome: 'rejected' });
+      expect(result.code).toBe(0);
+      expect(parseOutput(result)).toMatchObject({ id: task.id, status: 'closed', outcome: 'rejected' });
+
+      const bead = await queryBead(task.id);
+      expect(bead.status).toBe('closed');
+      expect(bead.closed_at).not.toBeNull();
+      expect(bead.labels.outcome).toBe('rejected');
+      // pre-existing labels survive the close
+      expect(bead.labels.repo).toBe('core');
+
+      const [events] = await pool.execute(
+        "SELECT payload FROM bead_events WHERE bead_id = ? AND event_type = 'bead-close'",
+        [task.id],
+      );
+      expect(events.length).toBe(1);
+      const payload = typeof events[0].payload === 'string' ? JSON.parse(events[0].payload) : events[0].payload;
+      expect(payload.outcome).toBe('rejected');
+    });
+
+    it('exits 1 when the bead does not exist', async () => {
+      const result = await emit('bead-close', { 'bead-id': 'hq-task-doesnotexist' });
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('Bead not found');
+    });
+
+    it('rejects an invalid outcome without touching the bead', async () => {
+      const task = parseOutput(await emit('task-create', {
+        title: 'Test task close invalid outcome',
+        repo: 'core',
+      }));
+      const result = await emit('bead-close', { 'bead-id': task.id, outcome: 'shipped' });
+      expect(result.code).not.toBe(0);
+      const bead = await queryBead(task.id);
+      expect(bead.status).toBe('live');
+      expect(bead.labels.outcome).toBeUndefined();
+    });
+  });
+
+  describe('bead-quarantine', () => {
+    it('parks the bead (labels.queue=quarantined) without deleting or closing it', async () => {
+      const task = parseOutput(await emit('queue-post', {
+        title: 'Test task to quarantine',
+        repo: 'core',
+      }));
+
+      const result = await emit('bead-quarantine', {
+        'bead-id': task.id,
+        outcome: 'abandoned',
+        reason: 'flaky output',
+      });
+      expect(result.code).toBe(0);
+      expect(parseOutput(result)).toMatchObject({ id: task.id, status: 'quarantined', outcome: 'abandoned' });
+
+      const bead = await queryBead(task.id);
+      expect(bead).not.toBeNull(); // quarantine ≠ delete
+      expect(bead.status).toBe('created'); // bead status untouched
+      expect(bead.labels.queue).toBe('quarantined');
+      expect(bead.labels.quarantined_at).toBeTruthy();
+      expect(bead.labels.quarantine_reason).toBe('flaky output');
+      expect(bead.labels.outcome).toBe('abandoned');
+      // pre-existing queue labels survive
+      expect(bead.labels.posted_at).toBeTruthy();
+
+      const [events] = await pool.execute(
+        "SELECT summary, payload FROM bead_events WHERE bead_id = ? AND event_type = 'bead-quarantine'",
+        [task.id],
+      );
+      expect(events.length).toBe(1);
+    });
+
+    it('a quarantined bead can no longer be claimed', async () => {
+      const task = parseOutput(await emit('queue-post', {
+        title: 'Test task quarantine claim-block',
+        repo: 'core',
+        autonomy: 'either',
+      }));
+      await emit('bead-quarantine', { 'bead-id': task.id });
+
+      const claim = parseOutput(await emit('queue-claim', { 'bead-id': task.id, claimer: 'yuri' }));
+      expect(claim.status).toBe('lost');
+    });
+
+    it('exits 1 when the bead does not exist', async () => {
+      const result = await emit('bead-quarantine', { 'bead-id': 'hq-task-doesnotexist' });
+      expect(result.code).not.toBe(0);
+      expect(result.stderr).toContain('Bead not found');
+    });
   });
 
   describe('task-create', () => {
@@ -285,6 +423,40 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
       // Verify session pr_count was incremented
       const sessionBead = await queryBead(session.id);
       expect(sessionBead.labels.pr_count).toBe('1');
+    });
+
+    // S14 checks field — shadow verification record from day-runner (backfilled coverage, S18).
+    // repo='test-emit' keeps the minted "PR #n on test-emit" titles inside TEST_TITLE_CLAUSE.
+    it('records labels.checks when --checks carries valid JSON', async () => {
+      const checks = { tests: 'pass', success_criterion: 'pnpm test green' };
+      const pr = parseOutput(await emit('pr-created', {
+        repo: 'test-emit',
+        pr: '101',
+        checks: JSON.stringify(checks),
+      }));
+
+      const bead = await queryBead(pr.id);
+      expect(bead.labels.checks).toEqual(checks);
+    });
+
+    it('records malformed --checks as unparseable rather than dropping it', async () => {
+      const pr = parseOutput(await emit('pr-created', {
+        repo: 'test-emit',
+        pr: '102',
+        checks: 'not-json{{',
+      }));
+
+      const bead = await queryBead(pr.id);
+      expect(bead.labels.checks.unparseable).toContain('not-json');
+    });
+
+    it('omits labels.checks entirely when --checks not given', async () => {
+      const pr = parseOutput(await emit('pr-created', {
+        repo: 'test-emit',
+        pr: '103',
+      }));
+      const bead = await queryBead(pr.id);
+      expect(bead.labels.checks).toBeUndefined();
     });
   });
 
