@@ -2,9 +2,11 @@
 /**
  * northstar-lint.mjs — health check for the three-tier northstar system.
  *
- * Ships SHADOW-ONLY in Slice 1 (ADR-0089 discipline): it reports, it never blocks. The
- * standup surfaces its one-line summary (`--format=summary`); a future slice promotes the
- * structural checks to a CI gate (`--check`) once the rollup model is authoritative.
+ * ERRORs are OPERATIONAL as of the S16 RIDM promotion (2026-07-06, ADR-0086 clause 5):
+ * core CI runs `--check` on PRs touching decisions/northstar/** and blocks on ERRORs.
+ * WARNs stay shadow. Registered entries whose repo checkout is absent from the running
+ * vantage (CI checks out core alone) downgrade to shadow WARNs — the gate only blocks on
+ * breakage it can see. The standup still surfaces the one-line `--format=summary`.
  *
  * Checks:
  *   ERROR  — registry entry with no file; broken ladder (ns:slug#Pn doesn't resolve, or
@@ -37,15 +39,23 @@ function parseFlags(argv) {
 const ROLLUP_TOLERANCE = 5; // pp drift before we flag it (shadow)
 const TIERS = new Set(['L1', 'L2', 'L3']);
 
-function lint(core, staleDays) {
+export function lint(core, staleDays) {
   const errors = [];
   const warns = [];
   const { error: regErr, entries, northstars } = loadAll(core);
   if (regErr) errors.push(regErr);
 
-  // Missing files.
+  // Missing files. A registered file whose repo checkout is absent from this vantage (e.g.
+  // a CI runner with core alone on disk) is a shadow WARN, not an ERROR — the gate only
+  // blocks on registry lies it can actually see (S16 promotion scoping).
+  const unreachableSlugs = new Set();
   for (const ns of northstars) {
-    if (ns._missing) errors.push(`missing northstar file for '${ns.slug}' (${ns.tier}) at ${ns._path}`);
+    if (ns._unreachable) {
+      unreachableSlugs.add(ns.slug);
+      warns.push(`vantage: repo for '${ns.slug}' (${ns.tier}) not on disk at ${ns._repoRoot} — entry skipped from this checkout`);
+    } else if (ns._missing) {
+      errors.push(`missing northstar file for '${ns.slug}' (${ns.tier}) at ${ns._path}`);
+    }
   }
   const present = northstars.filter((n) => !n._missing);
   const bySlug = new Map(present.map((n) => [n.slug, n]));
@@ -59,7 +69,11 @@ function lint(core, staleDays) {
       errors.push(`${ns.slug}: ${ns.tier} must declare a parent northstar (ladders_up_to)`);
     }
     if (ns.ladders_up_to && !bySlug.has(ns.ladders_up_to)) {
-      errors.push(`${ns.slug}: parent northstar '${ns.ladders_up_to}' not in registry/on disk`);
+      if (unreachableSlugs.has(ns.ladders_up_to)) {
+        warns.push(`${ns.slug}: parent northstar '${ns.ladders_up_to}' registered but unreachable from this vantage`);
+      } else {
+        errors.push(`${ns.slug}: parent northstar '${ns.ladders_up_to}' not in registry/on disk`);
+      }
     }
 
     const seen = new Set();
@@ -78,7 +92,12 @@ function lint(core, staleDays) {
         if (!p.ladders_up_to) {
           errors.push(`${where}: property must ladder up (ladders_up_to)`);
         } else if (!index.has(p.ladders_up_to)) {
-          errors.push(`${where}: ladder '${p.ladders_up_to}' does not resolve to a property on disk`);
+          const targetSlug = (/^ns:([^#]+)#/.exec(String(p.ladders_up_to)) || [])[1];
+          if (targetSlug && unreachableSlugs.has(targetSlug)) {
+            warns.push(`${where}: ladder '${p.ladders_up_to}' unresolvable from this vantage (repo not on disk)`);
+          } else {
+            errors.push(`${where}: ladder '${p.ladders_up_to}' does not resolve to a property on disk`);
+          }
         } else {
           // The target property must live inside this northstar's declared parent.
           const target = index.get(p.ladders_up_to);
@@ -129,7 +148,7 @@ function lint(core, staleDays) {
   }
 
   return { errors, warns, driftCount, staleCount, hasStatus: existsSync(statusPath),
-    counts: { northstars: present.length, registered: entries.length } };
+    counts: { northstars: present.length, registered: entries.length, unreachable: unreachableSlugs.size } };
 }
 
 function main() {
@@ -138,7 +157,8 @@ function main() {
 
   if (flags.format === 'summary') {
     const staleStr = r.hasStatus ? `${r.staleCount}` : 'n/a';
-    process.stdout.write(`northstar: ${r.errors.length} errors · ${r.warns.length} warnings · drift ${r.driftCount} · stale ${staleStr} (${r.counts.northstars}/${r.counts.registered} files)\n`);
+    const vantage = r.counts.unreachable ? ` · ${r.counts.unreachable} unreachable` : '';
+    process.stdout.write(`northstar: ${r.errors.length} errors · ${r.warns.length} warnings · drift ${r.driftCount} · stale ${staleStr} (${r.counts.northstars}/${r.counts.registered} files${vantage})\n`);
     return flags.check && r.errors.length ? 1 : 0;
   }
 
@@ -153,4 +173,6 @@ function main() {
   return flags.check && r.errors.length ? 1 : 0;
 }
 
-process.exitCode = main();
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  process.exitCode = main();
+}

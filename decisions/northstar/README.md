@@ -125,6 +125,23 @@ and never reused.
 - **Later: computed rollup** (`northstar-rollup.mjs --write`) promotes parent % = aggregate(children),
   a data-gated shadow→authoritative step (ADR-0089 discipline).
 
+### Promotions (RIDM log)
+
+- **2026-07-06 — lint ERRORs promoted shadow → operational** (rm-l2-ojfbot#S16; the cluster's
+  first shadow-gate promotion, exercising ADR-0086 clause 5 end-to-end). `roadmap-lint --check`
+  + `northstar-lint --check` now run in core CI (`.github/workflows/northstar-lint.yml`) on PRs
+  touching `decisions/northstar/**` and **block on ERRORs only**; WARNs (drift, staleness,
+  missing `check:`) stay shadow. *Evidence:* both linters shipped shadow-only 2026-06 (ADR-0089
+  idiom) and have run in the standup + the S13 weekly cadence since; across tranche 1
+  (S10–S15, 6 merged PRs rewriting this roadmap) the ERROR classes were stable and produced 0
+  false positives on main — every ERROR raised was a real registry/ladder lie (the one
+  standing ERROR, `l1-cv-builder`, is a confirmed working-copy artifact tracked as S1).
+  *Scoping:* registry entries whose repo checkout is absent from the running vantage (CI
+  checks out core alone) downgrade to shadow WARNs, so the gate only blocks on breakage it
+  can see. *Verification (ADR-0086 clause 6):* this gate VERIFIES structural invariants
+  (refs resolve, enums valid, files exist); it does not validate that the roadmap is the
+  right plan. *Rollback:* delete the workflow file; the linters revert to pure shadow.
+
 ## Time-series
 
 `status.jsonl` (created on first movement) — append-only, one JSON line per movement:
