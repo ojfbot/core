@@ -32,8 +32,10 @@ const DB = '.beads-dolt';
  * Mirrored in morning-cockpit packages/shared/src/dolt-bead.ts. Set by queue-post; enforced by
  * queue-claim (S4). The schema home is packages/workflows/src/bead-store/dolt-schema.sql.
  *
- *   labels.queue      'available' | 'claimed' | 'expired' | 'incubating'
+ *   labels.queue      'available' | 'claimed' | 'expired' | 'incubating' | 'quarantined'
  *                     — 'available' marks a DELIBERATELY posted task, vs default-'created' cruft.
+ *                     — 'quarantined' (S18) parks a suspect bead out of every queue lane WITHOUT
+ *                       deleting anything; set by bead-quarantine, never by sweep.
  *   labels.kind       's' | 'm' | 'l'  — size/TTL class (TTL below).
  *   labels.autonomy   'human_only' (default) | 'agent_eligible' | 'either'  — who may claim.
  *   labels.posted_at  ISO — when queue-post ran.
@@ -54,6 +56,12 @@ const DB = '.beads-dolt';
  *                        queue bead → day-runner brief/session env (TRACE_ID) → pr-created bead +
  *                        'Trace:' PR-body line. Optional everywhere — beads without it keep working.
  *                        Key follows OTel gen_ai trace-correlation naming (stays `trace_id`).
+ * Outcome capture (S18, audit I2) — the human verdict where a human touched agent output.
+ * Set by --outcome on task-done / bead-close / bead-quarantine; read by the weekly
+ * golden-candidate filer (weekly-measure.mjs), which files rejected|edited beads as
+ * candidate golden tasks.
+ *
+ *   labels.outcome    'accepted' | 'edited' | 'rejected' | 'abandoned'
  */
 const QUEUE_KIND_TTL_DAYS = { s: 2, m: 5, l: 10 };
 const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
@@ -65,6 +73,19 @@ const QUEUE_LEASE_MS = { human: 8 * 3_600_000, agent: 5 * 60_000 };
 // such rather than dropped (the shadow record must not silently vanish) or thrown (best-effort).
 function safeParseChecks(raw) {
   try { return JSON.parse(raw); } catch { return { unparseable: String(raw).slice(0, 200) }; }
+}
+
+// S18: outcome capture (audit I2) — the human verdict on agent output. The enum is closed on
+// purpose: free-text outcomes can't be aggregated by the weekly golden-candidate filer.
+// Rejects loudly (exit 1) rather than recording a value the downstream query would never see.
+const OUTCOME_VALUES = ['accepted', 'edited', 'rejected', 'abandoned'];
+function validOutcome(raw) {
+  if (raw === undefined) return undefined;
+  if (!OUTCOME_VALUES.includes(raw)) {
+    console.error(`--outcome must be one of ${OUTCOME_VALUES.join('|')} (got: ${raw})`);
+    process.exit(1);
+  }
+  return raw;
 }
 
 const [, , command, ...rawArgs] = process.argv;
@@ -204,6 +225,8 @@ async function run() {
       case 'task-done': {
         const id = `${args.prefix ?? 'hq'}-task-${crypto.randomBytes(4).toString('hex')}`;
         const now = new Date().toISOString();
+        // S18: optional human verdict on the output this task produced (audit I2).
+        const outcome = validOutcome(args.outcome);
         const refs = [];
         if (args['session-id']) {
           // Find the session bead to link as ref
@@ -220,7 +243,11 @@ async function run() {
           [
             id,
             args.title ?? 'Task completed',
-            JSON.stringify({ repo: args.repo ?? '', session_id: args['session-id'] ?? '' }),
+            JSON.stringify({
+              repo: args.repo ?? '',
+              session_id: args['session-id'] ?? '',
+              ...(outcome ? { outcome } : {}),
+            }),
             JSON.stringify(refs),
             now, now, now,
           ],
@@ -229,10 +256,81 @@ async function run() {
           event_type: 'task-done',
           bead_id: id,
           summary: args.title ?? 'task completed',
-          payload: { repo: args.repo ?? '', session_id: args['session-id'] ?? '' },
+          payload: {
+            repo: args.repo ?? '',
+            session_id: args['session-id'] ?? '',
+            ...(outcome ? { outcome } : {}),
+          },
         });
         await doltCommit(pool, `task:done ${id}`);
         console.log(JSON.stringify({ id, status: 'created' }));
+        break;
+      }
+
+      case 'bead-close': {
+        // S18: outcome capture (audit I2) — close an EXISTING bead where a human touched the
+        // agent's output, recording the verdict. Distinct from task-done, which mints a new,
+        // already-closed bead; bead-close flips one that is already on the board.
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+        const outcome = validOutcome(args.outcome);
+
+        const [rows] = await pool.execute('SELECT id, labels FROM beads WHERE id = ?', [beadId]);
+        if (rows.length === 0) { console.error(`Bead not found: ${beadId}`); process.exit(1); }
+        const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : (rows[0].labels ?? {});
+        if (outcome) labels.outcome = outcome;
+
+        const now = new Date().toISOString();
+        await pool.execute(
+          "UPDATE beads SET status = 'closed', closed_at = ?, updated_at = ?, labels = ? WHERE id = ?",
+          [now, now, JSON.stringify(labels), beadId],
+        );
+        await emitEvent(pool, {
+          event_type: 'bead-close',
+          bead_id: beadId,
+          summary: `closed${outcome ? ` (${outcome})` : ''}`,
+          payload: { ...(outcome ? { outcome } : {}) },
+        });
+        await doltCommit(pool, `bead:close ${beadId}`);
+        console.log(JSON.stringify({ id: beadId, status: 'closed', ...(outcome ? { outcome } : {}) }));
+        break;
+      }
+
+      case 'bead-quarantine': {
+        // S18 (audit I2, plan H5/F2): park a suspect bead WITHOUT deleting anything —
+        // quarantine ≠ delete. Flips labels.queue to 'quarantined' (the same lane idiom
+        // queue-sweep uses) so no queue lane offers it again; status, history, and every
+        // other label stay intact. Optional --outcome records the human verdict,
+        // --reason the why. Reversible by hand (queue-post --bead-id re-posts it).
+        const beadId = args['bead-id'];
+        if (!beadId) { console.error('--bead-id required'); process.exit(1); }
+        const outcome = validOutcome(args.outcome);
+
+        const [rows] = await pool.execute('SELECT id, labels FROM beads WHERE id = ?', [beadId]);
+        if (rows.length === 0) { console.error(`Bead not found: ${beadId}`); process.exit(1); }
+        const labels = typeof rows[0].labels === 'string' ? JSON.parse(rows[0].labels) : (rows[0].labels ?? {});
+
+        const now = new Date().toISOString();
+        labels.queue = 'quarantined';
+        labels.quarantined_at = now;
+        if (args.reason) labels.quarantine_reason = args.reason;
+        if (outcome) labels.outcome = outcome;
+
+        await pool.execute(
+          'UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?',
+          [JSON.stringify(labels), now, beadId],
+        );
+        await emitEvent(pool, {
+          event_type: 'bead-quarantine',
+          bead_id: beadId,
+          summary: `quarantined${args.reason ? `: ${args.reason}` : ''}${outcome ? ` (${outcome})` : ''}`,
+          payload: {
+            reason: args.reason ?? '',
+            ...(outcome ? { outcome } : {}),
+          },
+        });
+        await doltCommit(pool, `bead:quarantine ${beadId}`);
+        console.log(JSON.stringify({ id: beadId, status: 'quarantined', ...(outcome ? { outcome } : {}) }));
         break;
       }
 
@@ -889,7 +987,8 @@ async function run() {
 
       default:
         console.error(`Unknown command: ${command}`);
-        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|queue-post|queue-claim|queue-renew|queue-sweep|active-sessions>');
+        console.error('Usage: bead-emit.mjs <session-start|session-update|session-close|task-done|bead-close|bead-quarantine|task-create|pr-created|convoy-create|convoy-add-slot|convoy-update-slot|convoy-finalize|queue-post|queue-claim|queue-renew|queue-sweep|active-sessions>');
+        console.error('  task-done|bead-close|bead-quarantine accept --outcome=accepted|edited|rejected|abandoned (S18 outcome capture)');
         process.exit(1);
     }
   } finally {

@@ -25,8 +25,10 @@ CREATE INDEX idx_beads_actor ON beads(actor);
 -- ── Reserved bead labels: unassigned-queue contract (ADR-0002, coordination rollout S3) ──────────
 -- Stored in beads.labels (JSON). Set by `queue-post` (scripts/hooks/bead-emit.mjs); enforced by
 -- `queue-claim` (S4). Mirrored in morning-cockpit packages/shared/src/dolt-bead.ts.
---   labels.queue      : 'available' | 'claimed' | 'expired' | 'incubating'
+--   labels.queue      : 'available' | 'claimed' | 'expired' | 'incubating' | 'quarantined'
 --                       'available' = a DELIBERATELY posted unassigned task (vs default-'created' cruft).
+--                       'quarantined' (S18) = parked by `bead-quarantine` — out of every queue lane,
+--                       nothing deleted; labels.quarantined_at / labels.quarantine_reason say when/why.
 --   labels.kind       : 's' | 'm' | 'l'  — size/TTL class.
 --   labels.autonomy   : 'human_only' (default) | 'agent_eligible' | 'either'  — who may claim.
 --   labels.posted_at  : ISO 8601 — when queue-post ran.
@@ -41,6 +43,9 @@ CREATE INDEX idx_beads_actor ON beads(actor);
 --   labels.trace_id        : UUID minted at queue-post/compile, threaded queue bead → day-runner
 --                            session env (TRACE_ID) → pr-created bead + 'Trace:' PR-body line.
 --                            Optional on every bead; key follows OTel gen_ai trace-correlation naming.
+-- Outcome capture (S18, audit I2) — set by `--outcome` on task-done / bead-close / bead-quarantine
+-- where a human touched agent output; read by the weekly golden-candidate filer (weekly-measure.mjs):
+--   labels.outcome         : 'accepted' | 'edited' | 'rejected' | 'abandoned'.
 
 CREATE TABLE IF NOT EXISTS bead_events (
   id INTEGER PRIMARY KEY AUTO_INCREMENT,
