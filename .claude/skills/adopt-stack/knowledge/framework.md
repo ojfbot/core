@@ -2,21 +2,24 @@
 
 Full rubric for the `/adopt-stack` skill. The "why" layer is `adr:wrap-absorb-reject`.
 
-## Gate 0 — library or application? (measure before deciding)
+## Gate 0 — library or application? (the SCRIPT measures; you judge)
 
-Run these against the candidate **before** any other reasoning. An *application* is never `import`ed.
+**Do not hand-measure.** `scripts/measure-pkg.mjs <pkg>` is the authoritative source for every figure
+below — it shells out to `pnpm view` and emits the table. Typing a size or dep-count from memory is the
+exact fabrication this gate exists to prevent. Run the script, paste its table, then judge.
 
-| Signal | How to measure | Smells like an application when… |
-|--------|----------------|----------------------------------|
-| Unpacked size | `pnpm view <pkg> dist.unpackedSize` | tens of MB+ |
-| Direct deps | `pnpm view <pkg> dependencies` | dozens, spanning UI + server + DB |
-| Transitive tree | `pnpm view`/install count | hundreds |
-| Telemetry SDKs | grep deps for `amplitude\|sentry\|rrweb\|segment\|posthog\|analytics` | any present |
-| Embedded persistence/auth | grep deps for DB drivers, `better-auth`, ORM | ships its own DB/auth |
-| Embedded server/UI | grep for `react\|vue\|express\|nitro\|tiptap\|next` | ships a UI or server |
-| Native postinstall | watch install for `node-gyp`/`prebuild-install` | compiled native modules |
+| Signal (script-produced) | Smells like an application when… |
+|--------------------------|----------------------------------|
+| Unpacked size | tens of MB+ |
+| Direct deps | dozens, spanning UI + server + DB |
+| Transitive tree | hundreds — but `unknown` until you install in a throwaway dir; never estimate |
+| Telemetry SDKs | any present (amplitude/sentry/rrweb/segment/posthog/datadog/…) |
+| Embedded persistence/auth | ships its own DB drivers, ORM, or `better-auth` |
+| Embedded server/UI | ships a router/server (nitro/h3/express/react-router) or editor (tiptap/codemirror/radix) |
+| Native-build hints | direct deps like `better-sqlite3`/`sharp` (transitive native builds only show on install) |
 
-**If application →** the only honest boundaries are **process/protocol** (drive its CLI/MCP
+The script reports an `n/6 application-shaped signals` count as a SIGNAL, not a verdict — you make the
+call. **If application →** the only honest boundaries are **process/protocol** (drive its CLI/MCP
 out-of-process, zero packages in your tree) or **REJECT**. Do not WRAP-by-import an application.
 
 ## The three calls (apply per imposed opinion, not once globally)

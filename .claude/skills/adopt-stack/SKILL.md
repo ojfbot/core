@@ -5,8 +5,9 @@ description: >
   use this library", "integrate this tool/framework/harness", "evaluate this dependency",
   "wrap absorb or reject", "is this worth adopting", "vendor this or build it". Decides
   how to integrate a mature external stack into an opinionated one via a library-vs-application
-  gate then per-opinion wrap/absorb/reject calls. Output: a measurement table + a recorded
-  decision table. Read-only analysis — proposes integration shape, writes no production code.
+  gate then per-opinion wrap/absorb/reject calls. Output: a script-measured Gate-0 table + a
+  decision record written to decisions/adopt-stack/. Evidence-grounded — the script owns the
+  numbers, every call cites a source; read-only against the candidate (writes no adapter code).
 ---
 
 # /adopt-stack
@@ -25,16 +26,18 @@ package, a GitHub project). Plus, implicitly, the host stack's invariants (find 
 
 ## Core Principles
 
-1. **Measure before deciding** — Gate 0 is empirical (size, deps, telemetry, native builds), not vibes.
-   No call before the numbers.
+1. **The script owns the numbers; you own the judgment.** Size/deps/telemetry/embedded-DB come from
+   `scripts/measure-pkg.mjs`, never your memory. If you didn't run it this session you don't have the
+   number — `unknown` is the honest value.
 2. **An application is never imported** — heavy tree + telemetry + embedded DB/server/auth ⇒ the only
    honest boundaries are a process/protocol boundary or REJECT. WRAP-by-import is for libraries.
 3. **Decide per opinion, not once** — a mature stack imposes many opinions; "adopt" silently lets the
    foreign ones win. Each opinion gets its own wrap/absorb/reject call tied to a host invariant.
-4. **The table is the deliverable** — a recorded measurement table + decision table. It is also the
-   reusable integration-judgment evidence.
-5. **Read-only** — this skill proposes the integration shape and records the rationale; it does not
-   add the dependency or write the adapter.
+4. **Every call cites evidence** — a wrap/absorb/reject row names a specific dep from the script output,
+   a quoted source line, or an observed command result. No grounded basis ⇒ `undecided`. Fail closed.
+5. **The decision record is the deliverable** — the judgment is written to `decisions/adopt-stack/<slug>.md`;
+   an evaluation that stays in chat is `engaged_no_act`, not done. Read-only against the candidate — it
+   writes the decision record, not the adapter or the dependency.
 
 ## Workflow
 
@@ -56,6 +59,8 @@ node .claude/skills/adopt-stack/scripts/measure-pkg.mjs <pkg>[@version]   # mark
 Under the hood it is the `pnpm view` data — unpacked size, direct dep count, declared engines,
 install/postinstall scripts, and telemetry/embedded-DB name-pattern signals; transitive tree size and
 native builds it flags as requiring a throwaway install rather than inventing them.
+**Paste the script's table verbatim into the decision record. Never hand-type a size, dep count, or
+SDK name** — from memory they are routinely wrong (binary-MB vs decimal-MB alone shifts the figure).
 If it's an **application** (heavy tree, telemetry, embedded DB/server/auth, native postinstall): the
 only candidate boundaries are **process/protocol** (drive its CLI/MCP out-of-process) or **REJECT**.
 Record the measurement table. If a real dogfood is warranted, do it in a throwaway dir (scratchpad),
@@ -75,20 +80,24 @@ For each opinion choose:
 - **ABSORB** — take the idea, re-express it in your stack's portable primitives, drop the dependency.
 - **REJECT** — don't take it; the opinion fights an invariant and isn't worth re-expressing.
 
-### Step 5 — Output the decision
-Emit the measurement table + the decision table (below). Name the resulting integration shape in one
-line (e.g. "reject the import; absorb the block-idea into markdown+Mermaid; keep zero of its packages").
+Each row's rationale must point at evidence — a dep name from the Step 2 table, a quoted source line,
+or an observed result — and the host invariant it serves. Ungrounded ⇒ `undecided`, never a guess.
+
+### Step 5 — Write the decision record (the artifact)
+Write `decisions/adopt-stack/<candidate-slug>.md` containing the script's Gate-0 table verbatim, the
+decision table, and a one-line integration shape. This durable file is the deliverable and the
+OPAV-tracked artifact (registered in `packages/workflows/src/tracking/expected-artifact.ts`). Then print
+the summary below.
 
 ```
-## /adopt-stack: <candidate>
+## /adopt-stack: <candidate>  → decisions/adopt-stack/<slug>.md
 
-### Gate 0 — library or application: <LIBRARY | APPLICATION>
-| Signal | Measurement | Verdict |
-|--------|-------------|---------|
+### Gate 0 (script-measured): <LIBRARY | APPLICATION>  (<n>/6 application signals)
+<measure-pkg.mjs table, verbatim>
 
 ### Decision table
-| # | Opinion imposed | Call (WRAP/ABSORB/REJECT) | Rationale (→ invariant) |
-|---|-----------------|---------------------------|--------------------------|
+| # | Opinion imposed | Call (WRAP/ABSORB/REJECT/undecided) | Evidence → invariant |
+|---|-----------------|--------------------------------------|----------------------|
 
 ### Integration shape
 <one or two sentences naming the boundary and what gets absorbed vs. dropped>
@@ -96,6 +105,10 @@ line (e.g. "reject the import; absorb the block-idea into markdown+Mermaid; keep
 
 ## Gotchas
 
+- **Hand-typed package facts are the #1 fabrication risk.** A model will confidently emit "119 MB,
+  ~80 deps" that is wrong on both counts (the real figure is 113.9 MB; the hand list missed
+  `drizzle-orm`/`nitro`/`i18next`). `measure-pkg.mjs` exists to make those numbers un-hallucinatable —
+  if you're typing a figure, you're doing it wrong.
 - **WRAP is not the safe default.** Wrapping an *application* behind an adapter still drags 100s of
   packages + telemetry into the lockfile — the adapter hides the API, not the weight. WRAP-by-import is
   only legitimate once Gate 0 says "library."
@@ -115,3 +128,4 @@ After the decision:
 > If the call is WRAP or a process-boundary adoption, offer `/plan-feature` to spec the adapter.
 > If the integration decision is architecturally significant, offer `/adr new` (the framework's "why"
 > layer is `adr:wrap-absorb-reject`).
+> The written `decisions/adopt-stack/<slug>.md` is the OPAV-tracked `skill:acted` artifact.

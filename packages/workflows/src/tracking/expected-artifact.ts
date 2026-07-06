@@ -28,6 +28,7 @@ export const EXPECTED_ARTIFACT: Record<string, ExpectedArtifactSpec> = {
   validate: { actExpected: true, scheme: 'path', description: 'a verdict record' },
   investigate: { actExpected: true, scheme: 'path', description: 'a cause-map artifact' },
   techdebt: { actExpected: true, scheme: 'path', pathPattern: /(^|\/)TECHDEBT\.md$/, description: 'a TECHDEBT.md append' },
+  'adopt-stack': { actExpected: true, scheme: 'path', pathPattern: /(^|\/)decisions\/adopt-stack\/.*\.md$/, description: 'an adopt-stack decision record' },
 
   // Engaged-only — no durable artifact; terminate at engaged_no_act by design.
   recon: { actExpected: false, description: 'engaged-only (no durable artifact)' },
