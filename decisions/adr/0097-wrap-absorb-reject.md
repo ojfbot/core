@@ -1,9 +1,10 @@
-# ADR-XXXX: Wrap, absorb, or reject — integrating a mature external harness into an opinionated stack
+# ADR-0097: Wrap, absorb, or reject — integrating a mature external harness into an opinionated stack
 slug: wrap-absorb-reject
-serial: draft
+serial: 0097
 rev:
 Date: 2026-06-26
-Status: Proposed
+Date accepted: 2026-07-06
+Status: Accepted
 domain: meta
 type: process
 OKR: —
@@ -105,5 +106,5 @@ The decision and its rationale are recorded as a wrap/absorb/reject table (see t
 | Field | Value |
 | --- | --- |
 | Zero-point | 2026-06-26 — agent-native dogfood (spike), reject-the-import gate verdict |
-| Implementation start | _pending_ |
-| Implementation end | _pending_ |
+| Implementation start | 2026-06-26 — /adopt-stack skill + measure-pkg.mjs authored |
+| Implementation end | 2026-07-06 — hardened (durable artifact + OPAV tracking) and committed, PR core#204 |
