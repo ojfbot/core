@@ -25,6 +25,7 @@
  */
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import mysql from 'mysql2/promise';
 import {
@@ -121,6 +122,10 @@ async function main() {
         gate: s.autonomy,
         advances: s.advances,
         why: s.deliverable,
+        // S21 trace identity (SHADOW): minted here, at compile, only for NEW posts — the
+        // already-projected check above skips existing beads, so re-compiles never re-mint
+        // or change an existing bead's trace_id. Threaded queue → session → PR.
+        trace_id: crypto.randomUUID(),
       };
       if (flags.dryRun) { posted.push({ ...post, id: '(dry-run)' }); continue; }
 
@@ -134,6 +139,7 @@ async function main() {
         `--advances=${post.advances}`,
         `--autonomy-gate=${post.gate}`,
         `--why=${post.why}`,
+        `--trace-id=${post.trace_id}`,
       ], { encoding: 'utf8' });
       let id = '?';
       try { id = JSON.parse(out.trim().split('\n').pop()).id; } catch { /* leave '?' */ }

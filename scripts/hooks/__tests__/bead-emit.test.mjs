@@ -694,6 +694,53 @@ describe.skipIf(SKIP)('bead-emit.mjs lifecycle', () => {
     });
   });
 
+  // ── Trace identity (S21 — SHADOW: emitted, nothing consumes it) ────────
+  describe('trace identity (S21)', () => {
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+    it('queue-post mints labels.trace_id when --trace-id is absent', async () => {
+      const out = parseOutput(await emit('queue-post', { title: 'Test task trace-mint', repo: 'core' }));
+      const bead = await queryBead(out.id);
+      expect(bead.labels.trace_id).toMatch(UUID_RE);
+    });
+
+    it('queue-post carries a provided --trace-id and puts it in the event payload', async () => {
+      const t = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+      const out = parseOutput(await emit('queue-post', {
+        title: 'Test task trace-carry', repo: 'core', 'trace-id': t,
+      }));
+      const bead = await queryBead(out.id);
+      expect(bead.labels.trace_id).toBe(t);
+
+      const [rows] = await pool.execute(
+        "SELECT payload FROM bead_events WHERE bead_id = ? AND event_type = 'queue-post'",
+        [out.id],
+      );
+      expect(rows.length).toBe(1);
+      const payload = typeof rows[0].payload === 'string' ? JSON.parse(rows[0].payload) : rows[0].payload;
+      expect(payload.trace_id).toBe(t);
+    });
+
+    it('queue-post --bead-id promote preserves an existing trace_id (idempotent re-post)', async () => {
+      const first = parseOutput(await emit('queue-post', { title: 'Test task trace-keep', repo: 'core' }));
+      const minted = (await queryBead(first.id)).labels.trace_id;
+      expect(minted).toMatch(UUID_RE);
+
+      // Re-post the same bead onto the queue — the trace_id must not change.
+      await emit('queue-post', { 'bead-id': first.id, kind: 's' });
+      expect((await queryBead(first.id)).labels.trace_id).toBe(minted);
+    });
+
+    it('pr-created stamps labels.trace_id only when --trace-id is provided (shadow no-op otherwise)', async () => {
+      const t = '11111111-2222-4333-8444-555555555555';
+      const withTrace = parseOutput(await emit('pr-created', { repo: 'core', pr: '101', 'trace-id': t }));
+      expect((await queryBead(withTrace.id)).labels.trace_id).toBe(t);
+
+      const without = parseOutput(await emit('pr-created', { repo: 'core', pr: '102' }));
+      expect((await queryBead(without.id)).labels.trace_id).toBeUndefined();
+    });
+  });
+
   // ── Claim / renew / sweep (S4 — lease lifecycle) ──────────────────────
   describe('queue-claim / renew / sweep (S4)', () => {
     /** Force a label to a value on an existing bead + commit (for controlled expiry/lease times). */
