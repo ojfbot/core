@@ -7,7 +7,8 @@
  *   node bead-emit.mjs session-update --session-id=abc123 --repos=core,shell
  *   node bead-emit.mjs session-close --session-id=abc123
  *   node bead-emit.mjs task-done --title="decompose StudyPanel" --session-id=abc123 --repo=seh-study
- *   node bead-emit.mjs pr-created --repo=seh-study --pr=13 --session-id=abc123
+ *   node bead-emit.mjs pr-created --repo=seh-study --pr=13 --session-id=abc123 [--trace-id=<uuid>]
+ *   node bead-emit.mjs queue-post --title="Fix X" --repo=core [--trace-id=<uuid>]  # minted if absent
  *
  * Convoy commands (for /orchestrate integration):
  *   node bead-emit.mjs task-create --title="Add endpoint" --repo=cv-builder --convoy-id=hq-convoy-ab12
@@ -47,6 +48,12 @@ const DB = '.beads-dolt';
  *   labels.autonomy_gate 'gate-0' | 'gate-1' | 'gate-2' — the MERGE gate (progressive-autonomy-
  *                        gates ADR). Distinct from labels.autonomy (claim eligibility) above.
  *   labels.why           short human line: what merging this delivers.
+ *
+ * Trace identity (S21, SHADOW — emitted, nothing consumes it yet):
+ *   labels.trace_id      UUID minted at queue-post/compile (--trace-id or minted here), threaded
+ *                        queue bead → day-runner brief/session env (TRACE_ID) → pr-created bead +
+ *                        'Trace:' PR-body line. Optional everywhere — beads without it keep working.
+ *                        Key follows OTel gen_ai trace-correlation naming (stays `trace_id`).
  */
 const QUEUE_KIND_TTL_DAYS = { s: 2, m: 5, l: 10 };
 const QUEUE_AUTONOMY = ['human_only', 'agent_eligible', 'either'];
@@ -253,6 +260,8 @@ async function run() {
               session_id: args['session-id'] ?? '',
               // S14 shadow verification record (day-runner) — optional JSON: {tests, success_criterion}
               ...(args.checks ? { checks: safeParseChecks(args.checks) } : {}),
+              // S21 trace identity (shadow) — echoes the queue bead's trace_id when the runner carries it
+              ...(args['trace-id'] ? { trace_id: args['trace-id'] } : {}),
             }),
             JSON.stringify(refs),
             now, now,
@@ -282,6 +291,7 @@ async function run() {
           payload: {
             repo: args.repo ?? '', pr_number: args.pr ?? '', session_id: args['session-id'] ?? '',
             ...(args.checks ? { checks: safeParseChecks(args.checks) } : {}),
+            ...(args['trace-id'] ? { trace_id: args['trace-id'] } : {}),
           },
         });
         await doltCommit(pool, `pr:created ${id}`);
@@ -706,6 +716,10 @@ async function run() {
         if (args.advances) roadmapLabels.advances = args.advances;
         if (args['autonomy-gate']) roadmapLabels.autonomy_gate = args['autonomy-gate'];
         if (args.why) roadmapLabels.why = args.why;
+        // S21 trace identity (SHADOW): correlation id threaded queue → session → PR. Accept
+        // --trace-id (roadmap-compile mints one for NEW posts) or mint here so every posted
+        // task carries one. Label key stays `trace_id` (OTel gen_ai trace-correlation naming).
+        const traceId = args['trace-id'] || crypto.randomUUID();
 
         if (args['bead-id']) {
           // Promote an existing task onto the queue.
@@ -719,12 +733,14 @@ async function run() {
           labels.posted_at = nowIso;
           labels.expires_at = expiresAt;
           Object.assign(labels, roadmapLabels);
+          // Idempotence: an already-traced bead keeps its trace_id unless --trace-id overrides.
+          labels.trace_id = args['trace-id'] || labels.trace_id || traceId;
           await pool.execute('UPDATE beads SET labels = ?, updated_at = ? WHERE id = ?', [JSON.stringify(labels), nowIso, beadId]);
           await emitEvent(pool, {
             event_type: 'queue-post',
             bead_id: beadId,
             summary: `posted ${beadId} to queue (${kind}/${autonomy})`,
-            payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, promoted: true },
+            payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, promoted: true, trace_id: labels.trace_id },
           });
           await doltCommit(pool, `queue:post ${beadId}`);
           console.log(JSON.stringify({ id: beadId, status: 'posted', queue: 'available', kind, autonomy }));
@@ -740,6 +756,7 @@ async function run() {
           repo: args.repo ?? '',
           posted_at: nowIso,
           expires_at: expiresAt,
+          trace_id: traceId,
           ...roadmapLabels,
         };
         await pool.execute(
@@ -751,7 +768,7 @@ async function run() {
           event_type: 'queue-post',
           bead_id: id,
           summary: args.title ?? 'posted to queue',
-          payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, repo: args.repo ?? '' },
+          payload: { queue: 'available', kind, autonomy, expires_at: expiresAt, repo: args.repo ?? '', trace_id: traceId },
         });
         await doltCommit(pool, `queue:post ${id}`);
         console.log(JSON.stringify({ id, status: 'posted', queue: 'available', kind, autonomy }));

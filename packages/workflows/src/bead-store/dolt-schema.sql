@@ -37,6 +37,10 @@ CREATE INDEX idx_beads_actor ON beads(actor);
 --   labels.claimed_by_kind : 'human' | 'agent'.
 --   labels.lease_until     : ISO 8601 — self-expiring hold (human ~8h, agent ~min). Past-due leases
 --                            are returned to 'available' by `queue-sweep` (dead-claim safety valve).
+-- Trace identity (S21, SHADOW — emitted, nothing consumes it yet):
+--   labels.trace_id        : UUID minted at queue-post/compile, threaded queue bead → day-runner
+--                            session env (TRACE_ID) → pr-created bead + 'Trace:' PR-body line.
+--                            Optional on every bead; key follows OTel gen_ai trace-correlation naming.
 
 CREATE TABLE IF NOT EXISTS bead_events (
   id INTEGER PRIMARY KEY AUTO_INCREMENT,

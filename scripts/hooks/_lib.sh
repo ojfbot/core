@@ -14,8 +14,8 @@
 
 # ── Parse hook stdin ──────────────────────────────────────────────────────────
 #
-# Sets globals: HOOK_INPUT, TOOL_NAME, FILE_PATH, SESSION_ID, CWD, REPO,
-#               HOOK_EVENT, PROMPT (UserPromptSubmit only)
+# Sets globals: HOOK_INPUT, TOOL_NAME, FILE_PATH, SESSION_ID, TRACE_ID, CWD,
+#               REPO, HOOK_EVENT, PROMPT (UserPromptSubmit only)
 
 read_hook_input() {
   HOOK_INPUT=$(cat)
@@ -26,6 +26,13 @@ read_hook_input() {
   CWD=$(echo "$HOOK_INPUT" | jq -r '.cwd // empty')
   HOOK_EVENT=$(echo "$HOOK_INPUT" | jq -r '.hook_event_name // empty')
   PROMPT=$(echo "$HOOK_INPUT" | jq -r '.prompt // empty')
+
+  # S21 trace identity (SHADOW): stdin JSON first, then the TRACE_ID env the day-runner
+  # injects into dispatched sessions. Optional everywhere — empty when neither is set.
+  # Field name follows OTel gen_ai trace-correlation vocabulary (stays trace_id).
+  local _stdin_trace
+  _stdin_trace=$(echo "$HOOK_INPUT" | jq -r '.trace_id // empty')
+  TRACE_ID="${_stdin_trace:-${TRACE_ID:-}}"
 
   # Tool-specific extractions
   TOOL_INPUT_SKILL=$(echo "$HOOK_INPUT" | jq -r '.tool_input.skill // empty')
@@ -77,6 +84,12 @@ SUGGESTION_TELEMETRY_FILE="${TELEMETRY_DIR}/suggestion-telemetry.jsonl"
 log_telemetry() {
   local file="$1"
   local json_line="$2"
+  # S21 trace identity (SHADOW): stamp trace_id on the line when set — emitted, never
+  # required; a malformed line passes through untouched rather than being dropped.
+  if [[ -n "${TRACE_ID:-}" ]]; then
+    local _stamped
+    _stamped=$(echo "$json_line" | jq -c --arg t "$TRACE_ID" '. + {trace_id: $t}' 2>/dev/null) && json_line="$_stamped"
+  fi
   # Atomic append — single echo below PIPE_BUF (safe on all POSIX systems)
   echo "$json_line" >> "$file"
 }

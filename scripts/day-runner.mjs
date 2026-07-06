@@ -86,7 +86,8 @@ async function loadDispatchable() {
     const [rows] = await pool.query(
       `SELECT id, title,
               JSON_UNQUOTE(JSON_EXTRACT(labels, '$.roadmap_ref')) AS ref,
-              JSON_UNQUOTE(JSON_EXTRACT(labels, '$.repo')) AS repo
+              JSON_UNQUOTE(JSON_EXTRACT(labels, '$.repo')) AS repo,
+              JSON_UNQUOTE(JSON_EXTRACT(labels, '$.trace_id')) AS trace_id
          FROM beads
         WHERE JSON_UNQUOTE(JSON_EXTRACT(labels, '$.queue')) = 'available'
           AND JSON_EXTRACT(labels, '$.roadmap_ref') IS NOT NULL
@@ -101,7 +102,7 @@ async function loadDispatchable() {
   }
 }
 
-function renderBrief({ ref, slice, roadmap, northstar, repo, branch, worktree }) {
+function renderBrief({ ref, slice, roadmap, northstar, repo, branch, worktree, trace }) {
   const prop = (northstar.properties || []).find((p) => `ns:${northstar.slug}#${p.id}` === slice.advances);
   return `# Session Brief: ${slice.title}
 
@@ -115,7 +116,7 @@ you have no other context. Work ONLY inside this worktree: ${worktree}
 | Branch | ${branch} (already created and checked out) |
 | Advances | ${slice.advances} — "${prop?.name ?? ''}" |
 | Expected movement | ${slice.moves_from}% → ${slice.moves_to}% |
-| Merge gate | ${slice.autonomy} — a human merges; you NEVER merge |
+| Merge gate | ${slice.autonomy} — a human merges; you NEVER merge |${trace ? `\n| Trace | ${trace} (S21 trace identity, shadow — echo it verbatim in the PR body) |` : ''}
 
 ## Goal
 
@@ -144,9 +145,9 @@ Verification: ${prop?.verification ?? '(see northstar)'}
 3. Push: \`git push -u origin ${branch}\`
 4. Open the PR (do not merge it):
    \`gh pr create --base main --title "${slice.title}" --body-file <a body file you write>\`
-   The PR body MUST contain these two lines verbatim (fill the evidence):
+   The PR body MUST contain these lines verbatim (fill the evidence):
    \`Roadmap-Ref: ${ref}\`
-   \`Movement proposal: ${slice.advances} ${slice.moves_from}% -> ${slice.moves_to}% — evidence: <one line pointing at tests/recording/output>\`
+   \`Movement proposal: ${slice.advances} ${slice.moves_from}% -> ${slice.moves_to}% — evidence: <one line pointing at tests/recording/output>\`${trace ? `\n   \`Trace: ${trace}\`` : ''}
 5. STOP. Do not merge, do not record movement, do not edit any northstar.md / roadmap.md /
    status.jsonl — movement is recorded at merge by a human. Do not add unplanned work; if
    blocked, say so plainly in your final message and leave the branch pushed as-is.
@@ -159,7 +160,7 @@ Everything not named in the Goal. Other slices' files. Any write outside this wo
 
 async function runSlice(item, ctx) {
   const { flags, sliceIndex, nsBySlug, claimer, date } = ctx;
-  const verdict = { ref: item.ref, bead: item.id, claimed: false, pushed: false, pr: null, proposal: false, checks: null, note: '' };
+  const verdict = { ref: item.ref, bead: item.id, claimed: false, pushed: false, pr: null, proposal: false, trace: null, checks: null, note: '' };
 
   const resolved = sliceIndex.get(item.ref);
   if (!resolved) { verdict.note = 'roadmap_ref no longer resolves on disk — bead is stale'; return verdict; }
@@ -195,7 +196,7 @@ async function runSlice(item, ctx) {
   }
 
   // 4. Brief + headless session, runner-owned session beads around it.
-  const brief = renderBrief({ ref: item.ref, slice, roadmap, northstar, repo, branch, worktree });
+  const brief = renderBrief({ ref: item.ref, slice, roadmap, northstar, repo, branch, worktree, trace: item.trace_id });
   mkdirSync(path.join(RUNNER_HOME, 'logs'), { recursive: true });
   const briefPath = path.join(RUNNER_HOME, 'logs', `${date}-${sliceKey}-brief.md`);
   writeFileSync(briefPath, brief);
@@ -207,6 +208,9 @@ async function runSlice(item, ctx) {
     const log = createWriteStream(logPath);
     const child = spawn('claude', ['-p', brief, '--permission-mode', flags.permissionMode], {
       cwd: worktree, stdio: ['ignore', 'pipe', 'pipe'],
+      // S21 trace identity (shadow): inject TRACE_ID so hooks (_lib.sh) can stamp telemetry.
+      // The ...process.env spread preserves the full parent env the child previously inherited.
+      env: { ...process.env, ...(item.trace_id ? { TRACE_ID: item.trace_id } : {}) },
     });
     child.stdout.pipe(log); child.stderr.pipe(log);
     const timer = setTimeout(() => { verdict.note = `timeout after ${flags.timeoutMins}m; `; child.kill('SIGTERM'); },
@@ -225,6 +229,8 @@ async function runSlice(item, ctx) {
       if (pr) {
         verdict.pr = pr.number;
         verdict.proposal = /Movement proposal:\s*ns:/i.test(pr.body || '');
+        // S21 trace identity (shadow): did the session echo the Trace: line? Record-only.
+        verdict.trace = item.trace_id ? new RegExp(`^Trace:\\s*${item.trace_id}\\b`, 'm').test(pr.body || '') : null;
 
         // 6. SHADOW verification stage (S14) — record-only, never blocks the verdict.
         try {
@@ -233,6 +239,7 @@ async function runSlice(item, ctx) {
         bead('pr-created', {
           repo, pr: pr.number, 'session-id': sessionId, prefix: repo.slice(0, 4),
           ...(verdict.checks ? { checks: JSON.stringify(verdict.checks) } : {}),
+          ...(item.trace_id ? { 'trace-id': item.trace_id } : {}), // S21 — thread the queue bead's trace_id onto the PR bead
         });
         if (verdict.checks) {
           try {
@@ -287,7 +294,7 @@ async function main() {
   console.log('\n# day-runner verdicts');
   for (const v of verdicts) {
     const ok = v.claimed && v.pushed && v.pr && v.proposal; // shadow checks deliberately NOT in ok — record-only until RIDM promotion
-    console.log(`- ${ok ? '✓' : '✗'} ${v.ref} · bead=${v.bead} · pushed=${v.pushed} · PR=${v.pr ?? '—'} · movement-proposal=${v.proposal} · ${summarizeChecks(v.checks)} · ${v.note}`);
+    console.log(`- ${ok ? '✓' : '✗'} ${v.ref} · bead=${v.bead} · pushed=${v.pushed} · PR=${v.pr ?? '—'} · movement-proposal=${v.proposal} · trace=${v.trace ?? '—'} · ${summarizeChecks(v.checks)} · ${v.note}`);
   }
   console.log('\nGate 0: PRs await your merge. Record movement at merge: node scripts/record-movement.mjs --help');
 }
