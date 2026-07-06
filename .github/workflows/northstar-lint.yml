@@ -1,0 +1,27 @@
+# northstar-lint — the cluster's first shadow→operational RIDM promotion (rm-l2-ojfbot#S16).
+# Blocks on lint ERRORs only; WARNs stay shadow. Registered files living in sibling repos are
+# unreachable from this single-repo checkout and downgrade to WARNs (vantage scoping) — the
+# gate never fails a PR over a checkout it cannot see. RIDM note: decisions/northstar/README.md.
+name: northstar-lint
+
+on:
+  pull_request:
+    paths:
+      - 'decisions/northstar/**'
+      - 'scripts/roadmap-lint.mjs'
+      - 'scripts/northstar-lint.mjs'
+      - 'scripts/lib/northstar-fm.mjs'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Dep-free .mjs scripts — no pnpm install needed.
+      - name: roadmap-lint (blocking on ERRORs)
+        run: node scripts/roadmap-lint.mjs --check
+      - name: northstar-lint (blocking on ERRORs)
+        run: node scripts/northstar-lint.mjs --check

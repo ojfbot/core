@@ -2,8 +2,10 @@
 /**
  * roadmap-lint.mjs — health check for roadmaps (roadmap-schema.md v1).
  *
- * Ships SHADOW-ONLY (ADR-0089 discipline): it reports, it never blocks. `--check` is the
- * future CI gate, promoted data-gated like northstar-lint's.
+ * ERRORs are OPERATIONAL as of the S16 RIDM promotion (2026-07-06, ADR-0086 clause 5):
+ * core CI runs `--check` on PRs touching decisions/northstar/** and blocks on ERRORs.
+ * WARNs stay shadow; vantage-unreachable registry entries downgrade to WARNs (see
+ * northstar-lint.mjs header).
  *
  * Checks:
  *   ERROR — registry entry with no file; unknown northstar slug; slug mismatch (file vs
@@ -52,11 +54,20 @@ export function lint(core) {
   if (nsErr) errors.push(nsErr);
   const propIndex = buildPropertyIndex(northstars.filter((n) => !n._missing));
   const nsBySlug = new Map(northstars.filter((n) => !n._missing).map((n) => [n.slug, n]));
+  // Registered entries whose repo checkout is absent from this vantage (e.g. a CI runner
+  // with core alone on disk): refs into them downgrade to shadow WARNs — the gate only
+  // blocks on breakage it can actually see (S16 promotion scoping).
+  const unreachableNs = new Set(northstars.filter((n) => n._unreachable).map((n) => n.slug));
 
   const { error: rmErr, entries, roadmaps } = loadAllRoadmaps(core);
   if (rmErr) errors.push(rmErr);
+  const unreachableRm = new Set(roadmaps.filter((r) => r._unreachable).map((r) => r.slug));
 
   for (const rm of roadmaps) {
+    if (rm._unreachable) {
+      warns.push(`vantage: repo for roadmap '${rm.slug}' not on disk at ${rm._repoRoot} — entry skipped from this checkout`);
+      continue;
+    }
     if (rm._missing) { errors.push(`missing roadmap file for '${rm.slug}' at ${rm._path}`); continue; }
     const where = rm.slug ?? rm._path;
 
@@ -67,7 +78,11 @@ export function lint(core) {
     }
     if (!rm.northstar) errors.push(`${where}: missing 'northstar'`);
     else if (!nsBySlug.has(rm.northstar)) {
-      errors.push(`${where}: northstar '${rm.northstar}' not in registry/on disk`);
+      if (unreachableNs.has(rm.northstar)) {
+        warns.push(`${where}: northstar '${rm.northstar}' registered but unreachable from this vantage`);
+      } else {
+        errors.push(`${where}: northstar '${rm.northstar}' not in registry/on disk`);
+      }
     }
 
     const phaseIds = new Set();
@@ -117,7 +132,12 @@ export function lint(core) {
       // advances: resolve-or-fail + containment in the declared northstar.
       if (s.advances) {
         if (!propIndex.has(s.advances)) {
-          errors.push(`${sw}: advances '${s.advances}' does not resolve to a property on disk`);
+          const targetSlug = (/^ns:([^#]+)#/.exec(String(s.advances)) || [])[1];
+          if (targetSlug && unreachableNs.has(targetSlug)) {
+            warns.push(`${sw}: advances '${s.advances}' unresolvable from this vantage (repo not on disk)`);
+          } else {
+            errors.push(`${sw}: advances '${s.advances}' does not resolve to a property on disk`);
+          }
         } else {
           const target = propIndex.get(s.advances);
           if (rm.northstar && target.northstar.slug !== rm.northstar) {
@@ -140,7 +160,12 @@ export function lint(core) {
       if (!s.depends_on) continue;
       const sw = `${rm.slug}#${s.id}`;
       if (!sliceIndex.has(s.depends_on)) {
-        errors.push(`${sw}: depends_on '${s.depends_on}' does not resolve to a slice on disk`);
+        const depSlug = (/^rm:([^#]+)#/.exec(String(s.depends_on)) || [])[1];
+        if (depSlug && unreachableRm.has(depSlug)) {
+          warns.push(`${sw}: depends_on '${s.depends_on}' unresolvable from this vantage (repo not on disk)`);
+        } else {
+          errors.push(`${sw}: depends_on '${s.depends_on}' does not resolve to a slice on disk`);
+        }
       } else if ((s.status === 'ready' || s.status === 'dispatched')
         && sliceIndex.get(s.depends_on).slice.status !== 'merged') {
         warns.push(`${sw}: is '${s.status}' but depends_on '${s.depends_on}' is '${sliceIndex.get(s.depends_on).slice.status}' (not merged)`);
@@ -150,7 +175,9 @@ export function lint(core) {
 
   const present = roadmaps.filter((r) => !r._missing);
   const sliceCount = present.reduce((n, r) => n + (r.slices || []).length, 0);
-  return { errors, warns, counts: { roadmaps: present.length, registered: entries.length, slices: sliceCount } };
+  return { errors, warns, counts: {
+    roadmaps: present.length, registered: entries.length, slices: sliceCount, unreachable: unreachableRm.size,
+  } };
 }
 
 function main() {

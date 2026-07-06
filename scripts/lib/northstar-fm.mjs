@@ -67,6 +67,25 @@ export function resolvePath(p, coreRoot) {
   return path.resolve(coreRoot, p);
 }
 
+/**
+ * The repo root a registry path lives in, for vantage checks: `../<app>/…` → the sibling
+ * checkout `<coreRoot>/../<app>`; `~/<dir>/…` → `$HOME/<dir>`; in-tree paths → coreRoot
+ * (always visible). A registered file whose repo root is absent is *unreachable from this
+ * vantage* (e.g. a CI runner that checks out core alone) — distinct from a repo that is
+ * present but genuinely missing the file.
+ */
+export function repoRootOf(p, coreRoot) {
+  if (!p) return coreRoot;
+  if (p.startsWith('~')) {
+    const seg = p.slice(1).replace(/^\//, '').split('/')[0];
+    return seg ? path.join(os.homedir(), seg) : os.homedir();
+  }
+  if (path.isAbsolute(p)) return path.dirname(p);
+  const parts = path.normalize(p).split(path.sep);
+  if (parts[0] === '..' && parts[1]) return path.resolve(coreRoot, parts[0], parts[1]);
+  return coreRoot;
+}
+
 /** Read the registry from <coreRoot>/decisions/northstar/README.md. */
 export function loadRegistry(coreRoot) {
   const readme = path.join(coreRoot, 'decisions', 'northstar', 'README.md');
@@ -75,11 +94,21 @@ export function loadRegistry(coreRoot) {
   return { entries: (fm && fm.registry) || [] };
 }
 
-/** Load one northstar file; returns the parsed object with _path/_abs, or a _missing marker. */
+/**
+ * Load one northstar file; returns the parsed object with _path/_abs, or a _missing marker.
+ * When the file's repo root itself is absent the marker also carries `_unreachable: true`
+ * (vantage problem, not a registry lie); `_missing` stays true so existing consumers that
+ * filter on it keep skipping the entry either way.
+ */
 export function loadNorthstar(entry, coreRoot) {
   const abs = resolvePath(entry.path, coreRoot);
   if (!abs || !existsSync(abs)) {
-    return { slug: entry.slug, tier: entry.tier, _path: entry.path, _abs: abs, _missing: true };
+    const root = repoRootOf(entry.path, coreRoot);
+    const unreachable = !existsSync(root);
+    return {
+      slug: entry.slug, tier: entry.tier, _path: entry.path, _abs: abs, _missing: true,
+      ...(unreachable ? { _unreachable: true, _repoRoot: root } : {}),
+    };
   }
   const fm = parseFM(readFileSync(abs, 'utf8')) || {};
   return { ...fm, _path: entry.path, _abs: abs };
@@ -115,11 +144,17 @@ export function loadRoadmapRegistry(coreRoot) {
   return { entries: (fm && fm.roadmaps) || [] };
 }
 
-/** Load one roadmap file; returns the parsed object with _path/_abs, or a _missing marker. */
+/** Load one roadmap file; returns the parsed object with _path/_abs, or a _missing marker
+ *  (with `_unreachable: true` when the repo root itself is absent — see loadNorthstar). */
 export function loadRoadmap(entry, coreRoot) {
   const abs = resolvePath(entry.path, coreRoot);
   if (!abs || !existsSync(abs)) {
-    return { slug: entry.slug, northstar: entry.northstar, _path: entry.path, _abs: abs, _missing: true };
+    const root = repoRootOf(entry.path, coreRoot);
+    const unreachable = !existsSync(root);
+    return {
+      slug: entry.slug, northstar: entry.northstar, _path: entry.path, _abs: abs, _missing: true,
+      ...(unreachable ? { _unreachable: true, _repoRoot: root } : {}),
+    };
   }
   const fm = parseFM(readFileSync(abs, 'utf8')) || {};
   return { ...fm, _path: entry.path, _abs: abs };
