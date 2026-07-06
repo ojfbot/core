@@ -289,7 +289,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: daily-logger
-    status: queued
+    status: merged
     depends_on: "rm:rm-l2-ojfbot#S17"
   - id: S20
     phase: PH4
