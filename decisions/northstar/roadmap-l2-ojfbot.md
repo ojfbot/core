@@ -245,7 +245,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: merged
   - id: S17
     phase: PH4
     title: "First error-analysis ritual — failure-taxonomy.md v1 (open coding with the operator)"
@@ -259,7 +259,7 @@ slices:
     claimable_by: human_only
     kind: m
     repo: core
-    status: queued
+    status: merged
   - id: S18
     phase: PH4
     title: "Outcome capture — accepted|edited|rejected|abandoned where humans touch agent output (I2)"
@@ -274,7 +274,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: merged
   - id: S19
     phase: PH4
     title: "First golden suite — daily-logger, 5-15 tasks seeded from the taxonomy (I4)"
@@ -320,7 +320,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: merged
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)

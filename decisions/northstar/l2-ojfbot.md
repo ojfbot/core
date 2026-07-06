@@ -14,7 +14,7 @@ properties:
   - id: P2
     name: "Every app's daily work traces to a measurable property"
     target: "100% of active fleet apps have a northstar; the daily standup frames each priority against a property; movement is recorded as a time-series, not asserted from memory."
-    current: 26
+    current: 29
     verification: "northstar-lint: every tracked repo has a northstar that ladders here; standup output cites ns:<slug>#P refs; status.jsonl accrues movement lines."
     ladders_up_to: "ns:l3-shared#P2"
 ---
