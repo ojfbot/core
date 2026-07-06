@@ -20,7 +20,7 @@ slices:
   - id: S1
     phase: PH1
     title: "Repair l1-cv-builder — registered northstar absent from the working copy"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 20
     moves_to: 22
     deliverable: "cv-builder working copy carries .claude/northstar.md; northstar-lint 0 errors. FINDING (2026-07-03): the file was never missing from origin/main — its tip IS the northstar commit (2a88ec1). The lint ERROR is a working-copy artifact: the checkout sits on docs/claude-md-routing (ADR-0081 rollout WIP, uncommitted changes, cut before the northstar landed). Remaining action: land/rebase that branch or switch the checkout to main — owner's call, do not touch the dirty branch."
@@ -34,7 +34,7 @@ slices:
   - id: S2
     phase: PH1
     title: "CC-side /northstar-leg skill — survey, brief, land"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 20
     moves_to: 24
     deliverable: "core/.claude/skills/northstar-leg/ + catalog entry: picks next queued itinerary apps, runs the evidence survey, writes briefing cards to the Notion relay; on --land, writes confirmed .claude/northstar.md files, registers, lints, logs ladder-stress verdicts, marks the itinerary cursor, appends the synthesis ledger."
@@ -48,7 +48,7 @@ slices:
   - id: S3
     phase: PH1
     title: "Chat-side voice skill for the northstar conversation"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 24
     moves_to: 28
     deliverable: "Chat skill canonical at core/.claude/skills/northstar-voice/ (selfco-ingest precedent: git canonical in core, RE-UPLOAD to claude.ai to go live): reads a leg's briefing cards from Notion, runs the Socratic vision conversation voice-first, writes the CONFIRMED block + ladder-stress verdicts back to Notion. Chat stays above the evidence line — it never asserts repo facts, only refines the staged brief."
@@ -63,7 +63,7 @@ slices:
   - id: S4
     phase: PH2
     title: "Land the Frame leg (shell) — already voice-CONFIRMED"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 20
     moves_to: 23
     deliverable: "shell/.claude/northstar.md landed from the existing CONFIRMED relay block (instance-federation framing: shell=authorizing surface, core=spawn), registered, lint clean, ladder-stress verdicts appended."
@@ -77,7 +77,7 @@ slices:
   - id: S5
     phase: PH2
     title: "Leg 2 — purefoy, daily-logger, seh-study, bldgblog-corpus"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 28
     moves_to: 40
     deliverable: "4 landed L1 northstars via the skill pair (brief → voice confirm → land); ledger + verdicts appended; itinerary cursor advanced."
@@ -91,7 +91,7 @@ slices:
   - id: S6
     phase: PH2
     title: "Leg 3 — golf platform cluster, jocdive-sdi-mcp, dms-core"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 40
     moves_to: 48
     deliverable: "Leg-3 L1s landed via the skill pair; first candidate for the designed-but-unbuilt cluster tier (golf) — if the leg needs it, that is the evidence gate the schema-evolution log is waiting on."
@@ -105,7 +105,7 @@ slices:
   - id: S7
     phase: PH2
     title: "Leg 4 — asset-foundry, beaverGame, lofi-beaver, foundry-recipes"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 48
     moves_to: 56
     deliverable: "Leg-4 L1s landed via the skill pair; ledger + verdicts appended."
@@ -119,7 +119,7 @@ slices:
   - id: S8
     phase: PH2
     title: "Leg 5 — blogengine, lean-canvas, core-reader, frame-ui-components, landing"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 56
     moves_to: 64
     deliverable: "Leg-5 L1s landed via the skill pair; ledger + verdicts appended."
@@ -133,7 +133,7 @@ slices:
   - id: S9
     phase: PH2
     title: "Leg 6 — gastown-pilot, workstation-yuri, github-actions (+ l2-selfco decision)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 64
     moves_to: 72
     deliverable: "Final leg landed; decide and record whether l2-selfco graduates from deferred (it lives in the vault at ~/selfco/tracking/, never in core) — a decision line in the synthesis ledger either way."
@@ -147,7 +147,7 @@ slices:
   - id: S10
     phase: PH3
     title: "H0 ground truth — commit the OPAV master plan into core"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 20
     moves_to: 21
     deliverable: "OPAV-LOOP-GATED-SLICE-PLAN-2026-06-13.md committed to core (root or decisions/) so the program constitution survives the laptop; referenced beads stop pointing at a file that exists nowhere."
@@ -161,7 +161,7 @@ slices:
   - id: S11
     phase: PH3
     title: "daily-logger truth pipeline — repoint dead telemetry consumer + deterministic fact-check"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 21
     moves_to: 22
     deliverable: "collect-telemetry.ts reads skill-dispositions.jsonl (frozen stream demoted to labeled legacy fallback); verifyFileExistenceClaims() built per TD-001 and wired post-generation; build-api.ts stops treating missing article status as implicitly accepted; CLAUDE.md purged of the phantom bead-store.ts claim."
@@ -175,7 +175,7 @@ slices:
   - id: S12
     phase: PH3
     title: "cockpit honesty pass — stale seeded chain, adapter doc claims, problems-view states"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 22
     moves_to: 23
     deliverable: "fleet-config.ts stale 'bead_events empty log' critical chain removed or seeded-badged in the UI; CLAUDE.md marks github/standup adapters NOT BUILT (or builds github.ts from daily-logger's collectors); deriveAgentLiveness extended with Stalled/Zombie states per the Gas Town problems-view taxonomy."
@@ -189,7 +189,7 @@ slices:
   - id: S13
     phase: PH3
     title: "Re-measurement cadence — weekly measurement routine with the delivery oracle inside"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 23
     moves_to: 24
     deliverable: "A scheduled weekly routine (launchd/cron/frame-standup extension) that runs skill-metrics.mjs to docs/skill-metrics-YYYY-MM-DD.md, runs audit-delivery-check.mjs --json and files the diff vs last week, and nags on vault-sync age. First run produces the cluster's second-ever metrics snapshot."
@@ -203,7 +203,7 @@ slices:
   - id: S14
     phase: PH3
     title: "day-runner verification stage (SHADOW) + record-movement manual-path guard"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 24
     moves_to: 25
     deliverable: "Post-session, day-runner runs the target repo's check command in the worktree and records checks:{tests,success_criterion} on the pr-created bead + PR body (record only, never blocks — promotion to blocking is a later RIDM decision after ~20 shadow runs); record-movement's --northstar manual path requires --override-reason and stamps source:manual-unverified."
@@ -218,7 +218,7 @@ slices:
   - id: S15
     phase: PH3
     title: "Verifiability-sorted dispatch — autonomy_fit + machine check field in the roadmap schema"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 25
     moves_to: 26
     deliverable: "Roadmap schema v1.x adds an optional check: field (machine-runnable success command) and autonomy_fit derived from its presence; roadmap-compile only queues agent_eligible slices that carry check:; /triage refreshed toward the ready-for-agent/ready-for-human state machine (Pocock upstream, June 2026)."
@@ -234,7 +234,7 @@ slices:
   - id: S16
     phase: PH4
     title: "Promote roadmap-lint + northstar-lint into core CI (first shadow-to-operational RIDM)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 26
     moves_to: 27
     deliverable: "core CI workflow runs roadmap-lint --check + northstar-lint on PRs touching decisions/northstar/** (blocking on ERRORs only; WARNs stay shadow); the promotion recorded as a dated RIDM note in the northstar README — the cluster's first-ever shadow-gate promotion, exercising ADR-0086 end-to-end."
@@ -249,7 +249,7 @@ slices:
   - id: S17
     phase: PH4
     title: "First error-analysis ritual — failure-taxonomy.md v1 (open coding with the operator)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 27
     moves_to: 28
     deliverable: "decisions/failure-taxonomy.md v1: 20-30 recent traces/beads/articles sampled (including the 2026-07-04 generation-failed article), failures open-coded, clusters proposed by the agent and approved by the operator; every future finding/incident gets a taxonomy tag at triage."
@@ -263,7 +263,7 @@ slices:
   - id: S18
     phase: PH4
     title: "Outcome capture — accepted|edited|rejected|abandoned where humans touch agent output (I2)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 28
     moves_to: 29
     deliverable: "bead-emit close/quarantine verbs accept and record an outcome field; daily-logger editorial-accept and ADR-0038 revise paths stamp outcome on the article; a weekly cron candidate files every rejected/edited item as a candidate golden task. Own edits/rejections become the implicit-feedback eval signal."
@@ -278,7 +278,7 @@ slices:
   - id: S19
     phase: PH4
     title: "First golden suite — daily-logger, 5-15 tasks seeded from the taxonomy (I4)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 29
     moves_to: 30
     deliverable: "daily-logger evals/ with 5-15 tasks (input fixture + deterministic assertions where possible), seeded exclusively from S17's taxonomy + real failures; vitest harness, >=3 trials for stochastic paths; CI-advisory (posts the diff vs last run, never blocks — blocking is a later S16-pattern promotion)."
@@ -294,7 +294,7 @@ slices:
   - id: S20
     phase: PH4
     title: "Calibrate judge #1 — daily-logger article accuracy against operator labels (I5)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 30
     moves_to: 31
     deliverable: "Operator labels 30-50 historical articles pass/fail + one-line critique; judge prompt iterated to >=90% agreement; 10 labeled articles frozen as the judge-regression set, re-run monthly and on model upgrades; judge from a different model family than the drafter where feasible. This judge is the entrance criterion for ever evaluating slice success_criterion mechanically (S14's evaluated:false) and for any future prompt optimization."
@@ -309,7 +309,7 @@ slices:
   - id: S21
     phase: PH4
     title: "Trace identity — trace_id threaded queue -> session -> PR (I1/H1)"
-    advances: "ns:l2-ojfbot#P2"
+    advances: "ns:l2-ojfbot#P99"
     moves_from: 31
     moves_to: 32
     deliverable: "A trace_id minted at queue-post/compile, carried on the bead, injected into the day-runner brief + session env, echoed in the PR body (Trace: line), and joined by a demo script proving one slice traceable prompt->PR end-to-end. Shadow: emitted, nothing consumes it yet. Field names follow OTel gen_ai vocabulary where applicable."
