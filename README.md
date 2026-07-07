@@ -96,7 +96,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0096+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0093 suggestion-ID minting, ADR-0096 skill-architecture taxonomy)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0097+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
