@@ -1,5 +1,8 @@
 # Fleet Coordination Extensions — Karpathy / Yegge / Pocock latest — 2026-07-04
 
+> Cycle 4 (`DIA-CROSSCHECK-2026-07-08.md`) cross-checked this doc against an independent
+> external survey; the §2 do-not-import list and F4's >5-agent rule both held.
+
 Cycle 3 of the 2026-07-04 audit series. Cycle 1 (`MULTIAGENT-SDLC-AUDIT-…`) found the gaps;
 cycle 2 (`AGENTIC-INTEGRATION-PLAN-…`) mapped industry eval/observability consensus onto them.
 This cycle asks the three thinkers this cluster is already built on — **Karpathy** (selfco LLM
