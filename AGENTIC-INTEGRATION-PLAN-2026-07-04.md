@@ -1,5 +1,8 @@
 # Agentic Integration & Self-Improving Loop Plan — 2026-07-04
 
+> Cycle 4 (`DIA-CROSSCHECK-2026-07-08.md`) cross-checked this plan against an independent
+> external survey: convergent on the bulk; 4 deltas adjudicated (2 REJECT, 2 DEFER).
+
 Cycle 2 of the 2026-07-04 audit (`MULTIAGENT-SDLC-AUDIT-2026-07-04.md`). That document says
 what is broken; this one says what to build, grounded in current (2025–2026) industry practice.
 Two web-research passes back it: one on self-improving loops and evaluation practice, one on
