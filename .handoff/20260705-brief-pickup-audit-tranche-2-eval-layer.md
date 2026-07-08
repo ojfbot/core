@@ -65,7 +65,9 @@ approves) → S19 (deps S17) → S20 (NEEDS THE OPERATOR: 30–50 labels).
   positive; never rewrite merged history.
 - The weekly-driver trigger (create_trigger) is still approval-walled; drives are manual until
   the operator's tap lands.
-- Open loose ends: vault sync committed on the Mac but never pushed (P6.1 MISSING);
+- Open loose ends: ~~vault sync committed on the Mac but never pushed (P6.1 MISSING)~~
+  **RESOLVED 2026-07-08: re-verified — ~/selfco main is 0 ahead of origin at 625389e (the
+  07-04 sync); the "never pushed" claim was stale**;
   daily-logger CLAUDE.md still has phantom ADR filename refs; cockpit SDL enum needs the
   core-side canonical change before STALLED/ZOMBIE wire to GraphQL; a live Mac `day-run
   --once` is still owed as the S14/S15 end-to-end proof; legs-band slices (S1/S2/S4) have
