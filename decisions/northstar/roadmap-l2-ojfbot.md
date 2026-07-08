@@ -370,7 +370,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: ready
+    status: merged
   - id: S25
     phase: PH5
     title: "day-runner operating mode — recorded decision (manual ritual vs schedule) + the owed live proof"
