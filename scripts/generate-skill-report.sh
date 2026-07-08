@@ -16,7 +16,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CORE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 TELEMETRY_DIR="${HOME}/.claude"
+# LEGACY — frozen 2026-06-18 (S11); kept for all-time history only. Live usage
+# comes from the OPAV disposition ledger (rm-l2-ojfbot#S24).
 SKILL_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
+DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
 TOOL_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
 SUGGESTION_FILE="$TELEMETRY_DIR/suggestion-telemetry.jsonl"
 SESSION_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
@@ -76,19 +79,28 @@ fi
 DIR_SKILLS=$(ls -d "$SKILLS_DIR"/*/ 2>/dev/null | xargs -I{} basename {} | sort)
 DIR_COUNT=$(echo "$DIR_SKILLS" | wc -l | tr -d ' ')
 
-# Skills invoked in window
+# Skills engaged in window (disposition ledger primary; legacy fallback)
 INVOKED_SKILLS=""
 INVOKED_COUNT=0
-if [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
-  # Normalize skill names: "frame-standup:frame-standup" → "frame-standup"
+if [[ -f "$DISPOSITIONS_FILE" && -s "$DISPOSITIONS_FILE" ]]; then
+  INVOKED_SKILLS=$(filter "$DISPOSITIONS_FILE" | jq -r 'select(.engaged == true) | .skill | split(":")[0]' | sort -u || true)
+  INVOKED_COUNT=$(echo "$INVOKED_SKILLS" | grep -c '[a-z]' 2>/dev/null || echo 0)
+elif [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
+  # LEGACY fallback — normalize skill names: "frame-standup:frame-standup" → "frame-standup"
   INVOKED_SKILLS=$(filter "$SKILL_FILE" | jq -r 'select(.event == "skill:invoked") | .skill | split(":")[0]' | sort -u || true)
   INVOKED_COUNT=$(echo "$INVOKED_SKILLS" | grep -c '[a-z]' 2>/dev/null || echo 0)
 fi
 
-# All-time invoked skills (for dead detection) — normalize colon-scoped names
+# All-time invoked skills (for dead detection): union of the LEGACY stream
+# (real usage up to its 2026-06-18 freeze) and the live disposition ledger —
+# legacy-only history must still count against a "dead" verdict.
 EVER_INVOKED=""
 if [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
   EVER_INVOKED=$(filter_all "$SKILL_FILE" | jq -r 'select(.event == "skill:invoked") | .skill | split(":")[0]' | sort -u)
+fi
+if [[ -f "$DISPOSITIONS_FILE" && -s "$DISPOSITIONS_FILE" ]]; then
+  EVER_INVOKED=$(printf '%s\n%s\n' "$EVER_INVOKED" \
+    "$(filter_all "$DISPOSITIONS_FILE" | jq -r 'select(.engaged == true) | .skill | split(":")[0]')" | grep -v '^$' | sort -u)
 fi
 
 # Suggestion funnel
@@ -97,7 +109,13 @@ SUGGESTIONS_FOLLOWED=0
 if [[ -f "$SUGGESTION_FILE" && -s "$SUGGESTION_FILE" ]]; then
   SUGGESTIONS_GIVEN=$(filter "$SUGGESTION_FILE" | jq -r 'select(.event == "skill:suggested") | .ts' | wc -l | tr -d ' ')
 fi
-if [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
+# "Followed" = engaged disposition on the live ledger. This is ENGAGEMENT, not
+# the OPAV action rate — that number stays embargoed until the S22 gold set
+# (ADR-0095 C3 deferred-data hook). Legacy skill:suggestion-followed events
+# stopped at the 2026-06-18 freeze.
+if [[ -f "$DISPOSITIONS_FILE" && -s "$DISPOSITIONS_FILE" ]]; then
+  SUGGESTIONS_FOLLOWED=$(filter "$DISPOSITIONS_FILE" | jq -r 'select(.engaged == true) | .ts' | wc -l | tr -d ' ')
+elif [[ -f "$SKILL_FILE" && -s "$SKILL_FILE" ]]; then
   SUGGESTIONS_FOLLOWED=$(filter "$SKILL_FILE" | jq -r 'select(.event == "skill:suggestion-followed") | .ts' | wc -l | tr -d ' ')
 fi
 SUGGESTIONS_IGNORED=0
@@ -248,9 +266,9 @@ fi
 echo "## Suggestion Funnel"
 echo ""
 echo "- **Suggestions offered:** $SUGGESTIONS_GIVEN"
-echo "- **Suggestions followed:** $SUGGESTIONS_FOLLOWED"
+echo "- **Suggestions engaged:** $SUGGESTIONS_FOLLOWED"
 echo "- **Suggestions ignored:** $SUGGESTIONS_IGNORED"
-echo "- **Conversion rate:** ${CONVERSION}%"
+echo "- **Engagement rate:** ${CONVERSION}% _(engagement, not the OPAV action rate — that stays embargoed until the S22 gold set)_"
 echo ""
 
 echo "## Quality Gate Coverage"
