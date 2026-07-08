@@ -16,6 +16,9 @@ phases:
   - id: PH4
     name: "Audit tranche 2 — the evaluation layer"
     goal: "The measurement machinery tranche 1 built starts learning: the first shadow-gate promoted to CI (RIDM), a failure taxonomy feeding golden suites, human outcomes captured as eval signal, one calibrated judge, and trace identity joining queue -> session -> PR."
+  - id: PH5
+    name: "Audit tranche 3 — close the OPAV skill loop, first meta-loop"
+    goal: "OPAV S1 completes C3->C4 (the cluster's second RIDM promotion), the disposition stream becomes the single skill-usage truth with no dark consumers, the day-runner's operating mode is a recorded decision with a live proof, the weekly error-analysis ritual becomes a proposal-only scheduled agent, and the external DIA survey is reconciled into the audit series with explicit accept/defer/reject verdicts."
 slices:
   - id: S1
     phase: PH1
@@ -321,6 +324,99 @@ slices:
     kind: m
     repo: core
     status: merged
+  - id: S22
+    phase: PH5
+    title: "OPAV S1-C3 — capture-quality verification, 30-label gold set, litter surface, re-derived AR0"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 32
+    moves_to: 34
+    deliverable: "Per the 2026-06-18 pickup brief (.handoff/20260618-brief-pickup-opav-s1-c3-litter-usage-signal.md), in strict order: (a) capture-quality verification script (scripts/opav-capture-quality.mjs) proving path-independence (follow-inline / Skill-tool / script-exec all captured) and use-vs-maintenance disambiguation against known sessions — motivated by the degenerate accumulated distribution (190 ignored / 3 engaged_no_act / 0 acted / 0 capture_miss over 24 days of heavy real skill use, measured 2026-07-08); (b) gold set decisions/opav/gold-set-v1.jsonl — 30 operator-labeled dispositions (acted/engaged_no_act/capture_miss per ADR-0095) with measured capture>=70% and false-emit<=10% against it; (c) litter/absence surface — skill catalog JOIN live dispositions as a /skill-metrics mode (zero-use tail + last-seen recency, exclusions logged) — ships ONLY after (a)+(b) pass, since on bad capture it condemns ~51 live skills; (d) AR0 re-derived from dispositions and recorded in an ADR-0095 addendum. No removal action of any kind — shadow observation only."
+    entrance: "ADR-0095 C3 data gate SATISFIED (193 events / ~24 days in ~/selfco/tracking/skill-dispositions.jsonl, verified 2026-07-08); PR #165 runtime merged; S24 merged (so the measurement runs against the single-truth stream); operator has one 30-45 min labeling sitting."
+    success: "Capture-quality report committed with capture>=70% and false-emit<=10% vs the gold set; gold-set-v1.jsonl has >=30 labeled rows; litter surface runs with a logged denominator; AR0 number recorded in the ADR addendum."
+    check: "pnpm test && node scripts/opav-capture-quality.mjs --check"
+    autonomy: gate-0
+    claimable_by: either
+    kind: l
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S24"
+  - id: S23
+    phase: PH5
+    title: "OPAV S1-C4 — validator shadow->active, the cluster's second RIDM promotion"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 34
+    moves_to: 35
+    deliverable: "RIDM note (S16 pattern) promoting the skill-action validator from shadow to active: promotion criteria restated from ADR-0095 BEFORE evaluation (capture>=70%, false-emit<=10%, >=30 gold, >=30 days), TPM values recorded against each, operator sign-off line, and the corrective path (breach -> stay shadow) stated. 'Active' means the disposition stream becomes a trusted input to skill-metrics/litter reporting — it does NOT gate or remove anything (S1 scope: observe; removal stays a human PR decision; the S5 firebreak is untouched)."
+    entrance: "S22 merged; the 30-day accumulation gate clears ~2026-07-14; all TPMs green on the S22 gold set."
+    success: "Dated RIDM note committed to decisions/opav/ citing each TPM vs its bar; a PR demonstrating one consumer (skill-metrics litter mode) switched from shadow/untrusted to active labeling."
+    check: "grep -rq 'RIDM' decisions/opav/ && node scripts/opav-capture-quality.mjs --check"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S22"
+  - id: S24
+    phase: PH5
+    title: "Single skill-usage truth — retire legacy skill-telemetry consumers + wire CI to telemetry/daily"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 32
+    moves_to: 33
+    deliverable: "Every consumer still reading ~/.claude/skill-telemetry.jsonl as primary (pr-skill-audit.sh lines 19-25, weekly-measure.mjs, analyze-telemetry.sh, generate-skill-report.sh, the suggest-skill path per the 2026-06-18 brief) repointed to skill-dispositions.jsonl / session-telemetry with the frozen stream demoted to a labeled legacy fallback (the S11 pattern, applied to core's own scripts); core's claude-skill-audit.yml checks out origin/telemetry/daily and sets TELEMETRY_DIR so the CI audit finally consumes what sync-telemetry.sh pushes; daily-logger's claude-skill-audit.yml fetch fixed to pull the branch from ojfbot/core (today it fetches its own origin where the branch does not exist and silently no-ops via '|| exit 0'); install-agents.sh gains an idempotence guard so a hook path can never be registered twice in ~/.claude/settings.json (root cause of the duplicate Stop hook found 2026-07-08)."
+    entrance: "Duplicate Stop-hook registration removed by hand first (one-line settings.json fix) so the stream this slice canonicalizes is not being double-processed; findings verified 2026-07-08 (core CI has zero telemetry references; legacy stream frozen since 2026-06-18)."
+    success: "No core script names skill-telemetry.jsonl except as an explicitly-labeled fallback; a CI run of claude-skill-audit shows telemetry-derived output; running install-agents.sh twice produces zero duplicate hook entries."
+    check: "pnpm test"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: ready
+  - id: S25
+    phase: PH5
+    title: "day-runner operating mode — recorded decision (manual ritual vs schedule) + the owed live proof"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 35
+    moves_to: 36
+    deliverable: "An ADR (or RIDM-style note) deciding how day-run actually runs — verified 2026-07-08: it runs NOWHERE (crontab empty, no launchd plist) — choosing manual-ritual (a /frame-standup evening step) or scheduled (launchd, following the com.ojfbot.skill-architecture-audit rail), with the F10.6 consent allowlist (repos it may touch + spend budget) declared either way; plus the owed live end-to-end proof: one real `day-run --once` against an agent_eligible check-bearing slice, producing a PR whose bead carries S14's checks field and S21's trace_id."
+    entrance: "S15 verifiability-sorted dispatch merged; at least one agent_eligible slice with check: is open (S24 qualifies); the proof was owed by the tranche-2 pickup brief."
+    success: "Decision doc committed naming mode + allowlist + spend cap; one live-run PR exists whose bead shows checks:{...} and a Trace: line — the S21 join script resolves it end-to-end."
+    check: "node scripts/trace-join.mjs --latest"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: ready
+  - id: S26
+    phase: PH5
+    title: "Trace-mining triager — the weekly error-analysis ritual as a proposal-only scheduled agent (I3 / opportunity B)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 36
+    moves_to: 37
+    deliverable: "A headless session (launchd weekly, skill-architecture-audit rail) with a 4-part delegation contract (objective, output format, tool guidance, boundaries) that samples 20-30 recent traces/beads/articles (joined via S21 trace_id), open-codes failures against decisions/failure-taxonomy.md, and opens a PR proposing (a) taxonomy deltas and (b) candidate golden tasks for S19's suite — NEVER self-merges, never edits the taxonomy in place. Anti-Goodhart contract wired in per AGENTIC-INTEGRATION-PLAN §4: the run report states its denominator and what was not sampled (§4.6); 'nothing above threshold' is a logged success outcome producing NO PR (§4.1); frozen holdouts are named out-of-bounds in the brief (§4.2); F10.6 consent allowlist declared. First two runs operator-triggered (shadow-equivalent supervision) before the schedule is enabled."
+    entrance: "S17 taxonomy v1 + S18 outcome capture + S21 trace_id merged (all verified merged 2026-07-06); S24 merged so sampling reads live streams; run-report format agreed with operator before the first run."
+    success: "Two consecutive runs each producing either a well-formed proposal PR or a logged empty-run report with denominator; >=1 proposed item accepted by the operator OR a valid empty result; zero self-merged changes; taxonomy-coverage % reported per run (I3's TPM)."
+    check: "pnpm test"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: l
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S24"
+  - id: S27
+    phase: PH5
+    title: "Cycle-4 synthesis — external DIA survey reconciled against cycles 2-3, verdict per delta"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 37
+    moves_to: 38
+    deliverable: "DIA-CROSSCHECK-2026-07-08.md appended to the audit series (cycle 4): (1) what the operator's external DIA SOTA survey confirms of AGENTIC-INTEGRATION-PLAN + FLEET-COORDINATION-EXTENSIONS (expected: most of it); (2) the 4 genuine deltas, each with an explicit VERDICT: ACCEPT/DEFER/REJECT line + rationale consistent with the 'nothing here needs weights' stance and the OPAV S5 firebreak — (a) SIA harness+weights co-evolution, (b) test-time-compute allocation policy, (c) consensus voting for high-impact actions, (d) CLHF continuously-retrained evaluators; (3) a line stating whether any verdict reorders tranche 3+."
+    entrance: "Cycles 2-3 committed (verified); operator supplied the DIA survey material 2026-07-08; S20 referenced as the standing judge posture the CLHF verdict must reconcile with."
+    success: "Doc committed with exactly 4 grep-able 'VERDICT:' lines, cross-references from the cycle-2/3 headers, and the ordering-impact line; verdicts carry operator sign-off at PR merge."
+    check: "test -f DIA-CROSSCHECK-2026-07-08.md && [ $(grep -c '^VERDICT' DIA-CROSSCHECK-2026-07-08.md) -eq 4 ]"
+    autonomy: gate-0
+    claimable_by: either
+    kind: m
+    repo: core
+    status: ready
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
@@ -377,3 +473,27 @@ attention budget; the rest of the program waits in the documents, not in the que
 to the PH1/PH2 legs band (also baselined at 20) — the parent `current:` is hand-asserted and
 rollup is shadow (audit finding P5). Treat each band's deltas as honest within itself; the
 parent number reconciles when `northstar-rollup.mjs` exists.
+
+## PH5 — Audit tranche 3 (2026-07-08): close the OPAV skill loop, first meta-loop
+
+Cut after the operator's external "DIA" research survey (2026-07-08) was cross-checked against
+the audit series and the week's delivery. The sequencing driver is an evidence finding: OPAV
+S1-C3's data gate is now met (193 disposition events / ~24 days) **but the distribution is
+degenerate — 190 ignored / 3 engaged_no_act / 0 acted / 0 capture_miss across 24 days of heavy
+real skill use** — so capture-quality verification (S22a) precedes everything that would ever
+publish a rate. S24 makes the disposition stream the single truth first (S22 measures against
+it); S23 is the cluster's second RIDM promotion once the 30-day gate clears (~2026-07-14); S25
+closes the owed day-runner live proof and turns its operating mode into a recorded decision;
+S26 is the first meta-loop — the I3 error-analysis ritual as a proposal-only scheduled agent
+under the §4 anti-Goodhart contract; S27 files the DIA cross-check as audit cycle 4.
+
+**Explicitly not in this tranche:** F5's remainder (S12 already shipped Stalled/Zombie; the
+rest needs F2 hook beads), F6 context budgets (tranche-4 companion to the triager), F2/F8,
+anything touching model weights, and S20 duplication — S20 stays the standing queued judge
+slice; S27's CLHF verdict references it.
+
+**WIP-budget note.** "Six open slices is the attention budget" (PH3 ordering note) is read as
+*agent-attention*: of the 10 open slices before this tranche, S3–S9 are `human_only`
+voice-conversation legs the day-runner never grabs, and agent-claimable open slices were ~0
+after PH4 merged. Tranche 3 adds 3 agent-claimable (S22/S24/S26) + 3 human-gated
+(S23/S25/S27) slices; the agent-claimable count stays within budget.
