@@ -16,12 +16,17 @@ MODE="both"
 PR_NUMBER=""
 FORMAT="markdown"
 REPORT_FILE="/tmp/skill-audit-report.md"
+# Primary skill-usage source: the OPAV disposition ledger (rm-l2-ojfbot#S24).
+# skill-telemetry.jsonl is LEGACY — frozen 2026-06-18 when S11 demoted it; its
+# hook only fired for Skill-tool calls inside instrumented repos.
+SKILL_DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
 SKILL_TELEMETRY_FILE="${HOME}/.claude/skill-telemetry.jsonl"
 TOOL_TELEMETRY_FILE="${HOME}/.claude/tool-telemetry.jsonl"
 SESSION_TELEMETRY_FILE="${HOME}/.claude/session-telemetry.jsonl"
 
 # Allow override via TELEMETRY_DIR env var (for CI)
 if [[ -n "${TELEMETRY_DIR:-}" ]]; then
+  SKILL_DISPOSITIONS_FILE="$TELEMETRY_DIR/skill-dispositions.jsonl"
   SKILL_TELEMETRY_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
   TOOL_TELEMETRY_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
   SESSION_TELEMETRY_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
@@ -153,8 +158,23 @@ local_audit() {
     return
   fi
 
-  # Primary source: skill-telemetry.jsonl
-  if [[ -f "$SKILL_TELEMETRY_FILE" && -s "$SKILL_TELEMETRY_FILE" ]]; then
+  # Primary source: the disposition ledger (engaged suggestions = skill usage).
+  # Disposition rows carry no repo field, so the filter is time-window only —
+  # coarser than the legacy per-repo filter, but the ledger is alive.
+  if [[ -f "$SKILL_DISPOSITIONS_FILE" && -s "$SKILL_DISPOSITIONS_FILE" ]]; then
+    while IFS= read -r line; do
+      skill=$(echo "$line" | jq -r '.skill // empty')
+      if [[ -n "$skill" ]]; then
+        USED_SKILLS+=("/$skill")
+      fi
+    done < <(jq -c --arg from "$PR_FIRST_COMMIT_TS" --arg to "$PR_LAST_COMMIT_TS" \
+      'select(.engaged == true and .ts >= $from and .ts <= $to)' \
+      "$SKILL_DISPOSITIONS_FILE" 2>/dev/null || true)
+  fi
+
+  # LEGACY fallback: skill-telemetry.jsonl (frozen 2026-06-18; kept for
+  # replaying historical windows only)
+  if [[ ${#USED_SKILLS[@]} -eq 0 && -f "$SKILL_TELEMETRY_FILE" && -s "$SKILL_TELEMETRY_FILE" ]]; then
     while IFS= read -r line; do
       skill=$(echo "$line" | jq -r '.skill // empty')
       if [[ -n "$skill" ]]; then

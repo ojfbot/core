@@ -15,7 +15,10 @@
 set -euo pipefail
 
 TOOL_FILE="${HOME}/.claude/tool-telemetry.jsonl"
+# LEGACY — frozen 2026-06-18 (S11 demoted it); usage sections read the OPAV
+# disposition ledger instead (rm-l2-ojfbot#S24)
 SKILL_FILE="${HOME}/.claude/skill-telemetry.jsonl"
+DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
 SESSION_FILE="${HOME}/.claude/session-telemetry.jsonl"
 
 SECTION="all"
@@ -103,6 +106,21 @@ report_skills() {
   echo "## Skill Usage"
   echo ""
 
+  # Primary: disposition ledger (engaged = the skill was actually used)
+  if file_exists_with_data "$DISPOSITIONS_FILE"; then
+    echo "### Top skills by engagement (disposition ledger)"
+    filter_since "$DISPOSITIONS_FILE" | jq -r 'select(.engaged == true) | .skill' | sort | uniq -c | sort -rn | head -15 | \
+      awk '{printf "  %-4s /%s\n", $1, $2}'
+    echo ""
+    echo "### Suggestion dispositions (denominator)"
+    filter_since "$DISPOSITIONS_FILE" | jq -r '.disposition' | sort | uniq -c | sort -rn | \
+      awk '{printf "  %-4s %s\n", $1, $2}'
+    echo ""
+    return
+  fi
+
+  echo "_Disposition ledger missing — falling back to LEGACY skill-telemetry (frozen 2026-06-18)._"
+  echo ""
   if ! file_exists_with_data "$SKILL_FILE"; then
     echo "_No skill telemetry data yet._"
     echo ""

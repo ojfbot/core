@@ -14,4 +14,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+      # Pull the snapshot sync-telemetry.sh pushes, so the audit runs on real
+      # usage data instead of heuristics-only (rm-l2-ojfbot#S24). The audit
+      # degrades gracefully when the branch or files are absent.
+      - name: Fetch telemetry snapshot
+        continue-on-error: true
+        run: |
+          git fetch origin telemetry/daily 2>/dev/null || exit 0
+          mkdir -p /tmp/telemetry
+          for f in skill-dispositions tool-telemetry skill-telemetry session-telemetry; do
+            git show "origin/telemetry/daily:${f}.jsonl" > "/tmp/telemetry/${f}.jsonl" 2>/dev/null || true
+          done
       - uses: ojfbot/github-actions/skill-audit@v1
+        env:
+          TELEMETRY_DIR: /tmp/telemetry

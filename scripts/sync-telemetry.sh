@@ -59,9 +59,12 @@ TOOL_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
 SKILL_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
 SESSION_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
 SUGGESTION_FILE="$TELEMETRY_DIR/suggestion-telemetry.jsonl"
+# OPAV disposition ledger — the live skill-usage stream (SKILL_FILE is legacy,
+# frozen 2026-06-18); synced so CI consumers can read it (rm-l2-ojfbot#S24)
+DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
 
 has_data=false
-for f in "$TOOL_FILE" "$SKILL_FILE" "$SESSION_FILE" "$SUGGESTION_FILE"; do
+for f in "$TOOL_FILE" "$SKILL_FILE" "$SESSION_FILE" "$SUGGESTION_FILE" "$DISPOSITIONS_FILE"; do
   if [[ -f "$f" && -s "$f" ]]; then
     has_data=true
     break
@@ -93,10 +96,11 @@ filter_jsonl() {
   fi
 }
 
-filter_jsonl "$TOOL_FILE"       "$TMPDIR/tool-telemetry.jsonl"
-filter_jsonl "$SKILL_FILE"      "$TMPDIR/skill-telemetry.jsonl"
-filter_jsonl "$SESSION_FILE"    "$TMPDIR/session-telemetry.jsonl"
-filter_jsonl "$SUGGESTION_FILE" "$TMPDIR/suggestion-telemetry.jsonl"
+filter_jsonl "$TOOL_FILE"         "$TMPDIR/tool-telemetry.jsonl"
+filter_jsonl "$SKILL_FILE"        "$TMPDIR/skill-telemetry.jsonl"
+filter_jsonl "$SESSION_FILE"      "$TMPDIR/session-telemetry.jsonl"
+filter_jsonl "$SUGGESTION_FILE"   "$TMPDIR/suggestion-telemetry.jsonl"
+filter_jsonl "$DISPOSITIONS_FILE" "$TMPDIR/skill-dispositions.jsonl"
 
 # Add metadata
 jq -nc \
@@ -155,6 +159,7 @@ cp "$TMPDIR"/tool-telemetry.jsonl .
 cp "$TMPDIR"/skill-telemetry.jsonl .
 cp "$TMPDIR"/session-telemetry.jsonl .
 cp "$TMPDIR"/suggestion-telemetry.jsonl .
+cp "$TMPDIR"/skill-dispositions.jsonl .
 cp "$TMPDIR"/sync-metadata.json .
 
 # Commit and push

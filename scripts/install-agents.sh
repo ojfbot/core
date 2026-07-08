@@ -151,8 +151,11 @@ PY
     USER_SETTINGS="${HOME}/.claude/settings.json"
     if command -v jq >/dev/null 2>&1; then
       [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
-      if jq -e --arg cmd "$VAULT_HOOK" \
-           '[.. | objects | .command? // empty] | index($cmd)' "$USER_SETTINGS" >/dev/null 2>&1; then
+      # Idempotence guard matches the script NAME, not the absolute path — a
+      # path-based check re-registers the hook when run from a different
+      # checkout (core-tracking vs core), which is how the duplicate Stop hook
+      # of 2026-07-08 happened (rm-l2-ojfbot#S24).
+      if jq -e 'any(.. | objects | .command? // empty; contains("vault-session.sh"))' "$USER_SETTINGS" >/dev/null 2>&1; then
         echo "  vault-session.sh already in ~/.claude/settings.json — skipping"
       else
         if jq -e '.hooks.SessionEnd' "$USER_SETTINGS" >/dev/null 2>&1; then
@@ -185,7 +188,10 @@ PY
   USER_SETTINGS="${HOME}/.claude/settings.json"
   if command -v jq >/dev/null 2>&1; then
     [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
-    if jq -e --arg p "$RECONCILE_HOOK" 'any(.. | objects | .command? // empty; contains($p))' "$USER_SETTINGS" >/dev/null 2>&1; then
+    # Match by script NAME, not absolute path (see the vault-session.sh guard
+    # note above): the path check duplicated this hook when the installer ran
+    # from the core-tracking checkout.
+    if jq -e 'any(.. | objects | .command? // empty; contains("reconcile-skill-acted.mjs"))' "$USER_SETTINGS" >/dev/null 2>&1; then
       echo "  reconcile-skill-acted.mjs already in ~/.claude/settings.json — skipping"
     else
       if jq -e '.hooks.Stop' "$USER_SETTINGS" >/dev/null 2>&1; then
