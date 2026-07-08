@@ -416,7 +416,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: ready
+    status: merged
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
