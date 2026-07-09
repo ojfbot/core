@@ -19,6 +19,9 @@ phases:
   - id: PH5
     name: "Audit tranche 3 — close the OPAV skill loop, first meta-loop"
     goal: "OPAV S1 completes C3->C4 (the cluster's second RIDM promotion), the disposition stream becomes the single skill-usage truth with no dark consumers, the day-runner's operating mode is a recorded decision with a live proof, the weekly error-analysis ritual becomes a proposal-only scheduled agent, and the external DIA survey is reconciled into the audit series with explicit accept/defer/reject verdicts."
+  - id: PH6
+    name: "Audit cycle 5 (2026-07-09) — loop-engineering cross-check: loop legibility + liveness"
+    goal: "The loop-engineering / Advisor-tool cross-check is filed as audit cycle 5 with explicit verdicts, every loop in the cluster is declared in one lintable registry (trigger, state spine, verifier, stop rule), and dead loops become detectable from the registry instead of by operator absence-noticing."
 slices:
   - id: S1
     phase: PH1
@@ -417,6 +420,53 @@ slices:
     kind: m
     repo: core
     status: merged
+  - id: S28
+    phase: PH6
+    title: "Cycle-5 synthesis — loop-engineering + Advisor tool reconciled against cycles 1-4, verdict per delta"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 38
+    moves_to: 39
+    deliverable: "LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md appended to the audit series (cycle 5): (1) the convergent bulk — loop-engineering building blocks (Cherny/Osmani/Greyling/Masood) mapped onto live/programmed machinery; (2) five deltas each with a grep-able VERDICT line — (a) harness-native loop primitives vs the bespoke layer (PARTIAL-ABSORB policy, trigger layer only), (b) the Advisor tool (paper adjudication, DEFER behind T8; corrects the 'Advisor-Executor' misnomer against the primary source), (c) loops registry (BUILD -> S29), (d) loop liveness (BUILD -> S30), (e) loop closure (CONVERGENT with OPAV S3/S5); (3) ordering-impact line. Verdicts stay consistent with the S20 static-judge posture and the OPAV S5 firebreak."
+    entrance: "Cycles 1-4 committed (verified); operator supplied the Dia loop-engineering thread 2026-07-09; Advisor-tool facts verified against platform.claude.com primary docs, not the thread."
+    success: "Doc committed with exactly 5 grep-able 'VERDICT:' lines, cross-references to the cycle-1..4 headers, and the ordering-impact line; verdicts carry operator sign-off at PR merge."
+    check: "test -f LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md && [ $(grep -c '^VERDICT' LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md) -eq 5 ]"
+    autonomy: gate-0
+    claimable_by: either
+    kind: m
+    repo: core
+    status: ready
+  - id: S29
+    phase: PH6
+    title: "Loops registry — every loop declared as a first-class resource, lint cross-checks declared vs actual"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 39
+    moves_to: 40
+    deliverable: "decisions/loops/loops.md — a constrained-frontmatter registry (northstar-fm style) declaring every loop in the cluster (the 3 launchd rails, daily-logger Actions crons, session hooks, day-runner, weekly measure cadence): slug, purpose, trigger kind+ref (launchd|gh-actions|hook|manual|harness-routine as a labeled adapter field), state spine location, verifier, stop rule/budget, owner, declared cadence, last-run evidence pointer. Plus scripts/loops-lint.mjs cross-checking both directions: declared-but-absent trigger artifact = ERROR, discovered-but-undeclared loop (plist / workflow cron / registered hook) = WARN. GLOSSARY.md gains the 'Loops registry' entry (ubiquitous-language rule). Registry answers cycle-5 2c; addresses the O8/P12/T4 pattern (drift and death are silent) and the S25 surprise (day-run 'runs NOWHERE' was discoverable by nobody)."
+    entrance: "S28 merged (the verdict this slice implements); northstar-fm.mjs parser + northstar-lint.mjs precedent in place (operational since S16)."
+    success: "Registry committed covering every trigger artifact found on disk (lint WARN count 0 at merge); loops-lint runs clean; one deliberately-broken fixture proves both ERROR and WARN paths in tests."
+    check: "node scripts/loops-lint.mjs --check"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S28"
+  - id: S30
+    phase: PH6
+    title: "Loop liveness — dead-loop detection from the registry, report-only shadow"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 40
+    moves_to: 41
+    deliverable: "scripts/loops-liveness.mjs — reads the S29 registry, checks each declared loop's last-run evidence (ledger append recency, gh workflow run timestamp, launchd last-fire) against its declared cadence, and reports stale/dead loops with the evidence gap stated. Detection only, shadow posture per ADR-0086: emits a report consumable by the cockpit Overnight lane / a bead — it does NOT page (that is F3's escalation rail; this becomes an F3 emitter when F3 lands) and does NOT restart anything (auto-restart is an automated control requiring its own shadow stage). Closes the T4-shaped gap for infrastructure loops (Dolt down, plist stopped firing, Actions cron disabled by the A2 issue-close gotcha) that F5's agent-liveness states do not cover."
+    entrance: "S29 merged (there is no liveness check without a registry declaring cadence + evidence pointers)."
+    success: "Liveness report runs against the live registry; a simulated dead loop (fixture with stale evidence) is flagged with its cadence breach; zero paging/restart side effects verified in tests."
+    check: "node scripts/loops-liveness.mjs --check"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: s
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S29"
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
@@ -497,3 +547,24 @@ slice; S27's CLHF verdict references it.
 voice-conversation legs the day-runner never grabs, and agent-claimable open slices were ~0
 after PH4 merged. Tranche 3 adds 3 agent-claimable (S22/S24/S26) + 3 human-gated
 (S23/S25/S27) slices; the agent-claimable count stays within budget.
+
+## PH6 — Audit cycle 5 (2026-07-09): loop-engineering cross-check — loop legibility + liveness
+
+Cut after the operator supplied a Dia research thread on "loop engineering" (Boris Cherny /
+Osmani / Steinberger / Masood / Greyling) plus Anthropic's multi-model direction, cross-checked
+as audit cycle 5 (`LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md`, S28). The bulk converged on
+cycles 1–4; two verdicts closed without slices (harness-native trigger primitives =
+PARTIAL-ABSORB policy feeding the open S25 decision; the Advisor tool = DEFER behind T8 cost
+telemetry, revisit site bldgblog annotate). The two BUILD verdicts are this phase: S29 makes
+every loop a declared, lintable resource (the northstar-registry pattern applied to the
+control plane itself — O8/P12/T4 all rhyme with "drift and death are silent"); S30 makes a
+dead loop detectable from the registry, report-only, becoming an F3 emitter when F3 lands.
+
+**Explicitly not in this phase:** any launchd→routine migration (working plists are not
+debt; the 2a policy applies to *new* loops), any paging/auto-restart (F3's rail / a future
+ADR-0086 shadow stage), F6 context budgets (still the named companion for a future tranche),
+and anything touching the S20 judge posture — re-affirmed for the second consecutive cycle.
+
+**WIP-budget note.** S28 is delivered by the PR that cuts this phase; S29/S30 add 2
+agent-claimable slices to the open set (joining S22/S26), staying within the six-slice
+agent-attention reading.
