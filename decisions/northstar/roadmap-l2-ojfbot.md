@@ -434,7 +434,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: ready
+    status: merged
   - id: S29
     phase: PH6
     title: "Loops registry — every loop declared as a first-class resource, lint cross-checks declared vs actual"
