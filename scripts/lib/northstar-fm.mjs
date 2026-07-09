@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const LIST_KEYS = new Set(['properties', 'registry', 'roadmaps', 'phases', 'slices']);
+const LIST_KEYS = new Set(['properties', 'registry', 'roadmaps', 'phases', 'slices', 'loops']);
 
 function scalar(v) {
   if (v == null) return null;
@@ -164,6 +164,18 @@ export function loadRoadmap(entry, coreRoot) {
 export function loadAllRoadmaps(coreRoot) {
   const { entries, error } = loadRoadmapRegistry(coreRoot);
   return { error, entries, roadmaps: entries.map((e) => loadRoadmap(e, coreRoot)) };
+}
+
+// ── Loops registry (decisions/loops/loops.md) ───────────────────────────────
+// Same constrained-frontmatter regime; one file, one `loops:` list. Declares every
+// loop in the cluster as a first-class resource (audit cycle 5, rm-l2-ojfbot#S29).
+
+/** Read the loops registry from <coreRoot>/decisions/loops/loops.md. */
+export function loadLoopsRegistry(coreRoot) {
+  const file = path.join(coreRoot, 'decisions', 'loops', 'loops.md');
+  if (!existsSync(file)) return { error: `loops registry not found at ${file}`, loops: [], _abs: file };
+  const fm = parseFM(readFileSync(file, 'utf8'));
+  return { loops: (fm && fm.loops) || [], _abs: file };
 }
 
 /** Build an index of "rm:<slug>#S<id>" → { slice, roadmap } across all loaded roadmaps. */

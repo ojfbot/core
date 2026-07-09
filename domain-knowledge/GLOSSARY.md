@@ -154,6 +154,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **log-skill.sh** — Hook bound to PostToolUse(Skill) that appends each invocation to `~/.claude/skill-telemetry.jsonl`. Async; never blocks.
 
+**Loop** — A control cycle that runs without a human prompting it: a scheduled rail (launchd, Actions cron), an event hook, a filesystem watcher, or a named manual ritual with a declared cadence. The loop-engineering framing (audit cycle 5): the loop, not the prompt, is the production system — the agent is one component inside it. Distinct from the **Karpathy Loop** (one specific closed-loop *pattern*; a Karpathy Loop is a loop, most loops are not Karpathy Loops).
+
+**Loops registry** — `core/decisions/loops/loops.md`: every loop in the cluster declared as a first-class resource — slug, purpose, trigger (a labeled adapter: launchd / gh-actions / hook / watchpath / manual — never the loop's identity), cadence, state spine, verifier, stop rule, evidence ref. `scripts/loops-lint.mjs` cross-checks declarations against trigger artifacts on disk both directions (declared-but-absent = ERROR, discovered-but-undeclared = WARN); `scripts/loops-liveness.mjs` reads cadence + evidence to report dead loops. (audit cycle 5 §2c; rm-l2-ojfbot#S29/S30)
+
 ## M
 
 **Mail (Gas Town)** — Inter-agent message built on beads. Modes: direct, queued, broadcast. Distinct from email. Frame mapping: `FrameMail extends FrameBead`.
