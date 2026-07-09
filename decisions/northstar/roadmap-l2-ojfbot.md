@@ -449,7 +449,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: merged
     depends_on: "rm:rm-l2-ojfbot#S28"
   - id: S30
     phase: PH6
@@ -465,7 +465,7 @@ slices:
     claimable_by: agent_eligible
     kind: s
     repo: core
-    status: queued
+    status: merged
     depends_on: "rm:rm-l2-ojfbot#S29"
 ---
 
