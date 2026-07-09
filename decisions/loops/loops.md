@@ -37,7 +37,7 @@ loops:
     state_spine: "committed measurement artifacts in core"
     verifier: "audit-delivery-check.mjs --check inside the run (regression/staleness gate)"
     stop_rule: "single weekly fire (Mon 03:45 CDT); exit 0 always — a measurement never blocks"
-    evidence_ref: "script:scripts/skill-architecture-audit.sh"
+    evidence_ref: "file:~/.claude/skill-architecture-audit.jsonl"
     owner: operator
     status: live
     repo: core
@@ -312,7 +312,7 @@ loops:
     state_spine: "committed measurement artifacts"
     verifier: "audit-delivery-check.mjs --check propagated via --check"
     stop_rule: "exit 0 always without --check"
-    evidence_ref: "script:scripts/weekly-measure.mjs"
+    evidence_ref: "none"
     owner: operator
     status: live
     repo: core
