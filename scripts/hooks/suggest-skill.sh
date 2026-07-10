@@ -207,15 +207,23 @@ LINE=$(jq -nc \
   '{ts:$ts, event:$event, skill:$skill, reason:$reason, prompt_prefix:$prompt_prefix, repo:$repo, session_id:$sid, suggestion_id:$suggestion_id}')
 log_telemetry "$SUGGESTION_TELEMETRY_FILE" "$LINE"
 
+# The skill:acted self-report line (ADR-0095 source 1). Carried inside the
+# suggestion so the agent knows the emit path exists — before this, the CLI had
+# no invocation path and the disposition ledger could never mint `acted`. The
+# instruction demands real evidence (scheme:ref); the Stop-hook reconciler +
+# validator (source 2) stay independent, so a fabricated emit is catchable.
+ACTED_NOTE="If you act on this suggestion and complete the skill's work with a concrete artifact, record it: cd $CORE_DIR && node scripts/skill-acted-emit.mjs --suggestion-id=$SUGGESTION_ID --skill=$BEST_SKILL --evidence=<scheme:ref, e.g. path:decisions/adr/0099-x.md>. Only emit with real, resolvable evidence — never emit for engagement alone."
+
 # Output suggestion as additionalContext
 if [[ "$SKILL_INSTALLED" == "true" ]]; then
   jq -nc \
     --arg skill "$BEST_SKILL" \
     --arg reason "$BEST_REASON" \
+    --arg acted_note "$ACTED_NOTE" \
     '{
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
-        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)). Consider invoking it for structured, repeatable output.")
+        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)). Consider invoking it for structured, repeatable output. " + $acted_note)
       }
     }'
 else
@@ -225,10 +233,11 @@ else
     --arg reason "$BEST_REASON" \
     --arg skill_md "$SKILL_MD" \
     --arg core "$CORE_DIR/.claude/skills/$BEST_SKILL" \
+    --arg acted_note "$ACTED_NOTE" \
     '{
       hookSpecificOutput: {
         hookEventName: "UserPromptSubmit",
-        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)), but it is NOT loaded in this session. Read \($skill_md) and follow it inline. To install permanently: ln -sfn \($core) ~/.claude/skills/\($skill) (or flag it scope:[\"user\"] in skill-catalog.json and re-run install-agents.sh --user-scope).")
+        additionalContext: ("[Skill suggestion] Your request matches /\($skill) (\($reason)), but it is NOT loaded in this session. Read \($skill_md) and follow it inline. To install permanently: ln -sfn \($core) ~/.claude/skills/\($skill) (or flag it scope:[\"user\"] in skill-catalog.json and re-run install-agents.sh --user-scope). " + $acted_note)
       }
     }'
 fi
