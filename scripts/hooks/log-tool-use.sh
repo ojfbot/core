@@ -19,6 +19,16 @@ read_hook_input
 # Truncate tool input summary to avoid giant JSONL lines
 TOOL_INPUT_SUMMARY=$(echo "$HOOK_INPUT" | jq -c '.tool_input | tostring | .[0:300]' 2>/dev/null || echo '""')
 
+# Inline skill use (ADR-0092) bypasses the Skill tool, so .tool_input.skill is
+# empty for it — the SKILL.md Read IS the usage signal. Derive the skill name
+# from the path (same pattern corroborate-follow.mjs matches) so downstream
+# consumers (pr-skill-audit, OPAV joins) can see inline use without a second
+# detector diverging from the first.
+SKILL_FIELD="$TOOL_INPUT_SKILL"
+if [[ -z "$SKILL_FIELD" && "$TOOL_NAME" == "Read" && "$FILE_PATH" =~ /skills/([^/]+)/SKILL\.md$ ]]; then
+  SKILL_FIELD="${BASH_REMATCH[1]}"
+fi
+
 TIMESTAMP=$(iso_now)
 
 LINE=$(jq -nc \
@@ -26,7 +36,7 @@ LINE=$(jq -nc \
   --arg event "tool:used" \
   --arg tool "$TOOL_NAME" \
   --arg file "$FILE_PATH" \
-  --arg skill "$TOOL_INPUT_SKILL" \
+  --arg skill "$SKILL_FIELD" \
   --arg repo "$REPO" \
   --arg cwd "$CWD" \
   --arg sid "$SESSION_ID" \
