@@ -7,3 +7,6 @@
 {"ts":"2026-07-08T22:54:03Z","event":"session:start","session_id":"576fe593-8223-46c5-8c2b-86125e4c5bf0","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-07-09T21:53:56Z","event":"session:start","session_id":"81f08f87-824e-4012-9efb-7ce1cdf495e7","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-07-09T21:55:56Z","event":"session:start","session_id":"3cec98d6-2db3-43f2-afe1-e4da70fc3def","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-09T22:32:02Z","event":"session:start","session_id":"5cc0268d-ee49-4d9b-8a8f-71cddb9ca64c","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-07-10T01:51:24Z","event":"session:start","session_id":"4d5c2d20-4c4d-43a4-9110-383f937ddb9a","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-07-10T02:03:56Z","event":"session:start","session_id":"f23be80e-07f5-4791-99fc-e6ef903967f6","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
