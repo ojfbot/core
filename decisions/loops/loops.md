@@ -304,6 +304,18 @@ loops:
     owner: operator
     status: live
     repo: core
+  - slug: trace-triager
+    purpose: "Weekly proposal-only trace-mining triager (S26, the first meta-loop): samples 20-30 traces/beads/articles, open-codes failures vs the taxonomy, proposes deltas + golden candidates via PR — never merges, never edits in place"
+    trigger: launchd
+    trigger_ref: scripts/trace-triager-launchd.plist
+    cadence: weekly
+    state_spine: "decisions/opav/triager-runs/ reports + triager/run-* branches + ~/.claude/trace-triager.jsonl"
+    verifier: "human merge gate on proposal PRs; §4 anti-Goodhart contract in the brief; run-report format decisions/opav/triager-run-report-format.md"
+    stop_rule: "30-min wall-clock watchdog in the wrapper; empty run = success, no PR (§4.1)"
+    evidence_ref: "file:~/.claude/trace-triager.jsonl"
+    owner: operator
+    status: disabled
+    repo: core
   - slug: weekly-measure
     purpose: "Weekly measurement command (delivery-oracle diff + skill metrics) — DECLARED weekly but no rail invokes it today; designed for launchd/cron/routine use (see S25-adjacent finding, cycle-5 §2c)"
     trigger: manual
