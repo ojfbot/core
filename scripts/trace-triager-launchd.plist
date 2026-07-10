@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  trace-triager (rm-l2-ojfbot#S26) — weekly proposal-only trace-mining triager.
+  DO NOT LOAD until the first two OPERATOR-TRIGGERED runs pass (S26 success
+  criterion) and decisions/loops/loops.md flips this loop to status: live.
+  Install (after the gate): cp to ~/Library/LaunchAgents/ && launchctl load it.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ojfbot.trace-triager</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/yuri/ojfbot/core/scripts/trace-triager.sh</string>
+    </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>2</integer>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>15</integer>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/yuri/ojfbot/core</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/yuri</string>
+        <key>CLAUDE_PROJECT_DIR</key>
+        <string>/Users/yuri/ojfbot/core</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/tmp/trace-triager.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/trace-triager.err</string>
+</dict>
+</plist>
