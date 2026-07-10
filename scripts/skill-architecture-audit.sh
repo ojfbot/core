@@ -35,3 +35,13 @@ node "$AUDIT" || {
   echo "skill-architecture-audit: audit script errored (non-fatal)" >&2
   exit 0
 }
+
+# Loops liveness (rm-l2-ojfbot#S30): dead-loop detection recurs on this rail
+# instead of being run-on-demand. Report-only — one JSON line per week into
+# the same jsonl; never fails the schedule.
+LIVENESS="$CORE_DIR/scripts/loops-liveness.mjs"
+if [[ -f "$LIVENESS" ]]; then
+  node "$LIVENESS" --json | jq -c '. + {source: "loops-liveness"}' \
+    >> "$HOME/.claude/skill-architecture-audit.jsonl" \
+    || echo "skill-architecture-audit: loops-liveness errored (non-fatal)" >&2
+fi

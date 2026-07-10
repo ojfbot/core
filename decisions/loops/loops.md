@@ -29,7 +29,7 @@ loops:
     status: live
     repo: core
   - slug: skill-architecture-audit
-    purpose: "Weekly OPAV observation pulse — runs the delivery oracle + skill metrics and commits the measurement artifact (S13 cadence)"
+    purpose: "Weekly OPAV observation pulse — skill-architecture audit + loops-liveness report (S30 wired onto this rail), one jsonl line each per week"
     trigger: launchd
     trigger_ref: scripts/skill-architecture-audit-launchd.plist
     installed_ref: ~/Library/LaunchAgents/com.ojfbot.skill-architecture-audit.plist
