@@ -56,6 +56,20 @@ registry:
     app: silicon-empires
     path: ../silicon-empires/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # Roadtrip leg-5 landings (voice-CONFIRMED 2026-06-28, files merged 2026-07-13:
+  # shell#79 + BlogEngine#58). NB: a local checkout on another branch (e.g. blogengine's
+  # ADR-0081 rollout WIP) shows these as registered-but-absent — a working-copy artifact,
+  # same class as the 2026-07-03 cv-builder finding; the files ARE on origin/main.
+  - slug: l1-shell
+    tier: L1
+    app: shell
+    path: ../shell/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+  - slug: l1-blogengine
+    tier: L1
+    app: blogengine
+    path: ../blogengine/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
