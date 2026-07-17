@@ -20,6 +20,15 @@
 
 export type Disposition = 'acted' | 'engaged_no_act' | 'capture_miss' | 'pending' | 'ignored';
 
+/**
+ * Which denominator population a suggestion belongs to: `installed`
+ * (`skill:suggested` — the skill is present in the repo) or `uninstalled`
+ * (`skill:suggested-uninstalled` — inline-path only). Both populations are scored;
+ * they are reported side by side, never silently merged or excluded (RCA d92e3b15:
+ * the installed population was dropped from the denominator for 25 days).
+ */
+export type SuggestionPopulation = 'installed' | 'uninstalled';
+
 /** A suggestion as projected from S0 suggestion telemetry (the SUGGESTION_ID join root). */
 export interface SuggestionRecord {
   suggestionId: string;
@@ -27,6 +36,8 @@ export interface SuggestionRecord {
   sessionId: string;
   /** ISO ts of the suggestion — the lower bound for engagement/action. */
   ts: string;
+  /** Population tag; absent on records projected before the 2026-07-17 split. */
+  population?: SuggestionPopulation;
 }
 
 /** The independently-derived facts about one suggestion, used to classify it. */

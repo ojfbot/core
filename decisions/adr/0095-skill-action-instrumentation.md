@@ -2,11 +2,12 @@
 
 slug: skill-action-instrumentation
 serial: 0095
+rev: A
 domain: workflow-engine
 type: architecture
 
 - **Status:** Accepted — Slice 1 of the OPAV-loop gated-slice plan (measure-first; everything downstream gates on its number). C0–C2 (SHADOW) shipped to `main` via PR #158.
-- **Date accepted:** 2026-06-14
+- **Date accepted:** 2026-06-14 (revised 2026-07-17 — Rev A: engagement predicate broadened to Skill-tool invocations; denominator split into installed/uninstalled populations; single reconciler writer)
 - **Depends on:** `suggestion-identity-and-denominator` (S0 — the `SUGGESTION_ID` this echoes)
 - **Related:** ADR-0092 (why the signal must be agent-emitted, not a Skill-tool hook), ADR-0068, `duplex-work-item-sync` (shared op_id idempotency + honesty contract)
 
@@ -84,3 +85,31 @@ Capture-rate `acted / (acted + capture_miss)` ≥70% vs the *independent* signal
 `engaged_no_act`); over-capture/false-emit ≤10%; validator catches seeded fakes (adversarial trace-injection);
 the action-rate readout reproduces and passes a join correctness oracle (precision/recall vs a gold set);
 min-N power gate present before S3 may consume the rate.
+
+## Rev A (2026-07-17) — measurement-semantics repair after RCA d92e3b15
+
+The original predicate + denominator produced a **measurement artifact**: 25 days of "0 followed"
+across a 204-row ledger while transcripts proved ≥13 same-session follows (full RCA:
+`~/.claude/last-investigation-d92e3b15-2271-45da-88c6-80d4250d2e25.md`). Three repairs, all
+capture-side, no gating change (shadow-first preserved):
+
+1. **Engagement predicate broadened** (`corroborate-follow.mjs`). `engaged` = a SKILL.md Read **or a
+   Skill-tool invocation of the suggested skill** in the catch-all tool-telemetry, name-normalized
+   (`core:adr` ≈ `adr:knowledge:x` ≈ `adr`). Both signals come from `log-tool-use.sh`, not the agent's
+   self-report, so the two-source independence contract is intact. The old Read-only predicate measured
+   a channel nobody used while the dominant real path (the Skill tool) was structurally invisible.
+2. **Denominator split, not filtered** (`reconcile-skill-acted.mjs`). Both suggestion populations are
+   scored and tagged — `skill:suggested` → `population: installed`, `skill:suggested-uninstalled` →
+   `population: uninstalled` — reported side by side, never silently excluded. (The old filter dropped
+   522 of 790 suggestions: the installed population, the one most likely to be followed.) Decision #6's
+   "report action-rate over `suggested-uninstalled`" scope is amended accordingly: rates are reported
+   **per population**.
+3. **One honest writer.** The duplicate Stop-hook entry pointing at core's unbuilt copy (silent no-op:
+   missing `dist/tracking` → `process.exit(0)`) was removed from `~/.claude/settings.json`; the
+   core-tracking reconciler is the single writer until the canonical checkout is rebuilt and repointed
+   via `install-agents.sh --user-scope`.
+
+The shadow ledger is a **projector view**, so it was rebuilt (`--rebuild`, backup kept) rather than
+appended-around: 204 → 362 rows; 22 rows flipped `ignored→engaged`; 4 `capture_miss` rows (the real C1
+signal) became visible for the first time. Remaining known undercount: skill `scripts/` execution still
+does not count as engagement (KNOWN GAP 2, narrowed).

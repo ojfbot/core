@@ -4,9 +4,11 @@
 // The two-source contract (adr:skill-action-instrumentation) requires the corroborating
 // signal be produced by a DIFFERENT mechanism than the agent's self-emitted skill:acted —
 // because agent compliance alone is the exact 0.8% failure mode. This detector derives
-// engagement ONLY from the catch-all tool-telemetry (a SKILL.md Read), reusing S0's
-// single-source-of-truth join (`corroborate-follow.mjs`) — it does NOT reimplement it,
-// and it is structurally blind to skill:acted (skillTelemetry is never consulted).
+// engagement ONLY from the catch-all tool-telemetry (a SKILL.md Read OR a Skill-tool
+// invocation of the suggested skill — both captured by log-tool-use.sh, not by the
+// agent), reusing S0's single-source-of-truth join (`corroborate-follow.mjs`) — it does
+// NOT reimplement it, and it is structurally blind to skill:acted (skillTelemetry is
+// never consulted).
 //
 // Used by: the Stop-hook reconciler that, at session end, scores each suggestion's
 // disposition (skill-acted-rate.ts) — `engaged` comes from here, `acted` from the ledger.
@@ -17,8 +19,9 @@ import { join } from 'node:path';
 
 /**
  * Was the suggestion for `skill` in `sessionId` engaged inline at/after `sinceIso`?
- * Engagement = the independent SKILL.md-Read signal ONLY. `skill:acted` is deliberately
- * not passed through, so a self-report can never masquerade as the independent signal.
+ * Engagement = the independent catch-all-telemetry signals ONLY (SKILL.md Read or
+ * Skill-tool invocation). `skill:acted` is deliberately not passed through, so a
+ * self-report can never masquerade as the independent signal.
  *
  * @returns {boolean}
  */

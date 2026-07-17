@@ -90,7 +90,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: merged
+    status: ready
     depends_on: "rm:rm-l1-core#S4"
   - id: S6
     phase: PH1

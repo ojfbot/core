@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { isCorroboratedFollow } from '../corroborate-follow.mjs';
+import { isCorroboratedFollow, skillNameMatches } from '../corroborate-follow.mjs';
 
 const SID = 'sess-abc';
 const SUGGESTED_AT = '2026-06-13T10:00:00Z';
@@ -66,56 +66,59 @@ describe('isCorroboratedFollow — inline SKILL.md read', () => {
   });
 });
 
-/** A tool:used Skill-invocation event as log-tool-use.sh emits it. */
-function skillInvocation({ skill, sid = SID, ts }) {
-  return {
-    event: 'tool:used',
-    tool_name: 'Skill',
-    file_path: '',
-    skill,
-    session_id: sid,
-    ts,
-  };
+/** A tool:used Skill-tool invocation event (catch-all telemetry; file_path is ""). */
+function skillInvoke({ name, sid = SID, ts }) {
+  return { event: 'tool:used', tool_name: 'Skill', file_path: '', skill: name, session_id: sid, ts };
 }
 
-describe('isCorroboratedFollow — Skill-tool invocation (rm:rm-l1-core#S2)', () => {
-  const base = { skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT };
+describe('skillNameMatches — invocation-name normalization', () => {
+  it('matches the exact slug', () => expect(skillNameMatches('adr', 'adr')).toBe(true));
+  it('matches a repo/plugin prefix (core:adr)', () => expect(skillNameMatches('core:adr', 'adr')).toBe(true));
+  it('matches dir:skill (frame-standup:frame-standup)', () => expect(skillNameMatches('frame-standup:frame-standup', 'frame-standup')).toBe(true));
+  it('matches a knowledge sub-page (adr:knowledge:adr-template)', () => expect(skillNameMatches('adr:knowledge:adr-template', 'adr')).toBe(true));
+  it('does not match a different skill', () => expect(skillNameMatches('core:tdd', 'adr')).toBe(false));
+  it('does not match a middle segment', () => expect(skillNameMatches('resume-audit:knowledge:requirement-taxonomy', 'knowledge')).toBe(false));
+  it('is false for missing/empty names', () => {
+    expect(skillNameMatches(undefined, 'adr')).toBe(false);
+    expect(skillNameMatches('', 'adr')).toBe(false);
+    expect(skillNameMatches('adr', '')).toBe(false);
+  });
+});
 
-  it('returns true when the suggested skill is invoked via the Skill tool after the suggestion', () => {
-    const toolTelemetry = [skillInvocation({ skill: 'tdd', ts: '2026-06-13T10:02:00Z' })];
-    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(true);
+describe('isCorroboratedFollow — Skill-tool invocation (the dominant real path)', () => {
+  it('returns true for a Skill-tool invocation of the suggested skill after the suggestion', () => {
+    const toolTelemetry = [skillInvoke({ name: 'tdd', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(true);
   });
 
-  it('normalizes repo-scoped names: core:adr matches a suggestion for adr', () => {
-    const toolTelemetry = [skillInvocation({ skill: 'core:adr', ts: '2026-06-13T10:02:00Z' })];
-    expect(isCorroboratedFollow({ ...base, skill: 'adr', toolTelemetry })).toBe(true);
+  it('returns true for a prefixed invocation name (core:tdd ≈ tdd)', () => {
+    const toolTelemetry = [skillInvoke({ name: 'core:tdd', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(true);
   });
 
-  it('normalizes knowledge-file loads: resume-audit:knowledge:x matches resume-audit', () => {
-    const toolTelemetry = [
-      skillInvocation({ skill: 'resume-audit:knowledge:requirement-taxonomy', ts: '2026-06-13T10:02:00Z' }),
-    ];
-    expect(isCorroboratedFollow({ ...base, skill: 'resume-audit', toolTelemetry })).toBe(true);
+  it('ignores a Skill-tool invocation of a different skill', () => {
+    const toolTelemetry = [skillInvoke({ name: 'deepen', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(false);
   });
 
-  it('does not match a different skill, even with shared prefix text', () => {
-    const toolTelemetry = [skillInvocation({ skill: 'tdd-extra', ts: '2026-06-13T10:02:00Z' })];
-    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  it('does not match a different skill, even with shared prefix text (tdd-extra ≠ tdd)', () => {
+    const toolTelemetry = [skillInvoke({ name: 'tdd-extra', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(false);
   });
 
-  it('ignores an invocation from a different session', () => {
-    const toolTelemetry = [skillInvocation({ skill: 'tdd', sid: 'other-session', ts: '2026-06-13T10:02:00Z' })];
-    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  it('ignores a Skill-tool invocation from a different session', () => {
+    const toolTelemetry = [skillInvoke({ name: 'tdd', sid: 'other-session', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(false);
   });
 
-  it('ignores an invocation that predates the suggestion', () => {
-    const toolTelemetry = [skillInvocation({ skill: 'tdd', ts: '2026-06-13T09:59:00Z' })];
-    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  it('ignores a Skill-tool invocation that predates the suggestion', () => {
+    const toolTelemetry = [skillInvoke({ name: 'tdd', ts: '2026-06-13T09:59:00Z' })];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(false);
   });
 
-  it('ignores Skill rows with an empty or missing skill field', () => {
-    const toolTelemetry = [skillInvocation({ skill: '', ts: '2026-06-13T10:02:00Z' })];
-    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  it('ignores a Skill row with no skill name (defensive)', () => {
+    const toolTelemetry = [{ event: 'tool:used', tool_name: 'Skill', file_path: '', session_id: SID, ts: '2026-06-13T10:02:00Z' }];
+    expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry })).toBe(false);
   });
 });
 

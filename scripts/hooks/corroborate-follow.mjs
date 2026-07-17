@@ -8,14 +8,17 @@
 // `skill:suggestion-followed`. The old ignored-detector (suggest-skill.sh)
 // therefore mislabels every inline follow as `skill:suggestion-ignored`.
 //
-// This module recognizes a funnel-close from signals that exist TODAY,
+// This module recognizes an inline funnel-close from signals that exist TODAY,
 // with no dependency on S1's not-yet-built `skill:acted`:
 //   1. an inline-follow: a Read of `.../skills/<skill>/SKILL.md` in the catch-all
 //      tool-telemetry (log-tool-use.sh), same session, at/after the suggestion ts;
-//   1b. a Skill-tool invocation of the suggested skill (rm:rm-l1-core#S2, the
-//      2026-07-16 RCA blind spot): tool_name:'Skill' rows carry the invoked name
-//      in `skill`, possibly scoped (`core:adr`) or knowledge-file-qualified
-//      (`resume-audit:knowledge:requirement-taxonomy`) — matched by segment;
+//   1b. a Skill-tool invocation of the same skill in the catch-all tool-telemetry
+//      (rm:rm-l1-core#S2; `tool_name:"Skill"`, name normalized — `core:adr` ≈
+//      `adr:knowledge:x` ≈ `adr`).
+//      Both 1 and 1b come from log-tool-use.sh, NOT the agent's self-report, so the
+//      two-source independence contract (ADR-0095) is preserved. Before 2026-07-17
+//      only path 1 was recognized, which made the dominant real invocation path
+//      structurally invisible (204-row ledger read "0 followed" — RCA d92e3b15);
 //   2. forward-compat: a future `skill:acted` event carrying the same skill +
 //      session (no-op until S1 ships it).
 //
@@ -55,19 +58,22 @@ function isSkillMdRead(ev, skill) {
 }
 
 /**
- * True if an invoked-skill name refers to `skill`, normalizing the scoped and
- * knowledge-file-qualified forms the Skill tool logs: `adr` matches `adr`,
- * `core:adr` (repo-scoped), and `adr:knowledge:x` (skill-qualified resource) —
- * any colon-separated segment equal to the slug counts.
+ * Does a Skill-tool invocation name refer to `skill`? Invocation names in
+ * tool-telemetry come in several shapes — `adr`, `core:adr` (repo/plugin prefix),
+ * `frame-standup:frame-standup` (dir:skill), `adr:knowledge:adr-template`
+ * (knowledge sub-page) — so a name matches when the full name, its first, or its
+ * last colon-separated segment equals the suggested slug.
  */
-function matchesSkillName(invoked, skill) {
-  if (typeof invoked !== 'string' || invoked === '') return false;
-  return invoked === skill || invoked.split(':').includes(skill);
+export function skillNameMatches(invoked, skill) {
+  if (typeof invoked !== 'string' || !invoked || !skill) return false;
+  if (invoked === skill) return true;
+  const segs = invoked.split(':');
+  return segs[0] === skill || segs[segs.length - 1] === skill;
 }
 
-/** True if `ev` is a Skill-tool invocation of `skill` (rm:rm-l1-core#S2). */
-function isSkillInvocation(ev, skill) {
-  return ev.tool_name === 'Skill' && matchesSkillName(ev.skill, skill);
+/** True for a catch-all tool-telemetry Skill-tool invocation of `skill`. */
+function isSkillToolInvocation(ev, skill) {
+  return ev.tool_name === 'Skill' && skillNameMatches(ev.skill, skill);
 }
 
 /**
@@ -92,12 +98,12 @@ export function isCorroboratedFollow({
   const after = (ts) => typeof ts === 'string' && ts >= sinceIso;
 
   // (1) inline-follow: SKILL.md Read in this session at/after the suggestion
-  // (1b) Skill-tool invocation of the suggested skill, same window (rm:rm-l1-core#S2)
+  // (1b) Skill-tool invocation of the same skill (also catch-all telemetry)
   for (const ev of toolTelemetry) {
     if (
       ev.session_id === sessionId &&
       after(ev.ts) &&
-      (isSkillMdRead(ev, skill) || isSkillInvocation(ev, skill))
+      (isSkillMdRead(ev, skill) || isSkillToolInvocation(ev, skill))
     ) {
       return true;
     }

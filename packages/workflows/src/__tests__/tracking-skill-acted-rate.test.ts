@@ -46,6 +46,17 @@ describe('classifyDisposition', () => {
   it('acted wins even if other flags are set (terminal precedence)', () => {
     expect(classifyDisposition({ ...base, acted: true, engaged: false })).toBe('acted');
   });
+
+  it('is population-agnostic: the installed/uninstalled tag never changes the disposition', () => {
+    // The denominator split (RCA d92e3b15) tags populations for side-by-side REPORTING;
+    // classification itself must treat both identically.
+    for (const population of ['installed', 'uninstalled'] as const) {
+      const suggestion = { ...base.suggestion, population };
+      expect(classifyDisposition({ ...base, suggestion, engaged: false })).toBe('ignored');
+      expect(classifyDisposition({ ...base, suggestion, acted: true })).toBe('acted');
+      expect(classifyDisposition({ ...base, suggestion, artifactExists: true })).toBe('capture_miss');
+    }
+  });
 });
 
 describe('computeActionRate', () => {
