@@ -28,7 +28,7 @@ slices:
     claimable_by: either
     kind: s
     repo: core
-    status: ready
+    status: merged
   - id: S2
     phase: PH1
     title: "Widen the engagement predicate to Skill-tool invocations, with name normalization"
@@ -43,7 +43,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: ready
+    status: merged
     depends_on: "rm:rm-l1-core#S1"
   - id: S3
     phase: PH1
@@ -59,7 +59,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: merged
     depends_on: "rm:rm-l1-core#S2"
   - id: S4
     phase: PH1
@@ -75,7 +75,7 @@ slices:
     claimable_by: agent_eligible
     kind: s
     repo: core
-    status: queued
+    status: ready
   - id: S5
     phase: PH1
     title: "Auto-emit followed/acted from PostToolUse(Skill) — shadow mode"
@@ -122,7 +122,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: morning-cockpit
-    status: queued
+    status: ready
     depends_on: "rm:rm-l1-core#S3"
   - id: S8
     phase: PH2
