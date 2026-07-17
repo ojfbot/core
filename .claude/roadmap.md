@@ -122,7 +122,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: morning-cockpit
-    status: ready
+    status: merged
     depends_on: "rm:rm-l1-core#S3"
   - id: S8
     phase: PH2
