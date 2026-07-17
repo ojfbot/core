@@ -138,7 +138,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: ready
+    status: merged
     depends_on: "rm:rm-l1-core#S3"
   - id: S9
     phase: PH2
