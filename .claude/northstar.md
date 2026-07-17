@@ -20,7 +20,7 @@ properties:
   - id: P2
     name: "Suggestions are relevant"
     target: "suggest-skills.mjs scores >= 80% precision on a fixed 20-30-case gold eval (incl. no-match cases, chance-corrected); no skill fires > 10x with 0 honest follows in a 30-day window; repo-irrelevant skills are filtered fail-open."
-    current: 25
+    current: 30
     verification: "scripts/suggester-eval.mjs reports precision/recall vs decisions/opav/suggester-gold-v1.jsonl; the trigger-precision report shows no over-firing tail."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
