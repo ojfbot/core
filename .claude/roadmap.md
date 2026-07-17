@@ -154,7 +154,7 @@ slices:
     claimable_by: agent_eligible
     kind: s
     repo: core
-    status: ready
+    status: merged
     depends_on: "rm:rm-l1-core#S3"
   - id: S10
     phase: PH3
