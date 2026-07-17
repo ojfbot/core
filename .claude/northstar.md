@@ -13,7 +13,7 @@ properties:
   - id: P1
     name: "The skill follow-rate metric is honest"
     target: "Every suggestion reaches exactly one terminal disposition via path-independent capture (inline SKILL.md Read, Skill-tool invocation, script exec); both populations (installed + uninstalled) are scored; followed/acted auto-emitted in shadow; capture >= 70% and false-emit <= 10% vs a labeled gold set (ADR-0095 bars); no rate published before capture-quality is green."
-    current: 38
+    current: 45
     verification: "scripts/opav-capture-quality.mjs green vs the decisions/opav gold set; replay shows the >=13 known Skill-tool follows flip from ignored; disposition rows carry a population field."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
