@@ -41,3 +41,12 @@ Selection provenance: candidates drawn 2026-07-17 by the rm-l1-core delivery ses
 selection logic mirrors `detectUse()` in `scripts/opav-capture-quality.mjs` (skill-tool /
 inline-read / script-exec) plus the reconciler's artifact proxy. **The labels themselves
 are yours** — the machine proposed, it must not confirm (two-source discipline).
+
+## Era boundary (ADR-0093) — the unjoinable pre-era
+
+414 installed + 16 uninstalled suggestion events predate ADR-0093's SUGGESTION_ID
+(minted from 2026-06-13). They carry no join key and are **structurally unjoinable**
+to dispositions or gold labels — counted, excluded from every denominator, never
+fudged. Any funnel, rate, or gold comparison in this directory is scoped to the
+joinable era; the trigger-precision report (`docs/trigger-precision-2026-07-17.md`,
+`node scripts/skill-metrics.mjs --trigger-precision`) states the same boundary.

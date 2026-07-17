@@ -17,7 +17,7 @@
 //   node scripts/skill-metrics.mjs --funnel=standup                      # include standup funnel section (ADR-0054)
 //   node scripts/skill-metrics.mjs --funnel=standup --launch-window=86400 # 24h default for launched correlation
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 
@@ -38,6 +38,34 @@ const launchWindowSec = Number(args["launch-window"] ?? 86400); // 24h default p
 const funnelMode = args.funnel === "standup" || args.funnel === true;
 const since = args.since ? Date.parse(args.since) : Date.now() - 30 * 24 * 60 * 60 * 1000;
 const until = args.until ? Date.parse(args.until) : Date.now();
+
+// ── Trigger-precision mode (rm:rm-l1-core#S9) ───────────────────────────────
+// Joins post-ADR-0093 suggestion fires (rows WITH a suggestion_id) against the
+// HONEST disposition ledger (corroborated engagement / C2-valid acted — never the
+// 5-minute-window heuristic below, which is the legacy computeSuggestionFollowed).
+// Populations reported side by side; skill-authoring rows excluded from the follow
+// numerator per the two-track rule (ADR-0098); the pre-0093 era counted and
+// excluded, never blended.
+
+// The 2026-07-13 skill-architecture-audit needs_work set (verdicts 38 aligned,
+// 22 needs_work, 2 refactor — reproduced identically by
+// `.claude/skills/skill-audit/scripts/audit-architecture.mjs` on 2026-07-17, same
+// catalog). Override with --needs-work=a,b,c when the audit moves.
+const NEEDS_WORK_2026_07_13 = [
+  "bead", "caveman", "claude-md-audit", "claude-md-rollout", "day-run", "frame-dev",
+  "git-guardrails", "init", "lint-audit", "prototype", "recon", "resume", "roadmap",
+  "scaffold-app", "scaffold-frame-app", "selfco-ingest", "spec-review",
+  "speculative-pass", "writing-beats", "writing-fragments", "writing-shape", "zoom-out",
+];
+
+const SUGGESTION_FIRE_EVENTS = {
+  "skill:suggested": "installed",
+  "skill:suggested-uninstalled": "uninstalled",
+};
+
+if (args["trigger-precision"]) {
+  process.exit(triggerPrecisionMain(args));
+}
 
 // ADR-defined adoption targets. Sourced from ADRs 0044-0049 and the Pocock plan.
 // When ADRs change, update this table.
@@ -551,4 +579,178 @@ function renderMarkdown(r) {
 function pct(n, total) {
   if (!total) return "0.0%";
   return ((n / total) * 100).toFixed(1) + "%";
+}
+
+// ── Trigger precision (rm:rm-l1-core#S9) ────────────────────────────────────
+
+/**
+ * Compute per-skill trigger precision from era-0093 fires joined to honest
+ * dispositions. Pure.
+ *
+ * A fire = one deduped SUGGESTION_ID (earliest event). An HONEST follow = the
+ * joined disposition row has engaged/acted (corroborated, independent signals) and
+ * is not `skill-authoring` (two-track: authoring is neither a use-follow nor an
+ * ignore — counted separately). Fires with no disposition row yet are `unresolved`
+ * (pending/not reconciled) and stay in the fire denominator, stated.
+ */
+function computeTriggerPrecision(suggestionEvents, dispositionRows, { needsWork = NEEDS_WORK_2026_07_13 } = {}) {
+  const preEraCounts = { "skill:suggested": 0, "skill:suggested-uninstalled": 0 };
+  const fires = new Map(); // suggestion_id -> {skill, population, ts}
+  for (const e of suggestionEvents) {
+    const population = SUGGESTION_FIRE_EVENTS[e.event];
+    if (!population) continue;
+    if (!e.suggestion_id) { preEraCounts[e.event]++; continue; } // pre-ADR-0093 era: unjoinable, excluded, counted
+    if (!e.skill) continue;
+    const ts = e.suggested_at || e.ts || "";
+    const prev = fires.get(e.suggestion_id);
+    if (!prev || ts < prev.ts) fires.set(e.suggestion_id, { skill: normalizeSkillName(e.skill), population, ts });
+  }
+
+  const dispById = new Map(
+    dispositionRows.filter((d) => d.event === "skill:disposition" && d.suggestion_id).map((d) => [d.suggestion_id, d]),
+  );
+
+  const perSkill = new Map();
+  for (const [sid, f] of fires) {
+    const d = dispById.get(sid);
+    const s = perSkill.get(f.skill) ?? {
+      fires: 0, honest_follows: 0, authoring: 0, unresolved: 0,
+      by_population: { installed: { fires: 0, honest_follows: 0 }, uninstalled: { fires: 0, honest_follows: 0 } },
+      timeline: [],
+    };
+    s.fires++;
+    s.by_population[f.population].fires++;
+    let followed = false;
+    if (!d) s.unresolved++;
+    else if (d.disposition === "skill-authoring") s.authoring++;
+    else if (d.engaged || d.acted) {
+      followed = true;
+      s.honest_follows++;
+      s.by_population[f.population].honest_follows++;
+    }
+    s.timeline.push({ ts: f.ts, followed });
+    perSkill.set(f.skill, s);
+  }
+
+  const skills = [...perSkill.entries()].map(([skill, s]) => {
+    s.timeline.sort((a, b) => (a.ts < b.ts ? -1 : 1));
+    let streak = 0;
+    for (let i = s.timeline.length - 1; i >= 0 && !s.timeline[i].followed; i--) streak++;
+    const lastFollowed = [...s.timeline].reverse().find((t) => t.followed)?.ts ?? null;
+    return {
+      skill,
+      fires: s.fires,
+      honest_follows: s.honest_follows,
+      authoring_excluded: s.authoring,
+      unresolved: s.unresolved,
+      ignore_streak: streak,
+      last_followed: lastFollowed,
+      needs_work: needsWork.includes(skill),
+      by_population: s.by_population,
+    };
+  }).sort((a, b) => b.fires - a.fires || a.skill.localeCompare(b.skill));
+
+  return {
+    era: {
+      boundary: "ADR-0093 (SUGGESTION_ID minted from 2026-06-13)",
+      joinable_fires: fires.size,
+      pre_era_excluded: preEraCounts,
+      note: "pre-era installed-suggestion events carry no suggestion_id and are STRUCTURALLY UNJOINABLE to outcomes — counted, excluded, never fudged into either denominator.",
+    },
+    skills,
+    over_firing_tail: skills.filter((s) => s.fires > 10 && s.honest_follows === 0),
+    needs_work_set: { as_of: "2026-07-13", count: needsWork.length, skills: needsWork },
+  };
+}
+
+function triggerPrecisionSelfTest() {
+  const failures = [];
+  const expect = (cond, msg) => { if (!cond) failures.push(msg); };
+  const sugg = [
+    { event: "skill:suggested", skill: "summarize", suggestion_id: "A", session_id: "s", ts: "2026-07-01T00:00:00Z" },
+    { event: "skill:suggested", skill: "summarize", suggestion_id: "B", session_id: "s", ts: "2026-07-02T00:00:00Z" },
+    { event: "skill:suggested-uninstalled", skill: "vault", suggestion_id: "C", session_id: "s", ts: "2026-07-03T00:00:00Z" },
+    { event: "skill:suggested", skill: "vault", suggestion_id: "D", session_id: "s", ts: "2026-07-04T00:00:00Z" },
+    { event: "skill:suggested", skill: "adr", suggestion_id: "E", session_id: "s", ts: "2026-07-05T00:00:00Z" },
+    { event: "skill:suggested", skill: "legacy-era", session_id: "s", ts: "2026-05-01T00:00:00Z" }, // no suggestion_id → pre-era
+    { event: "skill:suggestion-ignored", skill: "vault", suggestion_id: "D", session_id: "s", ts: "2026-07-04T00:01:00Z" }, // echo, not a fire
+  ];
+  const disp = [
+    { event: "skill:disposition", suggestion_id: "A", skill: "summarize", disposition: "ignored", engaged: false, acted: false },
+    { event: "skill:disposition", suggestion_id: "B", skill: "summarize", disposition: "ignored", engaged: false, acted: false },
+    { event: "skill:disposition", suggestion_id: "C", skill: "vault", disposition: "engaged_no_act", engaged: true, acted: false },
+    { event: "skill:disposition", suggestion_id: "E", skill: "adr", disposition: "skill-authoring", engaged: true, acted: false },
+  ];
+  const r = computeTriggerPrecision(sugg, disp, { needsWork: ["summarize"] });
+  const get = (n) => r.skills.find((s) => s.skill === n);
+  expect(r.era.joinable_fires === 5, `joinable fires: want 5, got ${r.era.joinable_fires}`);
+  expect(r.era.pre_era_excluded["skill:suggested"] === 1, "pre-era fire must be counted+excluded");
+  expect(get("summarize").fires === 2 && get("summarize").honest_follows === 0, "summarize 2 fires / 0 follows");
+  expect(get("summarize").ignore_streak === 2 && get("summarize").last_followed === null, "summarize streak 2, never followed");
+  expect(get("vault").fires === 2 && get("vault").honest_follows === 1, "vault 2 fires / 1 honest follow");
+  expect(get("vault").by_population.uninstalled.honest_follows === 1 && get("vault").by_population.installed.fires === 1,
+    "populations reported side by side");
+  expect(get("vault").ignore_streak === 1, "vault current streak 1 (D unfollowed after C followed)");
+  expect(get("adr").honest_follows === 0 && get("adr").authoring_excluded === 1, "skill-authoring excluded from follows (two-track)");
+  expect(r.over_firing_tail.length === 0, "no skill exceeds 10 fires in fixture");
+  expect(get("summarize").needs_work === true && get("vault").needs_work === false, "needs_work cross-reference");
+  return failures;
+}
+
+function renderTriggerPrecision(r, generatedAt) {
+  const L = [`# Trigger-precision report (rm:rm-l1-core#S9)`, ""];
+  L.push(`Generated: ${generatedAt}`);
+  L.push("");
+  L.push(`## Era boundary (the honest denominator)`);
+  L.push("");
+  L.push(`- Joinable fires (carry a SUGGESTION_ID; ${r.era.boundary}): **${r.era.joinable_fires}**`);
+  L.push(`- Pre-era events counted and EXCLUDED: ${r.era.pre_era_excluded["skill:suggested"]} installed + ${r.era.pre_era_excluded["skill:suggested-uninstalled"]} uninstalled`);
+  L.push(`- ${r.era.note}`);
+  L.push("");
+  L.push(`## Over-firing tail — >10 fires, 0 honest follows`);
+  L.push("");
+  if (r.over_firing_tail.length === 0) L.push("_None._");
+  else {
+    L.push("| Skill | Fires | Ignore streak | needs_work (2026-07-13 audit) |");
+    L.push("|-------|------:|--------------:|:---:|");
+    for (const s of r.over_firing_tail) L.push(`| \`${s.skill}\` | ${s.fires} | ${s.ignore_streak} | ${s.needs_work ? "yes" : "no"} |`);
+  }
+  L.push("");
+  L.push(`## All skills with joinable fires`);
+  L.push("");
+  L.push(`Honest follow = corroborated engagement or C2-valid acted in the disposition ledger (never the 5-min heuristic). skill-authoring rows are excluded from follows per the two-track rule (ADR-0098). Unresolved = no disposition row yet (stays in the fire denominator).`);
+  L.push("");
+  L.push("| Skill | Fires (inst/uninst) | Honest follows (inst/uninst) | Authoring | Unresolved | Ignore streak | Last followed | needs_work |");
+  L.push("|-------|--------------------:|-----------------------------:|----------:|-----------:|--------------:|---------------|:---:|");
+  for (const s of r.skills) {
+    const bp = s.by_population;
+    L.push(`| \`${s.skill}\` | ${s.fires} (${bp.installed.fires}/${bp.uninstalled.fires}) | ${s.honest_follows} (${bp.installed.honest_follows}/${bp.uninstalled.honest_follows}) | ${s.authoring_excluded} | ${s.unresolved} | ${s.ignore_streak} | ${s.last_followed ? s.last_followed.slice(0, 10) : "never"} | ${s.needs_work ? "yes" : "—"} |`);
+  }
+  L.push("");
+  L.push(`## needs_work cross-reference`);
+  L.push("");
+  const nwFired = r.skills.filter((s) => s.needs_work);
+  L.push(`${r.needs_work_set.count} skills carry the ${r.needs_work_set.as_of} audit's needs_work verdict; ${nwFired.length} of them have joinable fires in this window. Over-firing ∩ needs_work: ${r.over_firing_tail.filter((s) => s.needs_work).map((s) => `\`${s.skill}\``).join(", ") || "(none)"}.`);
+  L.push("");
+  return L.join("\n");
+}
+
+function triggerPrecisionMain(args) {
+  if (args.check) {
+    const failures = triggerPrecisionSelfTest();
+    if (failures.length) {
+      process.stderr.write("trigger-precision self-test FAILED:\n" + failures.map((f) => `  ✗ ${f}`).join("\n") + "\n");
+      return 1;
+    }
+    writeSync(1, "trigger-precision self-test: era split, honest joins, populations, streaks, two-track exclusion ✓\n");
+    return 0;
+  }
+  const suggestionEvents = readJsonl(suggestionPath);
+  const dispositionRows = readJsonl(dispositionPath);
+  const needsWork = args["needs-work"] ? String(args["needs-work"]).split(",").map((s) => s.trim()).filter(Boolean) : undefined;
+  const r = computeTriggerPrecision(suggestionEvents, dispositionRows, needsWork ? { needsWork } : {});
+  const generatedAt = new Date().toISOString();
+  if (format === "json") writeSync(1, JSON.stringify({ generated_at: generatedAt, ...r }, null, 2) + "\n");
+  else writeSync(1, renderTriggerPrecision(r, generatedAt) + "\n");
+  return 0;
 }
