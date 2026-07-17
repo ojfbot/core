@@ -70,6 +70,14 @@ registry:
     app: blogengine
     path: ../blogengine/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # core itself: the skill loop (honest follow-rate metric -> frozen suggester eval -> eager
+  # discovery) IS core's product surface. Bootstrapped 2026-07-17, rm:rm-l1-core#S1, from the
+  # skill-loop RCA + SOTA pass (decisions/research/2026-07-17-skill-loop-sota.md).
+  - slug: l1-core
+    tier: L1
+    app: core
+    path: .claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -98,6 +106,10 @@ roadmaps:
   - slug: rm-l1-silicon-empires
     northstar: l1-silicon-empires
     path: ../silicon-empires/.claude/roadmap.md
+  # the skill loop (2026-07-17): measurement -> eval -> discovery, doctrine-ordered.
+  - slug: rm-l1-core
+    northstar: l1-core
+    path: .claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
