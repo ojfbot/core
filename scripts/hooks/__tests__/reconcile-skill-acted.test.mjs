@@ -14,7 +14,9 @@ import {
   suggestionRecords,
   persistDispositions,
   rebuildDispositions,
+  persistAuthoringEvents,
 } from '../reconcile-skill-acted.mjs';
+import { detectAuthoringEdits, collectAuthoringEvents } from '../skill-acted-detect.mjs';
 import { classifyDisposition } from '../../../packages/workflows/dist/tracking/skill-acted-rate.js';
 import { validateSkillActed } from '../../../packages/workflows/dist/tracking/skill-acted-validator.js';
 import { expectedArtifactFor } from '../../../packages/workflows/dist/tracking/expected-artifact.js';
@@ -98,6 +100,114 @@ describe('classifyOne — one suggestion → one terminal disposition', () => {
     );
     expect(r.acted).toBe(false);
     expect(r.disposition).toBe('pending'); // engaged, no valid acted, no artifact, in window
+  });
+
+  // ── skill-authoring discriminator (adr:two-track-skill-telemetry, S16) ──
+  const editSkill = (skill, ts = '2026-06-18T00:35:00Z') => ({
+    tool_name: 'Edit',
+    file_path: `/Users/x/ojfbot/core/.claude/skills/${skill}/SKILL.md`,
+    session_id: SESS,
+    ts,
+  });
+
+  it('skill-authoring: session read AND edited the suggested skill\'s own files (gold inline-read rows — was engaged_no_act)', () => {
+    const r = classifyOne(sugg('s', 'vault'), ctx({ toolTelemetry: [read('vault'), editSkill('vault')] }), DEPS);
+    expect(r.authoring).toBe(true);
+    expect(r.disposition).toBe('skill-authoring');
+  });
+
+  it('skill-authoring: matching artifact written in the same session as skill-dir edits, NO self-report (gold 66B372CC — was capture_miss)', () => {
+    const r = classifyOne(
+      sugg('s', 'adr'),
+      ctx({ toolTelemetry: [read('adr'), editSkill('adr'), write('/repo/decisions/adr/0098-y.md')] }),
+      DEPS,
+    );
+    expect(r.artifactExists).toBe(true);
+    expect(r.disposition).toBe('skill-authoring');
+  });
+
+  it('acted outranks authoring: C2-valid self-report counts as use even alongside skill-dir edits (refinement guard)', () => {
+    const r = classifyOne(
+      sugg('s', 'adr'),
+      ctx({ toolTelemetry: [read('adr'), editSkill('adr')], actedEvents: [actedEvt('s', 'adr', 'decisions/adr/0097-x.md')] }),
+      DEPS,
+    );
+    expect(r.disposition).toBe('acted');
+  });
+
+  it('ignored: a skill-dir edit BEFORE the suggestion does not reclassify an unengaged suggestion (gold EBE96AA0 regression)', () => {
+    const r = classifyOne(
+      sugg('s', 'validate'),
+      ctx({ toolTelemetry: [{ tool_name: 'Edit', file_path: '/x/.claude/skills/validate/SKILL.md', session_id: SESS, ts: '2026-06-17T23:00:00Z' }] }),
+      DEPS,
+    );
+    expect(r.authoring).toBe(false);
+    expect(r.disposition).toBe('ignored');
+  });
+
+  it('edits to a DIFFERENT skill\'s directory do not mark this suggestion as authoring', () => {
+    const r = classifyOne(sugg('s', 'recon'), ctx({ toolTelemetry: [read('recon'), editSkill('sweep')] }), DEPS);
+    expect(r.authoring).toBe(false);
+    expect(r.disposition).toBe('engaged_no_act');
+  });
+});
+
+describe('detectAuthoringEdits — suggestion-scoped, name-normalized skill-dir mutations', () => {
+  const rows = [
+    { tool_name: 'Edit', file_path: '/x/.claude/skills/adr/SKILL.md', session_id: SESS, ts: '2026-06-18T00:10:00Z' },
+    { tool_name: 'Write', file_path: '/x/.claude/skills/adr/knowledge/notes.md', session_id: SESS, ts: '2026-06-18T00:20:00Z' },
+    { tool_name: 'Read', file_path: '/x/.claude/skills/adr/SKILL.md', session_id: SESS, ts: '2026-06-18T00:30:00Z' }, // read ≠ authoring
+    { tool_name: 'Edit', file_path: '/x/.claude/skills/adr/SKILL.md', session_id: 'other', ts: '2026-06-18T00:40:00Z' }, // other session
+    { tool_name: 'Edit', file_path: '/x/src/index.ts', session_id: SESS, ts: '2026-06-18T00:50:00Z' }, // non-skill path
+  ];
+  it('returns only mutating rows under the suggested skill\'s dir in this session at/after sinceIso', () => {
+    const edits = detectAuthoringEdits({ skill: 'adr', sessionId: SESS, sinceIso: SINCE, toolTelemetry: rows });
+    expect(edits.map((e) => e.ts)).toEqual(['2026-06-18T00:10:00Z', '2026-06-18T00:20:00Z']);
+  });
+  it('normalizes segmented names (core:adr ≈ adr)', () => {
+    const edits = detectAuthoringEdits({ skill: 'core:adr', sessionId: SESS, sinceIso: SINCE, toolTelemetry: rows });
+    expect(edits).toHaveLength(2);
+  });
+  it('excludes edits BEFORE the suggestion ts (gold EBE96AA0: pre-suggestion edit must not reclassify an ignored suggestion)', () => {
+    const early = [{ tool_name: 'Edit', file_path: '/x/.claude/skills/adr/SKILL.md', session_id: SESS, ts: '2026-06-17T00:00:00Z' }];
+    expect(detectAuthoringEdits({ skill: 'adr', sessionId: SESS, sinceIso: SINCE, toolTelemetry: early })).toHaveLength(0);
+  });
+});
+
+describe('collectAuthoringEvents + persistAuthoringEvents — the shadow evolution stream', () => {
+  const rows = [
+    { tool_name: 'Edit', file_path: '/x/.claude/skills/adr/SKILL.md', session_id: SESS, ts: '2026-06-18T00:10:00Z' },
+    { tool_name: 'Write', file_path: '/x/.claude/skills/adr/knowledge/notes.md', session_id: SESS, ts: '2026-06-18T00:05:00Z' },
+    { tool_name: 'Write', file_path: '/x/.claude/skills/newskill/SKILL.md', session_id: SESS, ts: '2026-06-18T00:20:00Z' },
+    { tool_name: 'Edit', file_path: '/x/.claude/skills/vault/SKILL.md', session_id: 'sess-2', ts: '2026-06-18T00:30:00Z' },
+    { tool_name: 'Read', file_path: '/x/.claude/skills/vault/SKILL.md', session_id: 'sess-2', ts: '2026-06-18T00:31:00Z' },
+  ];
+  it('groups mutations into one event per session×skill with earliest ts + sorted files', () => {
+    const events = collectAuthoringEvents(rows);
+    expect(events).toHaveLength(3);
+    const adr = events.find((e) => e.skill === 'adr');
+    expect(adr.ts).toBe('2026-06-18T00:05:00Z');
+    expect(adr.files_touched).toEqual(['/x/.claude/skills/adr/SKILL.md', '/x/.claude/skills/adr/knowledge/notes.md']);
+  });
+  it('kind heuristic v0: Write-to-SKILL.md → created; edits beyond SKILL.md → extended; SKILL.md-only edits → refactored', () => {
+    const events = collectAuthoringEvents(rows);
+    expect(events.find((e) => e.skill === 'newskill').kind).toBe('created');
+    expect(events.find((e) => e.skill === 'adr').kind).toBe('extended');
+    expect(events.find((e) => e.skill === 'vault').kind).toBe('refactored');
+  });
+  it('filters to a session when given', () => {
+    expect(collectAuthoringEvents(rows, { sessionId: 'sess-2' }).map((e) => e.skill)).toEqual(['vault']);
+  });
+  it('persists idempotently on session×skill (append-only event stream)', () => {
+    const out = join(mkdtempSync(join(tmpdir(), 'auth-')), 'skill-authoring.jsonl');
+    const events = collectAuthoringEvents(rows);
+    const w1 = persistAuthoringEvents(events, out, '2026-06-18T01:00:00Z');
+    expect(w1).toHaveLength(3);
+    const w2 = persistAuthoringEvents(events, out, '2026-06-18T02:00:00Z');
+    expect(w2).toEqual([]);
+    const lines = readFileSync(out, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines).toHaveLength(3);
+    expect(lines[0]).toMatchObject({ event: 'skill:authoring', mode: 'shadow' });
   });
 });
 

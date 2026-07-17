@@ -32,12 +32,14 @@
 //
 // ── KNOWN GAPS carried forward as C3 findings (do NOT silently ship past these) ──
 //
-// (1) USE-vs-MAINTENANCE (ADR-0095 honesty crux). `engaged` = a SKILL.md Read. A Read
-//     during a skill AUTHORING/AUDIT session (e.g. the ADR-0096 session that read 58
-//     SKILL.md files) is NOT a use. This recorder is SUGGESTION-SCOPED, so audit-reads
-//     not tied to a suggestion don't inflate THESE counts — but the future litter
-//     surface (catalog ⨝ raw engagement) WILL be fooled. The litter mode MUST add an
-//     edit-vs-read / audit-session discriminator before it ships. Gating finding.
+// (1) USE-vs-MAINTENANCE — CLOSED by rm:rm-l1-core#S16 (adr:two-track-skill-telemetry).
+//     The discriminator now lives HERE: sessions that mutate the suggested skill's own
+//     files classify `skill-authoring` (excluded from the use numerator AND denominator),
+//     and the same pass emits the shadow `skill:authoring` evolution stream
+//     (skill-authoring.jsonl). Precedence: a C2-valid `acted` still outranks authoring
+//     (product-near-definition refinement); an artifact WITHOUT a self-report does not
+//     (gold 66B372CC). Audit-reads not tied to a suggestion still don't inflate counts
+//     (recorder stays suggestion-scoped); the litter surface inherits detectAuthoringEdits.
 //
 // (2) PATH COVERAGE. `engaged` covers the inline-follow path (SKILL.md Read) and, since
 //     2026-07-17, Skill-tool invocations (name-normalized; see corroborate-follow.mjs).
@@ -57,17 +59,19 @@
 //                                                                 # predicate change is how stale
 //                                                                 # classifications get corrected.
 //   (test injection) --suggestion-telemetry=PATH --tool=PATH --ledger-root=DIR --out=PATH
+//                    --authoring-out=PATH  (skill:authoring evolution stream, default
+//                                           <ledger-root>/skill-authoring.jsonl)
 
 import { existsSync, appendFileSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { detectEngagement } from './skill-acted-detect.mjs';
+import { detectEngagement, detectAuthoringEdits, collectAuthoringEvents } from './skill-acted-detect.mjs';
 import { readJsonl } from './corroborate-follow.mjs';
 
 const DEFAULT_WINDOW_MS = 24 * 60 * 60 * 1000; // grace window for an artifact to appear
 const WRITE_TOOLS = new Set(['Write', 'Edit', 'NotebookEdit']);
-const TERMINAL = new Set(['acted', 'engaged_no_act', 'capture_miss', 'ignored']);
+const TERMINAL = new Set(['acted', 'skill-authoring', 'engaged_no_act', 'capture_miss', 'ignored']);
 
 /**
  * Independent artifact-existence proxy: was a path matching the skill's expected
@@ -121,9 +125,14 @@ export function classifyOne(suggestion, ctx, deps) {
   const artifactExists =
     acted || artifactWrittenInSession({ spec, sessionId: suggestion.sessionId, sinceIso: suggestion.ts, toolTelemetry });
   const withinWindow = nowMs - Date.parse(suggestion.ts) < windowMs;
+  // Use-vs-maintenance discriminator (adr:two-track-skill-telemetry): skill-dir
+  // mutations at/after the suggestion, suggestion-scoped like every other signal
+  // (gold EBE96AA0). Independent (catch-all telemetry), never agent self-report.
+  const authoring =
+    detectAuthoringEdits({ skill: suggestion.skill, sessionId: suggestion.sessionId, sinceIso: suggestion.ts, toolTelemetry }).length > 0;
 
-  const disposition = classifyDisposition({ suggestion, engaged, acted, artifactExists, actExpected, withinWindow });
-  return { suggestion, disposition, engaged, acted, artifactExists };
+  const disposition = classifyDisposition({ suggestion, engaged, acted, artifactExists, actExpected, withinWindow, authoring });
+  return { suggestion, disposition, engaged, acted, artifactExists, authoring };
 }
 
 /**
@@ -197,8 +206,45 @@ function dispositionLines(rows, nowIso) {
       engaged: r.engaged,
       acted: r.acted,
       artifact_exists: r.artifactExists,
+      authoring: r.authoring ?? false,
     }),
   );
+}
+
+/**
+ * EVOLUTION TRACK (adr:two-track-skill-telemetry, SHADOW): append one
+ * `skill:authoring` event per session×skill pair with skill-dir mutations,
+ * idempotent on the pair. Append-only event stream (not a rebuildable view) —
+ * authoring happened whether or not later predicates change. No consumer reads
+ * it until its own capture-quality pass. Returns the events actually written.
+ */
+export function persistAuthoringEvents(events, outPath, nowIso) {
+  const already = new Set();
+  if (existsSync(outPath)) {
+    for (const r of readJsonl(outPath)) if (r.session_id && r.skill) already.add(`${r.session_id} ${r.skill}`);
+  }
+  const toWrite = events.filter((e) => !already.has(`${e.session_id} ${e.skill}`));
+  if (toWrite.length === 0) return [];
+  mkdirSync(dirname(outPath), { recursive: true });
+  appendFileSync(
+    outPath,
+    toWrite
+      .map((e) =>
+        JSON.stringify({
+          ts: e.ts ?? nowIso,
+          recorded_at: nowIso,
+          event: 'skill:authoring',
+          mode: 'shadow',
+          skill: e.skill,
+          session_id: e.session_id,
+          files_touched: e.files_touched,
+          kind: e.kind,
+        }),
+      )
+      .join('\n') + '\n',
+    'utf8',
+  );
+  return toWrite;
 }
 
 /**
@@ -271,6 +317,7 @@ async function cliMain() {
   const ledgerRoot = expand(args['ledger-root'] ?? '~/selfco/tracking');
   const program = args.program ? String(args.program) : 'opav-loop';
   const outPath = expand(args.out ?? join(ledgerRoot, 'skill-dispositions.jsonl'));
+  const authoringOutPath = expand(args['authoring-out'] ?? join(ledgerRoot, 'skill-authoring.jsonl'));
   const windowMs = args.window ? Number(args.window) : DEFAULT_WINDOW_MS;
   const nowMs = args.now ? Date.parse(String(args.now)) : Date.now();
   const nowIso = new Date(nowMs).toISOString();
@@ -300,17 +347,21 @@ async function cliMain() {
     process.exit(0);
   }
 
+  // EVOLUTION TRACK (shadow, idempotent append): one skill:authoring event per
+  // session×skill pair with skill-dir mutations — suggestion-independent by design.
+  const authoringWritten = persistAuthoringEvents(collectAuthoringEvents(toolTelemetry, { sessionId }), authoringOutPath, nowIso);
+
   const fmt = (c) => Object.entries(c).map(([k, v]) => `${k}=${v}`).join(' ') || '(none)';
   const popSummary = Object.entries(byPopulation).map(([p, c]) => `${p}[${fmt(c)}]`).join(' ');
   if (args.rebuild) {
     const { written, backedUp } = rebuildDispositions(rows, outPath, nowIso);
-    console.error(`[reconcile-skill-acted] REBUILD ${sessionId ?? 'all'}: ${popSummary} | ${written.length} rows written to ${outPath}${backedUp ? ` (previous view → ${backedUp})` : ''} (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
+    console.error(`[reconcile-skill-acted] REBUILD ${sessionId ?? 'all'}: ${popSummary} | ${written.length} rows written to ${outPath}${backedUp ? ` (previous view → ${backedUp})` : ''} | +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
     process.exit(0);
   }
 
   const written = persistDispositions(rows, outPath, nowIso);
   // SHADOW: counts only — NEVER a rate. Note the known undercount (path coverage gap).
-  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${popSummary} | +${written.length} recorded (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
+  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${popSummary} | +${written.length} recorded, +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
   process.exit(0);
 }
 

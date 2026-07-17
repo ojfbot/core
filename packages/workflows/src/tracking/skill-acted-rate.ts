@@ -3,22 +3,38 @@
  * the shared spine, NOT a parallel ledger). It classifies each suggestion into one
  * terminal disposition and reports the corrected action-rate.
  *
- * The disposition model (adr:skill-action-instrumentation, signed off 2026-06-13):
+ * The disposition model (adr:skill-action-instrumentation, signed off 2026-06-13;
+ * skill-authoring added by adr:two-track-skill-telemetry, rm:rm-l1-core#S16):
  *
- *   acted          — a valid (C2-checked) skill:acted exists + its artifact resolves
- *   engaged_no_act — engaged, no skill:acted, no artifact on disk → EXPECTED terminal,
- *                    NOT a gap/failure; excluded from the capture-rate denominator
- *   capture_miss   — engaged, no skill:acted, but the artifact DOES exist → the real
- *                    C1 failure (agent did the work but failed to self-report)
- *   pending        — engaged, act_expected, within window, artifact not yet present
- *   ignored        — never engaged
+ *   acted           — a valid (C2-checked) skill:acted exists + its artifact resolves
+ *   skill-authoring — the session EDITED the suggested skill's own files (SKILL.md,
+ *                     knowledge, scripts) without a valid self-report → evolution-track
+ *                     terminal; excluded from the use numerator AND denominator, like
+ *                     engaged_no_act. A valid `acted` outranks it (the product-near-
+ *                     definition refinement: an expected_artifact match backed by a
+ *                     self-report counts as use even alongside skill-dir edits — gold
+ *                     scenario 66B372CC pins the converse: artifact + skill-dir edits
+ *                     with NO self-report is authoring, not capture_miss).
+ *   engaged_no_act  — engaged, no skill:acted, no artifact on disk → EXPECTED terminal,
+ *                     NOT a gap/failure; excluded from the capture-rate denominator
+ *   capture_miss    — engaged, no skill:acted, but the artifact DOES exist → the real
+ *                     C1 failure (agent did the work but failed to self-report)
+ *   pending         — engaged, act_expected, within window, artifact not yet present
+ *   ignored         — never engaged
  *
  * Artifact existence is the discriminator between honest non-completion and a self-report
- * failure. Capture-rate = acted / (acted + capture_miss) — engaged_no_act never inflates
- * the denominator, so honest "engaged but didn't finish" never reads as a gap.
+ * failure. Capture-rate = acted / (acted + capture_miss) — engaged_no_act and
+ * skill-authoring never inflate the denominator, so honest "engaged but didn't finish"
+ * and skill-maintenance sessions never read as gaps.
  */
 
-export type Disposition = 'acted' | 'engaged_no_act' | 'capture_miss' | 'pending' | 'ignored';
+export type Disposition =
+  | 'acted'
+  | 'skill-authoring'
+  | 'engaged_no_act'
+  | 'capture_miss'
+  | 'pending'
+  | 'ignored';
 
 /**
  * Which denominator population a suggestion belongs to: `installed`
@@ -53,11 +69,20 @@ export interface DispositionInputs {
   actExpected: boolean;
   /** Still inside the grace window for the artifact to appear? */
   withinWindow: boolean;
+  /**
+   * Independent signal: the session mutated files under the suggested skill's own
+   * directory (Write/Edit under `.../skills/<skill>/`) at/after the suggestion — the
+   * use-vs-maintenance discriminator (adr:two-track-skill-telemetry). Suggestion-scoped
+   * like `engaged` (gold EBE96AA0: a pre-suggestion edit doesn't reclassify an ignored
+   * suggestion), name-normalized.
+   */
+  authoring: boolean;
 }
 
 /** Classify one suggestion into its terminal disposition. Pure. */
 export function classifyDisposition(i: DispositionInputs): Disposition {
-  if (i.acted) return 'acted'; // terminal precedence — a confirmed action wins
+  if (i.acted) return 'acted'; // terminal precedence — a confirmed action wins, even in an authoring session
+  if (i.authoring) return 'skill-authoring'; // no valid self-report + skill-dir edits → evolution track (artifact alone does NOT flip this to use — gold 66B372CC)
   if (!i.engaged) return 'ignored';
   // engaged, not acted:
   if (!i.actExpected) return 'engaged_no_act'; // engaged-only skill — expected terminal
@@ -79,6 +104,7 @@ export interface ActionRate {
 export function computeActionRate(dispositions: readonly Disposition[]): ActionRate {
   const counts: Record<Disposition, number> = {
     acted: 0,
+    'skill-authoring': 0,
     engaged_no_act: 0,
     capture_miss: 0,
     pending: 0,
