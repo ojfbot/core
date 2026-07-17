@@ -1,0 +1,142 @@
+{
+  "at": "2026-07-17T22:09:14.191Z",
+  "gold": "decisions/opav/gold-set-v0.jsonl",
+  "bars": {
+    "capture_min": 0.7,
+    "false_emit_max": 0.1
+  },
+  "capture": {
+    "hits": 9,
+    "base": 9,
+    "rate": 1
+  },
+  "false_emit": {
+    "count": 0,
+    "base": 10,
+    "rate": 0
+  },
+  "agreement": {
+    "matches": 9,
+    "base": 13
+  },
+  "verdict": "GREEN",
+  "findings": [
+    {
+      "suggestion_id": "0BEF5CB0-41A7-4348-ACC4-7021BEAB2D09",
+      "skill": "vault",
+      "expected": "skill-authoring",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "F9972B5C-4901-4BE2-8B05-8431C8B926AB",
+      "skill": "bead",
+      "expected": "skill-authoring",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "66B372CC-7FA6-4505-B43C-56BC7ECFE150",
+      "skill": "adr",
+      "expected": "skill-authoring",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "4B1D8654-8CA5-4BB0-8A20-43D639F62B76",
+      "skill": "adopt-stack",
+      "expected": "skill-authoring",
+      "verdict": "missing-authoring-discriminator"
+    }
+  ],
+  "rows": [
+    {
+      "suggestion_id": "CC309397-CF40-48DD-AAE3-DFC7BA510C09",
+      "skill": "vault",
+      "expected": "engaged_no_act",
+      "actual": "engaged_no_act",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "6BBEE797-3EA3-4E71-8BD3-6A26C6BEEDC7",
+      "skill": "vault",
+      "expected": "engaged_no_act",
+      "actual": "engaged_no_act",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "B3714B79-E0F4-4008-97E8-1395E1DE95D7",
+      "skill": "vault",
+      "expected": "engaged_no_act",
+      "actual": "engaged_no_act",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "9A1A8D67-88A3-4DF8-9476-8B41B4E53F6A",
+      "skill": "vault",
+      "expected": "engaged_no_act",
+      "actual": "engaged_no_act",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "0BEF5CB0-41A7-4348-ACC4-7021BEAB2D09",
+      "skill": "vault",
+      "expected": "skill-authoring",
+      "actual": "engaged_no_act",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "F9972B5C-4901-4BE2-8B05-8431C8B926AB",
+      "skill": "bead",
+      "expected": "skill-authoring",
+      "actual": "engaged_no_act",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "E0F7DF98-ABD7-4453-B42F-13EF2BA06FF0",
+      "skill": "adr",
+      "expected": "acted",
+      "actual": "acted",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "66B372CC-7FA6-4505-B43C-56BC7ECFE150",
+      "skill": "adr",
+      "expected": "skill-authoring",
+      "actual": "capture_miss",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "4B1D8654-8CA5-4BB0-8A20-43D639F62B76",
+      "skill": "adopt-stack",
+      "expected": "skill-authoring",
+      "actual": "capture_miss",
+      "verdict": "missing-authoring-discriminator"
+    },
+    {
+      "suggestion_id": "DA1B241C-9712-4AFC-A208-CB9A6E227CFC",
+      "skill": "vault",
+      "expected": "ignored",
+      "actual": "ignored",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": "EBE96AA0-EC5E-43DF-B4F2-26F4F4C82F00",
+      "skill": "validate",
+      "expected": "ignored",
+      "actual": "ignored",
+      "verdict": "match"
+    },
+    {
+      "suggestion_id": null,
+      "skill": null,
+      "expected": "no-suggestion",
+      "actual": null,
+      "verdict": "pass-no-suggestion"
+    },
+    {
+      "suggestion_id": null,
+      "skill": null,
+      "expected": "no-suggestion",
+      "actual": null,
+      "verdict": "pass-no-suggestion"
+    }
+  ]
+}
