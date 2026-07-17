@@ -16,8 +16,10 @@
 // log. SHADOW-FIRST (ADR-0086): observe + record, never gate. Exits 0 non-blocking.
 //
 // Sources joined (all reused — no logic duplicated here):
-//   - suggestions   ← ~/.claude/suggestion-telemetry.jsonl (`skill:suggested-uninstalled`,
-//                     the inline-path denominator; the SUGGESTION_ID join root, S0)
+//   - suggestions   ← ~/.claude/suggestion-telemetry.jsonl (BOTH `skill:suggested`
+//                     [installed] and `skill:suggested-uninstalled` since
+//                     rm:rm-l1-core#S3; each record carries `population` so the two
+//                     denominators never blend; the SUGGESTION_ID join root, S0)
 //   - engaged       ← detectEngagement() (independent SKILL.md-Read in tool-telemetry)
 //   - acted         ← C2-valid skill:acted in the spine ledger (validateSkillActed)
 //   - artifactExists← a Write/Edit to a path matching the skill's expected_artifact
@@ -33,9 +35,10 @@
 //     surface (catalog ⨝ raw engagement) WILL be fooled. The litter mode MUST add an
 //     edit-vs-read / audit-session discriminator before it ships. Gating finding.
 //
-// (2) PATH COVERAGE. `engaged` covers only the inline-follow path (SKILL.md Read).
-//     Skill-tool-only invocations and skill `scripts/` execution are NOT counted as
-//     engagement. Undercount is logged (see summary), never silently capped.
+// (2) PATH COVERAGE. `engaged` covers the inline-follow path (SKILL.md Read) and,
+//     since rm:rm-l1-core#S2, Skill-tool invocations (segment-normalized names).
+//     Skill `scripts/` execution is still NOT counted as engagement. The remaining
+//     undercount is logged (see summary), never silently capped.
 //
 // Usage:
 //   node scripts/hooks/reconcile-skill-acted.mjs                  # Stop hook (session from stdin)
@@ -119,18 +122,36 @@ export function projectDispositions(suggestions, ctx, deps) {
   return suggestions.map((s) => classifyOne(s, ctx, deps));
 }
 
-/** Dedup suggestion-telemetry to one SuggestionRecord per SUGGESTION_ID (earliest ts). */
+/** Suggestion events that enter the denominator, and the population each tags. */
+const POPULATION_BY_EVENT = {
+  'skill:suggested': 'installed',
+  'skill:suggested-uninstalled': 'uninstalled',
+};
+
+/**
+ * Dedup suggestion-telemetry to one SuggestionRecord per SUGGESTION_ID (earliest ts).
+ * Since rm:rm-l1-core#S3 BOTH populations are scored — installed (`skill:suggested`)
+ * and uninstalled (`skill:suggested-uninstalled`) — with `population` carried on the
+ * record so downstream consumers report the two denominators separately, never blended.
+ */
 export function suggestionRecords(events, { sessionId } = {}) {
   const byId = new Map();
   for (const ev of events) {
-    if (ev.event !== 'skill:suggested-uninstalled') continue;
+    const population = POPULATION_BY_EVENT[ev.event];
+    if (!population) continue;
     if (!ev.suggestion_id || !ev.skill || !ev.session_id) continue;
     if (sessionId && ev.session_id !== sessionId) continue;
     const ts = ev.suggested_at || ev.ts;
     if (!ts) continue;
     const prev = byId.get(ev.suggestion_id);
     if (!prev || ts < prev.ts) {
-      byId.set(ev.suggestion_id, { suggestionId: ev.suggestion_id, skill: ev.skill, sessionId: ev.session_id, ts });
+      byId.set(ev.suggestion_id, {
+        suggestionId: ev.suggestion_id,
+        skill: ev.skill,
+        sessionId: ev.session_id,
+        ts,
+        population,
+      });
     }
   }
   return [...byId.values()];
@@ -160,6 +181,9 @@ export function persistDispositions(rows, outPath, nowIso) {
       skill: r.suggestion.skill,
       session_id: r.suggestion.sessionId,
       suggested_at: r.suggestion.ts,
+      // Era marker (rm:rm-l1-core#S3): legacy rows lack `population` — consumers
+      // must report the eras separately, never blend pre-fix and post-fix rates.
+      population: r.suggestion.population,
       disposition: r.disposition,
       engaged: r.engaged,
       acted: r.acted,
@@ -247,7 +271,7 @@ async function cliMain() {
   const written = persistDispositions(rows, outPath, nowIso);
   const summary = Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' ') || '(none)';
   // SHADOW: counts only — NEVER a rate. Note the known undercount (path coverage gap).
-  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${summary} | +${written.length} recorded (shadow; engagement=inline-follow only, undercounts Skill-tool/script paths)`);
+  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${summary} | +${written.length} recorded (shadow; engagement=inline-follow+Skill-tool, undercounts script-exec path)`);
   process.exit(0);
 }
 
