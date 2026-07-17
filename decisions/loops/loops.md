@@ -255,9 +255,9 @@ loops:
     status: live
     repo: core
   - slug: hook-reconcile-skill-acted
-    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095)"
+    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095). SINGLE WRITER (rm:rm-l1-core#S4, 2026-07-17): runs from the ../core-tracking runtime checkout (a detached-HEAD clone of this repo pinned to main), because a Stop hook must not depend on the working repo's branch state or an unbuilt dist. Advance-the-pin procedure after merging pipeline changes: cd ../core-tracking && git fetch && git checkout --detach origin/main && pnpm install --frozen-lockfile && pnpm --filter @core/workflows build. Pin advanced 2026-07-17 to 8d9e3c7 (S2 widened predicate + S3 population split live)."
     trigger: hook
-    trigger_ref: scripts/hooks/reconcile-skill-acted.mjs
+    trigger_ref: ../core-tracking/scripts/hooks/reconcile-skill-acted.mjs
     installed_ref: ~/.claude/settings.json
     cadence: event
     state_spine: "~/selfco/tracking/skill-dispositions.jsonl"
@@ -268,17 +268,17 @@ loops:
     status: live
     repo: core
   - slug: hook-reconcile-skill-acted-dup
-    purpose: "DUPLICATE registration of the Stop-hook recorder from the core-tracking worktree — verified benign (dedup by suggestion_id holds); removal is operator-manual (settings.json edits are classifier-blocked). Declared so the wart is legible, not forgotten."
+    purpose: "RESOLVED (rm:rm-l1-core#S4, 2026-07-17): the duplicate registration was removed from ~/.claude/settings.json — the core-repo entry was the one retired (it silently no-op'd whenever packages/workflows/dist/tracking was unbuilt; import failure -> exit 0). hook-reconcile-skill-acted (above) is the single declared writer, running from the core-tracking runtime checkout. Entry retained as the RIDM record of the wart."
     trigger: hook
     trigger_ref: ../core-tracking/scripts/hooks/reconcile-skill-acted.mjs
     installed_ref: ~/.claude/settings.json
     cadence: event
     state_spine: "~/selfco/tracking/skill-dispositions.jsonl (same ledger, deduped)"
     verifier: "dedup by suggestion_id"
-    stop_rule: "pending operator removal"
-    evidence_ref: "none"
+    stop_rule: "resolved — single registration verified 2026-07-17"
+    evidence_ref: "file:~/.claude/settings.json"
     owner: operator
-    status: live
+    status: disabled
     repo: core
   - slug: hook-mrplug-inject
     purpose: "UserPromptSubmit context injector for the MrPlug extension MCP server"
