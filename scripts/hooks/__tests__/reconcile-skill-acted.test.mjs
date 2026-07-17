@@ -116,26 +116,35 @@ describe('artifactWrittenInSession — independent artifact-existence proxy', ()
   });
 });
 
-describe('suggestionRecords — dedup + filter the join root', () => {
+describe('suggestionRecords — dedup + filter the join root (both populations, S3)', () => {
   const events = [
     { event: 'skill:suggested-uninstalled', skill: 'adr', suggestion_id: 'A', session_id: SESS, suggested_at: SINCE },
     { event: 'skill:suggested-uninstalled', skill: 'adr', suggestion_id: 'A', session_id: SESS, suggested_at: '2026-06-18T05:00:00Z' }, // dup, later
     { event: 'skill:suggestion-ignored', skill: 'tdd', suggestion_id: 'B', session_id: SESS, suggested_at: SINCE }, // wrong event
     { event: 'skill:suggested-uninstalled', skill: 'sweep', suggestion_id: 'C', session_id: 'other', suggested_at: SINCE }, // other session
+    { event: 'skill:suggested', skill: 'tdd', suggestion_id: 'D', session_id: SESS, suggested_at: SINCE }, // installed (S3)
   ];
-  it('keeps one record per suggestion_id (earliest ts), only suggested-uninstalled', () => {
+  it('keeps one record per suggestion_id (earliest ts), scoring BOTH suggested and suggested-uninstalled', () => {
     const recs = suggestionRecords(events);
-    expect(recs.map((r) => r.suggestionId).sort()).toEqual(['A', 'C']);
+    expect(recs.map((r) => r.suggestionId).sort()).toEqual(['A', 'C', 'D']);
     expect(recs.find((r) => r.suggestionId === 'A').ts).toBe(SINCE);
   });
+  it('tags each record with its population', () => {
+    const recs = suggestionRecords(events);
+    expect(recs.find((r) => r.suggestionId === 'A').population).toBe('uninstalled');
+    expect(recs.find((r) => r.suggestionId === 'D').population).toBe('installed');
+  });
+  it('still excludes non-denominator events (suggestion-ignored)', () => {
+    expect(suggestionRecords(events).map((r) => r.suggestionId)).not.toContain('B');
+  });
   it('filters to a session when given', () => {
-    expect(suggestionRecords(events, { sessionId: SESS }).map((r) => r.suggestionId)).toEqual(['A']);
+    expect(suggestionRecords(events, { sessionId: SESS }).map((r) => r.suggestionId).sort()).toEqual(['A', 'D']);
   });
 });
 
 describe('persistDispositions — idempotent, terminal-only', () => {
   const rows = [
-    { suggestion: sugg('A', 'adr'), disposition: 'acted', engaged: true, acted: true, artifactExists: true },
+    { suggestion: { ...sugg('A', 'adr'), population: 'installed' }, disposition: 'acted', engaged: true, acted: true, artifactExists: true },
     { suggestion: sugg('B', 'adr'), disposition: 'pending', engaged: true, acted: false, artifactExists: false },
   ];
   it('writes terminal dispositions, skips pending, and is idempotent on re-run', () => {
@@ -147,7 +156,12 @@ describe('persistDispositions — idempotent, terminal-only', () => {
     expect(w2).toEqual([]); // A already recorded → idempotent
     const lines = readFileSync(out, 'utf8').trim().split('\n');
     expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0])).toMatchObject({ suggestion_id: 'A', disposition: 'acted', event: 'skill:disposition' });
+    expect(JSON.parse(lines[0])).toMatchObject({
+      suggestion_id: 'A',
+      disposition: 'acted',
+      event: 'skill:disposition',
+      population: 'installed', // era marker (S3): legacy rows lack this field
+    });
   });
 });
 
