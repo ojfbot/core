@@ -75,7 +75,7 @@ slices:
     claimable_by: agent_eligible
     kind: s
     repo: core
-    status: ready
+    status: merged
   - id: S5
     phase: PH1
     title: "Auto-emit followed/acted from PostToolUse(Skill) — shadow mode"
@@ -90,7 +90,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: queued
+    status: ready
     depends_on: "rm:rm-l1-core#S4"
   - id: S6
     phase: PH1
