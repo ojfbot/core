@@ -1,5 +1,14 @@
 # Gold set v0 — operator labeling sitting (rm:rm-l1-core#S6, human-only)
 
+> **SITTING COMPLETE 2026-07-17** (operator + delivery session, walked live). 9 labels
+> CONFIRMED, 4 CORRECTED to **`skill-authoring`** — a new expected label for sessions that
+> edit the suggested skill's own files (improving/refactoring/extending it). Operator ruling:
+> authoring is excluded from the *use* denominator but is a **core self-improvement signal to
+> be tracked in its own right** — the two-track decision (use-funnel ∥ skill-evolution; see
+> the draft ADR + rm:rm-l1-core P4/S16). Verifier verdict **GREEN**: capture 9/9, false-emit
+> 0/10, agreement 9/13 with all 4 mismatches the named `missing-authoring-discriminator`
+> finding (`capture-quality-report.json`) — the evolution slice's entrance evidence.
+
 `gold-set-v0.draft.jsonl` holds **13 PROPOSED candidates selected from real telemetry**
 (the rebuilt 364-row disposition ledger + tool-telemetry + suggestion-telemetry),
 covering every category the slice requires:
