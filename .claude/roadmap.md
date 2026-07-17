@@ -138,7 +138,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: queued
+    status: ready
     depends_on: "rm:rm-l1-core#S3"
   - id: S9
     phase: PH2
@@ -154,7 +154,7 @@ slices:
     claimable_by: agent_eligible
     kind: s
     repo: core
-    status: queued
+    status: ready
     depends_on: "rm:rm-l1-core#S3"
   - id: S10
     phase: PH3
@@ -266,7 +266,23 @@ slices:
     claimable_by: agent_eligible
     kind: l
     repo: core
+    status: merged
+  - id: S17
+    phase: PH1
+    title: "Measurement-plumbing reliability hardening — the ruler must fail loudly"
+    advances: "ns:l1-core#P1"
+    moves_from: 60
+    moves_to: 70
+    deliverable: "The verified reliability gaps in the measurement plumbing, each evidence-cited: (a) the Stop-hook reconciler silently no-ops when packages/workflows/dist/tracking is unbuilt (import failure -> exit 0; the loops.md STANDING INVARIANT) — replace with a loud guard: stderr in ALL modes + a reconciler-dead event appended to ~/selfco/tracking/loop-health.jsonl surfaced by loops-liveness (auto-build rejected: Stop-hook latency + concurrent-session build races); (c) suggest-skill.sh's /tmp/claude-skill-suggest-default fallback cross-wires concurrent sessions — fail open (skip dedup AND ignored-detection when SESSION_ID is unset; a wrong suggestion-ignored joined to another session's SUGGESTION_ID is data corruption); (d) reconcile-skill-acted.mjs --json stdout truncates at 64KiB (async console.log + process.exit race, observed live) — synchronous writeSync; (e) the script-exec engagement path is uncounted (reconciler stderr admits it) — extend detectEngagement with Bash rows matching .claude/skills/<skill>/scripts/, then rebuild ledger + regenerate capture-quality-report.json (must stay 13/13 GREEN); (b) log-skill.sh repo-scope under-fire is SURFACED not fixed (legacy stream, demoted to labeled fallback by S24; detection fleet-covered by the S2 predicate over user-scope tool-telemetry) — documented in loops.md."
+    entrance: "All gaps verified live 2026-07-17 (S16 sitting): (a) loops.md STANDING INVARIANT; (c) suggest-skill.sh:54 ${SESSION_ID:-default}; (d) observed truncation on the 371-row ledger; (e) reconciler stderr 'scripts/ path still uncounted'."
+    success: "Tests for (a)/(c)/(d)/(e) green in scripts/hooks/__tests__; a dist-unbuilt run writes a reconciler-dead loop-health event instead of vanishing; --json output byte-complete on the live ledger; capture-quality re-verified 13/13 GREEN after (e); loops.md documents (b)."
+    check: "pnpm vitest run scripts/hooks/__tests__ && node scripts/opav-capture-quality.mjs --gold=decisions/opav/gold-set-v0.jsonl"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
     status: ready
+    depends_on: "rm:rm-l1-core#S16"
 ---
 
 # Roadmap — core (l1-core): the honest skill loop
