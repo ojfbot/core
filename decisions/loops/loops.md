@@ -255,9 +255,9 @@ loops:
     status: live
     repo: core
   - slug: hook-reconcile-skill-acted
-    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095). SINGLE WRITER (rm:rm-l1-core#S4, 2026-07-17): runs from the ../core-tracking runtime checkout (a detached-HEAD clone of this repo pinned to main), because a Stop hook must not depend on the working repo's branch state or an unbuilt dist. Advance-the-pin procedure after merging pipeline changes: cd ../core-tracking && git fetch && git checkout --detach origin/main && pnpm install --frozen-lockfile && pnpm --filter @core/workflows build. Pin advanced 2026-07-17 to 8d9e3c7 (S2 widened predicate + S3 population split live)."
+    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095). SINGLE WRITER, revised same-day (rm:rm-l1-core#S4 declared the core-tracking runtime checkout at 8d9e3c7; the parallel RCA-d92e3b15 session then consolidated onto the core repo itself and retired/deleted ../core-tracking, be469df). Current: runs from THIS repo's checkout. STANDING INVARIANT: the hook silently no-ops (import failure -> exit 0) whenever packages/workflows/dist/tracking is unbuilt — after any pull that touches packages/workflows, run: pnpm install --frozen-lockfile && pnpm --filter @core/workflows build. A branch checkout also changes hook behavior; prefer returning the shared checkout to main."
     trigger: hook
-    trigger_ref: ../core-tracking/scripts/hooks/reconcile-skill-acted.mjs
+    trigger_ref: scripts/hooks/reconcile-skill-acted.mjs
     installed_ref: ~/.claude/settings.json
     cadence: event
     state_spine: "~/selfco/tracking/skill-dispositions.jsonl"
@@ -268,7 +268,7 @@ loops:
     status: live
     repo: core
   - slug: hook-reconcile-skill-acted-dup
-    purpose: "RESOLVED (rm:rm-l1-core#S4, 2026-07-17): the duplicate registration was removed from ~/.claude/settings.json — the core-repo entry was the one retired (it silently no-op'd whenever packages/workflows/dist/tracking was unbuilt; import failure -> exit 0). hook-reconcile-skill-acted (above) is the single declared writer, running from the core-tracking runtime checkout. Entry retained as the RIDM record of the wart."
+    purpose: "RESOLVED (rm:rm-l1-core#S4 + RCA-d92e3b15 consolidation, both 2026-07-17): exactly one registration remains in ~/.claude/settings.json — the core repo's reconciler (the core-tracking runtime checkout was retired and deleted the same day). Entry retained as the RIDM record: the wart's root cause (unbuilt dist -> silent exit 0) survives as the STANDING INVARIANT on hook-reconcile-skill-acted above."
     trigger: hook
     trigger_ref: ../core-tracking/scripts/hooks/reconcile-skill-acted.mjs
     installed_ref: ~/.claude/settings.json
