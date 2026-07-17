@@ -34,7 +34,7 @@ properties:
   - id: P4
     name: "Skill evolution is tracked and tied to outcomes"
     target: "The fleet's skill-authoring (create/extend/refactor of SKILL.md, knowledge, scripts) is captured as its own event stream — excluded from the use-funnel, never discarded — and joined to downstream movement: after a skill's definition changes, its suggester precision, follow rate, or audit verdict is compared before/after. Two tracks, never blended (adr:two-track-skill-telemetry)."
-    current: 5
+    current: 30
     verification: "skill:authoring events flowing shadow-first; the 4 gold-set skill-authoring scenarios reclassify correctly; at least one before/after outcome join produced for a really-changed skill."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
