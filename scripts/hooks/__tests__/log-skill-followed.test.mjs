@@ -29,10 +29,10 @@ function skillEvents() {
   return readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
 }
 
-function runHook() {
+function runHook(invokedSkill = SKILL) {
   const input = JSON.stringify({
     tool_name: 'Skill',
-    tool_input: { skill: SKILL, args: '' },
+    tool_input: { skill: invokedSkill, args: '' },
     session_id: sessionId,
     cwd: join(home, 'repo'),
     hook_event_name: 'PostToolUse',
@@ -72,5 +72,40 @@ describe('log-skill.sh — funnel-close carries suggestion_id (C0)', () => {
     const followed = skillEvents().filter((e) => e.event === 'skill:suggestion-followed');
     expect(followed.length).toBe(1);
     expect(followed[0].suggestion_id).toBe(SUGGESTION_ID);
+  });
+});
+
+describe('log-skill.sh — S5 funnel-close widening (rm:rm-l1-core#S5)', () => {
+  it('closes a skill:suggested-uninstalled suggestion too (both populations)', async () => {
+    const suggested = {
+      ts: '2026-06-13T10:00:00Z',
+      event: 'skill:suggested-uninstalled',
+      skill: SKILL,
+      session_id: sessionId,
+      suggestion_id: 'sug-uninst-0002',
+    };
+    writeFileSync(join(home, '.claude', 'suggestion-telemetry.jsonl'), JSON.stringify(suggested) + '\n');
+    await runHook();
+    const followed = skillEvents().filter((e) => e.event === 'skill:suggestion-followed');
+    expect(followed.length).toBe(1);
+    expect(followed[0].suggestion_id).toBe('sug-uninst-0002');
+  });
+
+  it('normalizes scoped invocations: invoking core:tdd closes a suggestion for tdd', async () => {
+    await runHook('core:tdd');
+    const followed = skillEvents().filter((e) => e.event === 'skill:suggestion-followed');
+    expect(followed.length).toBe(1);
+    expect(followed[0].suggestion_id).toBe(SUGGESTION_ID);
+  });
+
+  it('does not close on an unrelated skill, scoped or not', async () => {
+    await runHook('core:deepen');
+    const followed = skillEvents().filter((e) => e.event === 'skill:suggestion-followed');
+    expect(followed.length).toBe(0);
+  });
+
+  it('never emits skill:acted (acted stays evidence-mandatory, ADR-0095)', async () => {
+    await runHook();
+    expect(skillEvents().filter((e) => e.event === 'skill:acted').length).toBe(0);
   });
 });
