@@ -106,7 +106,7 @@ slices:
     claimable_by: human_only
     kind: m
     repo: core
-    status: queued
+    status: merged
     depends_on: "rm:rm-l1-core#S5"
   - id: S7
     phase: PH1
@@ -252,6 +252,21 @@ slices:
     repo: core
     status: queued
     depends_on: "rm:rm-l1-core#S11"
+  - id: S16
+    phase: PH1
+    title: "Skill-evolution track — authoring discriminator + event stream + outcome join (shadow)"
+    advances: "ns:l1-core#P4"
+    moves_from: 5
+    moves_to: 30
+    deliverable: "The use-vs-maintenance discriminator moves into the reconciler: sessions editing the suggested skill's own files classify skill-authoring (new excluded-from-denominator terminal in classifyDisposition), with the product-near-definition refinement (an expected_artifact match counts as use even alongside skill-dir edits). A skill:authoring event stream ships shadow-first, plus one before/after outcome join (suggester precision, follow rate, or audit verdict) for a really-changed skill. The 4 gold-set skill-authoring scenarios are the regression fixtures."
+    entrance: "capture-quality-report.json names missing-authoring-discriminator on 4/13 gold scenarios (merged, GREEN); operator two-track ruling recorded 2026-07-17; draft adr:two-track-skill-telemetry staged."
+    success: "Reconciler reclassifies the 4 gold scenarios as skill-authoring with 0 regressions on the other 9; gold-mode verifier agreement rises to 13/13; the authoring stream and one outcome join render nowhere yet (shadow) but are queryable."
+    check: "node scripts/opav-capture-quality.mjs --gold=decisions/opav/gold-set-v0.jsonl && pnpm vitest run scripts/hooks/__tests__"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: l
+    repo: core
+    status: ready
 ---
 
 # Roadmap — core (l1-core): the honest skill loop

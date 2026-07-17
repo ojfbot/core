@@ -13,7 +13,7 @@ properties:
   - id: P1
     name: "The skill follow-rate metric is honest"
     target: "Every suggestion reaches exactly one terminal disposition via path-independent capture (inline SKILL.md Read, Skill-tool invocation, script exec); both populations (installed + uninstalled) are scored; followed/acted auto-emitted in shadow; capture >= 70% and false-emit <= 10% vs a labeled gold set (ADR-0095 bars); no rate published before capture-quality is green."
-    current: 55
+    current: 60
     verification: "scripts/opav-capture-quality.mjs green vs the decisions/opav gold set; replay shows the >=13 known Skill-tool follows flip from ignored; disposition rows carry a population field."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
@@ -29,6 +29,13 @@ properties:
     target: "The honest session-level invocation rate (baseline 22/228 sessions, 2026-06-18..07-16) measurably rises after description/trigger/activation interventions, each measured only by the P1-honest metric against the frozen P2 eval."
     current: 10
     verification: "skill-metrics session-invocation mode over tool-telemetry Skill events; before/after windows cited in status.jsonl movement lines."
+    ladders_up_to: "ns:l2-ojfbot#P2"
+    okr_drivers: []
+  - id: P4
+    name: "Skill evolution is tracked and tied to outcomes"
+    target: "The fleet's skill-authoring (create/extend/refactor of SKILL.md, knowledge, scripts) is captured as its own event stream — excluded from the use-funnel, never discarded — and joined to downstream movement: after a skill's definition changes, its suggester precision, follow rate, or audit verdict is compared before/after. Two tracks, never blended (adr:two-track-skill-telemetry)."
+    current: 5
+    verification: "skill:authoring events flowing shadow-first; the 4 gold-set skill-authoring scenarios reclassify correctly; at least one before/after outcome join produced for a really-changed skill."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
 ---
