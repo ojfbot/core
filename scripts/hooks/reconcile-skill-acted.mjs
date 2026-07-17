@@ -16,11 +16,15 @@
 // log. SHADOW-FIRST (ADR-0086): observe + record, never gate. Exits 0 non-blocking.
 //
 // Sources joined (all reused — no logic duplicated here):
-//   - suggestions   ← ~/.claude/suggestion-telemetry.jsonl (BOTH `skill:suggested`
-//                     [installed] and `skill:suggested-uninstalled` since
-//                     rm:rm-l1-core#S3; each record carries `population` so the two
-//                     denominators never blend; the SUGGESTION_ID join root, S0)
-//   - engaged       ← detectEngagement() (independent SKILL.md-Read in tool-telemetry)
+//   - suggestions   ← ~/.claude/suggestion-telemetry.jsonl — BOTH populations
+//                     (rm:rm-l1-core#S3), tagged:
+//                     `skill:suggested` (population:installed) and
+//                     `skill:suggested-uninstalled` (population:uninstalled); the
+//                     SUGGESTION_ID join root, S0. Until 2026-07-17 the installed
+//                     population was silently excluded (522 of 790 suggestions unscored
+//                     — RCA d92e3b15); it is now scored and tagged, never dropped.
+//   - engaged       ← detectEngagement() (independent SKILL.md-Read or Skill-tool
+//                     invocation in tool-telemetry)
 //   - acted         ← C2-valid skill:acted in the spine ledger (validateSkillActed)
 //   - artifactExists← a Write/Edit to a path matching the skill's expected_artifact
 //                     pattern in-session (independent artifact-existence proxy)
@@ -35,9 +39,9 @@
 //     surface (catalog ⨝ raw engagement) WILL be fooled. The litter mode MUST add an
 //     edit-vs-read / audit-session discriminator before it ships. Gating finding.
 //
-// (2) PATH COVERAGE. `engaged` covers the inline-follow path (SKILL.md Read) and,
-//     since rm:rm-l1-core#S2, Skill-tool invocations (segment-normalized names).
-//     Skill `scripts/` execution is still NOT counted as engagement. The remaining
+// (2) PATH COVERAGE. `engaged` covers the inline-follow path (SKILL.md Read) and, since
+//     2026-07-17, Skill-tool invocations (name-normalized; see corroborate-follow.mjs).
+//     Skill `scripts/` execution is still NOT counted as engagement. Remaining
 //     undercount is logged (see summary), never silently capped.
 //
 // Usage:
@@ -45,9 +49,16 @@
 //   node scripts/hooks/reconcile-skill-acted.mjs --session=SID    # one session
 //   node scripts/hooks/reconcile-skill-acted.mjs --window=86400000 [--now=ISO]
 //   node scripts/hooks/reconcile-skill-acted.mjs --json           # machine-readable, no persist
+//   node scripts/hooks/reconcile-skill-acted.mjs --rebuild        # reproject ALL suggestions and
+//                                                                 # REPLACE the shadow file (backup
+//                                                                 # kept). The shadow log is a
+//                                                                 # projector VIEW, not a spine
+//                                                                 # ledger — rebuilding it after a
+//                                                                 # predicate change is how stale
+//                                                                 # classifications get corrected.
 //   (test injection) --suggestion-telemetry=PATH --tool=PATH --ledger-root=DIR --out=PATH
 
-import { existsSync, appendFileSync, mkdirSync } from 'node:fs';
+import { existsSync, appendFileSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -122,22 +133,22 @@ export function projectDispositions(suggestions, ctx, deps) {
   return suggestions.map((s) => classifyOne(s, ctx, deps));
 }
 
-/** Suggestion events that enter the denominator, and the population each tags. */
-const POPULATION_BY_EVENT = {
+/** Denominator populations: which suggestion events are scored, and how tagged. */
+const SUGGESTION_POPULATIONS = {
   'skill:suggested': 'installed',
   'skill:suggested-uninstalled': 'uninstalled',
 };
 
 /**
  * Dedup suggestion-telemetry to one SuggestionRecord per SUGGESTION_ID (earliest ts).
- * Since rm:rm-l1-core#S3 BOTH populations are scored — installed (`skill:suggested`)
- * and uninstalled (`skill:suggested-uninstalled`) — with `population` carried on the
- * record so downstream consumers report the two denominators separately, never blended.
+ * BOTH populations are scored — installed (`skill:suggested`) and uninstalled
+ * (`skill:suggested-uninstalled`) — each record tagged with its `population` so the
+ * two are reported side by side, never silently merged or excluded.
  */
 export function suggestionRecords(events, { sessionId } = {}) {
   const byId = new Map();
   for (const ev of events) {
-    const population = POPULATION_BY_EVENT[ev.event];
+    const population = SUGGESTION_POPULATIONS[ev.event];
     if (!population) continue;
     if (!ev.suggestion_id || !ev.skill || !ev.session_id) continue;
     if (sessionId && ev.session_id !== sessionId) continue;
@@ -145,13 +156,7 @@ export function suggestionRecords(events, { sessionId } = {}) {
     if (!ts) continue;
     const prev = byId.get(ev.suggestion_id);
     if (!prev || ts < prev.ts) {
-      byId.set(ev.suggestion_id, {
-        suggestionId: ev.suggestion_id,
-        skill: ev.skill,
-        sessionId: ev.session_id,
-        ts,
-        population,
-      });
+      byId.set(ev.suggestion_id, { suggestionId: ev.suggestion_id, skill: ev.skill, sessionId: ev.session_id, ts, population });
     }
   }
   return [...byId.values()];
@@ -172,7 +177,13 @@ export function persistDispositions(rows, outPath, nowIso) {
   );
   if (toWrite.length === 0) return [];
   mkdirSync(dirname(outPath), { recursive: true });
-  const lines = toWrite.map((r) =>
+  appendFileSync(outPath, dispositionLines(toWrite, nowIso).join('\n') + '\n', 'utf8');
+  return toWrite;
+}
+
+/** Serialize disposition rows to shadow-log JSONL lines. */
+function dispositionLines(rows, nowIso) {
+  return rows.map((r) =>
     JSON.stringify({
       ts: nowIso,
       event: 'skill:disposition',
@@ -181,8 +192,6 @@ export function persistDispositions(rows, outPath, nowIso) {
       skill: r.suggestion.skill,
       session_id: r.suggestion.sessionId,
       suggested_at: r.suggestion.ts,
-      // Era marker (rm:rm-l1-core#S3): legacy rows lack `population` — consumers
-      // must report the eras separately, never blend pre-fix and post-fix rates.
       population: r.suggestion.population,
       disposition: r.disposition,
       engaged: r.engaged,
@@ -190,8 +199,25 @@ export function persistDispositions(rows, outPath, nowIso) {
       artifact_exists: r.artifactExists,
     }),
   );
-  appendFileSync(outPath, lines.join('\n') + '\n', 'utf8');
-  return toWrite;
+}
+
+/**
+ * REPLACE the shadow file with a fresh projection of every terminal disposition.
+ * The shadow log is a VIEW (derived, reproducible from telemetry) — after a
+ * predicate/denominator change, append-idempotence would freeze stale rows forever,
+ * so a rebuild rewrites the view wholesale. The previous file is kept as
+ * `<out>.bak.<ts>`; returns {written, backedUp}.
+ */
+export function rebuildDispositions(rows, outPath, nowIso) {
+  const toWrite = rows.filter((r) => TERMINAL.has(r.disposition));
+  mkdirSync(dirname(outPath), { recursive: true });
+  let backedUp = null;
+  if (existsSync(outPath)) {
+    backedUp = `${outPath}.bak.${nowIso.replace(/[:.]/g, '-')}`;
+    copyFileSync(outPath, backedUp);
+  }
+  writeFileSync(outPath, toWrite.length ? dispositionLines(toWrite, nowIso).join('\n') + '\n' : '', 'utf8');
+  return { written: toWrite, backedUp };
 }
 
 // ── CLI / hook ────────────────────────────────────────────────────────────────
@@ -260,18 +286,31 @@ async function cliMain() {
   );
 
   const counts = {};
-  for (const r of rows) counts[r.disposition] = (counts[r.disposition] ?? 0) + 1;
+  const byPopulation = {};
+  for (const r of rows) {
+    counts[r.disposition] = (counts[r.disposition] ?? 0) + 1;
+    const pop = r.suggestion.population ?? 'unknown';
+    byPopulation[pop] ??= {};
+    byPopulation[pop][r.disposition] = (byPopulation[pop][r.disposition] ?? 0) + 1;
+  }
 
   if (asJson) {
     // DELIBERATELY no capture-rate number (deferred-data: needs accumulation + gold set).
-    console.log(JSON.stringify({ mode: 'shadow', session: sessionId ?? 'all', counts, rows: rows.map((r) => ({ suggestion_id: r.suggestion.suggestionId, skill: r.suggestion.skill, disposition: r.disposition })) }, null, 2));
+    console.log(JSON.stringify({ mode: 'shadow', session: sessionId ?? 'all', counts, by_population: byPopulation, rows: rows.map((r) => ({ suggestion_id: r.suggestion.suggestionId, skill: r.suggestion.skill, population: r.suggestion.population, disposition: r.disposition, engaged: r.engaged })) }, null, 2));
+    process.exit(0);
+  }
+
+  const fmt = (c) => Object.entries(c).map(([k, v]) => `${k}=${v}`).join(' ') || '(none)';
+  const popSummary = Object.entries(byPopulation).map(([p, c]) => `${p}[${fmt(c)}]`).join(' ');
+  if (args.rebuild) {
+    const { written, backedUp } = rebuildDispositions(rows, outPath, nowIso);
+    console.error(`[reconcile-skill-acted] REBUILD ${sessionId ?? 'all'}: ${popSummary} | ${written.length} rows written to ${outPath}${backedUp ? ` (previous view → ${backedUp})` : ''} (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
     process.exit(0);
   }
 
   const written = persistDispositions(rows, outPath, nowIso);
-  const summary = Object.entries(counts).map(([k, v]) => `${k}=${v}`).join(' ') || '(none)';
   // SHADOW: counts only — NEVER a rate. Note the known undercount (path coverage gap).
-  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${summary} | +${written.length} recorded (shadow; engagement=inline-follow+Skill-tool, undercounts script-exec path)`);
+  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${popSummary} | +${written.length} recorded (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
   process.exit(0);
 }
 

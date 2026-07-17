@@ -28,11 +28,20 @@ describe('detectEngagement — independent inline-follow signal', () => {
     expect(detectEngagement({ skill: 'adr', sessionId: 'sess-1', sinceIso: '2026-06-13T00:00:00Z', toolTelemetry: tool })).toBe(false);
   });
 
-  it('is independent: a skill:acted self-report alone does NOT count as engagement', () => {
-    // Only a self-emitted skill:acted exists, no SKILL.md Read. The detector must
-    // not be fooled — independence is the whole point of the two-source contract.
+  it('true for a Skill-tool invocation of the suggested skill (catch-all telemetry, name-normalized)', () => {
+    // The Skill-tool row is captured by log-tool-use.sh — a different mechanism than
+    // the agent's self-emitted skill:acted, so counting it preserves independence.
+    const tool = [{ tool_name: 'Skill', file_path: '', skill: 'core:adr', session_id: 'sess-1', ts: '2026-06-13T01:00:00Z' }];
+    expect(detectEngagement({ skill: 'adr', sessionId: 'sess-1', sinceIso: '2026-06-13T00:00:00Z', toolTelemetry: tool })).toBe(true);
+  });
+
+  it('is independent: a Skill row naming a DIFFERENT skill does not count, and skill:acted is never consulted', () => {
+    // A nameless/mismatched Skill row must not be fooled into engagement, and the
+    // detector remains structurally blind to skill-telemetry self-reports.
     const tool = [{ tool_name: 'Skill', file_path: null, session_id: 'sess-1', ts: '2026-06-13T01:00:00Z' }];
     expect(detectEngagement({ skill: 'adr', sessionId: 'sess-1', sinceIso: '2026-06-13T00:00:00Z', toolTelemetry: tool })).toBe(false);
+    const other = [{ tool_name: 'Skill', file_path: '', skill: 'tdd', session_id: 'sess-1', ts: '2026-06-13T01:00:00Z' }];
+    expect(detectEngagement({ skill: 'adr', sessionId: 'sess-1', sinceIso: '2026-06-13T00:00:00Z', toolTelemetry: other })).toBe(false);
   });
 });
 

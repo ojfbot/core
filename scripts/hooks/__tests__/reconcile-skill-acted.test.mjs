@@ -13,6 +13,7 @@ import {
   projectDispositions,
   suggestionRecords,
   persistDispositions,
+  rebuildDispositions,
 } from '../reconcile-skill-acted.mjs';
 import { classifyDisposition } from '../../../packages/workflows/dist/tracking/skill-acted-rate.js';
 import { validateSkillActed } from '../../../packages/workflows/dist/tracking/skill-acted-validator.js';
@@ -116,20 +117,21 @@ describe('artifactWrittenInSession — independent artifact-existence proxy', ()
   });
 });
 
-describe('suggestionRecords — dedup + filter the join root (both populations, S3)', () => {
+describe('suggestionRecords — dedup + population-tagged join root', () => {
   const events = [
     { event: 'skill:suggested-uninstalled', skill: 'adr', suggestion_id: 'A', session_id: SESS, suggested_at: SINCE },
     { event: 'skill:suggested-uninstalled', skill: 'adr', suggestion_id: 'A', session_id: SESS, suggested_at: '2026-06-18T05:00:00Z' }, // dup, later
     { event: 'skill:suggestion-ignored', skill: 'tdd', suggestion_id: 'B', session_id: SESS, suggested_at: SINCE }, // wrong event
     { event: 'skill:suggested-uninstalled', skill: 'sweep', suggestion_id: 'C', session_id: 'other', suggested_at: SINCE }, // other session
-    { event: 'skill:suggested', skill: 'tdd', suggestion_id: 'D', session_id: SESS, suggested_at: SINCE }, // installed (S3)
+    { event: 'skill:suggested', skill: 'tdd', suggestion_id: 'D', session_id: SESS, suggested_at: SINCE }, // installed population
+    { event: 'skill:suggested', skill: 'recon', session_id: SESS, suggested_at: SINCE }, // installed, no suggestion_id → skipped
   ];
-  it('keeps one record per suggestion_id (earliest ts), scoring BOTH suggested and suggested-uninstalled', () => {
+  it('keeps one record per suggestion_id (earliest ts), scoring BOTH populations', () => {
     const recs = suggestionRecords(events);
     expect(recs.map((r) => r.suggestionId).sort()).toEqual(['A', 'C', 'D']);
     expect(recs.find((r) => r.suggestionId === 'A').ts).toBe(SINCE);
   });
-  it('tags each record with its population', () => {
+  it('tags each record with its population (installed vs uninstalled)', () => {
     const recs = suggestionRecords(events);
     expect(recs.find((r) => r.suggestionId === 'A').population).toBe('uninstalled');
     expect(recs.find((r) => r.suggestionId === 'D').population).toBe('installed');
@@ -137,14 +139,14 @@ describe('suggestionRecords — dedup + filter the join root (both populations, 
   it('still excludes non-denominator events (suggestion-ignored)', () => {
     expect(suggestionRecords(events).map((r) => r.suggestionId)).not.toContain('B');
   });
-  it('filters to a session when given', () => {
+  it('filters to a session when given (both populations)', () => {
     expect(suggestionRecords(events, { sessionId: SESS }).map((r) => r.suggestionId).sort()).toEqual(['A', 'D']);
   });
 });
 
 describe('persistDispositions — idempotent, terminal-only', () => {
   const rows = [
-    { suggestion: { ...sugg('A', 'adr'), population: 'installed' }, disposition: 'acted', engaged: true, acted: true, artifactExists: true },
+    { suggestion: { ...sugg('A', 'adr'), population: 'uninstalled' }, disposition: 'acted', engaged: true, acted: true, artifactExists: true },
     { suggestion: sugg('B', 'adr'), disposition: 'pending', engaged: true, acted: false, artifactExists: false },
   ];
   it('writes terminal dispositions, skips pending, and is idempotent on re-run', () => {
@@ -156,12 +158,35 @@ describe('persistDispositions — idempotent, terminal-only', () => {
     expect(w2).toEqual([]); // A already recorded → idempotent
     const lines = readFileSync(out, 'utf8').trim().split('\n');
     expect(lines).toHaveLength(1);
-    expect(JSON.parse(lines[0])).toMatchObject({
-      suggestion_id: 'A',
-      disposition: 'acted',
-      event: 'skill:disposition',
-      population: 'installed', // era marker (S3): legacy rows lack this field
-    });
+    expect(JSON.parse(lines[0])).toMatchObject({ suggestion_id: 'A', disposition: 'acted', event: 'skill:disposition', population: 'uninstalled' });
+  });
+});
+
+describe('rebuildDispositions — view replacement after a predicate change', () => {
+  it('replaces stale rows wholesale, keeps a backup, and skips pending', () => {
+    const out = join(mkdtempSync(join(tmpdir(), 'disp-')), 'skill-dispositions.jsonl');
+    // Seed a stale view: A was classified `ignored` by the old predicate.
+    persistDispositions(
+      [{ suggestion: sugg('A', 'adr'), disposition: 'ignored', engaged: false, acted: false, artifactExists: false }],
+      out,
+      '2026-06-18T01:00:00Z',
+    );
+    // Reproject under the new predicate: A is now engaged_no_act; B is pending.
+    const { written, backedUp } = rebuildDispositions(
+      [
+        { suggestion: { ...sugg('A', 'adr'), population: 'installed' }, disposition: 'engaged_no_act', engaged: true, acted: false, artifactExists: false },
+        { suggestion: sugg('B', 'adr'), disposition: 'pending', engaged: true, acted: false, artifactExists: false },
+      ],
+      out,
+      '2026-07-17T00:00:00Z',
+    );
+    expect(written.map((r) => r.suggestion.suggestionId)).toEqual(['A']);
+    expect(backedUp).toBeTruthy();
+    expect(existsSync(backedUp)).toBe(true); // stale view preserved, not destroyed
+    expect(readFileSync(backedUp, 'utf8')).toContain('"disposition":"ignored"');
+    const lines = readFileSync(out, 'utf8').trim().split('\n');
+    expect(lines).toHaveLength(1); // the stale `ignored` row is gone, pending not persisted
+    expect(JSON.parse(lines[0])).toMatchObject({ suggestion_id: 'A', disposition: 'engaged_no_act', population: 'installed' });
   });
 });
 

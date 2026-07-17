@@ -40,20 +40,12 @@ LINE=$(jq -nc \
 
 log_telemetry "$SKILL_TELEMETRY_FILE" "$LINE"
 
-# Check if this skill was recently suggested in this session → close the funnel.
-# rm:rm-l1-core#S5: BOTH populations count (skill:suggested + skill:suggested-uninstalled),
-# and the invoked name is segment-normalized — `core:adr` and `adr:knowledge:x` both close a
-# suggestion for `adr` (same rule as corroborate-follow.mjs matchesSkillName).
-# Deliberately NO skill:acted emission here: an invocation is not an artifact; acted stays
-# evidence-mandatory (skill-acted-emit.mjs / the reconciler's artifact proxy, ADR-0095).
+# Check if this skill was recently suggested in this session → close the funnel
 if [[ -f "$SUGGESTION_TELEMETRY_FILE" && -s "$SUGGESTION_TELEMETRY_FILE" ]]; then
-  # Most recent matching suggestion event (skill + session). Capture both its
+  # Most recent matching skill:suggested event (skill + session). Capture both its
   # ts and SUGGESTION_ID so the follow joins back to its originating suggestion.
   MATCH=$(jq -rc --arg sid "$SESSION_ID" --arg skill "$SKILL" \
-    'select(.session_id == $sid
-            and (.event == "skill:suggested" or .event == "skill:suggested-uninstalled")
-            and (.skill as $s | ($skill == $s) or (($skill | split(":")) | index($s) != null)))
-     | {ts, suggestion_id}' \
+    'select(.session_id == $sid and .event == "skill:suggested" and .skill == $skill) | {ts, suggestion_id}' \
     "$SUGGESTION_TELEMETRY_FILE" 2>/dev/null | tail -1)
   SUGGESTED=$(echo "$MATCH" | jq -r '.ts // empty' 2>/dev/null || echo "")
   SUGGESTION_ID=$(echo "$MATCH" | jq -r '.suggestion_id // empty' 2>/dev/null || echo "")
