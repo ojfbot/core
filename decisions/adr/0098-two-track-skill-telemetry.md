@@ -1,8 +1,16 @@
-# Two-track skill telemetry: the use-funnel and the evolution stream never blend
+# ADR-0098: Two-track skill telemetry: the use-funnel and the evolution stream never blend
 
-- Slug: `two-track-skill-telemetry` (ADR-0087 slug-as-identity; serial assigned at accept)
-- Status: **draft**
-- Date: 2026-07-17
+slug: two-track-skill-telemetry
+serial: 0098
+rev:
+Date: 2026-07-17
+Date accepted: 2026-07-17
+Status: Accepted
+domain: workflow-engine
+type: architecture
+traces:
+  amends: skill-action-instrumentation
+
 - Deciders: operator (ruling recorded live during the rm:rm-l1-core#S6 gold-set sitting)
 - Lineage: revises the measurement semantics of `adr:skill-action-instrumentation` (0095);
   grounded by `decisions/opav/capture-quality-report.json` (the
@@ -52,4 +60,14 @@ AND wrote a real numbered ADR in one session — authoring and genuine use, coll
 - `rm:rm-l1-core` gains P4 + S16 (registered alongside this draft).
 - The gold set's 4 `skill-authoring` scenarios become the discriminator's regression fixtures.
 - Accept gate: S16 merged with the discriminator live in the reconciler AND the 4 gold
-  scenarios reclassifying correctly; serial assigned then.
+  scenarios reclassifying correctly; serial assigned then. **Met 2026-07-17** (the S16 PR):
+  gold agreement 13/13, capture 9/9, false-emit 0/10 — GREEN, zero regressions.
+- Precedence pinned during implementation, by gold labels:
+  - `acted` (C2-valid self-report) outranks `skill-authoring` — the decision-3 refinement's
+    operational form: an expected_artifact match backed by a self-report counts as use even
+    alongside skill-dir edits. An artifact **without** a self-report does NOT flip an
+    authoring session to use (gold `66B372CC`).
+  - The disposition's authoring signal is **suggestion-scoped** (edits at/after the
+    suggestion ts, like `engaged`): a pre-suggestion skill-dir edit does not reclassify a
+    later-ignored suggestion (gold `EBE96AA0`). The evolution stream itself stays
+    session-scoped and suggestion-independent.

@@ -5,6 +5,8 @@ serial: 0095
 rev: A
 domain: workflow-engine
 type: architecture
+traces:
+  amended-by: two-track-skill-telemetry
 
 - **Status:** Accepted — Slice 1 of the OPAV-loop gated-slice plan (measure-first; everything downstream gates on its number). C0–C2 (SHADOW) shipped to `main` via PR #158.
 - **Date accepted:** 2026-06-14 (revised 2026-07-17 — Rev A: engagement predicate broadened to Skill-tool invocations; denominator split into installed/uninstalled populations; single reconciler writer)

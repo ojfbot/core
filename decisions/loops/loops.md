@@ -280,6 +280,19 @@ loops:
     owner: operator
     status: disabled
     repo: core
+  - slug: stream-skill-authoring
+    purpose: "EVOLUTION TRACK (adr:two-track-skill-telemetry, rm:rm-l1-core#S16): one skill:authoring event per session×skill pair with skill-dir mutations, written by the same Stop-hook pass as the reconciler (single writer preserved). SHADOW: observe-only, append-idempotent on session×skill, suggestion-INDEPENDENT (authoring is captured whether or not a suggestion was minted); no gate or pane consumes it before its own capture-quality pass. kind (created|extended|refactored) is a documented v0 heuristic. Never blended with the use funnel."
+    trigger: hook
+    trigger_ref: scripts/hooks/reconcile-skill-acted.mjs
+    installed_ref: ~/.claude/settings.json
+    cadence: event
+    state_spine: "~/selfco/tracking/skill-authoring.jsonl"
+    verifier: "none yet — shadow until its own labeled capture-quality pass"
+    stop_rule: "fires per session stop only"
+    evidence_ref: "file:~/selfco/tracking/skill-authoring.jsonl"
+    owner: operator
+    status: live
+    repo: core
   - slug: hook-mrplug-inject
     purpose: "UserPromptSubmit context injector for the MrPlug extension MCP server"
     trigger: hook

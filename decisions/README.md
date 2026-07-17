@@ -51,6 +51,9 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0082 | [Subagent strategy — default to skills + native delegation; `.claude/agents/` deferred](adr/0082-subagent-strategy.md) | process | Accepted |
 | 0083 | [Adopt Pocock-style skill conventions; add /prototype, /caveman, /zoom-out, and the writing pipeline](adr/0083-pocock-skill-conventions-and-new-skills.md) | convention | Accepted |
 | 0084 | [SKILL.md is the canonical skill body filename (fleet-wide Skill-tool callability)](adr/0084-skill-md-canonical-filename.md) | convention | Accepted |
+| 0098 | [Two-track skill telemetry: the use-funnel and the evolution stream never blend](adr/0098-two-track-skill-telemetry.md) | architecture | Accepted |
+
+> Index is stale between 0085–0097 — regeneration via `/adr publish` is queued as its own pass.
 
 ### Gas Town Governance (`gas-town-governance`)
 | Serial | Title | Type | Status |
