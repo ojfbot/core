@@ -8,10 +8,14 @@
 // `skill:suggestion-followed`. The old ignored-detector (suggest-skill.sh)
 // therefore mislabels every inline follow as `skill:suggestion-ignored`.
 //
-// This module recognizes an inline funnel-close from signals that exist TODAY,
+// This module recognizes a funnel-close from signals that exist TODAY,
 // with no dependency on S1's not-yet-built `skill:acted`:
 //   1. an inline-follow: a Read of `.../skills/<skill>/SKILL.md` in the catch-all
 //      tool-telemetry (log-tool-use.sh), same session, at/after the suggestion ts;
+//   1b. a Skill-tool invocation of the suggested skill (rm:rm-l1-core#S2, the
+//      2026-07-16 RCA blind spot): tool_name:'Skill' rows carry the invoked name
+//      in `skill`, possibly scoped (`core:adr`) or knowledge-file-qualified
+//      (`resume-audit:knowledge:requirement-taxonomy`) — matched by segment;
 //   2. forward-compat: a future `skill:acted` event carrying the same skill +
 //      session (no-op until S1 ships it).
 //
@@ -51,6 +55,22 @@ function isSkillMdRead(ev, skill) {
 }
 
 /**
+ * True if an invoked-skill name refers to `skill`, normalizing the scoped and
+ * knowledge-file-qualified forms the Skill tool logs: `adr` matches `adr`,
+ * `core:adr` (repo-scoped), and `adr:knowledge:x` (skill-qualified resource) —
+ * any colon-separated segment equal to the slug counts.
+ */
+function matchesSkillName(invoked, skill) {
+  if (typeof invoked !== 'string' || invoked === '') return false;
+  return invoked === skill || invoked.split(':').includes(skill);
+}
+
+/** True if `ev` is a Skill-tool invocation of `skill` (rm:rm-l1-core#S2). */
+function isSkillInvocation(ev, skill) {
+  return ev.tool_name === 'Skill' && matchesSkillName(ev.skill, skill);
+}
+
+/**
  * Was the suggestion for `skill` in session `sessionId` followed inline at/after
  * `sinceIso`? Pure over in-memory event arrays.
  *
@@ -72,8 +92,13 @@ export function isCorroboratedFollow({
   const after = (ts) => typeof ts === 'string' && ts >= sinceIso;
 
   // (1) inline-follow: SKILL.md Read in this session at/after the suggestion
+  // (1b) Skill-tool invocation of the suggested skill, same window (rm:rm-l1-core#S2)
   for (const ev of toolTelemetry) {
-    if (ev.session_id === sessionId && after(ev.ts) && isSkillMdRead(ev, skill)) {
+    if (
+      ev.session_id === sessionId &&
+      after(ev.ts) &&
+      (isSkillMdRead(ev, skill) || isSkillInvocation(ev, skill))
+    ) {
       return true;
     }
   }

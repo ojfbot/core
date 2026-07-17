@@ -66,6 +66,59 @@ describe('isCorroboratedFollow — inline SKILL.md read', () => {
   });
 });
 
+/** A tool:used Skill-invocation event as log-tool-use.sh emits it. */
+function skillInvocation({ skill, sid = SID, ts }) {
+  return {
+    event: 'tool:used',
+    tool_name: 'Skill',
+    file_path: '',
+    skill,
+    session_id: sid,
+    ts,
+  };
+}
+
+describe('isCorroboratedFollow — Skill-tool invocation (rm:rm-l1-core#S2)', () => {
+  const base = { skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT };
+
+  it('returns true when the suggested skill is invoked via the Skill tool after the suggestion', () => {
+    const toolTelemetry = [skillInvocation({ skill: 'tdd', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(true);
+  });
+
+  it('normalizes repo-scoped names: core:adr matches a suggestion for adr', () => {
+    const toolTelemetry = [skillInvocation({ skill: 'core:adr', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ ...base, skill: 'adr', toolTelemetry })).toBe(true);
+  });
+
+  it('normalizes knowledge-file loads: resume-audit:knowledge:x matches resume-audit', () => {
+    const toolTelemetry = [
+      skillInvocation({ skill: 'resume-audit:knowledge:requirement-taxonomy', ts: '2026-06-13T10:02:00Z' }),
+    ];
+    expect(isCorroboratedFollow({ ...base, skill: 'resume-audit', toolTelemetry })).toBe(true);
+  });
+
+  it('does not match a different skill, even with shared prefix text', () => {
+    const toolTelemetry = [skillInvocation({ skill: 'tdd-extra', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  });
+
+  it('ignores an invocation from a different session', () => {
+    const toolTelemetry = [skillInvocation({ skill: 'tdd', sid: 'other-session', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  });
+
+  it('ignores an invocation that predates the suggestion', () => {
+    const toolTelemetry = [skillInvocation({ skill: 'tdd', ts: '2026-06-13T09:59:00Z' })];
+    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  });
+
+  it('ignores Skill rows with an empty or missing skill field', () => {
+    const toolTelemetry = [skillInvocation({ skill: '', ts: '2026-06-13T10:02:00Z' })];
+    expect(isCorroboratedFollow({ ...base, toolTelemetry })).toBe(false);
+  });
+});
+
 describe('isCorroboratedFollow — forward-compat skill:acted (S1)', () => {
   it('returns true on a future skill:acted for the skill+session after the suggestion', () => {
     const skillTelemetry = [
