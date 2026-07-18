@@ -307,3 +307,81 @@ describe('projectDispositions — batch', () => {
     expect(rows[1].disposition).toBe('engaged_no_act');
   });
 });
+
+// ── S17 gap (a): the dead-ruler guard ────────────────────────────────────────
+import { recordReconcilerDead } from '../reconcile-skill-acted.mjs';
+
+describe('recordReconcilerDead — a dead ruler leaves evidence', () => {
+  it('appends a reconciler-dead event (creating the directory) and never throws', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'health-'));
+    const health = join(dir, 'nested', 'loop-health.jsonl');
+    const ok = recordReconcilerDead({ reason: 'dist-unbuilt', detail: 'ERR_MODULE_NOT_FOUND' }, health, '2026-07-17T00:00:00Z');
+    expect(ok).toBe(true);
+    const rows = readFileSync(health, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+    expect(rows[0]).toMatchObject({
+      event: 'reconciler-dead',
+      loop: 'hook-reconcile-skill-acted',
+      reason: 'dist-unbuilt',
+      ts: '2026-07-17T00:00:00Z',
+    });
+    recordReconcilerDead({ reason: 'dist-unbuilt', detail: 'again' }, health, '2026-07-17T01:00:00Z');
+    expect(readFileSync(health, 'utf8').trim().split('\n')).toHaveLength(2); // append, not replace
+  });
+
+  it('returns false instead of throwing when the health path is unwritable', () => {
+    expect(recordReconcilerDead({ reason: 'x', detail: 'y' }, '/dev/null/impossible/loop-health.jsonl')).toBe(false);
+  });
+});
+
+// ── S17 gap (d): --json output must be byte-complete past 64KiB ──────────────
+import { spawn } from 'node:child_process';
+import { writeFileSync as wfs, mkdirSync as mds } from 'node:fs';
+import { dirname as dn, join as jn } from 'node:path';
+import { fileURLToPath as f2p } from 'node:url';
+
+const HOOK_PATH = jn(dn(f2p(import.meta.url)), '..', 'reconcile-skill-acted.mjs');
+
+function runHookJson(args) {
+  return new Promise((resolveP, rejectP) => {
+    const child = spawn('node', [HOOK_PATH, '--json', ...args], { stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = '';
+    let err = '';
+    child.stdout.on('data', (d) => (out += d));
+    child.stderr.on('data', (d) => (err += d));
+    child.on('error', rejectP);
+    child.on('close', (code) => resolveP({ code, out, err }));
+    child.stdin.write('{}');
+    child.stdin.end();
+  });
+}
+
+describe('--json output survives large ledgers (spawned, piped stdout)', () => {
+  it('emits complete, parseable JSON well past the 64KiB pipe buffer', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'bigjson-'));
+    const suggPath = join(dir, 'suggestion-telemetry.jsonl');
+    const toolPath = join(dir, 'tool-telemetry.jsonl');
+    const N = 900; // ~900 rows in the report ≈ >100KiB pretty-printed
+    const lines = [];
+    for (let i = 0; i < N; i++) {
+      lines.push(JSON.stringify({
+        ts: '2026-06-18T00:00:00Z',
+        event: 'skill:suggested',
+        skill: 'adr',
+        session_id: `sess-${i}`,
+        suggestion_id: `SUG-${String(i).padStart(6, '0')}-XXXXXXXXXXXXXXXXXXXXXXXX`,
+      }));
+    }
+    wfs(suggPath, lines.join('\n') + '\n');
+    wfs(toolPath, '');
+    const { code, out } = await runHookJson([
+      `--suggestion-telemetry=${suggPath}`,
+      `--tool=${toolPath}`,
+      `--ledger-root=${dir}`,
+      '--now=2026-06-19T12:00:00Z',
+    ]);
+    expect(code).toBe(0);
+    expect(out.length).toBeGreaterThan(64 * 1024); // the regression territory
+    const parsed = JSON.parse(out); // truncation would throw here
+    expect(parsed.rows).toHaveLength(N);
+  }, 30_000);
+});

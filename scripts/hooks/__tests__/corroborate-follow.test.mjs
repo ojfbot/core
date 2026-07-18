@@ -130,3 +130,59 @@ describe('isCorroboratedFollow — forward-compat skill:acted (S1)', () => {
     expect(isCorroboratedFollow({ skill: 'tdd', sessionId: SID, sinceIso: SUGGESTED_AT, skillTelemetry })).toBe(true);
   });
 });
+
+// ── script-exec path (rm:rm-l1-core#S17 gap (e)) ─────────────────────────────
+
+/** A tool:used Bash event whose input_summary runs a skill's own script. */
+function skillScriptExec({ skill, sid = SID, ts, script = 'run.mjs' }) {
+  return {
+    event: 'tool:used',
+    tool_name: 'Bash',
+    file_path: '',
+    input_summary: `"node .claude/skills/${skill}/scripts/${script} --flag"`,
+    session_id: sid,
+    ts,
+  };
+}
+
+describe('isCorroboratedFollow — script-exec (the third follow path)', () => {
+  it('returns true for a Bash run of the skill\'s own scripts/ after the suggestion', () => {
+    expect(
+      isCorroboratedFollow({
+        skill: 'adr',
+        sessionId: SID,
+        sinceIso: SUGGESTED_AT,
+        toolTelemetry: [skillScriptExec({ skill: 'adr', ts: '2026-06-13T10:03:00Z' })],
+      }),
+    ).toBe(true);
+  });
+
+  it('normalizes segmented suggested names (core:adr ≈ adr dir)', () => {
+    expect(
+      isCorroboratedFollow({
+        skill: 'core:adr',
+        sessionId: SID,
+        sinceIso: SUGGESTED_AT,
+        toolTelemetry: [skillScriptExec({ skill: 'adr', ts: '2026-06-13T10:03:00Z' })],
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores another skill\'s scripts, other sessions, and pre-suggestion runs', () => {
+    const base = { skill: 'adr', sessionId: SID, sinceIso: SUGGESTED_AT };
+    expect(isCorroboratedFollow({ ...base, toolTelemetry: [skillScriptExec({ skill: 'sweep', ts: '2026-06-13T10:03:00Z' })] })).toBe(false);
+    expect(isCorroboratedFollow({ ...base, toolTelemetry: [skillScriptExec({ skill: 'adr', sid: 'other', ts: '2026-06-13T10:03:00Z' })] })).toBe(false);
+    expect(isCorroboratedFollow({ ...base, toolTelemetry: [skillScriptExec({ skill: 'adr', ts: '2026-06-13T09:00:00Z' })] })).toBe(false);
+  });
+
+  it('a Bash command that merely mentions a non-scripts skill path does not corroborate', () => {
+    const ev = {
+      event: 'tool:used',
+      tool_name: 'Bash',
+      input_summary: '"cat .claude/skills/adr/SKILL.md"',
+      session_id: SID,
+      ts: '2026-06-13T10:03:00Z',
+    };
+    expect(isCorroboratedFollow({ skill: 'adr', sessionId: SID, sinceIso: SUGGESTED_AT, toolTelemetry: [ev] })).toBe(false);
+  });
+});

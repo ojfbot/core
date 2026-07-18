@@ -203,7 +203,7 @@ loops:
     status: live
     repo: core
   - slug: hook-log-skill
-    purpose: "PostToolUse(Skill) invocation logger — legacy stream, demoted to labeled fallback by S24"
+    purpose: "PostToolUse(Skill) invocation logger — legacy stream, demoted to labeled fallback by S24. KNOWN SCOPE LIMIT, surfaced-not-fixed (rm:rm-l1-core#S17 gap (b) decision 2026-07-17): registered REPO-scope only, so skill:suggestion-followed under-fires fleet-wide in repos without the hook installed. Deliberately left as-is — follow/engagement detection is fleet-covered by the S2 predicate over USER-scope tool-telemetry (log-tool-use.sh), and widening a demoted legacy stream's registration would add writers to a stream S24 retires. Do not treat this stream's counts as a denominator anywhere."
     trigger: hook
     trigger_ref: scripts/hooks/log-skill.sh
     installed_ref: .claude/settings.json
@@ -255,7 +255,7 @@ loops:
     status: live
     repo: core
   - slug: hook-reconcile-skill-acted
-    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095). SINGLE WRITER, revised same-day (rm:rm-l1-core#S4 declared the core-tracking runtime checkout at 8d9e3c7; the parallel RCA-d92e3b15 session then consolidated onto the core repo itself and retired/deleted ../core-tracking, be469df). Current: runs from THIS repo's checkout. STANDING INVARIANT: the hook silently no-ops (import failure -> exit 0) whenever packages/workflows/dist/tracking is unbuilt — after any pull that touches packages/workflows, run: pnpm install --frozen-lockfile && pnpm --filter @core/workflows build. A branch checkout also changes hook behavior; prefer returning the shared checkout to main."
+    purpose: "Stop-hook independent recorder for OPAV S1 dispositions — the second source in the two-source honesty contract (ADR-0095). SINGLE WRITER, revised same-day (rm:rm-l1-core#S4 declared the core-tracking runtime checkout at 8d9e3c7; the parallel RCA-d92e3b15 session then consolidated onto the core repo itself and retired/deleted ../core-tracking, be469df). Current: runs from THIS repo's checkout. STANDING INVARIANT: the hook no-ops (import failure -> exit 0) whenever packages/workflows/dist/tracking is unbuilt — after any pull that touches packages/workflows, run: pnpm install --frozen-lockfile && pnpm --filter @core/workflows build. Since rm:rm-l1-core#S17 gap (a) the no-op is LOUD, not silent: it appends a reconciler-dead event to ~/selfco/tracking/loop-health.jsonl and prints a DEAD RULER stderr line in all modes (auto-build rejected: Stop-hook latency + concurrent-session build races) — check that file whenever dispositions look frozen. A branch checkout also changes hook behavior; prefer returning the shared checkout to main."
     trigger: hook
     trigger_ref: scripts/hooks/reconcile-skill-acted.mjs
     installed_ref: ~/.claude/settings.json
