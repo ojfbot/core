@@ -4,9 +4,10 @@
 // The two-source contract (adr:skill-action-instrumentation) requires the corroborating
 // signal be produced by a DIFFERENT mechanism than the agent's self-emitted skill:acted —
 // because agent compliance alone is the exact 0.8% failure mode. This detector derives
-// engagement ONLY from the catch-all tool-telemetry (a SKILL.md Read OR a Skill-tool
-// invocation of the suggested skill — both captured by log-tool-use.sh, not by the
-// agent), reusing S0's single-source-of-truth join (`corroborate-follow.mjs`) — it does
+// engagement ONLY from the catch-all tool-telemetry (a SKILL.md Read, a Skill-tool
+// invocation, or a Bash run of the skill's own scripts/ — all captured by
+// log-tool-use.sh, not by the agent; the third path closed by rm:rm-l1-core#S17
+// gap (e)), reusing S0's single-source-of-truth join (`corroborate-follow.mjs`) — it does
 // NOT reimplement it, and it is structurally blind to skill:acted (skillTelemetry is
 // never consulted).
 //

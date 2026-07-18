@@ -15,8 +15,10 @@
 //   1b. a Skill-tool invocation of the same skill in the catch-all tool-telemetry
 //      (rm:rm-l1-core#S2; `tool_name:"Skill"`, name normalized — `core:adr` ≈
 //      `adr:knowledge:x` ≈ `adr`).
-//      Both 1 and 1b come from log-tool-use.sh, NOT the agent's self-report, so the
-//      two-source independence contract (ADR-0095) is preserved. Before 2026-07-17
+//   1c. a script-exec: a Bash run of `.../skills/<skill>/scripts/…` (input_summary
+//      signal; rm:rm-l1-core#S17 gap (e) — the third follow path).
+//      Paths 1/1b/1c all come from log-tool-use.sh, NOT the agent's self-report, so
+//      the two-source independence contract (ADR-0095) is preserved. Before 2026-07-17
 //      only path 1 was recognized, which made the dominant real invocation path
 //      structurally invisible (204-row ledger read "0 followed" — RCA d92e3b15);
 //   2. forward-compat: a future `skill:acted` event carrying the same skill +
@@ -76,6 +78,19 @@ function isSkillToolInvocation(ev, skill) {
   return ev.tool_name === 'Skill' && skillNameMatches(ev.skill, skill);
 }
 
+// A skill's deterministic scripts live under .../skills/<skill>/scripts/ (ADR-0084
+// layout). Running one via Bash is engagement with the skill (the third follow path,
+// rm:rm-l1-core#S17 gap (e); mirrors SKILL_SCRIPT_RE in opav-capture-quality.mjs).
+const SKILL_SCRIPT_RE = /\/skills\/([^/]+)\/scripts\//;
+
+/** True for a Bash execution of one of `skill`'s own scripts (input_summary signal). */
+function isSkillScriptExec(ev, skill) {
+  if (ev.tool_name !== 'Bash' || typeof ev.input_summary !== 'string') return false;
+  const m = SKILL_SCRIPT_RE.exec(ev.input_summary);
+  // Both directions: the dir name is a plain slug; the suggested name may be segmented.
+  return !!m && (skillNameMatches(m[1], skill) || skillNameMatches(skill, m[1]));
+}
+
 /**
  * Was the suggestion for `skill` in session `sessionId` followed inline at/after
  * `sinceIso`? Pure over in-memory event arrays.
@@ -99,11 +114,13 @@ export function isCorroboratedFollow({
 
   // (1) inline-follow: SKILL.md Read in this session at/after the suggestion
   // (1b) Skill-tool invocation of the same skill (also catch-all telemetry)
+  // (1c) script-exec: a Bash run of the skill's own scripts/ (also catch-all
+  //      telemetry; the third path — closed by rm:rm-l1-core#S17 gap (e))
   for (const ev of toolTelemetry) {
     if (
       ev.session_id === sessionId &&
       after(ev.ts) &&
-      (isSkillMdRead(ev, skill) || isSkillToolInvocation(ev, skill))
+      (isSkillMdRead(ev, skill) || isSkillToolInvocation(ev, skill) || isSkillScriptExec(ev, skill))
     ) {
       return true;
     }

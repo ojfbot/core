@@ -51,7 +51,15 @@ fi
 # If we suggested a skill last prompt and it wasn't followed by a
 # skill:suggestion-followed event, log skill:suggestion-ignored.
 
-DEDUP_FILE="/tmp/claude-skill-suggest-${SESSION_ID:-default}"
+# Gap (c) fix (rm:rm-l1-core#S17): the old `${SESSION_ID:-default}` fallback shared
+# ONE dedup file across every session with an unset SESSION_ID — the ignored-detector
+# would then emit skill:suggestion-ignored joined to ANOTHER session's SUGGESTION_ID
+# (data corruption). FAIL OPEN instead: with no session identity there is no dedup
+# and no ignored-detection; a duplicate suggestion beats a wrong ignored event.
+DEDUP_FILE=""
+if [[ -n "${SESSION_ID:-}" ]]; then
+  DEDUP_FILE="/tmp/claude-skill-suggest-${SESSION_ID}"
+fi
 DEDUP_WINDOW=300  # seconds
 
 # Dedup file is a 3-line record: skill / epoch-ts / SUGGESTION_ID (line 3 may be
@@ -125,8 +133,10 @@ fi
 TIMESTAMP=$(iso_now)
 
 # No match found — suggest /init if this is the first prompt in the session
+# (only when a session identity exists — no DEDUP_FILE means we can't know
+# "first prompt", so fail open to the silent no-match log).
 if [[ $BEST_COUNT -eq 0 || -z "$BEST_SKILL" ]]; then
-  if [[ ! -f "$DEDUP_FILE" ]]; then
+  if [[ -n "$DEDUP_FILE" && ! -f "$DEDUP_FILE" ]]; then
     # First prompt, no match — suggest /init
     printf '%s\n%s\n' "init" "$(date +%s)" > "$DEDUP_FILE"
 
@@ -176,8 +186,11 @@ fi
 # OPAV loop (cross-slice invariant #1). Portable across macOS/Linux/CI.
 SUGGESTION_ID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "sug-$(date +%s)-${RANDOM}${RANDOM}")
 
-# Write dedup state (atomic: single write to avoid race conditions)
-printf '%s\n%s\n%s\n' "$BEST_SKILL" "$(date +%s)" "$SUGGESTION_ID" > "$DEDUP_FILE"
+# Write dedup state (atomic: single write to avoid race conditions); skipped
+# when there is no session identity (fail-open, gap (c)).
+if [[ -n "$DEDUP_FILE" ]]; then
+  printf '%s\n%s\n%s\n' "$BEST_SKILL" "$(date +%s)" "$SUGGESTION_ID" > "$DEDUP_FILE"
+fi
 
 # Availability check: a matched skill is only invokable if it's symlinked at
 # user scope or in the current project. Otherwise the agent can still follow it

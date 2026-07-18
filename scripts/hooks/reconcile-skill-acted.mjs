@@ -41,10 +41,10 @@
 //     (gold 66B372CC). Audit-reads not tied to a suggestion still don't inflate counts
 //     (recorder stays suggestion-scoped); the litter surface inherits detectAuthoringEdits.
 //
-// (2) PATH COVERAGE. `engaged` covers the inline-follow path (SKILL.md Read) and, since
-//     2026-07-17, Skill-tool invocations (name-normalized; see corroborate-follow.mjs).
-//     Skill `scripts/` execution is still NOT counted as engagement. Remaining
-//     undercount is logged (see summary), never silently capped.
+// (2) PATH COVERAGE — CLOSED by rm:rm-l1-core#S17 gap (e). `engaged` covers all three
+//     follow paths: SKILL.md Read, Skill-tool invocation (name-normalized), and skill
+//     scripts/ execution via Bash (input_summary signal) — all from the catch-all
+//     tool-telemetry (see corroborate-follow.mjs).
 //
 // Usage:
 //   node scripts/hooks/reconcile-skill-acted.mjs                  # Stop hook (session from stdin)
@@ -62,7 +62,7 @@
 //                    --authoring-out=PATH  (skill:authoring evolution stream, default
 //                                           <ledger-root>/skill-authoring.jsonl)
 
-import { existsSync, appendFileSync, mkdirSync, writeFileSync, copyFileSync } from 'node:fs';
+import { existsSync, appendFileSync, mkdirSync, writeFileSync, copyFileSync, writeSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -266,6 +266,28 @@ export function rebuildDispositions(rows, outPath, nowIso) {
   return { written: toWrite, backedUp };
 }
 
+/**
+ * DEAD-RULER GUARD (rm:rm-l1-core#S17 gap (a)): when the reconciler cannot load its
+ * projector (unbuilt dist/tracking — the loops.md STANDING INVARIANT), it must fail
+ * LOUDLY, not vanish: append a `reconciler-dead` event to the loop-health stream so a
+ * dead ruler leaves evidence instead of silently accumulating zero dispositions.
+ * Auto-build was rejected (Stop-hook latency + concurrent-session build races).
+ * Never throws — a broken health write must not block a session stop.
+ */
+export function recordReconcilerDead({ reason, detail }, healthPath, nowIso = new Date().toISOString()) {
+  try {
+    mkdirSync(dirname(healthPath), { recursive: true });
+    appendFileSync(
+      healthPath,
+      JSON.stringify({ ts: nowIso, event: 'reconciler-dead', loop: 'hook-reconcile-skill-acted', reason, detail }) + '\n',
+      'utf8',
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ── CLI / hook ────────────────────────────────────────────────────────────────
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const expand = (p) => (p && p.startsWith('~') ? p.replace('~', homedir()) : p);
@@ -304,8 +326,17 @@ async function cliMain() {
     ({ validateSkillActed } = await import(`${dist}/skill-acted-validator.js`));
     ({ expectedArtifactFor } = await import(`${dist}/expected-artifact.js`));
     ({ EventLedger } = await import(`${dist}/ledger.js`));
-  } catch {
-    if (!asJson) console.error('[reconcile-skill-acted] shadow: workflows build not found — run `pnpm --filter @core/workflows build`. Skipping (non-blocking).');
+  } catch (err) {
+    // LOUD in ALL modes + durable health event (gap (a)) — the old path was
+    // stderr-in-one-mode-only and left no trace, so a dead ruler read as
+    // "no suggestions" for 25 days (RCA d92e3b15 family).
+    const healthPath = expand(args['health-out'] ?? join(expand(args['ledger-root'] ?? '~/selfco/tracking'), 'loop-health.jsonl'));
+    recordReconcilerDead({ reason: 'dist-unbuilt', detail: String(err?.message ?? err) }, healthPath);
+    console.error(
+      '[reconcile-skill-acted] DEAD RULER: packages/workflows/dist/tracking not loadable — dispositions are NOT being recorded. ' +
+        'Run `pnpm install --frozen-lockfile && pnpm --filter @core/workflows build` (loops.md STANDING INVARIANT). ' +
+        `Event appended to ${healthPath}. Exiting 0 (non-blocking).`,
+    );
     process.exit(0);
   }
 
@@ -343,7 +374,10 @@ async function cliMain() {
 
   if (asJson) {
     // DELIBERATELY no capture-rate number (deferred-data: needs accumulation + gold set).
-    console.log(JSON.stringify({ mode: 'shadow', session: sessionId ?? 'all', counts, by_population: byPopulation, rows: rows.map((r) => ({ suggestion_id: r.suggestion.suggestionId, skill: r.suggestion.skill, population: r.suggestion.population, disposition: r.disposition, engaged: r.engaged })) }, null, 2));
+    // writeSync, not console.log: console.log + process.exit races the async stdout
+    // flush and truncates at ~64KiB on pipes — observed live on the 371-row ledger
+    // (rm:rm-l1-core#S17 gap (d)).
+    writeSync(1, JSON.stringify({ mode: 'shadow', session: sessionId ?? 'all', counts, by_population: byPopulation, rows: rows.map((r) => ({ suggestion_id: r.suggestion.suggestionId, skill: r.suggestion.skill, population: r.suggestion.population, disposition: r.disposition, engaged: r.engaged })) }, null, 2) + '\n');
     process.exit(0);
   }
 
@@ -355,13 +389,13 @@ async function cliMain() {
   const popSummary = Object.entries(byPopulation).map(([p, c]) => `${p}[${fmt(c)}]`).join(' ');
   if (args.rebuild) {
     const { written, backedUp } = rebuildDispositions(rows, outPath, nowIso);
-    console.error(`[reconcile-skill-acted] REBUILD ${sessionId ?? 'all'}: ${popSummary} | ${written.length} rows written to ${outPath}${backedUp ? ` (previous view → ${backedUp})` : ''} | +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
+    console.error(`[reconcile-skill-acted] REBUILD ${sessionId ?? 'all'}: ${popSummary} | ${written.length} rows written to ${outPath}${backedUp ? ` (previous view → ${backedUp})` : ''} | +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool|script-exec)`);
     process.exit(0);
   }
 
   const written = persistDispositions(rows, outPath, nowIso);
   // SHADOW: counts only — NEVER a rate. Note the known undercount (path coverage gap).
-  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${popSummary} | +${written.length} recorded, +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool, scripts/ path still uncounted)`);
+  console.error(`[reconcile-skill-acted] ${sessionId ?? 'all'}: ${popSummary} | +${written.length} recorded, +${authoringWritten.length} skill:authoring (shadow; engagement=SKILL.md-Read|Skill-tool|script-exec)`);
   process.exit(0);
 }
 
