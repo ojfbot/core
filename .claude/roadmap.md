@@ -281,7 +281,7 @@ slices:
     claimable_by: agent_eligible
     kind: m
     repo: core
-    status: ready
+    status: merged
     depends_on: "rm:rm-l1-core#S16"
 ---
 
