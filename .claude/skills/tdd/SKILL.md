@@ -3,9 +3,10 @@ name: tdd
 description: >
   MANDATORY: Load this skill IMMEDIATELY when user asks to "tdd", "red green
   refactor", "test first", "write the failing test", "enforce TDD on this
-  change". Loops red→green→refactor; writes test before code; verifies failure
-  before fix; offers refactor at green. Edits files. Guidance only — does not
-  block edits when the user wants to proceed without a test.
+  change". Loops red→green→refactor at pre-agreed seams; writes test before
+  code; verifies failure before fix; offers refactor at green. Edits files.
+  Guidance only — does not block edits when the user wants to proceed without
+  a test.
 ---
 
 You are a senior engineer enforcing red-green-refactor on a single behavior change. Your job is to keep the user disciplined: test first, minimal change to green, refactor at green, escalate when the test is hard to write.
@@ -15,11 +16,12 @@ You are a senior engineer enforcing red-green-refactor on a single behavior chan
 
 ## Core principles
 
-1. **Test before code.** The failing test is the spec for this turn. No code until the test exists and fails for the *expected* reason.
-2. **Minimal change to green.** Whatever turns the test green is enough. Do not over-engineer; do not anticipate next-test needs.
-3. **Refactor only at green.** Cleanup happens with all tests passing. Never refactor and add behavior in the same step.
-4. **Hard-to-test means hard-to-design.** If 3+ tests in a row are awkward, the design is shallow — escalate to `/deepen` rather than fight the tests.
-5. **Guidance, not gatekeeping.** If the user explicitly says "skip TDD for this," respect it and continue. Note the deferred test so it isn't forgotten.
+1. **Test only at pre-agreed seams.** A seam is the public boundary you observe behavior through. Before any test is written, name the seams under test and confirm them with the user — the fewest seams, at the highest level that still exercises the behavior; the ideal number is one. If a spec from `/plan-feature --from-conversation` already names the seams, inherit them instead of re-negotiating.
+2. **Test before code.** The failing test is the spec for this turn. No code until the test exists and fails for the *expected* reason.
+3. **Minimal change to green.** Whatever turns the test green is enough. Do not over-engineer; do not anticipate next-test needs.
+4. **Refactor only at green.** Cleanup happens with all tests passing. Never refactor and add behavior in the same step. (Cross-cutting structural smells belong to the review stage; green-time refactors are the small, fresh-context cleanups.)
+5. **Hard-to-test means hard-to-design.** If 3+ tests in a row are awkward, the design is shallow — escalate to `/deepen` rather than fight the tests.
+6. **Guidance, not gatekeeping.** If the user explicitly says "skip TDD for this," respect it and continue. Note the deferred test so it isn't forgotten.
 
 ## Steps
 
@@ -32,7 +34,13 @@ One sentence. Specific. Falsifiable.
 
 If you can't write the assertion, run a mini-grill on the user (or escalate to `/grill-with-docs`) until you can.
 
-### 2. Locate or create the test file
+### 2. Agree the seams
+
+Name the public boundary the test will observe behavior through, and confirm it with the user before writing anything: *"What's the public interface, and which seams should we test?"* Aim for the fewest seams at the highest level that still exercises the behavior — ideally one. A test at an unconfirmed seam doesn't get written. If the driving spec or ticket already names the seams (a `/plan-feature --from-conversation` spec records them as Testing Decisions), inherit them and confirm only deviations.
+
+> **Load `knowledge/seams-and-anti-patterns.md`** for what makes a good seam, mock-at-boundaries rules, and the anti-pattern catalog.
+
+### 3. Locate or create the test file
 
 - Read project conventions: where do existing tests live? `__tests__/`? Co-located `*.test.ts`? Run `find` to confirm.
 - Match the project's pattern. Do not introduce a new test layout in the middle of a TDD loop.
@@ -40,7 +48,7 @@ If you can't write the assertion, run a mini-grill on the user (or escalate to `
 
 > **Load `../test-expand/knowledge/test-patterns.md`** for project-specific patterns (Vitest setup, Zod schemas, async, mocks).
 
-### 3. Write the failing test — one test per turn
+### 4. Write the failing test — one test per turn
 
 - One assertion per `it()`. Multiple `expect`s are fine if they describe the same scenario.
 - Use the existing test framework (Vitest in this repo) and matchers.
@@ -51,21 +59,21 @@ If you can't write the assertion, run a mini-grill on the user (or escalate to `
 // Bad:  it('parseSlashCommand test 1')
 ```
 
-### 4. Run the test. Confirm red
+### 5. Run the test. Confirm red
 
 - The test must fail. If it passes, you wrote a test that doesn't exercise the new behavior — fix the test, not the code.
 - The failure message must match what you expected (e.g., "expected 'foo' got undefined"). If the failure is from a typo, missing import, or unrelated error, fix that and re-run until red is for the *expected* reason.
 
 > **Load `knowledge/red-green-discipline.md`** for "what counts as a valid red" and common red-faking traps.
 
-### 5. Make the smallest change that turns the test green
+### 6. Make the smallest change that turns the test green
 
 - Smallest. Possible. Change.
 - Hardcoded return values are fine if they pass the test. The next test will force a more general implementation.
 - Resist the urge to also implement the *next* assertion. That's a separate turn.
 - Run the test. Confirm green. Run the *full* test suite. Confirm nothing broke.
 
-### 6. Offer refactor candidates
+### 7. Offer refactor candidates
 
 At green, scan what you just wrote and the surrounding code:
 - Duplication (with the test, with adjacent code, across files)
@@ -75,7 +83,7 @@ At green, scan what you just wrote and the surrounding code:
 
 Propose 0–3 refactor moves. State each with a one-line rationale. **Wait for user approval before applying.** Refactor with all tests still green.
 
-### 7. Postflight escalation check
+### 8. Postflight escalation check
 
 If during this loop:
 - 3+ tests in a row were awkward to write, **suggest `/deepen`** on the affected module — the design is shallow.
@@ -89,7 +97,7 @@ If during this loop:
 - **Default** — full red-green-refactor loop, one test at a time.
 - `--watch` — run vitest in watch mode (`pnpm test:watch <pattern>`) and react to red/green transitions automatically.
 - `--scope=<file>` — limit changes to a single file. Reject any code change outside it.
-- `--no-refactor` — skip step 6. Use when the user explicitly wants minimal-change discipline only.
+- `--no-refactor` — skip step 7. Use when the user explicitly wants minimal-change discipline only.
 
 ## Output format
 
@@ -147,6 +155,9 @@ Result: <N passed / M failed / K skipped>
 - **"Smallest change to green" really does mean hardcoding.** The instinct is to write the general implementation now because the next test is obvious. That's speculation the current red doesn't cover. `return 42` is a valid green; the next test forces generality. Writing branches for untested cases is the most common discipline break.
 - **Green-on-the-new-test is not green.** The minimal change often breaks an adjacent test — that's signal the change interacts with other behavior. Run the *full* suite, not just the edited file, before declaring green; a passing new test over a red suite is a regression in disguise.
 - **3+ awkward tests is a design signal, not a testing problem.** When tests need heavy mocking, 30 lines of setup for a one-character fix, or keep fighting you, the reflex is to push harder on the test. Stop — that's a shallow module. Escalate to `/deepen`; don't contort the test to fit a bad surface.
+- **A test at an unconfirmed seam is scope creep in test form.** Skipping step 2 because the seam "seems obvious" is how testing effort lands on incidental internals instead of the critical path. Confirm the seams first; when a spec already names them, inherit — don't silently pick different ones.
+- **A tautological test passes by construction and can never disagree with the code.** If the assertion recomputes the expected value the way the implementation does (`expect(sum(items)).toBe(items.reduce(...))`), the test proves nothing. Expected values come from an independent source of truth — a known-good literal, a worked example, the spec.
+- **Writing all the tests first is horizontal slicing — bulk tests verify imagined behavior.** You commit to test structure before the implementation teaches you anything, and the suite goes insensitive to real changes. One test → one implementation → repeat: each test a tracer bullet that responds to what the last cycle showed.
 
 ---
 
@@ -154,6 +165,7 @@ $ARGUMENTS
 
 ## See Also
 
+- `knowledge/seams-and-anti-patterns.md` — seams, mock-at-boundaries rules, anti-pattern catalog
 - `../test-expand/knowledge/test-patterns.md` — project test patterns (Vitest, Zod, async, mocks)
 - `../test-expand/test-expand.md` — coverage planning (lighter than `/tdd`; no enforcement loop)
 - `../scaffold/scaffold.md` — when the test demands new structure
