@@ -1,10 +1,10 @@
-# ADR-draft: OJF-OPL — a git-native Object-Process Methodology profile as the fleet's inspectability layer
+# ADR-0102: OJF-OPL — a git-native Object-Process Methodology profile as the fleet's inspectability layer
 
 slug: opm-inspectability-layer
-serial: draft
+serial: 0102
 rev:
 Date: 2026-07-22
-Status: Proposed
+Status: Accepted
 domain: observation
 type: architecture
 OKR:
@@ -15,7 +15,7 @@ baseline:
 traces:
   supersedes:
   amends:
-  relates-to: [control-gated-slices, two-track-skill-telemetry, skill-action-instrumentation]
+  relates-to: [control-gated-slices, two-track-skill-telemetry, skill-action-instrumentation, ubiquitous-language-layer, lint-shadow-to-gate]
   parent:
   part-of-series:
 
@@ -73,6 +73,10 @@ committed artifacts; nothing executes the models.
 - Rendering targets Mermaid (GitHub/Obsidian native). JSON Canvas views can be derived later for
   the vault without changing the source format.
 - OPCloud/OPCAT interchange is explicitly a non-goal.
+- Relation to existing layers (added at review, 2026-07-22): the ojfbot↔OPM Rosetta table extends
+  the ubiquitous-language layer (`adr:ubiquitous-language-layer`) — OPL names must agree with
+  CONTEXT.md/GLOSSARY.md vocabulary, never fork it; and the lint's shadow→gate maturation follows
+  the `adr:lint-shadow-to-gate` pattern (observe-only until RIDM promotion). Both now traced.
 
 ## Alternatives considered
 
@@ -89,6 +93,10 @@ committed artifacts; nothing executes the models.
 1. **S1 (this branch):** profile doc + `/opm` skill + core's own `opm/system.opl` seed model.
 2. **S2 pilot:** daily-logger models its 4-phase pipeline (its ADR-0039 draft); `/opm lint` runs in
    CI observe-only; success TPM = ≥1 real drift caught or model judged accurate across 4 weeks.
+   The pilot is registered per the improvement-loop contract (`adr:pocock-lifecycle-absorption`,
+   accepted on an in-flight branch at time of writing): ledger = lint `--json` findings; check =
+   `/opm lint`; schedule = the ADR-0039 observe-only CI step; slice = a roadmap entry carrying the
+   4-week verdict date, closing keep/kill/revise either way.
 3. **S3 surface:** morning-cockpit System Map pane (its ADR-0015 draft) renders committed models.
 4. **RIDM promotion:** only after S2 data — lint may gate merges; `/vault sync` folds OPL into
    entity pages. Kill criterion: if S2 shows the model needs manual re-derivation every session,
