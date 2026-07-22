@@ -78,6 +78,20 @@ registry:
     app: core
     path: .claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # Portfolio-first gap-closers (operator sitting 2026-07-22; context in
+  # decisions/research/2026-07-22-hired-projects-gap-analysis.md): dive-briefing = the public
+  # RAG service (buddy-check's lab machinery served + corpus-governed), switchboard = the fleet
+  # LLM gateway. Third sibling agent-anatomy registers once its article is outlined.
+  - slug: l1-dive-briefing
+    tier: L1
+    app: dive-briefing
+    path: ../dive-briefing/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+  - slug: l1-switchboard
+    tier: L1
+    app: switchboard
+    path: ../switchboard/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -110,6 +124,15 @@ roadmaps:
   - slug: rm-l1-core
     northstar: l1-core
     path: .claude/roadmap.md
+  # Portfolio-first gap-closers (2026-07-22): registered together with their northstars.
+  # rm-l1-dive-briefing S9 lands in bldgblog-corpus, rm-l1-switchboard S3/S9 land in
+  # daily-logger / morning-cockpit (per-slice repo: override, schema v1.1).
+  - slug: rm-l1-dive-briefing
+    northstar: l1-dive-briefing
+    path: ../dive-briefing/.claude/roadmap.md
+  - slug: rm-l1-switchboard
+    northstar: l1-switchboard
+    path: ../switchboard/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
