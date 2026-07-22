@@ -140,6 +140,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 |---------|---------|
 | `/recon` | Codebase reconnaissance report (full, cold-start) |
 | `/zoom-out` | In-loop orientation for code you're already in: who calls this, what it depends on, blast radius if changed. No report file. ADR-0083 |
+| `/opm` | Object-Process model of the repo (OJF-OPL controlled English, `opm/system.opl` + Mermaid twin). Modes: `model` · `render` · `lint` (shadow-mode conformance) · `query`. ADR draft `opm-inspectability-layer` |
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
 | `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
@@ -290,6 +291,7 @@ Persistent file-based memory at project scope (`.claude/projects/`) tracks user 
 - `tbcony-dia-context.md` — TBCoNY/Dia AI-native product philosophy (Samir Mody talk): assistant-centricity, model behavior discipline, eval/hill-climbing, prompt injection as UX, "internet computer" framing
 - `daily-logger-architecture.md` — daily-logger pipeline (collect → draft → council → synthesize), persona format, council-of-experts pattern, CI orchestration, invariants
 - `selfco-vault.md` — the `selfco` LLM Wiki (`~/selfco`, Karpathy pattern: `raw/` + `wiki/`) and the `/vault` skill: layers, page schemas, the in-vault `CLAUDE.md` schema, modes (ingest/research/query/lint/sync/…), graph-UI config, opt-in `vault-session.sh` hook. ADR-0085
+- `opm-modeling.md` — OJF-OPL profile: OPM ontology primer, sentence templates, `opm/` file convention, OPL→Mermaid rendering rules, ojfbot↔OPM mapping table, authoring discipline. Read by `/opm`
 - `coding-standards.md` — TypeScript rules, forbidden patterns, naming conventions, skill file structure, PR standards, ADR quality guide
 
 Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.

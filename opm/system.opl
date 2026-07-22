@@ -1,0 +1,32 @@
+# core — Object-Process model (OJF-OPL v0.1, ADR opm-inspectability-layer)
+# Descriptive only. One fact per line. Regenerate system.md with /opm render after editing.
+
+## SD — core: the skill platform
+
+Jim is physical.
+Claude Session is physical.
+ADR can be draft or accepted.
+Skill Catalog consists of Skills. [src: .claude/skills]
+Domain Knowledge is informatical. [src: domain-knowledge]
+
+Jim handles Skill Invoking.
+Claude Session handles Skill Invoking.
+Skill Invoking requires Skill Catalog.
+Skill Invoking yields Skill Telemetry Record. [src: scripts/hooks/log-skill.sh]
+
+Skill Suggesting requires Skill Catalog. [src: scripts/hooks/suggest-skill.sh]
+Prompt Submitting triggers Skill Suggesting.
+
+Jim handles ADR Accepting. [skill: adr]
+ADR Accepting changes ADR from draft to accepted. [src: decisions/adr]
+
+Skill Installing requires Install Script. [src: scripts/install-agents.sh]
+Skill Installing consumes Skill Catalog.
+Skill Installing affects Sibling Repo.
+
+## SD1.1 — Skill Invoking in-zoom
+
+Skill Invoking zooms into Skill Loading, Skill Executing, and Telemetry Logging.
+Skill Loading requires Skill Catalog.
+Skill Executing requires Domain Knowledge.
+Telemetry Logging yields Skill Telemetry Record. [src: scripts/hooks/log-skill.sh]
