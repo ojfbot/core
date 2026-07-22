@@ -84,3 +84,12 @@ Ordering: **A → C → B.** A is the fastest credible public artifact (finish +
 
 ### Pipeline mechanics
 Each project = one roadmap (3–4 slices, gate-0, `check:` on agent-eligible slices) per roadmap-schema v1.1. A-slices can attach to buddy-check once its northstar grows a RAG-service property (operator judgment per the movement contract); B and C need new L1 northstars + registry entries. Northstar property wording/percentages are deliberately left to the operator sitting.
+
+## 5. Sitting outcomes (2026-07-22, operator)
+
+All open decisions from §4 were resolved the same day:
+
+- **A = dive-briefing** (new repo + `l1-dive-briefing` northstar, 9-slice roadmap). Corpus governance per its ADR-0001: private normative pack (PADI/SDI/TDI — never redistributed; public citations = agency+standard+section with short attributed quotes only, source-reveal on press); public catalog pack (manufacturer specs, attributed); public CC contextual pack (operator-vetted license manifest); **USN/NOAA as a quarantined military/scientific pack, excluded from recreational routing by default** (operator domain call: doctrinally contradictory with recreational agency standards — mixing them would corrupt citation verdicts).
+- **C = switchboard** (new repo + `l1-switchboard` northstar, 10-slice roadmap). **Python + FastAPI.** All three candidate consumers adopted sequentially: daily-logger (supervised batch) → bldgblog annotate (row-for-row ledger parity gate) → cockpit chat (on a fully-instrumented gateway; cockpit routes never cascade, honoring its ADR-0003). Failover posture staged as switchboard ADR-0001 (draft; accept at S7 entrance): cascade opt-in per route class, labeled, never silent.
+- **B = blogengine article + agent-anatomy repo** (diagrams, redacted pattern excerpts, optional LangGraph bridge). Registers when the article is outlined — slices follow the outline.
+- Registration: core PR #249 (northstars + roadmaps, lint-clean vs baseline). Skeletons on disk at `~/ojfbot/{dive-briefing,switchboard,agent-anatomy}`.
