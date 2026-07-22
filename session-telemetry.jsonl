@@ -1,3 +1,4 @@
-{"ts":"2026-07-19T20:21:56Z","event":"session:start","session_id":"68f271d7-4497-4eb1-a4a7-1ecf638608ee","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
-{"ts":"2026-07-19T20:21:56Z","event":"session:start","session_id":"0b76c8c3-a425-429f-9ffe-19ff7cab1eaf","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
-{"ts":"2026-07-19T20:21:56Z","event":"session:start","session_id":"a055484f-f27d-4882-9820-a425f59b3e11","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-22T14:47:45Z","event":"session:start","session_id":"0b76c8c3-a425-429f-9ffe-19ff7cab1eaf","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-22T15:11:23Z","event":"session:start","session_id":"0b76c8c3-a425-429f-9ffe-19ff7cab1eaf","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-22T15:58:43Z","event":"session:start","session_id":"0b76c8c3-a425-429f-9ffe-19ff7cab1eaf","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-22T16:01:35Z","event":"session:start","session_id":"0b76c8c3-a425-429f-9ffe-19ff7cab1eaf","source":"compact","model":"claude-fable-5","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
