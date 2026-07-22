@@ -1,9 +1,9 @@
-# ADR: /wayfinder — file-canonical decision maps upstream of the roadmap spine
+# ADR-0101: /wayfinder — file-canonical decision maps upstream of the roadmap spine
 slug: wayfinder-decision-maps
-serial: draft
+serial: 0101
 rev:
 Date: 2026-07-22
-Status: Proposed
+Status: Accepted
 domain: workflow-engine
 type: tooling
 OKR: —
@@ -118,5 +118,5 @@ unacknowledged fog — the move is "chart it," not "leave it queued."
 | Field | Value |
 | --- | --- |
 | Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`; wayfinder↔roadmap interface discussion) |
-| Implementation start | _pending_ |
-| Implementation end | _pending_ |
+| Implementation start | 2026-07-22 (S6 branch) |
+| Implementation end | _pending_ (S6 PR merge + first dogfood chart) |

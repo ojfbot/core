@@ -56,7 +56,9 @@ Run it. Drive it. Write down: **the question, what you observed, the verdict** (
 ### Step 4 — Resolve
 
 - Record the verdict somewhere durable: a commit message, an ADR (run `/adr` if it's an architectural decision), a note in the relevant `domain-knowledge/*-architecture.md`, or the PRD/issue.
-- **Delete the prototype** (or leave it only if the user explicitly wants it kept as a reference; then it stays clearly marked).
+- **Delete the prototype** (default), or one of two kept dispositions:
+  - Kept in-tree as a marked reference — only on explicit user request, `// PROTOTYPE` markers intact.
+  - **Kept on a throwaway branch as a primary source** (`adr:pocock-lifecycle-absorption`, amending ADR-0083): when the prototype encodes a decision more precisely than prose can (a state machine, reducer, schema shape), commit it to a clearly-named branch off main (never merged) and leave a context pointer on the driving issue/ticket — this is the disposition wayfinder prototype tickets usually want, so the spec can later inline the decision-rich snippet with attribution.
 - Hand off: the validated finding now feeds `/scaffold`, `/tdd`, or `/plan-feature`.
 
 ## Output
@@ -77,7 +79,7 @@ Run: <exact command or variant URLs>
 <commit / ADR-NNNN / architecture doc / issue>
 
 ### Disposition
-Deleted | Kept (marked) — <why>
+Deleted | Kept (marked) | Kept on throwaway branch as primary source (branch + issue pointer) — <why>
 ```
 
 ## Gotchas
