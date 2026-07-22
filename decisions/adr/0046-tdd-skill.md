@@ -1,6 +1,7 @@
 # ADR-0046: Skill /tdd for red-green-refactor enforcement
 slug: tdd-skill
 serial: 0046
+rev: A
 domain: workflow-engine
 type: tooling
 
@@ -82,3 +83,26 @@ Postflight: if 3+ tests in a row trigger escalation criteria, suggest `/deepen` 
 - Heuristic rule already shipped in PR #81 (Tier 3 when source-only diff lacks tests).
 - 30-day retro will measure: invocation count, escalation-trigger fire rate, downstream `/deepen` usage following TDD escalation.
 - Knowledge files load JIT — only `test-patterns.md` (cross-reference) loads when test setup is needed; `red-green-discipline.md` and `escalation-triggers.md` load when the loop runs into trouble.
+
+## Revision A (2026-07-22) — absorb upstream v1.1 seams + anti-patterns; keep refactor-at-green
+
+Verdict rows D8–D9 in `decisions/adopt-stack/pocock-skills-v1-1.md`; upstream pinned at `ed37663`.
+
+**Absorbed** (from upstream `skills/engineering/tdd/SKILL.md`, `tests.md`, `mocking.md`; re-expressed
+in a new `knowledge/seams-and-anti-patterns.md`):
+- **Pre-agreed seams.** Test only at seams agreed with the user before any test is written — the
+  fewest seams, at the highest level that still exercises the behavior; the ideal number is one.
+  Composes with spec-time seam confirmation (`adr:pocock-lifecycle-absorption`): when a spec already
+  names the seams, the loop inherits them instead of re-negotiating.
+- **Tautological-test anti-pattern.** An assertion that recomputes the expected value the same way
+  the code does proves nothing; expected values must come from an independent source of truth.
+- **Horizontal-slicing anti-pattern.** Writing all tests first across the surface (horizontal) is
+  rejected in favor of vertical tracer bullets — one red→green slice at a time.
+
+**Rejected — the deliberate divergence:** upstream removes refactoring from the loop entirely
+("refactoring is not part of the loop… belongs to the review stage"). We keep **refactor-at-green**
+(principle 3 of this ADR): the moment of green is when design feedback from the test is freshest and
+the diff is smallest. The review-stage structural check upstream relies on ALSO lands locally
+(`adr:two-axis-review-hardening` smell baseline), so structural feedback exists at both points —
+small cleanups at green, cross-cutting smells at review. Future upstream syncs must not re-litigate
+this without new evidence; this section is the recorded reason.

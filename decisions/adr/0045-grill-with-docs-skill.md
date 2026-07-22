@@ -1,6 +1,7 @@
 # ADR-0045: Skill /grill-with-docs for pre-planning Socratic alignment
 slug: grill-with-docs-skill
 serial: 0045
+rev: A
 domain: workflow-engine
 type: tooling
 
@@ -81,3 +82,24 @@ Cap on output:
 - Heuristic rule (Phase 2 of Pocock work): Tier 1 suggestion when PR diff includes `>3 files` AND no ADR or CONTEXT.md changes.
 - Telemetry expectation: at least 50% of `/plan-feature` invocations are preceded by `/grill-with-docs` within 1 hour (correlated by session_id). Measured at the 30-day retro.
 - 30-day retro lives at ADR-0050 (forthcoming).
+
+## Revision A (2026-07-22) — absorb upstream v1.1 grilling hardening
+
+Verdict rows D1–D2 in `decisions/adopt-stack/pocock-skills-v1-1.md`; upstream pinned at `ed37663`.
+
+**Absorbed** (from upstream `skills/productivity/grilling/SKILL.md`):
+- **Facts vs decisions.** If a *fact* can be found by exploring the environment (code, docs, git),
+  look it up instead of asking; only *decisions* go to the user. Fixes self-grilling — the failure
+  mode where an agent running a grill inside another skill answers its own questions.
+- **Confirmation stop-gate.** The grill's output (design concept, proposed diffs, ADR stubs) is not
+  acted on until the user confirms shared understanding — no implementation, no file edits, no
+  scaffolding on the strength of the grill alone. (Already implicit in "conversation-only, no code";
+  now explicit as a gate the next skill in the chain must respect.)
+- **Charting variant.** When invoked from a `/wayfinder` grilling ticket, the grill runs
+  breadth-first across the map's open questions rather than depth-first into one — noted for
+  `adr:wayfinder-decision-maps`.
+
+**Rejected:** upstream's wrapper-over-primitive restructure (thin `grill-me`/`grill-with-docs` stubs
+delegating to a shared `/grilling` skill). The local monolith stages CONTEXT.md/GLOSSARY.md diffs
+and ADR stubs in-loop — capabilities the upstream primitive lacks; restructuring to match upstream's
+file layout would be adoption-for-form. `--no-docs` remains the fold-in for `/grill-me`.
