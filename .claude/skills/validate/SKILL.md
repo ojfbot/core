@@ -35,6 +35,8 @@ A change can pass one axis and fail the other. Report both. `/validate` is the f
 
 Read the spec, acceptance criteria, or ADR stub if provided. If not, infer intent from the diff/working tree and state assumptions.
 
+When validating against a base ref (rather than the bare working tree), pin it first: `git rev-parse <ref>` must resolve and `git diff <ref>...HEAD` (three-dot, merge-base) must be non-empty — a bad ref or empty diff **fails fast** with the error instead of producing a verdict about nothing.
+
 ### Step 2: Check correctness against spec
 
 For each acceptance criterion: PASS / FAIL / UNTESTED.
@@ -53,6 +55,7 @@ For each acceptance criterion: PASS / FAIL / UNTESTED.
 - TypeScript: no `any` escapes, no missing null checks, no silent error swallowing
 - Logging: no `console.log/error/warn` in production modules
 - Tests: new code paths have tests; no tests deleted without explanation
+- Structural smells: check the diff against the shared Fowler baseline in `../pr-review/knowledge/smell-baseline.md` (single source of truth — reference, never copy). Baseline smells are always judgement calls, never blocking, and repo-documented standards suppress them; report as PASS WITH NOTES material.
 
 ### Step 4: Check project-specific invariants
 
