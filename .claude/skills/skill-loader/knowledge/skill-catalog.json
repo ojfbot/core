@@ -3,6 +3,37 @@
   "updated": "2026-07-22",
   "skills": [
     {
+      "name": "opm",
+      "tier": 2,
+      "phase": "orientation",
+      "category": "methodology-meta",
+      "tags": [
+        "opm",
+        "opl",
+        "model",
+        "architecture",
+        "inspectability",
+        "diagram",
+        "mermaid"
+      ],
+      "description": "Object-Process model of the repo (OJF-OPL controlled English): author, render to Mermaid, shadow-mode conformance lint, and query opm/system.opl.",
+      "triggers": [
+        "opm",
+        "model this repo",
+        "object-process model",
+        "system model",
+        "opm lint",
+        "who approves this process"
+      ],
+      "suggested_after": [
+        "recon"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ]
+    },
+    {
       "name": "plan-feature",
       "tier": 2,
       "phase": "planning",

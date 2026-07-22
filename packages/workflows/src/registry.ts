@@ -21,6 +21,7 @@ const fileBacked: WorkflowRegistry = {
   "push-all":      fileBackedWorkflow("push-all",       "Safe commit with secret scanning, branch protection checks, and smart commit messages"),
   "setup-ci-cd":   fileBackedWorkflow("setup-ci-cd",    "One-shot CI/CD setup: pre-commit hooks, GitHub Actions CI + security workflows, coverage gates"),
   recon:             fileBackedWorkflow("recon",            "Reconnaissance report: structure, entry points, stack, architecture patterns, notable observations"),
+  opm:               fileBackedWorkflow("opm",              "Object-Process model of the repo (OJF-OPL): author, render to Mermaid, conformance-lint, and query opm/system.opl"),
   roadmap:           fileBackedWorkflow("roadmap",          "Generate or update a product roadmap with priorities, effort estimates, and dependencies"),
   observe:           fileBackedWorkflow("observe",          "Triage logs, metrics, or alerts into a structured incident/health report"),
   "agent-debug":      fileBackedWorkflow("agent-debug",       "Diagnose LangGraph state machine failures: map graph structure, trace failure, identify root cause"),
