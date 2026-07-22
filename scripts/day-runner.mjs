@@ -138,6 +138,22 @@ Verification: ${prop?.verification ?? '(see northstar)'}
 - Semantic commits (feat:/fix:/docs:/test:). Match surrounding code style.
 - Run the repo's tests/typecheck before opening the PR; a red PR is a failed slice.
 
+## Execution contract (adr:pocock-lifecycle-absorption)
+
+- FIRST, before any work, emit the dispatch marker:
+  \`node ${HERE}/dispatch-emit.mjs session-start --kind=day-run --ref="${ref}"\`
+- Work test-first at the seams the slice's success/check criteria imply — red before green,
+  one slice of behavior at a time; expected test values from an independent source of truth,
+  never recomputed the way the code computes them.
+- Run typechecking regularly and single test files regularly; the full suite once at the end.
+- Before opening the PR, self-review the diff on both axes: spec compliance (does it deliver
+  the Goal above?) and standards (repo conventions; no console.*, no \`any\`, no secrets).
+- When you genuinely worked test-first or self-reviewed, emit it WITH evidence (no evidence,
+  nothing written — that is the contract):
+  \`node ${HERE}/dispatch-emit.mjs skill-used --kind=day-run --ref="${ref}" --skill=tdd --evidence=test:<test file>\`
+  \`node ${HERE}/dispatch-emit.mjs skill-used --kind=day-run --ref="${ref}" --skill=code-review --evidence=path:<self-review notes in PR body>\`
+  Do NOT emit for work you didn't do; absence is a valid, measured outcome.
+
 ## Slice-boundary contract (all five, in order — the runner verifies each)
 
 1. Implement the goal inside this worktree only. Do not touch files outside it.

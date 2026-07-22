@@ -283,6 +283,21 @@ slices:
     repo: core
     status: merged
     depends_on: "rm:rm-l1-core#S16"
+  - id: S18
+    phase: PH3
+    title: "Dispatch-channel experiment — measure brief-injected tdd/review engagement, record keep/kill/revise verdict"
+    advances: "ns:l1-core#P3"
+    moves_from: 10
+    moves_to: 18
+    deliverable: "After >=10 dispatched sessions (day-run slices and/or orchestrate-L3 workers) have run under the ADR-0100 execution contract (briefs inject the implement contract + dispatch-emit markers; ledger ~/selfco/tracking/dispatch-sessions.jsonl), run skill-metrics --funnel=dispatch, verify emit-discipline (0 orphaned skill-used rows or each explained), and record a keep/kill/revise verdict on the brief-injection channel in a dated decisions/research/ note citing the funnel receipt — kill/revise explicitly includes 'the skills themselves are the problem' if engagement stays near zero despite injection."
+    entrance: "ADR-0100 merged (S5 PR); >=10 session-start rows with distinct refs in the dispatch ledger; capture-quality unaffected (the funnel reads only explicit evidence-bearing emits)."
+    success: "The verdict note exists, cites the funnel receipt (sessions_total >= 10, tdd_rate + review_rate reported), and the roadmap/targets are updated per the verdict (keep: rates become standing targets; kill/revise: contract text or skills revised, dead targets removed)."
+    check: "node scripts/skill-metrics.mjs --funnel=dispatch --format=json | node -e 'const r=JSON.parse(require(\"fs\").readFileSync(0));process.exit(r.dispatch_funnel && r.dispatch_funnel.sessions_total>=10?0:1)'"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: queued
 ---
 
 # Roadmap — core (l1-core): the honest skill loop

@@ -12,7 +12,9 @@ Vertical slice cuts top-to-bottom through the layers your code already has. For 
 
 A horizontal slice (just the API; just the UI; just the agent node) is *not* an issue from this skill. Horizontal cuts hide their value behind sibling work that hasn't shipped yet, and they accumulate as half-built features.
 
-If the work is genuinely horizontal (a refactor, an infra change, a new package), emit through `/plan-feature` directly, not `--emit=github-issues`.
+Each slice is a **tracer bullet**: sized to one fresh context window, demoable alone, and carrying its **blocking edges** — the slices that must complete before it can start. Work proceeds along the **frontier** (any slice whose blockers are all done). Emit in dependency order, blockers first, so the edges reference real issue numbers; with `--apply`, wire them as GitHub-native blocked-by relationships so the frontier renders in the tracker.
+
+If the work is genuinely horizontal (a refactor, an infra change, a new package), emit through `/plan-feature` directly, not `--emit=github-issues` — with one exception: a **wide refactor** (one mechanical change whose blast radius spans the codebase) is emitted as an **expand–contract chain**: `expand` (new form beside old) → `migrate` batches sized by blast radius, each blocked by expand → `contract` (delete old form), blocked by every migrate batch. CI stays green batch to batch because the old form survives until contract.
 
 ## Title
 
@@ -46,6 +48,10 @@ Bad:
 - `packages/<pkg>/<path>` — <what changes>
 - `packages/<pkg>/<path>` — <what changes>
 
+## Blocked by
+
+<refs to the blocking issues (#NNN), or "None — can start immediately">
+
 ## Parent epic
 
 <#NNN if part of a multi-issue initiative; omit if standalone>
@@ -59,6 +65,10 @@ Bad:
 
 `domain/<...>`, `type/<bug|feature|refactor>`. Severity and effort assigned by /triage.
 ```
+
+Every emitted `gh issue create` also applies the literal label `needs-triage` — `ready-for-agent` is `/triage`'s promotion, never applied at emit.
+
+Note on paths: this template's "Affected paths" section is intentional divergence from the spec-side no-paths rule (`adr:pocock-lifecycle-absorption`) — issues are short-lived and consumed by Layer-2 agents that need the file list; specs are durable documents where paths rot. Don't "fix" one to match the other.
 
 ## INVEST check (per acceptance criterion)
 

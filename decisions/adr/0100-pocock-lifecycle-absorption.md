@@ -1,9 +1,9 @@
-# ADR: Absorb Pocock v1.1 lifecycle semantics into the existing mode surfaces
+# ADR-0100: Absorb Pocock v1.1 lifecycle semantics into the existing mode surfaces
 slug: pocock-lifecycle-absorption
-serial: draft
+serial: 0100
 rev:
 Date: 2026-07-22
-Status: Proposed
+Status: Accepted
 domain: workflow-engine
 type: tooling
 OKR: —
@@ -61,6 +61,19 @@ deliberately NOT adopted as a skill.
 5. **`/prototype` gains a third disposition** (amending `adr:pocock-skill-conventions-and-new-skills`):
    "kept on a throwaway branch as a primary source, with a context pointer on the driving issue."
    Delete-after-verdict remains the default.
+6. **The improvement-loop contract (loop litmus).** The brief-injection change above is itself a
+   falsifiable experiment, and it sets the pattern every future self-improvement loop must follow.
+   **A loop exists only when it has all four:** a **ledger** (where its events land — here
+   `~/selfco/tracking/dispatch-sessions.jsonl`, written by `scripts/dispatch-emit.mjs` under the
+   evidence-or-nothing rule), a **check** (a machine-runnable query computing the metric — here
+   `skill-metrics.mjs --funnel=dispatch`), a **schedule** that survives operator inattention (a CI
+   cadence whose report lands in an already-inhabited surface, opening an issue only on
+   regression — never a new dashboard), and a **slice** on a northstar roadmap with a verdict
+   date, closing with a recorded keep/kill/revise outcome either way. A proposed loop that cannot
+   state all four is fog: it becomes a wayfinder ticket (`adr:wayfinder-decision-maps`), not a
+   standing promise. Channel-inappropriate targets are revised in the same stroke a channel
+   changes (the `/tdd` interactive-invocation target became a dispatched-session rate here) —
+   a target that can only fail by design is dead weight that trains readers to ignore the report.
 
 ## Consequences
 
@@ -98,6 +111,6 @@ deliberately NOT adopted as a skill.
 
 | Field | Value |
 | --- | --- |
-| Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`) |
-| Implementation start | _pending_ |
-| Implementation end | _pending_ |
+| Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`; loop-contract sitting same day) |
+| Implementation start | 2026-07-22 (S5 branch) |
+| Implementation end | _pending_ (S5 PR merge; dispatch-channel verdict tracked as rm:rm-l1-core#S18) |

@@ -36,6 +36,8 @@ const format = args.format ?? "markdown";
 const pairWindowSec = Number(args["pair-window"] ?? 3600);
 const launchWindowSec = Number(args["launch-window"] ?? 86400); // 24h default per ADR-0054
 const funnelMode = args.funnel === "standup" || args.funnel === true;
+const dispatchFunnelMode = args.funnel === "dispatch";
+const dispatchPath = expandHome(args["dispatch-telemetry"] ?? "~/selfco/tracking/dispatch-sessions.jsonl");
 const since = args.since ? Date.parse(args.since) : Date.now() - 30 * 24 * 60 * 60 * 1000;
 const until = args.until ? Date.parse(args.until) : Date.now();
 
@@ -71,7 +73,11 @@ if (args["trigger-precision"]) {
 // When ADRs change, update this table.
 const TARGETS = {
   "grill-with-docs": { invocations_30d: 10, source: "ADR-0045 + plan §Success metrics" },
-  "tdd": { invocations_30d: 5, source: "ADR-0046 + plan §Success metrics" },
+  // tdd moved to the dispatch channel (adr:pocock-lifecycle-absorption): the implement
+  // contract injects it into day-run / orchestrate-L3 briefs, so it is measured as a rate
+  // over dispatched sessions (--funnel=dispatch), not as interactive invocations. The old
+  // invocations_30d:5 target would fail forever by design.
+  "tdd": { channel: "dispatch", dispatch_rate: 0.6, source: "ADR-0046 rev A + adr:pocock-lifecycle-absorption — ≥60% of dispatched sessions show evidenced tdd engagement" },
   "deepen": { invocations_30d: 3, source: "Plan §Success metrics — ≥3 TECHDEBT entries" },
   "triage": { invocations_30d: 1, source: "Plan §Success metrics — ≥1 full backlog pass" },
 };
@@ -110,6 +116,14 @@ const standupEvents = funnelMode ? readJsonl(standupPath) : [];
 const standupInWindow = standupEvents.filter((e) => inWindow(e.ts));
 const standupFunnel = funnelMode ? computeStandupFunnel(standupInWindow, skillInWindow, launchWindowSec) : null;
 
+// Dispatch funnel (adr:pocock-lifecycle-absorption). Only enabled with --funnel=dispatch.
+// Measures the brief-injection channel: dispatched sessions (day-run / orchestrate-L3) emit
+// explicit markers via scripts/dispatch-emit.mjs — session-start plus evidence-bearing
+// skill-used events. No inference from SKILL.md reads; absence of an emit is a measured
+// outcome, not a gap to paper over.
+const dispatchEvents = dispatchFunnelMode ? readJsonl(dispatchPath).filter((e) => inWindow(e.ts)) : [];
+const dispatchFunnel = dispatchFunnelMode ? computeDispatchFunnel(dispatchEvents) : null;
+
 const report = {
   generated_at: new Date().toISOString(),
   window: {
@@ -122,6 +136,7 @@ const report = {
     dispositions: dispositionPath,
     suggestion_telemetry: suggestionPath,
     standup_telemetry: funnelMode ? standupPath : null,
+    dispatch_telemetry: dispatchFunnelMode ? dispatchPath : null,
     baseline: baselinePath,
   },
   totals: {
@@ -137,7 +152,8 @@ const report = {
   sequencing,
   suggestion_followed: suggestionFollowed,
   standup_funnel: standupFunnel,
-  targets: scoreTargets(counts, sequencing, TARGETS, SEQUENCING_PAIRS),
+  dispatch_funnel: dispatchFunnel,
+  targets: scoreTargets(counts, sequencing, TARGETS, SEQUENCING_PAIRS, dispatchFunnel),
 };
 
 if (format === "json") {
@@ -405,9 +421,61 @@ function normalizeSkill(raw) {
   return normalizeSkillName(stripped);
 }
 
-function scoreTargets(counts, sequencing, targetsTable, pairs) {
+// Sessions are grouped by session_id when the emitter had one, else by ref —
+// one dispatched session per marker group. Engagement = evidence-bearing skill-used
+// events joined to the same group.
+function computeDispatchFunnel(events) {
+  const starts = events.filter((e) => e.event === "dispatch:session-start");
+  const used = events.filter((e) => e.event === "dispatch:skill-used" && e.evidence);
+  const keyOf = (e) => e.session_id ?? `${e.kind}:${e.ref}`;
+  const sessions = new Map();
+  for (const s of starts) {
+    const k = keyOf(s);
+    if (!sessions.has(k)) sessions.set(k, { kind: s.kind, ref: s.ref, skills: new Set() });
+  }
+  let orphaned = 0;
+  for (const u of used) {
+    const k = keyOf(u);
+    if (sessions.has(k)) sessions.get(k).skills.add(normalizeSkill(u.skill));
+    else orphaned++; // skill-used with no session-start marker — emit-discipline signal
+  }
+  const all = [...sessions.values()];
+  const byKind = {};
+  for (const s of all) byKind[s.kind] = (byKind[s.kind] ?? 0) + 1;
+  const withSkill = (name) => all.filter((s) => s.skills.has(name)).length;
+  const rate = (n) => (all.length ? Number((n / all.length).toFixed(3)) : null);
+  return {
+    sessions_total: all.length,
+    sessions_by_kind: byKind,
+    tdd_sessions: withSkill("tdd"),
+    tdd_rate: rate(withSkill("tdd")),
+    review_sessions: withSkill("code-review"),
+    review_rate: rate(withSkill("code-review")),
+    orphaned_skill_used: orphaned,
+  };
+}
+
+function scoreTargets(counts, sequencing, targetsTable, pairs, dispatchFunnel) {
   const out = [];
   for (const [skill, t] of Object.entries(targetsTable)) {
+    if (t.channel === "dispatch") {
+      // Channel-appropriate target (adr:pocock-lifecycle-absorption): scored from the
+      // dispatch funnel, never from interactive invocation counts. Without --funnel=dispatch
+      // (or with zero dispatched sessions) the target is unmeasurable — reported as such,
+      // never as a fake fail.
+      const measurable = dispatchFunnel && dispatchFunnel.sessions_total > 0;
+      const observed = measurable ? (skill === "tdd" ? dispatchFunnel.tdd_rate : dispatchFunnel.review_rate) : null;
+      out.push({
+        kind: "dispatch-rate",
+        skill,
+        observed,
+        target: t.dispatch_rate,
+        pass: measurable ? observed >= t.dispatch_rate : null,
+        gap: measurable ? Number((t.dispatch_rate - observed).toFixed(3)) : null,
+        source: t.source,
+      });
+      continue;
+    }
     const observed = counts[skill] ?? 0;
     out.push({
       kind: "invocations",
@@ -548,28 +616,55 @@ function renderMarkdown(r) {
     }
   }
 
+  if (r.dispatch_funnel) {
+    const f = r.dispatch_funnel;
+    lines.push(`## Dispatch funnel (adr:pocock-lifecycle-absorption)`);
+    lines.push("");
+    if (f.sessions_total === 0) {
+      lines.push(`_No dispatched sessions in window — the brief-injection channel has not run yet. Channel targets are unmeasurable, not failing._`);
+    } else {
+      const kinds = Object.entries(f.sessions_by_kind).map(([k, n]) => `${k}: ${n}`).join(" · ");
+      lines.push(`Dispatched sessions in window: **${f.sessions_total}** (${kinds})`);
+      lines.push("");
+      lines.push("| Engagement (evidence-bearing emits only) | Sessions | Rate |");
+      lines.push("|------------------------------------------|---------:|-----:|");
+      lines.push(`| \`tdd\` worked test-first | ${f.tdd_sessions} | ${(f.tdd_rate * 100).toFixed(1)}% |`);
+      lines.push(`| \`code-review\` self-reviewed | ${f.review_sessions} | ${(f.review_rate * 100).toFixed(1)}% |`);
+      if (f.orphaned_skill_used > 0) {
+        lines.push("");
+        lines.push(`⚠ ${f.orphaned_skill_used} skill-used emit(s) with no session-start marker — emit-discipline gap in the briefs, investigate before trusting rates.`);
+      }
+    }
+    lines.push("");
+  }
+
   lines.push(`## Targets vs actual (from ADRs)`);
   lines.push("");
   lines.push("| Kind | Target | Observed | Goal | Pass | Source |");
   lines.push("|------|--------|---------:|-----:|:----:|--------|");
   for (const t of r.targets) {
-    const label = t.kind === "invocations" ? `\`${t.skill}\` invocations` : `\`${t.from}\` → \`${t.to}\` rate`;
-    const pass = t.pass ? "✓" : "✗";
-    lines.push(`| ${t.kind} | ${label} | ${t.observed} | ${t.target} | ${pass} | ${t.source} |`);
+    const label = t.kind === "invocations" ? `\`${t.skill}\` invocations`
+      : t.kind === "dispatch-rate" ? `\`${t.skill}\` dispatched-session rate`
+      : `\`${t.from}\` → \`${t.to}\` rate`;
+    const pass = t.pass === null ? "— (unmeasured)" : t.pass ? "✓" : "✗";
+    const observed = t.observed === null ? "—" : t.observed;
+    lines.push(`| ${t.kind} | ${label} | ${observed} | ${t.target} | ${pass} | ${t.source} |`);
   }
   lines.push("");
 
-  const failing = r.targets.filter((t) => !t.pass);
+  const failing = r.targets.filter((t) => t.pass === false);
   if (failing.length > 0) {
     lines.push(`## Gaps`);
     lines.push("");
     for (const t of failing) {
-      const what = t.kind === "invocations" ? `\`${t.skill}\` needs ${t.gap} more invocations` : `\`${t.from}\` → \`${t.to}\` rate needs +${t.gap}`;
+      const what = t.kind === "invocations" ? `\`${t.skill}\` needs ${t.gap} more invocations`
+        : t.kind === "dispatch-rate" ? `\`${t.skill}\` dispatched-session rate needs +${t.gap}`
+        : `\`${t.from}\` → \`${t.to}\` rate needs +${t.gap}`;
       lines.push(`- ${what} (target: ${t.target}, observed: ${t.observed})`);
     }
     lines.push("");
   } else if (r.targets.length > 0) {
-    lines.push(`_All targets met._`);
+    lines.push(`_All measurable targets met (unmeasured channel targets excluded)._`);
     lines.push("");
   }
 
