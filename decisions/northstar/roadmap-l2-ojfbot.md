@@ -467,6 +467,21 @@ slices:
     repo: core
     status: merged
     depends_on: "rm:rm-l2-ojfbot#S29"
+  - id: S31
+    phase: PH6
+    title: "OPM pilot verdict — daily-logger shadow-lint clock, keep/kill/revise per ADR-0102"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 41
+    moves_to: 43
+    deliverable: "The ADR-0102 S2 pilot run to its verdict per the improvement-loop contract (adr:pocock-lifecycle-absorption): ledger = /opm lint --json findings accumulating from daily-logger's observe-only CI step (its ADR-0039); check = /opm lint (3-pass: syntax, anchor resolution, reality-probe); schedule = that CI step on PRs touching src/ or opm/; verdict = after the TPM window (>=1 real drift caught OR model judged accurate across 4 weeks from the CI step going live), a dated decisions/research/ note records keep (promote lint per RIDM + start S3 cockpit pane discussions) / kill (stop at documentation-only per the ADR's kill criterion) / revise. The first manual lint run's findings (posted on daily-logger PR #243) are the clock's t0 baseline."
+    entrance: "core PR #255 + daily-logger PR #243 merged; the ADR-0039 observe-only CI step live on daily-logger main."
+    success: "The verdict note exists in decisions/research/, cites the accumulated lint findings and the TPM outcome, and ADR-0102's rollout section is updated with the outcome; on kill, the model files remain as documentation and no gate ever activated."
+    check: "test -n \"$(ls decisions/research/*opm-pilot-verdict* 2>/dev/null)\""
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: queued
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
