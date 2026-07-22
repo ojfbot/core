@@ -1,9 +1,9 @@
-# ADR: Harden the two-axis review — fixed-point pinning, parallel axes, Fowler smell baseline
+# ADR-0099: Harden the two-axis review — fixed-point pinning, parallel axes, Fowler smell baseline
 slug: two-axis-review-hardening
-serial: draft
+serial: 0099
 rev:
 Date: 2026-07-22
-Status: Proposed
+Status: Accepted
 domain: workflow-engine
 type: tooling
 OKR: —
@@ -93,5 +93,5 @@ check, so structural feedback exists at both points.
 | Field | Value |
 | --- | --- |
 | Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`) |
-| Implementation start | _pending_ |
-| Implementation end | _pending_ |
+| Implementation start | 2026-07-22 (S4 branch) |
+| Implementation end | _pending_ (S4 PR merge) |
