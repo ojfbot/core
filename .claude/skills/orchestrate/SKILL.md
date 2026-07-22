@@ -258,6 +258,13 @@ The Layer 3 agent:
 3. Runs the verification command
 4. Creates a PR targeting `main`
 
+**Every Layer 3 prompt embeds the per-ticket execution contract** (`adr:pocock-lifecycle-absorption` — this brief, not a skill, is how `/tdd` and review discipline reach dispatched sessions):
+- Use `/tdd` where possible, at the seams the spec/ticket pre-agreed (its Testing Decisions); don't re-negotiate seams mid-session.
+- Run typechecking regularly and single test files regularly; run the full test suite once at the end.
+- Before opening the PR, self-review the diff on both axes (spec compliance + standards, incl. the smell baseline at `../pr-review/knowledge/smell-baseline.md`).
+- Commit to the working branch; never merge.
+- **Emit the dispatch-channel telemetry** (emit-not-magic; measured by `skill-metrics --funnel=dispatch`): at session start `node <core>/scripts/dispatch-emit.mjs session-start --kind=orchestrate-l3 --ref="<task-id>"`, and on real engagement `node <core>/scripts/dispatch-emit.mjs skill-used --kind=orchestrate-l3 --ref="<task-id>" --skill=<tdd|code-review> --evidence=<path:...|test:...>` — evidence required, or nothing is written.
+
 **Parallelism:** All independent Layer 3 agents run simultaneously in
 separate worktrees. This is the maximum concurrency point.
 
@@ -326,14 +333,22 @@ When `--emit=github-issues` is in `$ARGUMENTS`, after Step 3 (decomposition) the
 **Steps:**
 
 1. Run Steps 1–3 as usual (parse input, spawn Layer 1, present decomposition).
-2. For each task in the decomposition, format an issue body:
+2. Shape each task as a **tracer-bullet vertical slice** (`adr:pocock-lifecycle-absorption`):
+   - Each slice cuts a narrow but COMPLETE path through every relevant layer (schema, API, UI, tests) — vertical, never a horizontal slice of one layer.
+   - A completed slice is demoable or verifiable on its own.
+   - Each slice is sized to one fresh context window (one agent session).
+   - Any prefactoring ("make the change easy, then make the easy change") is its own slice, done first.
+   - **Declare blocking edges**: for each slice, which other slices must complete before it can start. A slice with no blockers can start immediately. The dispatch order is the **frontier** — any slice whose blockers are all done.
+   - **Wide refactors are the exception to vertical slicing.** One mechanical change (rename a column, retype a shared symbol) whose blast radius fans across the codebase gets **expand–contract** sequencing instead: an *expand* slice (add the new form beside the old), *migrate* slices in blast-radius-sized batches (per package/directory) each blocked by the expand, and a *contract* slice (delete the old form) blocked by every migrate batch — CI green batch to batch. If even batches can't stay green alone, share an integration branch that all block a final integrate-and-verify slice.
+3. **Quiz the user before publishing** — present the breakdown as a numbered list (title · blocked-by · what it delivers) and ask: does the granularity feel right (too coarse/too fine)? Are the blocking edges correct — does each slice depend only on what genuinely gates it? Merge or split any? Iterate until approved.
+4. For each approved slice, format an issue body:
    - **Title:** `<verb> <object>` form, ≤70 chars (e.g., `add session resume to cv-builder chat panel`)
-   - **Body:** problem statement (one paragraph), acceptance criteria (numbered, INVEST-compliant), related files (paths), parent epic reference if multi-task feature
-   - **Suggested labels:** infer from the task — domain (auth/agent-graph/ui/...), type (bug/feature/refactor/...), but **do not** assign severity or effort. Those are `/triage` decisions.
-3. Output as either:
-   - `gh issue create` invocations (default — user runs them) — one per task
-   - With `--apply` — actually create them via `gh` CLI; print URLs of created issues
-4. Skip Steps 4–6 (Layer 2/3 execution) if `--emit=github-issues` is the terminal action. The user runs `/triage` next to label and order, and `/orchestrate <app> execute-selected` to drive specific issues.
+   - **Body:** problem statement (one paragraph), acceptance criteria (numbered, INVEST-compliant), related files (paths), **Blocked by** (refs to blocking issues, or "None — can start immediately"), parent epic reference if multi-task feature
+   - **Suggested labels:** infer from the task — domain (auth/agent-graph/ui/...), type (bug/feature/refactor/...), but **do not** assign severity or effort — those are `/triage` decisions. `ready-for-agent` is likewise `/triage`'s call (gated on machine-checkable acceptance criteria) — emitted issues start `needs-triage`, never auto-`ready-for-agent`.
+5. Output as either:
+   - `gh issue create` invocations (default — user runs them) — one per slice, in dependency order (blockers first). Every command applies `--label "needs-triage"` (a literal label). In this dry mode real issue numbers don't exist yet: render blocking refs as placeholders (`#<S1>`-style) the user back-fills after creation.
+   - With `--apply` — actually create them via `gh` CLI in dependency order so blocking refs resolve to real numbers; wire blocking edges with GitHub's native blocked-by relationship (sub-issues/dependencies) so the frontier renders in the tracker; apply `needs-triage`; print URLs
+6. Skip Steps 4–6 of the main workflow (Layer 2/3 execution) if `--emit=github-issues` is the terminal action. The user runs `/triage` next to label and order, and `/orchestrate <app> execute-selected` to drive specific issues off the frontier.
 
 > **Load `knowledge/vertical-slice-issue-template.md`** for the issue body template, INVEST checklist, and parent-epic link format.
 
@@ -341,7 +356,7 @@ When `--emit=github-issues` is in `$ARGUMENTS`, after Step 3 (decomposition) the
 
 **Constraints:**
 - Each emitted issue must be a vertical slice — independently shippable, exercises the full path entrypoint → data boundary where applicable.
-- Don't emit infrastructure-only or pure-refactor issues from this path; those go through `/plan-feature` directly.
+- Don't emit infrastructure-only or pure-refactor issues from this path; those go through `/plan-feature` directly. **Exception:** a wide refactor (step 2) IS emitted here, as its expand–contract chain — that sequencing is exactly what this mode's blocking edges exist for.
 - Cap at 12 issues per session. More indicates the priority is actually a multi-feature initiative — emit a parent epic + 3–5 child issues instead.
 
 ## Decomposition patterns
