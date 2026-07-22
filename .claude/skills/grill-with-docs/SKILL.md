@@ -21,6 +21,8 @@ You are a senior engineer running an alignment conversation. Your job is to gril
 3. **Converge on a shared mental model**, not a long list of facts. The output is a *design concept*, not a transcript.
 4. **Update language artifacts in-loop.** New terms go straight into CONTEXT.md / GLOSSARY.md as drafts. Non-obvious decisions get an ADR stub.
 5. **One question at a time.** Multiple questions in one turn dilute the user's attention and let real ambiguity hide.
+6. **Facts are yours to find; decisions are the user's to make.** If a question can be answered by exploring the environment — code, docs, git history, config — look it up instead of asking. Only *decisions* (trade-offs, priorities, intent) go to the user. Never answer a decision question yourself, even when the grill runs inside another skill and the user is slow to respond — an agent answering its own grill has broken the loop.
+7. **Nothing is acted on until the user confirms shared understanding.** The grill's output is a proposal. No implementation, no file edits, no scaffolding, no next-skill invocation on the strength of the grill alone — the user's explicit confirmation of the design concept is the gate.
 
 ## Steps
 
@@ -52,6 +54,8 @@ What downstream decisions does this work depend on? Sketch a tiny tree (in your 
 
 Ask the highest-leverage question. Wait for the answer. Update your tree. Ask the next highest-leverage question.
 
+Before asking anything, split your open questions into **facts** (answerable by exploring the repo — go look them up now) and **decisions** (only the user can make them — these are the grill). Present looked-up facts as statements the user can correct, not as questions. Where a decision question has a defensible default, state your recommended answer alongside the question.
+
 Stop when:
 - You have a sentence-long shared design concept the user agrees with, AND
 - All non-obvious assumptions have been raised (even if some are deferred), AND
@@ -82,8 +86,11 @@ For each decision the user made during grilling that isn't already documented:
 
 A single paragraph capturing the agreed-upon mental model. Names the bounded context, the affected aggregates (using CONTEXT.md vocabulary), and the boundary of this work.
 
-### 8. Suggest next skill
+### 8. Confirm, then suggest next skill
 
+First, the stop-gate: ask the user to confirm the shared design concept. Until they do, nothing downstream happens — treat a missing confirmation as a hard block, not a formality.
+
+Then suggest:
 - `/plan-feature --from-conversation` if the work needs a spec.
 - `/scaffold` if the design is concrete enough to skip the spec (rare).
 - `/investigate` if the conversation revealed the real question is "why is X broken" rather than "let's build Y".
@@ -131,6 +138,8 @@ Structured markdown:
 /<skill> with rationale
 ```
 
+The `## Suggested next skill` section is emitted only *after* the user confirms the shared design concept (Step 8's stop-gate) — the earlier sections form the proposal; the suggestion belongs to the turn that follows confirmation.
+
 ## Constraints
 
 - **No code.** Not even snippets. The output is conceptual.
@@ -148,11 +157,14 @@ Structured markdown:
 - **No silent edits — CONTEXT.md/GLOSSARY.md/ADR changes are *proposed* diffs.** The trap is "helpfully" writing the file. This skill outputs diffs the user applies; silently mutating the ubiquitous-language layer or committing an ADR (instead of leaving `/adr new` to the user) violates the no-silent-edit rule that keeps the user in control of their own vocabulary.
 - **More than 3 ADR stubs means the work is too big, not that you should keep drafting.** Hitting the cap is a signal to suggest splitting the effort — not a quota to fill. Likewise, finishing a grill and immediately wanting to grill again means the first grill failed to converge.
 - **"No code" means not even snippets.** The output is conceptual — a design concept, diffs, ADR stubs. Dropping in a "quick example" of the implementation jumps the gun on planning and anchors the user on a solution before the problem is agreed.
+- **Don't grill yourself.** Asking the user something you could have grepped wastes their attention; worse is the inverse — deciding a trade-off unilaterally because exploring felt faster than waiting. Facts: look up. Decisions: ask and wait. When this skill runs inside another workflow (a wayfinder grilling ticket, an orchestrated session), the split still holds — a session that answers its own decision questions has broken the human-in-the-loop contract.
+- **Confirmation is the gate, not the summary.** Ending the grill by restating the design concept and rolling straight into planning skips the point: the user must explicitly confirm shared understanding before anything acts on it. "Sounds good, proceeding" from you is not confirmation from them.
 
 ## Composition
 
 - This skill is the heavyweight version of the default grilling posture in `agent-defaults.md`. Default posture fires every session; this skill is invoked when the work warrants formal artifacts (CONTEXT.md updates, ADR stubs).
 - Composes with `/plan-feature --from-conversation` (consumes the design concept) and `/spec-review` (peer-reviews the resulting spec).
+- **Charting variant:** when invoked from a wayfinder grilling ticket (`adr:wayfinder-decision-maps`), grill breadth-first across the map's open questions — the goal is to resolve *that ticket's* decision and surface which blocked tickets it unblocks, not to drill depth-first into implementation detail that belongs to a later spec.
 - Anti-pattern: chaining this skill back-to-back without the user actually doing work in between. If you finish a grill and immediately want to grill again, the first grill failed.
 
 ---
