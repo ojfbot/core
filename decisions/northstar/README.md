@@ -99,6 +99,14 @@ registry:
     app: virtualLight
     path: ../virtualLight/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # mirrorworld: geospatial intelligence track (operator sitting 2026-07-23) — real places as
+  # explorable three.js scenes; golf digital twin (apps/fairway) revives the firstTxGolf ->
+  # txGolf -> gcgcca lineage; mentor corpus = Bilawal Sidhu (selfco constellation).
+  - slug: l1-mirrorworld
+    tier: L1
+    app: mirrorworld
+    path: ../mirrorworld/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -143,6 +151,11 @@ roadmaps:
   - slug: rm-l1-virtuallight
     northstar: l1-virtuallight
     path: ../virtualLight/.claude/roadmap.md
+  # geospatial track (2026-07-23): PH1-PH3 run on existing assets; PH4 slices are entrance-gated
+  # on the mentor-corpus selfco synthesis. S11 lands in asset-foundry (per-slice repo:, v1.1).
+  - slug: rm-l1-mirrorworld
+    northstar: l1-mirrorworld
+    path: ../mirrorworld/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
