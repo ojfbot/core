@@ -33,7 +33,9 @@ this map) and `ns:l2-ojfbot#P2` (work traces to measurable properties — extend
   estate-charter ticket, keeping this session at the 3-stub cap.
 - Vault instrument: the selfco `precedent-survey-methodology` corpus (lens pages + synthesis
   recipes, e.g. `honest-but-loud-about-it`) is the design-judgment source for the native system.
-- Frame OS remains the Tier-A cluster + demo-track name; the TBC-pitch hero demo is unaffected.
+- Frame OS remains the name of the Tier-A cluster. **Demo-track targeting (TBC pitch, Track A/B,
+  hero demo) retired by Yuri 2026-07-23** — `frame-os-context.md`'s framing is out of date; doc
+  surgery rides with the L2 P1 rewording.
 
 ## Decisions so far
 
@@ -44,11 +46,16 @@ Grill-resolved before charting (recorded here as pre-map decisions, not closed t
 - Headless contract + design-language adapters converging on a native system — → adr:headless-components-with-design-language-adapters
 - Estate posture: inventory-first, shadow-first, per-endpoint promotion — ADR staged by the estate-charter ticket
 
+Closed tickets:
+
+- The surface is named **Arcade** (Benjamin's *Arcades Project* register: one passage, many worlds; the operator as flâneur) — name the operating surface (#273)
+- Demo-track targeting retired (TBC pitch, Track A/B, hero demo no longer goals) — ruled by Yuri in the #273 session, 2026-07-23
+
 ## Tickets
 
 | Ticket (refer by name) | Type | Blocked by | Status |
 |------------------------|------|------------|--------|
-| name the operating surface — successor framing for "Frame OS" (#273) | grilling | — | open |
+| name the operating surface — successor framing for "Frame OS" (#273) | grilling | — | closed |
 | reword L2 P1 venue-neutral — demoable surfaces beyond Frame (#274) | grilling | name the operating surface | open |
 | registry schema home for role/tier/cardinality/built_on (#275) | grilling | — | open |
 | headless component contract precedent survey (#276) | research | — | open |
@@ -60,6 +67,8 @@ Grill-resolved before charting (recorded here as pre-map decisions, not closed t
 
 ## Not yet specified
 
+- Arcade's home — evolution of `shell` vs its own repo; statable after the tier B talk seam
+  (#281) and L2 P1 rewording (#274) settle what Arcade must be.
 - Multi-user identity model (other humans, shared estates) — question not precisely statable
   until a concrete second-user scenario exists.
 - Tier A admission criteria — when does an app *need* shared in-process state; statable only

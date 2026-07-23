@@ -8,6 +8,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## A
 
+**Arcade** — Proper name of the fleet's operating surface (decided 2026-07-23, wayfinder #273): one passage, many worlds — Walter Benjamin's *Arcades Project* register; the operator as flâneur among app instances. "Operating surface" stays as the generic term in ADR prose.
+
 **ADR (Architecture Decision Record)** — A dated, sequentially-numbered markdown file documenting a non-obvious architectural decision: context, decision, consequences, alternatives. Lives in `decisions/adr/`. Template: `decisions/adr/template.md`. Created via `/adr new "<title>"`.
 
 **Agent (Claude Code)** — A specialized subagent invoked via the `Agent` tool with a `subagent_type` (Explore, Plan, general-purpose, etc.). Distinct from Gas Town agents.
