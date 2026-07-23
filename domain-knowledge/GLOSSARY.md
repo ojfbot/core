@@ -20,6 +20,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **App / sub-app** — A Module Federation remote that mounts in shell. 4-package monorepo (`api`, `agent-graph`, `agent-core`, `browser-app`). Examples: cv-builder, blogengine, TripPlanner.
 
+**App cardinality** — Registry attribute declared per app: `singleton | multi-instance`. Determines whether the operating surface may spawn multiple named instances. (adr:operating-surface-tiered-composition)
+
 **App registry** — Single source of truth for which apps exist in the Frame OS. Read by shell at startup and by `frame-dev.sh`. (`shell-mf-integration.md`)
 
 **AppFrame** — Runtime mount point in shell that loads a `RemoteComponent` and wraps it in `frame-fade-in` for swap animation.
@@ -38,6 +40,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Brassboard (shadow stage)** — *NASA SEH term.* A medium-fidelity functional unit structured to operate in *simulated operational environments* to assess critical functions, on the TRL maturity ladder. In Control-Gated Slices it anchors the **shadow stage**: an enforcement control runs observe-only/simulated, emitting TPMs but taking **no real action**, before promotion to Operational. *"Shadow mode" itself is a harness extension — NASA has no exact term for it.* (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)
 
+**built_on** — Registry declaration linking an app to the substrates it is built on (e.g. fairway → mirrorworld). (adr:operating-surface-tiered-composition)
+
 ## C
 
 **Carbon Design System** — IBM's design system. Source of every primitive UI component used in ojfbot. (`shared-stack.md`)
@@ -49,6 +53,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **CLAUDE.md** — Per-repo file loaded into every Claude Code session. Holds repo-specific guidance, ecosystem table, skill list, defaults reference. Top of every session's context.
 
 **ClosureSignal** — Evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (linked bead lifecycle reached closed) and `audit-disappeared` (priority absent from next standup). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise. See CONTEXT.md §5 and ADR-0054.
+
+**Composition tier** — How an app participates in the operating surface: Tier A in-process (MF), Tier B process federation (any stack), Tier C operational spine. (adr:operating-surface-tiered-composition)
 
 **Control Gate** — *NASA SEH term* (a.k.a. **Key Decision Point / KDP**). A defined point in a slice's life cycle where the decision authority evaluates progress and determines next actions. In Control-Gated Slices each checkpoint is a Control Gate with explicit **Entrance Criteria** (minimum to start) and **Success Criteria** (what must be demonstrated to pass, expressed as TPMs). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)
 
@@ -72,6 +78,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Deepen** — Skill `/deepen` (Phase 3, scaffolded as of 2026-04-28). Ousterhout-style depth analysis: find shallow modules, propose deepening refactors. Read-only by default.
 
+**Design-language adapter** — Swappable visual skin (Carbon | HIG | Material | native) over the headless component contract. (adr:headless-components-with-design-language-adapters)
+
 **Dispatch queue** — The unassigned queue (cockpit ADR-0002 label contract) doubling as the roadmap's dispatch surface: `roadmap-compile.mjs` projects `ready` slices as `queue=available` beads carrying `roadmap_ref`/`advances`/`autonomy_gate`/`why` labels. One queue for humans (cockpit Available lane + Claim), the standup (Step 7b), and the day-runner — no parallel truth. A compiled bead is a **projection**; the roadmap file is canonical. (adr:dispatch-queue-and-day-runner)
 
 **Dolt** — SQL database with Git semantics (branch/merge/PR/fork on tables). Backing store for Gas Town beads. DoltHub is the public remote.
@@ -85,6 +93,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **EnvisionedCapability** — _(proposed, adr:envisioned-capability-marker)_ A desired-but-unbuilt capability (lib, app, integration, or future skill) captured as a note marked `envisioned: idea|shaped|ready-to-build`; quarantined by marker not location; graduates to real by deleting the field. (CONTEXT.md § Workflow Engine)
 
 **envisioned: (frontmatter field)** — _(proposed, adr:envisioned-capability-marker)_ Presence ⇒ the capability does not exist yet; value ⇒ maturity-ladder stage (`idea`→`shaped`→`ready-to-build`). Orthogonal to `status:`.
+
+**Estate layer** — Inventory of devices, endpoints, capture surfaces, and peripherals managed like the fleet: registered, drift-linted observe-only, promoted per-endpoint to enforcement. Seed repo: workstation-yuri.
 
 **— envisioned (reference tag)** — _(proposed, adr:envisioned-capability-marker)_ Inline marker required on every `[[link]]`/mention of an EnvisionedCapability so a grep hit or wikilink self-announces as not-yet-real.
 
@@ -150,6 +160,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Lens (UI)** — A viewing mode for the same underlying data, switched via `ContentSwitcher`. TripPlanner has 6 itinerary lenses; BlogEngine has tab-style lenses.
 
+**Lens-dial profile** — An app's declared settings against the selfco precedent-survey lenses (Rams, Sachs, Lois, Rand, Neistat, Koolhaas), making per-app visual identity deliberate. (adr:headless-components-with-design-language-adapters)
+
 **loading-discipline routing** — _(proposed, ADR-0081)_ Classifying CLAUDE.md content by *when it's needed* and routing each block to the matching layer: always-relevant → CLAUDE.md (Layer 0); path-conditional → `rules/` (Layer 1); task-conditional reference → `domain-knowledge/` + skill (Layer 2); stale → deleted. The standing authoring convention from ADR-0081.
 
 **log-skill.sh** — Hook bound to PostToolUse(Skill) that appends each invocation to `~/.claude/skill-telemetry.jsonl`. Async; never blocks.
@@ -176,6 +188,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## N
 
+**Native design system** — End-state house component library derived from the selfco lens corpus, matured via agentic test/refine loops. (adr:headless-components-with-design-language-adapters)
+
 **NDI (Nondeterministic Idempotence)** — Workflows are durable because molecule steps are atomic checkpoints. Any agent can resume any step.
 
 **Northstar** — A project's compass (adr:three-tier-northstar): one-paragraph vision + fixed named **properties**, each with a target, an honest hand-asserted `current` %, and a verification. Three tiers — L1 per app (`<app>/.claude/northstar.md`) → L2 per venture → L3 shared apex — laddered by resolve-or-fail `ns:<slug>#P<n>` refs. Schema: `decisions/northstar/schema.md`; lint shadow-only. The compass does not move; understanding sharpens; movement is recorded, not remembered.
@@ -185,6 +199,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## O
 
 **OKR** — Objective + Key Results. Lives in `decisions/okr/`. Tracked alongside ADRs.
+
+**Operating surface** — Fleet-level GUI+chat switcher/launchpad/instance manager; successor framing to "Frame OS" (which remains the Tier-A cluster and demo-track name). (adr:operating-surface-tiered-composition)
+
+**Operational spine** — Tier C substrate of work objects: beads, northstar registry, roadmap slices, instance/thread records, drift reports. Runtime read + write. (adr:bonded-pair-division-of-labor)
 
 **Orchestrate** — Skill `/orchestrate`. 4-layer progressive decomposition pipeline: priorities → plan → execute via worktree-isolated agents.
 
@@ -209,6 +227,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## R
 
 **RAG (Retrieval-Augmented Generation)** — Vector-store-backed retrieval used by every agent-graph app. Default store: sqlite-vec.
+
+**Reference layer** — The selfco vault as design-time knowledge store of understanding objects; written only via curated seams (/vault sync, session stubs, daily-logger). (adr:bonded-pair-division-of-labor)
 
 **Refinery** — Merge processor agent. Handles PRs, resolves conflicts. Gas Town role; built into Frame `witness`.
 
@@ -266,6 +286,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Standup telemetry** — `~/.claude/standup-telemetry.jsonl`. Append-only JSONL of `standup:suggested` and `standup:closed` events. Read by `/skill-metrics --funnel=standup` (PR-X2).
 
+**Substrate** — Foundational layer delivering assets/data/engine interactions, with apps built on top; never switcher-listed; registry `role: substrate`. Examples: mirrorworld, asset-foundry, f1-substrate, switchboard, core. (adr:operating-surface-tiered-composition)
+
 **Success Criteria** — *NASA SEH term (formerly "exit criteria").* The specific accomplishments that must be satisfactorily **demonstrated to pass** a Control Gate. In Control-Gated Slices each Success Criterion is expressed as a **TPM** (a metric tracked vs a baseline with a threshold), not a vibe. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 **suggest-skill.sh** — Hook bound to UserPromptSubmit. Matches user prompt against `skill-catalog.json` triggers; injects skill suggestions.
@@ -289,6 +311,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 ## U
 
 **Ubiquitous language (DDD)** — Shared vocabulary used consistently in code, docs, prompts, conversations. CONTEXT.md + this glossary are the canonical artifacts. (Pocock framing.)
+
+**Understanding object** — A consulted knowledge artifact (vault page): knowledge-about, not state-of. Contrast *work object*. (adr:bonded-pair-division-of-labor)
 
 ## V
 
@@ -315,6 +339,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Wisp** — Ephemeral bead, not persisted to Git. Used for patrol/maintenance.
 
 **Witness** — Per-rig supervisor agent. Owns the merge queue, escalates problems. Gas Town role.
+
+**Work object** — A live, machine-actionable, human-inspectable operational artifact (bead, slice, instance record) that agents act on. Contrast *understanding object*. (adr:bonded-pair-division-of-labor)
 
 **Workflow Engine** — TypeScript runtime in `packages/workflows/` plus `.claude/skills/` files. Bounded context #3.
 
