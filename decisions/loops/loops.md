@@ -29,7 +29,7 @@ loops:
     status: live
     repo: core
   - slug: skill-architecture-audit
-    purpose: "Weekly OPAV observation pulse — skill-architecture audit + loops-liveness report (S30 wired onto this rail), one jsonl line each per week"
+    purpose: "Weekly OPAV observation pulse — skill-architecture audit + loops-liveness report (S30 wired onto this rail), one jsonl line each per week; also the skill-metrics receipt incl. dispatch funnel + regression-issue surface (ADR-0100 loop contract, wired 2026-07-22 via weekly-measure.mjs)"
     trigger: launchd
     trigger_ref: scripts/skill-architecture-audit-launchd.plist
     installed_ref: ~/Library/LaunchAgents/com.ojfbot.skill-architecture-audit.plist

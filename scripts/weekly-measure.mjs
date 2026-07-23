@@ -76,17 +76,42 @@ if (gate) {
   }
 }
 
-// ---- 2. skill-metrics snapshot ----
+// ---- 2. skill-metrics snapshot (incl. dispatch funnel, adr:pocock-lifecycle-absorption) ----
 const home = os.homedir();
 const dispositions = path.join(home, "selfco", "tracking", "skill-dispositions.jsonl");
 const legacy = path.join(home, ".claude", "skill-telemetry.jsonl");
 if (existsSync(dispositions) || existsSync(legacy)) {
   const snap = path.join(CORE, "docs", `skill-metrics-${today}.md`);
   try {
-    writeFileSync(snap, run("node", ["scripts/skill-metrics.mjs"]));
+    writeFileSync(snap, run("node", ["scripts/skill-metrics.mjs", "--funnel=dispatch"]));
     console.log(`[2/4] skill-metrics snapshot → ${path.relative(CORE, snap)}`);
   } catch (e) {
     console.log(`[2/4] skill-metrics FAILED: ${e.message.split("\n")[0]} (artifact not written)`);
+  }
+  // Regression surface (improvement-loop contract, ADR-0100): a target that WAS measurable and
+  // fails opens/updates one GitHub issue — the report lands where the operator already looks.
+  // Unmeasured channel targets (pass === null) are never regressions. Never fails the routine.
+  try {
+    const rep = JSON.parse(run("node", ["scripts/skill-metrics.mjs", "--funnel=dispatch", "--format=json"]));
+    const failing = (rep.targets ?? []).filter((t) => t.pass === false);
+    const title = "skill-loop weekly: targets failing (auto-filed by weekly-measure)";
+    if (failing.length > 0) {
+      const body = [
+        `Weekly measure ${today} — ${failing.length} target(s) failing (receipt: docs/skill-metrics-${today}.md):`,
+        "",
+        ...failing.map((t) => `- **${t.skill ?? `${t.from}→${t.to}`}** (${t.kind}): observed ${t.observed} vs goal ${t.target} — ${t.source}`),
+        "",
+        "Filed by scripts/weekly-measure.mjs (ADR-0100 loop contract). Close by fixing or by revising the target — never by muting the check.",
+      ].join("\n");
+      const existing = run("gh", ["issue", "list", "--search", `in:title "${title}"`, "--state", "open", "--json", "number", "--jq", ".[0].number // empty"]).trim();
+      if (existing) run("gh", ["issue", "comment", existing, "--body", body]);
+      else run("gh", ["issue", "create", "--title", title, "--label", "needs-triage", "--body", body]);
+      console.log(`[2/4] regression surface: ${failing.length} failing target(s) → issue ${existing || "(new)"}`);
+    } else {
+      console.log("[2/4] regression surface: all measurable targets met — no issue filed");
+    }
+  } catch (e) {
+    console.log(`[2/4] regression surface SKIPPED: ${e.message.split("\n")[0]} (gh unavailable or json parse failed — measurement never blocks)`);
   }
 } else {
   console.log("[2/4] skill-metrics SKIPPED — no live telemetry on this machine (needs ~/selfco/tracking or ~/.claude streams; run from the Mac)");

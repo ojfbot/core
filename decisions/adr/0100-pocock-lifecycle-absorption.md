@@ -113,4 +113,4 @@ deliberately NOT adopted as a skill.
 | --- | --- |
 | Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`; loop-contract sitting same day) |
 | Implementation start | 2026-07-22 (S5 branch) |
-| Implementation end | _pending_ (S5 PR merge; dispatch-channel verdict tracked as rm:rm-l1-core#S18) |
+| Implementation end | 2026-07-22 (merged to main) |

@@ -119,4 +119,4 @@ unacknowledged fog — the move is "chart it," not "leave it queued."
 | --- | --- |
 | Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`; wayfinder↔roadmap interface discussion) |
 | Implementation start | 2026-07-22 (S6 branch) |
-| Implementation end | _pending_ (S6 PR merge + first dogfood chart) |
+| Implementation end | 2026-07-22 (merged to main) |
