@@ -31,6 +31,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 | github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
+| f1-learning-studio | — | F1 learning studio — first /wayfinder decision map (ADR-0101 dogfood) | 0 | scaffold |
 | workstation-yuri | — | macOS workstation automation: Focus modes, wallpapers, iTerm2, Hammerspoon, future Swift app. Reads `core/scripts/launcher/registrations/`. Supersedes core ADR-0064. | 0 | scaffold |
 | dive-briefing | 8610 | Public dive-Q&A RAG service — hybrid retrieval + per-claim citation verification over tiered corpus packs (buddy-check's public sibling) | 0 | active |
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
@@ -158,7 +159,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 |---------|---------|
 | `/recon` | Codebase reconnaissance report (full, cold-start) |
 | `/zoom-out` | In-loop orientation for code you're already in: who calls this, what it depends on, blast radius if changed. No report file. ADR-0083 |
-| `/opm` | Object-Process model of the repo (OJF-OPL controlled English, `opm/system.opl` + Mermaid twin). Modes: `model` · `render` · `lint` (shadow-mode conformance) · `query`. ADR draft `opm-inspectability-layer` |
+| `/opm` | Object-Process model of the repo (OJF-OPL controlled English, `opm/system.opl` + Mermaid twin). Modes: `model` · `render` · `lint` (shadow-mode conformance) · `query`. ADR-0102 |
 | `/summarize` | Summarize a file or selection |
 | `/roadmap` | Generate or update product roadmap |
 | `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
@@ -203,7 +204,7 @@ A three-step article pipeline (ADR-0083). Lives in `core` and is synced to sibli
 
 Boundary rule: open question is *what/whether* → `/wayfinder`; *how to ship safely in stages* →
 `/gated-slice`; once sliced → roadmap slices dispatched by `/day-run`. Full flow map:
-`.claude/skills/skill-loader/knowledge/flows.md`.
+`.claude/skills/skill-loader/knowledge/flows.md` (updated in catalog v1.16, commit 928b8e1).
 
 ---
 
