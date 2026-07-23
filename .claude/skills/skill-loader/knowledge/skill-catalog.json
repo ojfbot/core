@@ -1705,6 +1705,38 @@
         "start the day runner",
         "dispatch slices"
       ]
+    },
+    {
+      "name": "fleet-onboard",
+      "tier": 2,
+      "phase": "kick-off",
+      "category": "environment",
+      "tags": [
+        "onboard",
+        "register",
+        "repo",
+        "fleet",
+        "registry",
+        "daily-logger",
+        "cockpit",
+        "drift"
+      ],
+      "description": "Register a new (or drifted) repo on every fleet enumeration surface \u2014 northstar registry, daily-logger sweep, cockpit fleet cards, core ecosystem table, frame-standup lists, install-agents \u2014 with a reconcile mode that diffs all surfaces against the northstar registry.",
+      "triggers": [
+        "fleet-onboard",
+        "onboard this repo",
+        "register the repo everywhere",
+        "new repo registration",
+        "is this repo registered",
+        "reconcile repo lists"
+      ],
+      "suggested_after": [
+        "scaffold-app"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ]
     }
   ]
 }
