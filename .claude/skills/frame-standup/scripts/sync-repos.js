@@ -49,6 +49,7 @@ const REPOS = [
   'frame-ui-components',
   'workstation-yuri',
   'virtualLight',
+  'mirrorworld',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
