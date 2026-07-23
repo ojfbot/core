@@ -94,4 +94,4 @@ check, so structural feedback exists at both points.
 | --- | --- |
 | Zero-point | 2026-07-22 (adopt-stack record `pocock-skills-v1-1.md`) |
 | Implementation start | 2026-07-22 (S4 branch) |
-| Implementation end | _pending_ (S4 PR merge) |
+| Implementation end | 2026-07-22 (merged to main) |

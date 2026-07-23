@@ -1,5 +1,5 @@
 {
-  "version": "1.15",
+  "version": "1.16",
   "updated": "2026-07-22",
   "skills": [
     {
@@ -52,7 +52,10 @@
         "write a spec",
         "spec out",
         "plan this",
-        "write acceptance criteria"
+        "write acceptance criteria",
+        "synthesize the spec from this conversation",
+        "to-spec",
+        "turn the grill into a spec"
       ],
       "suggested_after": [],
       "layer_affinity": [
@@ -227,7 +230,9 @@
         "is this safe to ship",
         "run validation",
         "verify this works",
-        "pre-merge check"
+        "pre-merge check",
+        "standards axis",
+        "spec axis"
       ],
       "suggested_after": [
         "/scaffold",
@@ -738,7 +743,11 @@
         "pr-review",
         "review this PR",
         "review PR #NNN",
-        "code review"
+        "code review",
+        "two-axis review",
+        "review since",
+        "smell baseline",
+        "fowler smells"
       ],
       "suggested_after": [],
       "layer_affinity": [
@@ -1024,7 +1033,9 @@
         "establish design concept",
         "I'm not sure what we're building",
         "shared design concept",
-        "before we plan"
+        "before we plan",
+        "facts vs decisions",
+        "confirm before acting"
       ],
       "suggested_after": [],
       "layer_affinity": [
@@ -1054,7 +1065,10 @@
         "test first",
         "write the failing test",
         "enforce TDD",
-        "TDD this change"
+        "TDD this change",
+        "test at the seams",
+        "which seams should we test",
+        "tracer bullet test"
       ],
       "suggested_after": [
         "/scaffold",
@@ -1233,7 +1247,9 @@
         "throwaway prototype",
         "try a quick experiment",
         "explore a few UI options",
-        "build a scratch version to test X"
+        "build a scratch version to test X",
+        "keep it on a branch",
+        "prototype as primary source"
       ],
       "suggested_after": [
         "/plan-feature",
@@ -1585,7 +1601,12 @@
         "run the decomposition",
         "execute priorities",
         "decompose tasks",
-        "plan and execute"
+        "plan and execute",
+        "to-tickets",
+        "emit tickets",
+        "tracer bullet tickets",
+        "expand contract refactor",
+        "work the frontier"
       ],
       "suggested_after": [
         "/frame-standup",

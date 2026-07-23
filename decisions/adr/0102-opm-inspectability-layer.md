@@ -108,4 +108,4 @@ committed artifacts; nothing executes the models.
 | --- | --- |
 | Zero-point | 2026-07-22 deep-research session (remote) |
 | Implementation start | 2026-07-22 (S1) |
-| Implementation end | _pending_ |
+| Implementation end | 2026-07-22 (merged to main) |

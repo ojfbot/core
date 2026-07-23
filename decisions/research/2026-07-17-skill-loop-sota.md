@@ -20,6 +20,12 @@ schemas, auditable logs). Design read: harness effort flows to where you can cre
 skill split; new `wayfinder` (plan big work as investigation tickets) and `to-tickets`
 (vertical-slice PRD decomposition); **`/ask-matt` router skill** — one always-loaded skill whose
 job is routing to the others (progressive disclosure applied to discovery itself). ⬒
+*Update 2026-07-22: engaged per-opinion at pinned `ed37663` — verdicts in
+`decisions/adopt-stack/pocock-skills-v1-1.md`; wayfinder ADOPTED as `/wayfinder`
+(`adr:wayfinder-decision-maps`, file-canonical variant), to-spec/to-tickets ABSORBED into the
+mode surfaces (`adr:pocock-lifecycle-absorption`, supersedes adr:pocock-mode-extensions content),
+ask-matt REJECTED (flow map absorbed as `skill-loader/knowledge/flows.md`); user/model-invoked
+catalog facet still deferred to rm-l1-core S14.*
 
 **Anthropic engineering** (richest channel this window) —
 - *Demystifying evals for AI agents* (2026-01-09): 20–50 cases from real observed failures; gold

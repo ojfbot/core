@@ -70,8 +70,9 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 
 | Command | Tier | Phase | Purpose |
 |---------|------|-------|---------|
-| `/grill-with-docs` | 2 | Alignment | Socratic alignment before planning. Updates CONTEXT.md, drafts ADR stubs in-loop. No code. ADR-0045 |
-| `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub |
+| `/grill-with-docs` | 2 | Alignment | Socratic alignment before planning. Facts looked up, decisions grilled one-at-a-time, confirmation stop-gate. Updates CONTEXT.md, drafts ADR stubs in-loop. No code. ADR-0045 rev A |
+| `/wayfinder` | 2 | Pre-decision | Chart foggy multi-session work as a file-canonical decision map (`decisions/wayfinder/`) with typed tickets + native blocking edges; one ticket per session; hands off to spec/slicing. ADR-0101 |
+| `/plan-feature` | 2 | Planning | Spec → acceptance criteria → test matrix → ADR stub. `--from-conversation` adds seam-confirmed Testing Decisions (ADR-0100) |
 | `/spec-review` | 2 | Pre-kick-off | Fact-check a plan or spec before scaffolding — PASS / PASS WITH NOTES / BLOCKED |
 | `/scaffold` | 2 | Kick-off | Types, skeleton implementations, test stubs |
 | `/prototype` | 2 | Kick-off | Throwaway code that answers one question — terminal harness for logic edge cases, or N UI variants by URL param. Record the verdict, then delete. ADR-0083 |
@@ -173,13 +174,19 @@ A three-step article pipeline (ADR-0083). Lives in `core` and is synced to sibli
 ### Recommended lifecycle order
 
 ```
-/plan-feature → /spec-review → /scaffold → /prototype (if a design branch is unclear)
-→ [implement via /tdd] → /investigate (if needed)
-→ /test-expand → /validate → /hardening → /deploy → /handoff
+[/wayfinder if foggy/multi-session] → /grill-with-docs
+→ /plan-feature --from-conversation → /spec-review → /orchestrate --emit=github-issues
+→ /scaffold → /prototype (if a design branch is unclear)
+→ [implement via /tdd at pre-agreed seams] → /investigate (if needed)
+→ /test-expand → /validate | /pr-review (two-axis + smell baseline) → /hardening → /deploy → /handoff
                                     ↑
                               /techdebt (continuous)
                               /sweep (weekly)   /zoom-out (any time you're lost in a file)
 ```
+
+Boundary rule: open question is *what/whether* → `/wayfinder`; *how to ship safely in stages* →
+`/gated-slice`; once sliced → roadmap slices dispatched by `/day-run`. Full flow map:
+`.claude/skills/skill-loader/knowledge/flows.md`.
 
 ---
 
