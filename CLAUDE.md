@@ -35,6 +35,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | dive-briefing | 8610 | Public dive-Q&A RAG service — hybrid retrieval + per-claim citation verification over tiered corpus packs (buddy-check's public sibling) | 0 | active |
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
 | agent-anatomy | — | Anatomy of the fleet's multi-agent system — diagrams + pattern excerpts, blogengine article companion | 0 | scaffold |
+| buddy-check | — | SME-calibrated dive Q&A + eval harness — judge calibration, hybrid-RAG lab (dive-briefing's private sibling) | — | active |
+| silicon-empires | — | AoE-style RTS of the AI-infrastructure complex — SPEC-canon repo | 0 | active |
+| f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness | — | active |
+| f1-substrate | — | F1 telemetry substrate — DuckDB FastF1 store, gap algorithm, FastAPI query layer | — | active |
+| f1-press-room | — | F1 teaching studio — claim-checked articles + shorts off the f1 export seam | — | active |
+| morning-cockpit | — | Local-first morning dashboard — beads, reading, research pods, Cockpit Chat | — | active |
+| lofi-beaver | — | Willow Bend story-world — 1-bit isometric game, Blender sprite pipeline | — | active |
+| bldgblog-corpus | — | Deterministic BLDGBLOG archive ingest — annotated corpus + selfco deposit-library | — | active |
+| gcgcca | — | USGS Earth Explorer orthoimagery query tool — Python+TS hybrid | — | active |
+| GroupThink | — | LLM tab-grouping Chrome extension — semantic treemap | — | shipped |
+| selfco-box | — | selfco vault runner — Notion/iOS/MCP capture daemon | — | paused |
+| golf-platform-scripts | — | Golf platform automation scripts | — | active |
 
 ## Skills
 

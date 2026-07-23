@@ -13,21 +13,41 @@ const { execSync } = require('child_process');
 const path = require('path');
 
 const REPOS = [
-  'cv-builder',
+  // Derived from the fleet active set (fleet-onboard reconcile, 2026-07-22).
+  // Reconcile with /fleet-onboard — do not let this list drift by hand again.
   'shell',
-  'blogengine',
+  'cv-builder',
+  'BlogEngine',
   'TripPlanner',
-  'mrplug',
+  'core',
+  'core-reader',
+  'MrPlug',
   'purefoy',
   'daily-logger',
-  'core',
   'lean-canvas',
-  // Added 2026-07-22: portfolio gap-closers. NB this list has known drift vs the
-  // northstar registry (e.g. buddy-check, silicon-empires, f1-*) — /fleet-onboard
-  // owns reconciliation; additions here are per-repo onboarding steps.
+  'seh-study',
+  'GroupThink',
+  'landing',
+  'gcgcca',
+  'beaverGame',
+  'asset-foundry',
+  'github-actions',
+  'selfco-box',
+  'morning-cockpit',
+  'f1-pit-wall',
+  'f1-substrate',
+  'lofi-beaver',
+  'golf-platform-scripts',
   'dive-briefing',
   'switchboard',
   'agent-anatomy',
+  'buddy-check',
+  'silicon-empires',
+  'f1-press-room',
+  'bldgblog-corpus',
+  'gastown-pilot',
+  'frame-ui-components',
+  'workstation-yuri',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
