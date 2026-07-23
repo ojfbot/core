@@ -22,6 +22,12 @@ const REPOS = [
   'daily-logger',
   'core',
   'lean-canvas',
+  // Added 2026-07-22: portfolio gap-closers. NB this list has known drift vs the
+  // northstar registry (e.g. buddy-check, silicon-empires, f1-*) — /fleet-onboard
+  // owns reconciliation; additions here are per-repo onboarding steps.
+  'dive-briefing',
+  'switchboard',
+  'agent-anatomy',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
