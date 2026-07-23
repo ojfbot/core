@@ -50,6 +50,7 @@ Closed tickets:
 
 - The surface is named **Arcade** (Benjamin's *Arcades Project* register: one passage, many worlds; the operator as flâneur) — name the operating surface (#273)
 - Demo-track targeting retired (TBC pitch, Track A/B, hero demo no longer goals) — ruled by Yuri in the #273 session, 2026-07-23
+- Headless contract precedent verified (statechart core + connect/anatomy seam + data-part/data-state hooks + DTCG·Material token layering; functional-vs-design-language style split mandatory) — headless component contract precedent survey (#276) → decisions/research/2026-07-23-headless-component-contract-survey.md
 
 ## Tickets
 
@@ -58,7 +59,7 @@ Closed tickets:
 | name the operating surface — successor framing for "Frame OS" (#273) | grilling | — | closed |
 | reword L2 P1 venue-neutral — demoable surfaces beyond Frame (#274) | grilling | name the operating surface | open |
 | registry schema home for role/tier/cardinality/built_on (#275) | grilling | — | open |
-| headless component contract precedent survey (#276) | research | — | open |
+| headless component contract precedent survey (#276) | research | — | closed |
 | frame-ui-components headless refactor path (#277) | grilling | precedent survey | open |
 | native design system bootstrap strategy (#278) | grilling | precedent survey; refactor path | open |
 | estate layer charter — repo home, endpoint schema, first TPMs (#279) | grilling | — | open |
