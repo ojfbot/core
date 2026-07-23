@@ -48,6 +48,7 @@ const REPOS = [
   'gastown-pilot',
   'frame-ui-components',
   'workstation-yuri',
+  'virtualLight',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
