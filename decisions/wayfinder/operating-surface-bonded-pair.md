@@ -20,8 +20,10 @@ with the **estate layer** (devices, endpoints, capture surfaces) inventoried and
 underneath. Arrived means: any registered app — pit-wall, a mirrorworld-built geospatial app, a
 game, cockpit — can be launched, fronted, and talked to from one surface; instances respect
 declared cardinality; and the surface can be reskinned across design languages en route to a
-native design system. Serves `ns:l2-ojfbot#P1` (demoable surfaces — wording under revision via
-this map) and `ns:l2-ojfbot#P2` (work traces to measurable properties — extended to the estate).
+native design system. Serves `ns:l2-ojfbot#P1` (the fleet ships usable surfaces — reworded
+venue-neutral via #274) and `ns:l2-ojfbot#P3` (the Arcade fronts the fleet — the new integration
+property added by #274) and `ns:l2-ojfbot#P2` (work traces to measurable properties — extended to
+the estate).
 
 ## Notes
 
@@ -51,13 +53,14 @@ Closed tickets:
 - The surface is named **Arcade** (Benjamin's *Arcades Project* register: one passage, many worlds; the operator as flâneur) — name the operating surface (#273)
 - Demo-track targeting retired (TBC pitch, Track A/B, hero demo no longer goals) — ruled by Yuri in the #273 session, 2026-07-23
 - Headless contract precedent verified (statechart core + connect/anatomy seam + data-part/data-state hooks + DTCG·Material token layering; functional-vs-design-language style split mandatory) — headless component contract precedent survey (#276) → decisions/research/2026-07-23-headless-component-contract-survey.md
+- L2 P1 reworded venue-neutral ("The fleet ships usable surfaces", odometer continuous at 55) + new P3 "The Arcade fronts the fleet" (baseline 10, ladders to `ns:l3-shared#P1`); Frame OS/demo-track framing dropped from the L2 body with a dated note — reword L2 P1 venue-neutral (#274)
 
 ## Tickets
 
 | Ticket (refer by name) | Type | Blocked by | Status |
 |------------------------|------|------------|--------|
 | name the operating surface — successor framing for "Frame OS" (#273) | grilling | — | closed |
-| reword L2 P1 venue-neutral — demoable surfaces beyond Frame (#274) | grilling | name the operating surface | open |
+| reword L2 P1 venue-neutral — demoable surfaces beyond Frame (#274) | grilling | name the operating surface | closed |
 | registry schema home for role/tier/cardinality/built_on (#275) | grilling | — | open |
 | headless component contract precedent survey (#276) | research | — | closed |
 | frame-ui-components headless refactor path (#277) | grilling | precedent survey | open |
@@ -69,7 +72,8 @@ Closed tickets:
 ## Not yet specified
 
 - Arcade's home — evolution of `shell` vs its own repo; statable after the tier B talk seam
-  (#281) and L2 P1 rewording (#274) settle what Arcade must be.
+  (#281) settles what Arcade must be. (L2 P1 rewording (#274) settled — Arcade now carries its own
+  property, P3.)
 - Multi-user identity model (other humans, shared estates) — question not precisely statable
   until a concrete second-user scenario exists.
 - Tier A admission criteria — when does an app *need* shared in-process state; statable only
