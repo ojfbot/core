@@ -36,6 +36,27 @@ Where Frame OS apps are mounted, navigated, and rendered.
 
 **See:** `frame-os-context.md`, `shell-mf-integration.md`, `shell-mayor-spec.md`, ADR-0001 (Module Federation), ADR-0029 (frame-agent gateway).
 
+#### Operating Surface (proposed reframing — adr:operating-surface-tiered-composition, adr:bonded-pair-division-of-labor, adr:headless-components-with-design-language-adapters, all Proposed)
+
+The fleet-level successor framing: a GUI with chat/CLI baked in that switches, launches, and describes agentic apps. Shell/MF becomes Tier A inside it, not the membership rule. "Frame OS" remains the name of the Tier-A cluster and its demo track.
+
+**Aggregates**
+- `OperatingSurface` — switcher + launchpad + instance manager + baked-in chat.
+- `CompositionTier` — how an app participates. Tier A: in-process (MF, shared singletons — a technique, used where shared in-process state earns its cost). Tier B: process federation (any stack; the surface can launch, front, and talk to it via registry + chat protocol). Tier C: the operational spine both rest on.
+- `AppCardinality` — declared per app in the registry: `singleton | multi-instance`.
+- `Substrate` — foundational layer delivering assets/data/engine interactions (mirrorworld, asset-foundry, f1-substrate, switchboard, core). Never switcher-listed; apps declare `built_on`. May ship a thin operator console app; roles are not exclusive. Registry gains `role: app | substrate`.
+- `OperationalSpine` (Tier C) — beads, northstar registry, roadmap slices, instance/thread records, drift reports. *Work objects*: live, machine-actionable, human-inspectable. Runtime read + write.
+- `ReferenceLayer` — the selfco vault. *Understanding objects*: knowledge-about, curated, design-time read only. Updated solely via curated seams (`/vault sync`, session stubs, daily-logger).
+- `EstateLayer` — inventory of devices, endpoints (app-on-device), capture surfaces, and peripherals (Macs, iPhone/iPad, Pi host, car/voice, Claude surfaces, Obsidian/Wispr, PLAUD). Managed inventory-first, shadow-first: observe-only drift lint, per-endpoint RIDM promotion to enforcement. Seed repo: workstation-yuri.
+- `DesignLanguageAdapter` — swappable skin (Carbon | HIG | Material | native) over a headless component contract (behavior + anatomy + neutral tokens).
+- `NativeDesignSystem` — end-state house library derived from the selfco precedent-survey lens corpus; matured via agentic test/refine loops (visual-regression CI, /screenshot-audit, /prototype variants). Apps may declare a lens-dial profile.
+
+**Invariants**
+- Membership in the operating surface never requires Tier A conformance.
+- Runtime processes never write the ReferenceLayer; work objects never live in the vault.
+- Every registered app declares `role`, `tier`, and `cardinality`; substrates are addressed via `built_on`, never listed in the switcher.
+- Estate enforcement is never the starting posture — inventory and observe-only drift first; enforcement is a per-endpoint promotion.
+
 ### 2. Agent Graph
 
 LangGraph state machines that power cv-builder, blogengine, TripPlanner, purefoy. Shared patterns; per-app state schemas.
