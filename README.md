@@ -1,6 +1,6 @@
 # OJF Workflow Framework
 
-> Portable Claude Code workflow framework: 30+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use. Includes `/bead` for session-handoff across repos and `/vault` for personal knowledge management.
+> Portable Claude Code workflow framework: 40+ slash commands for the full development lifecycle, backed by a TypeScript engine for CLI and CI use. Includes `/bead` for session-handoff across repos, `/vault` for personal knowledge management, `/fleet-onboard` for drift reconciliation, and `/wayfinder` for decision maps.
 
 Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application OS built as both a live product and an engineering portfolio. This repo is the shared development infrastructure that powers all Frame OS projects.
 
@@ -12,18 +12,18 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **Skill directories over flat scripts** — each command is self-contained with its own orchestration prompt, knowledge files, and utility scripts
 - **Symlink installation over package publishing** — zero build step, instant propagation across all ecosystem repos (shared UI components use [npm publishing](https://github.com/ojfbot/frame-ui-components) with Vite alias for local dev)
-- **90+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge, [ADR-0085](decisions/adr/ADR-0085.md)/[ADR-0070](decisions/adr/ADR-0070.md) for vault reachability, [ADR-0098](decisions/adr/ADR-0098.md) for two-track skill telemetry)
+- **100+ ADRs** — every significant decision documented with context, alternatives considered, and rationale (see [ADR-0036](decisions/adr/ADR-0036.md) for the lock-file-rebuild protocol, [ADR-0037](decisions/adr/ADR-0037.md) for JSONL truncation, [ADR-0043](decisions/adr/ADR-0043.md) for the AgentBead bridge, [ADR-0085](decisions/adr/ADR-0085.md)/[ADR-0070](decisions/adr/ADR-0070.md) for vault reachability, [ADR-0098](decisions/adr/ADR-0098.md) for two-track telemetry, [ADR-0102](decisions/adr/ADR-0102.md) for OPM inspectability)
 - **Self-improvement loop** — `/techdebt` proposes patches to the framework itself, never production code
 
 ## Features
 
-- **30+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, vault, and more
+- **40+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, vault, fleet-onboard, wayfinder, opm, and more
 - **Skill-directory architecture** — each command is a self-contained directory with orchestration prompt, knowledge files, and scripts
 - **TypeScript CLI** — `core-workflow` binary for CI/CD and terminal use
 - **VS Code extension** — run any slash command from the editor
 - **Cross-repo installation** — `install-agents.sh` and `session-init.sh` symlinks skills + domain knowledge into sibling repos (symlinks tracked in git to survive clone and branch-switch)
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
-- **Architecture Decision Records** — 90+ ADRs documenting every significant decision across the ecosystem
+- **Architecture Decision Records** — 100+ ADRs documenting every significant decision across the ecosystem
 ## Tech Stack
 
 | Layer | Technology |
@@ -96,7 +96,7 @@ packages/
   vscode-extension/   VS Code extension
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
-  adr/                Architecture Decision Records (ADR-0001 through ADR-0098+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0098 two-track skill telemetry)
+  adr/                Architecture Decision Records (ADR-0001 through ADR-0102+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0098 two-track telemetry, ADR-0102 OPM inspectability)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
 personal-knowledge/   Career context (not tracked publicly)
