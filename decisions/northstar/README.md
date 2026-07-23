@@ -92,6 +92,13 @@ registry:
     app: switchboard
     path: ../switchboard/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # virtualLight revived 2026-07-23 (operator sitting; Garage Kubrick D3/D4 decided —
+  # pipeline-is-the-product, Gibson packs private; ADR in-repo).
+  - slug: l1-virtuallight
+    tier: L1
+    app: virtualLight
+    path: ../virtualLight/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -133,6 +140,9 @@ roadmaps:
   - slug: rm-l1-switchboard
     northstar: l1-switchboard
     path: ../switchboard/.claude/roadmap.md
+  - slug: rm-l1-virtuallight
+    northstar: l1-virtuallight
+    path: ../virtualLight/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking

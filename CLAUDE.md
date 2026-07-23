@@ -47,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | GroupThink | — | LLM tab-grouping Chrome extension — semantic treemap | — | shipped |
 | selfco-box | — | selfco vault runner — Notion/iOS/MCP capture daemon | — | paused |
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
+| virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
 
 ## Skills
 
