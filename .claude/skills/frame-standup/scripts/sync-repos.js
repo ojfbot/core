@@ -50,6 +50,7 @@ const REPOS = [
   'workstation-yuri',
   'virtualLight',
   'mirrorworld',
+  'f1-doctrine',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
