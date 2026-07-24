@@ -50,6 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
 | virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
 | mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + apps/fairway golf digital twin; Bilawal Sidhu mentor corpus) | 0 | active |
+| f1-doctrine | — | RAQG question layer for the F1 stack — tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 
 ## Skills
 
