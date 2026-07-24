@@ -42,7 +42,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 |---|---|
 | Understand what this project is and how it's structured | [docs/architecture.md](docs/architecture.md) |
 | See why decisions were made the way they were | [decisions/adr/](decisions/adr/) |
-| Understand current priorities | [decisions/okr/2026-q2.md](decisions/okr/2026-q2.md) |
+| Understand current priorities | [decisions/okr/2026-q3.md](decisions/okr/2026-q3.md) |
 | Set up and start using commands | [docs/getting-started.md](docs/getting-started.md) |
 | Find the right command for a task | [docs/commands.md](docs/commands.md) |
 
@@ -139,7 +139,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | Repo | Description |
 |------|-------------|
 | [shell](https://github.com/ojfbot/shell) | Module Federation host + frame-agent LLM gateway |
-| **core** | **Workflow framework — 30+ slash commands + TypeScript engine + skill suggestion/telemetry + /vault personal knowledge (this repo)** |
+| **core** | **Workflow framework — 40+ slash commands + TypeScript engine + skill suggestion/telemetry + /vault personal knowledge (this repo)** |
 | [FrameBus](https://github.com/ojfbot/FrameBus) | Event bus with ADR-0013, Playwright e2e |
 | [cv-builder](https://github.com/ojfbot/cv-builder) | AI-powered resume builder with LangGraph agents |
 | [gcgcca](https://github.com/ojfbot/gcgcca) | Pydantic + TypeScript type bridge |
@@ -155,3 +155,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [frame-ui-components](https://github.com/ojfbot/frame-ui-components) | Shared component library (Carbon DS) — published to npm as `@ojfbot/frame-ui-components` |
 | [beaverGame](https://github.com/ojfbot/beaverGame) | Terrain-to-dam sandbox loop — water-as-highway game mechanic |
 | [asset-foundry](https://github.com/ojfbot/asset-foundry) | AI-driven Blender asset pipeline |
+| [silicon-empires](https://github.com/ojfbot/silicon-empires) | Claim-system strategy game — stacked-PR development pattern |
+| [switchboard](https://github.com/ojfbot/switchboard) | FastAPI proxy — byte-for-byte SSE passthrough |
+| [mirrorworld](https://github.com/ojfbot/mirrorworld) | Real USGS 3DEP terrain rendered as three.js heightfield |
+| [virtualLight](https://github.com/ojfbot/virtualLight) | Geospatial track project |
