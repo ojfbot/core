@@ -107,6 +107,13 @@ registry:
     app: mirrorworld
     path: ../mirrorworld/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # f1-doctrine: RAQG question layer for the F1 stack (S0 design record 2026-07-24) — suggests WHICH
+  # strategist questions to ask, each bound to an f1-substrate call; never computes a number.
+  - slug: l1-f1-doctrine
+    tier: L1
+    app: f1-doctrine
+    path: ../f1-doctrine/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -156,6 +163,11 @@ roadmaps:
   - slug: rm-l1-mirrorworld
     northstar: l1-mirrorworld
     path: ../mirrorworld/.claude/roadmap.md
+  # f1-doctrine (2026-07-24): S0-S5 in 3 phases; S0 = design record (this session); S2 consumes/
+  # re-ports dive-briefing's retriever; S5 learned suggester registered-not-built (fine-tune hold).
+  - slug: rm-l1-f1-doctrine
+    northstar: l1-f1-doctrine
+    path: ../f1-doctrine/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
