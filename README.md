@@ -158,4 +158,6 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | [silicon-empires](https://github.com/ojfbot/silicon-empires) | Claim-system strategy game — stacked-PR development pattern |
 | [switchboard](https://github.com/ojfbot/switchboard) | FastAPI proxy — byte-for-byte SSE passthrough |
 | [mirrorworld](https://github.com/ojfbot/mirrorworld) | Real USGS 3DEP terrain rendered as three.js heightfield |
-| [virtualLight](https://github.com/ojfbot/virtualLight) | Geospatial track project |
+| [virtualLight](https://github.com/ojfbot/virtualLight) | Book-to-cinema pipeline — passage extraction + cinematography-styled video prompts |
+| [f1-doctrine](https://github.com/ojfbot/f1-doctrine) | RAQG question layer — suggests strategist questions bound to f1-substrate calls |
+| [morning-cockpit](https://github.com/ojfbot/morning-cockpit) | Local-first morning dashboard — beads, reading, research pods |
