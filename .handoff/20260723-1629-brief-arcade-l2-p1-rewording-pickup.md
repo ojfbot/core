@@ -7,7 +7,7 @@ to: code-claude
 session_id: 2026-07-23T21:29:06Z
 refs: ["ojfbot/core#272", "ojfbot/core#274", "ojfbot/core#282", "ojfbot/core#283"]
 hook: arcade
-status: live
+status: closed
 created_at: 2026-07-23T21:29:06Z
 labels:
   project: core

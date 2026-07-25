@@ -482,6 +482,37 @@ slices:
     kind: s
     repo: core
     status: queued
+  - id: S32
+    phase: PH6
+    title: "Make the bead-ledger closure loop real and measurable — correct the registry entry, shadow bead-lint, close the event-loop liveness blind spot"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 43
+    moves_to: 45
+    deliverable: "Three artifacts closing TD-006. (1) decisions/loops/loops.md: the hook-bead-session entry corrected to what scripts/hooks/bead-session.sh actually does (a PostToolUse skill/bash recorder), with the absent session-close report-bead loop declared honestly as its own entry or explicitly marked unimplemented — an entry that lies is worse than a missing one. (2) scripts/bead-lint.mjs, dep-free .mjs in the northstar-lint.mjs mould, reusing parseFM/loadRegistry/repoRootOf from scripts/lib/northstar-fm.mjs: frontmatter parses; type in brief|report|decision|discovery (flag `kind:`); status in live|closed|superseded; id present and equal to the filename stem (the bead-schemas.md invariant replay.py depends on); report responding_to resolves; per-repo open-hook count and age. Plus .github/workflows/bead-lint.yml mirroring northstar-lint.yml including its vantage scoping — sibling repos unreachable from a single-repo checkout downgrade to WARN, never failing a PR over a checkout it cannot see. (3) The event-loop liveness blind spot closed: either loops-liveness.mjs evaluates cadence: event loops against evidence_ref recency, or event loops are required to declare a verifier — pick one and record why in the slice's PR."
+    entrance: "TD-006 filed in TECHDEBT.md with the fleet audit numbers; the 28-open-hook baseline recorded as the TPM t0."
+    success: "bead-lint runs across the fleet and reports the 28-hook baseline without failing any PR (shadow/WARN-only per ADR-0086 — enforcing before S33 backfills would red-wall every PR on day one); the hook-bead-session registry entry matches the script's real behaviour; loops-liveness no longer silently skips the loop class this defect hid in."
+    check: "node scripts/bead-lint.mjs --check"
+    autonomy: gate-0
+    claimable_by: either
+    kind: m
+    repo: core
+    status: queued
+  - id: S33
+    phase: PH6
+    title: "Backfill the bead ledger — resolve the 28 open hooks to shipped-or-pending, then promote bead-lint from shadow"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 45
+    moves_to: 47
+    deliverable: "The fleet's open hooks driven down to the verified-pending set using the existing /resume --verify, which already backfills git-grounded report beads for work that shipped with no self-report — no new machinery. Worked by concentration: core (11), morning-cockpit (5), lofi-beaver (3), then the remainder. Each hook resolves to shipped (write the report bead, flip the brief to closed) or genuinely pending (leave live, and say why). The split between those two is the finding and belongs in the slice's report bead: if most were shipped, the ledger was actively misleading rather than merely stale. Also installs the bead skill in the 8 repos that have a .handoff/ but no .claude/skills/bead (bldgblog-corpus, gcgcca, lofi-beaver, mc-motion, mc-perf, morning-cockpit, silicon-empires, virtualLight) via scripts/install-agents.sh, and records whether bead-skill presence belongs in /fleet-onboard's reconcile checklist."
+    entrance: "rm:rm-l2-ojfbot#S32 merged — bead-lint reporting in shadow so the backfill has a baseline to move."
+    success: "Open hooks equal the verified-pending set with each closure git-grounded; the shipped-vs-pending split is recorded; schema errors promoted from WARN to blocking in bead-lint.yml (the RIDM step S32 set up) with the fleet clean at promotion time."
+    check: "node scripts/bead-lint.mjs --check --max-open-hook-age-days=30"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S32"
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
@@ -583,3 +614,26 @@ and anything touching the S20 judge posture — re-affirmed for the second conse
 **WIP-budget note.** S28 is delivered by the PR that cuts this phase; S29/S30 add 2
 agent-claimable slices to the open set (joining S22/S26), staying within the six-slice
 agent-attention reading.
+
+**S32/S33 — the first loop the registry caught, by failing to (2026-07-25).** S29 declared every
+loop and S30 made dead ones detectable, but a cold session picking up bead
+`20260723-1629-brief-arcade-l2-p1-rewording-pickup` nearly redid wayfinder #274 twelve hours after
+PR #285 merged it. The cause is a loop that is declared and *not implemented*:
+`hook-bead-session` claims to write the session's report bead, but `scripts/hooks/bead-session.sh`
+is a PostToolUse recorder that never touches `.handoff/`. Nothing closes the ledger, so
+`orient.py` reports every brief as a permanently open hook — 28 of them fleet-wide, against 9
+report beads ever written and 3 beads ever reaching `closed`.
+
+This is precisely the failure this phase exists to prevent, and it slipped all three guards for
+structural reasons worth naming: `loops-lint` checks that a `trigger_ref` **exists**, never that
+the artifact does what `purpose:` claims; `loops-liveness` skips `cadence: event` loops by design,
+so the whole event class is a blind spot; and the entry declares `verifier: "none"`, so nothing was
+expected to notice. S29's insight — "drift and death are silent" — turns out to have a third mode:
+a loop can be *born* dead and stay green.
+
+S32 corrects the entry, adds `bead-lint` in the northstar-lint mould (shadow-first, WARN-only —
+enforcing before the backfill would red-wall every PR), and closes the event-loop liveness gap. S33
+then backfills with the existing `/resume --verify` and promotes the schema checks to blocking once
+the fleet is clean — the ADR-0086 data-gated pattern, same shape as S16. S33 is `human_only` on
+purpose: every closure is a truth claim about whether work shipped, which is exactly the judgment
+that produced this defect. Filed as TD-006.
