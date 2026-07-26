@@ -31,14 +31,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 | github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
-| f1-learning-studio | — | F1 learning studio — first /wayfinder decision map (ADR-0101 dogfood) | 0 | scaffold |
+| f1-learning-studio | — | F1 learning studio — first /wayfinder decision map (ADR-0101 dogfood) | 0 | active |
 | workstation-yuri | — | macOS workstation automation: Focus modes, wallpapers, iTerm2, Hammerspoon, future Swift app. Reads `core/scripts/launcher/registrations/`. Supersedes core ADR-0064. | 0 | scaffold |
 | dive-briefing | 8610 | Public dive-Q&A RAG service — hybrid retrieval + per-claim citation verification over tiered corpus packs (buddy-check's public sibling) | 0 | active |
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
 | agent-anatomy | — | Anatomy of the fleet's multi-agent system — diagrams + pattern excerpts, blogengine article companion | 0 | scaffold |
 | buddy-check | — | SME-calibrated dive Q&A + eval harness — judge calibration, hybrid-RAG lab (dive-briefing's private sibling) | — | active |
 | silicon-empires | — | AoE-style RTS of the AI-infrastructure complex — SPEC-canon repo | 0 | active |
-| f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness | — | active |
+| f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness; race_engineer persona seeded empty (no fabrication) | — | active |
 | f1-substrate | — | F1 telemetry substrate — DuckDB FastF1 store, gap algorithm, FastAPI query layer | — | active |
 | f1-press-room | — | F1 teaching studio — claim-checked articles + shorts off the f1 export seam | — | active |
 | morning-cockpit | — | Local-first morning dashboard — beads, reading, research pods, Cockpit Chat | — | active |
@@ -50,7 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
 | virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
 | mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + apps/fairway golf digital twin; Bilawal Sidhu mentor corpus) | 0 | active |
-| f1-doctrine | — | RAQG question layer for the F1 stack — tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
+| f1-doctrine | — | RAQG question layer for the F1 stack — bound question registry (33 nl-query-corpus entries migrated PR #1), tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 
 ## Skills
 
