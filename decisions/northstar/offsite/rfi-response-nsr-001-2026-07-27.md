@@ -210,7 +210,7 @@ consumers, unpushed/dirty state. `AMBIG` = evidence genuinely under-determines; 
 | silicon-empires | **active** | 13 slices shipped 07-23; PR #28 open |
 | mirrorworld | **active** | S2 delivered 07-23; 1 unpushed |
 | virtualLight | **active** | S8 merged 07-23; S1 ready |
-| gcgcca | **AMBIG: active vs fold → mirrorworld** | lc 07-23 (USGS login-token M2M migration — someone is working it), 7 dirty, no upstream branch. Active work, but mirrorworld's fairway revives the same lineage. The Cluster-6 sitting decides; evidence supports either. |
+| gcgcca | **active (golf-cluster member — producer)** | ~~fold candidate~~ CORRECTED per operator declaration + disk: mirrorworld's P2 target names it verbatim ("boundary, **gcgcca hi-res imagery**, 3DEP elevation…") — gcgcca is a *producer dependency* of the fairway twin, not a fold candidate. lc 07-23 (USGS login-token M2M migration), 7 dirty, branch needs upstream. See Addendum A. |
 | asset-foundry | **reviving** (cluster member) | lc 06-09; mirrorworld S9/S11 land here; GameWorld member |
 | foundry-recipes | **reviving** (cluster member) | lc 05-04; itinerary flags SUPPORT-MODE question "resolves as a cluster-role question" |
 | beaverGame | **reviving** (cluster member) | lc 05-04; the pipeline's original consumer |
@@ -234,7 +234,7 @@ consumers, unpushed/dirty state. `AMBIG` = evidence genuinely under-determines; 
 |---|---|---|
 | workstation-yuri | **reviving** | paused mid-build before P4 by declared intent; 8 unpushed |
 | seh-study | **reviving** | content-complete trainer; ADR-0086/0087 source its glossary; lc 05-04 |
-| golf-platform-scripts | **reviving** | one card with build-golf/mcp-golf per itinerary Leg 3; lc 2025-07 — coldest active-claim in the fleet |
+| golf-platform-scripts | **reviving (golf-cluster member)** | one card with build-golf/mcp-golf per itinerary Leg 3; lc 2025-07 — coldest active-claim in the fleet. The management-platform/MCP arm of the golf cluster (Addendum A). |
 | newline-ai-course | **active** | course workspace; lc 06-04; no remote (hygiene, not posture) |
 | GroupThink | **AMBIG: shipped vs reviving** | ecosystem table says shipped; 5 dirty on docs/readme says someone touched it. "Shipped" is a terminal posture the amendment doesn't define — flag for A-list. |
 | hailstone | **reviving** | shipped map w/ live users per vault; TS migration stalled at Phase 1 |
@@ -508,6 +508,46 @@ Format per §4: scope · effort · dependencies · risk · dispatchability. No w
   data-loss ranking — a single `git push`, and the only live data-loss profile in the fleet closes.
 
 ---
+
+## Addendum A — the golf cluster (operator declaration, 2026-07-27) **[corrects RFI-005/007; extends RFQ-004]**
+
+After the initial response was filed, the operator declared the golf umbrella: **golf course
+management — product, tools, hardware integrations.** This is the **third cluster instance**, and
+historically the *first*: ITERATION 6's original evidence gate was *"leg 3's golf cluster (is it
+one app or a cluster?)"* — before GameWorld tripped it. The declaration answers leg 3's open
+question: it is a cluster.
+
+**Members, with the connective tissue verified on disk:**
+
+| Member | Role in the cluster | Evidence |
+|---|---|---|
+| `gcgcca` | **imagery-acquisition producer** — USGS Earth Explorer orthoimagery over KML boundaries | mirrorworld's `l1-mirrorworld#P2` target names it verbatim: *"OSM/KML boundary, gcgcca hi-res imagery, 3DEP elevation"*; northstar body: *"imagery via gcgcca"*; venture ancestry recorded as firstTxGolf → txGolf → gcgcca. Recent real work: USGS login-token M2M migration (lc 2026-07-23). |
+| `mirrorworld/apps/fairway` | **the 3D digital-twin surface** | `l1-mirrorworld#P2` ("A real golf course is explorable as a 3D digital twin") + P5's fairway-feature clause ("per-hole slope/elevation readout, yardage overlay… validated in one real user session") |
+| `golf-platform-scripts` (+ `build-golf`, `mcp-golf` loose dirs) | **management-platform / MCP arm** — README: MCP server over the Golf Course Management Platform | itinerary Leg 3 row 8 already binds the three as ONE card; "repo-split = sharp edge #1" |
+| *hardware integrations* | **declared scope, no repo** — a `seed` under A1 (pull condition = the umbrella northstar authoring) | operator declaration only; nothing on disk yet. Add to the RFI-008 seed list as item 6. |
+
+**Consequences for earlier answers:**
+
+- **RFI-005** — gcgcca's AMBIG is resolved: **active (producer)**, not a fold candidate; the
+  ambiguity row is corrected above. golf-platform-scripts becomes a cluster-member revival rather
+  than a free-floating one. (The AMBIG count drops from 6 to 5.)
+- **RFI-007** — the row math gains the golf cluster node: alongside 11a/11b, a `cluster-golf` row
+  is warranted (or Leg 3's existing row 8 is *promoted* to the cluster row — cleaner, since it
+  already spans three codebases).
+- **RFQ-004** — the build slice's content artifacts go from two cluster files to **three**
+  (`cluster-gameworld`, `cluster-f1`, `cluster-golf`), each gated on its own voice conversation;
+  the mechanical half (i)+(iv) is unchanged. One **new topology requirement for card 11b**:
+  golf is the first cluster with a **cross-repo member** — `apps/fairway` is an app *inside*
+  mirrorworld, whose L1 also carries non-golf properties (P1 terrain, P3 foundry, P4 splats).
+  The 11b topology decision must say whether a cluster member is a *repo*, an *app path*, or a
+  *property subset* (fairway ≈ `ns:l1-mirrorworld#P2+#P5`). The property-subset reading is the
+  only one that doesn't force mirrorworld to choose a single parent — flagged for the voice
+  sitting, not decided here.
+- **Umbrella northstar** — "golf course management product tools hardware integrations" is the
+  cluster's vision sentence in raw form. Under A3 it becomes `cluster-golf`'s vision + properties
+  (candidate shape, for voice: P1 course data acquisition pipeline (gcgcca), P2 the explorable
+  twin (fairway), P3 management tooling served over MCP (golf-platform-scripts), P4 hardware
+  integrations (seed)). Authoring it is an OD-3/OD-4-class operator conversation.
 
 ## Closing note on §6.2
 
