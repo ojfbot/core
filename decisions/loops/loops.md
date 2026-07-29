@@ -60,24 +60,65 @@ loops:
     trigger_ref: ~/Library/LaunchAgents/com.ojfbot.selfco-box.cultivate.plist.disabled
     cadence: daily
     state_spine: "~/selfco vault"
-    verifier: "none"
+    verifier: "selfco-loop-staleness.sh reports age of wiki/_suggested-links.md — the surface this loop writes"
     stop_rule: "disabled — plist renamed .disabled"
-    evidence_ref: "none"
+    evidence_ref: "file:~/selfco/wiki/_suggested-links.md"
     owner: operator
     status: disabled
     repo: selfco
   - slug: selfco-box-poll-notion
-    purpose: "selfco Notion-inbox poller (Pi-host era automation, parked during the host rebuild)"
+    purpose: "selfco Notion-inbox poller — SUPERSEDED 2026-06-16 by self-hosted LiveSync (adr:selfco-livesync-transport); box paused 2026-06-11. Retained as a registry record so the retirement is legible; six documents still describe it as live (dr-selfco-notion-write-path-documented-live)"
     trigger: launchd
     trigger_ref: ~/Library/LaunchAgents/com.ojfbot.selfco-box.poll-notion.plist.disabled
     cadence: daily
     state_spine: "~/selfco Inbox"
-    verifier: "none"
-    stop_rule: "disabled — plist renamed .disabled"
+    verifier: "none — superseded transport, deliberately unwatched; do not revive without retiring the LiveSync path"
+    stop_rule: "disabled — plist renamed .disabled; paused by operator 2026-06-11 (cost)"
     evidence_ref: "none"
     owner: operator
     status: disabled
     repo: selfco
+  # Registered 2026-07-29 (S0). These two generators write selfco's health surfaces and
+  # were on NO rail — which is why _lint-report.md and _hot.md froze at 2026-06-06 and
+  # nothing said so for 53 days (dr-selfco-lint-report-stale-page-count). Their own script
+  # headers ask to be scheduled. Registering them with a real evidence_ref is what makes
+  # loops-liveness able to say "this has not run in N days".
+  - slug: selfco-maintenance-report
+    purpose: "Regenerates ~/selfco/wiki/_lint-report.md — the vault's health surface (orphans, broken links, raw-without-source, stale pages, suggested links). Shadow/report-only: never mutates a canonical page (ADR-0086)"
+    trigger: manual
+    trigger_ref: ~/selfco/scripts/vault-maintenance-report.sh
+    cadence: weekly
+    state_spine: "~/selfco/wiki/_lint-report.md (committed, diffable)"
+    verifier: "selfco-loop-staleness.sh — file mtime IS the evidence; >14d means the loop is not running"
+    stop_rule: "single run per invocation; exit 0 always — a measurement never blocks"
+    evidence_ref: "file:~/selfco/wiki/_lint-report.md"
+    owner: operator
+    status: disabled
+    repo: selfco
+  - slug: selfco-hot-list
+    purpose: "Regenerates ~/selfco/wiki/_hot.md — the recently-active orientation router an agent reads before the 120KB index.md"
+    trigger: manual
+    trigger_ref: ~/selfco/scripts/vault-hot.sh
+    cadence: weekly
+    state_spine: "~/selfco/wiki/_hot.md (committed, diffable)"
+    verifier: "selfco-loop-staleness.sh — file mtime IS the evidence; >14d means the loop is not running"
+    stop_rule: "single run per invocation; exit 0 always"
+    evidence_ref: "file:~/selfco/wiki/_hot.md"
+    owner: operator
+    status: disabled
+    repo: selfco
+  - slug: defects-sweep
+    purpose: "Independent closure sweep over the defect ledger (decisions/defects/) — runs each open report's claim_probe against reality and classifies still-broken / claim-gone / probe-error. The independent half of the two-source contract; an agent never closes its own defect. Also the floor reconciler for selfco's ungated write paths (LiveSync + manual edits) until the S5 watcher lands"
+    trigger: manual
+    trigger_ref: scripts/defects-lint.mjs
+    cadence: weekly
+    state_spine: "decisions/defects/defects-status.jsonl (append-only movement ledger)"
+    verifier: "self-verifying — the sweep IS the verifier; probe-error verdicts surface its own broken probes"
+    stop_rule: "single run per invocation; exit 0 always except --check on schema errors"
+    evidence_ref: "file:decisions/defects/defects-status.jsonl"
+    owner: operator
+    status: live
+    repo: core
   - slug: daily-blog
     purpose: "Daily-logger article generation — collects fleet context, drafts via council pipeline, opens the article PR"
     trigger: gh-actions
