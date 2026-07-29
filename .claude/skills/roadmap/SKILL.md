@@ -35,6 +35,17 @@ For each item:
 - Effort: S (<1 day) / M (1-5 days) / L (1-3 weeks) / XL (>3 weeks)
 - Dependencies: what must be done first
 - Success criteria: how to know it's done
+- `p(revise)`: how likely the user is to change this call once they see it
+
+### 3. Order each horizon decisions-first
+
+Within each horizon, sort by `p(revise)` descending — the calls most likely to change go first, mechanical follow-on work last. The reader gives real attention to the top of a list and skims the bottom, so this ordering decides whether the contentious items get reviewed or waved through.
+
+On the forecast itself:
+
+- **Coarse 0–20 scale** (0.00, 0.05, 0.10 … 1.00). Verbalized confidence clusters on a few round values whatever scale you offer, so finer buckets buy false precision.
+- **Commit to a spread.** Tagging everything 0.5 minimises expected error while conveying nothing; a forecast that never discriminates is worse than none, because it passes for calibration. Score *reliability* and *resolution* separately (Murphy decomposition) — a good Brier score with flat resolution is exactly this failure hiding. See adr:harness-loop-instrumentation.
+- Forecast the **decision**, not the difficulty. "Will this get changed?" ≠ "is this hard?"
 
 If this is an OJF project, read `domain-knowledge/frame-os-context.md` for Frame OS phases, demo tracks, and hard constraints.
 

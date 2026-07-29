@@ -27,7 +27,11 @@ Understand entry points, data flows, and failure modes from the actual implement
 
 ### 2. Produce the handoff document
 
-> **Load `knowledge/runbook-template.md`** for the full 7-section template (overview, how to run, architecture, how to debug, tests, operations, open items).
+**Lead with the demo.** Open with the runnable thing — the exact command, endpoint, or artifact the reader can execute in one step to see it work — then the spec, then the notes. Context and background go *after*, not before.
+
+The front of a document is the premium slot and it is usually spent on preamble. Whoever reads this next — a future session, or you in three weeks with none of the state — needs to reach the working artifact before their attention runs out. Everything else in the runbook is there to support the moment when the demo doesn't work.
+
+> **Load `knowledge/runbook-template.md`** for the full 7-section template (overview, how to run, architecture, how to debug, tests, operations, open items). Order the emitted document demo-first; the template's section list is a checklist of what to cover, not the order to cover it in.
 
 > **When writing the "How to debug" section, load `knowledge/debug-patterns.md`** for OJF-specific debug patterns (Express, LangGraph, Node.js).
 
