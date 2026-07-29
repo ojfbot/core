@@ -57,6 +57,15 @@ export const EXPECTED_ARTIFACT: Record<string, ExpectedArtifactSpec> = {
   techdebt: { actExpected: true, scheme: 'path', pathPattern: /(^|\/)TECHDEBT\.md$/, description: 'a TECHDEBT.md append' },
   'adopt-stack': { actExpected: true, scheme: 'path', pathPattern: /(^|\/)decisions\/adopt-stack\/.*\.md$/, description: 'an adopt-stack decision record' },
 
+  // NOTE: every pathPattern here must be UNIQUE across skills. `artifactWrittenInSession`
+  // matches on path + session only — never on which skill did the write — so two skills
+  // sharing one artifact makes each other's writes indistinguishable, and a session that runs
+  // skill B while skill A was suggested-and-engaged scores A a false `capture_miss`. That is
+  // the exact defect this map was corrected to remove; do not reintroduce it by pointing a new
+  // skill at an existing skill's file.
+  'blind-sweep': { actExpected: true, scheme: 'path', pathPattern: /(^|\/)decisions\/blind-spots\.md$/, description: 'a blind-spots ledger entry' },
+  'merge-quiz': { actExpected: true, scheme: 'path', pathPattern: /(^|\/)merge-observations\.jsonl$/, description: 'a recorded quiz score (harness:quiz-taken)' },
+
   // Engaged-only — no durable artifact; terminate at engaged_no_act by design.
   recon: { actExpected: false, description: 'engaged-only (no durable artifact)' },
   'zoom-out': { actExpected: false, description: 'engaged-only (no durable artifact)' },

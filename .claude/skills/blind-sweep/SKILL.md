@@ -6,7 +6,7 @@ description: >
   my unknowns", "classify my unknowns", "what should I be asking". Sorts what you
   know and don't know into the four unknown-boxes using k=3 decorrelated sweeps,
   separates consensus from singletons, and teaches you to prompt better about the
-  area. Appends decisions/open-unknowns.md. No code.
+  area. Appends decisions/blind-spots.md. No code.
 ---
 
 # /blind-sweep
@@ -111,7 +111,9 @@ The most useful output is usually not the list — it's the vocabulary. Close wi
 
 ### 6. Land it
 
-Append the unresolved items to `decisions/open-unknowns.md` under a dated heading — the same ledger `/grill-with-docs` writes, so unknowns from both routes accumulate in one place and recur across repos where the recurrence is visible.
+Append the unresolved items to **`decisions/blind-spots.md`** under a dated `## <YYYY-MM-DD> — <area>` heading. Append; never rewrite prior entries.
+
+**Write this file and no other.** In particular do *not* write `decisions/open-unknowns.md` — that file belongs to `/grill-with-docs`. The two are genuinely different artifacts (this one maps an *area's* familiarity; that one records decisions deferred during a *specific* design conversation), and keeping them separate is also what lets the disposition projector attribute a write to the right skill. `artifactWrittenInSession` matches on path and session alone, never on authorship, so two skills sharing one artifact makes every write ambiguous and can score the *other* skill a false `capture_miss` — the exact defect adr:harness-loop-instrumentation exists to remove.
 
 Then suggest `/grill-with-docs --scope=<area>` to turn the known unknowns into decisions.
 
@@ -132,6 +134,6 @@ Then suggest `/grill-with-docs --scope=<area>` to turn the known unknowns into d
 
 ## See also
 
-- `/grill-with-docs` — the next step; turns known unknowns into decisions. Shares `decisions/open-unknowns.md`.
+- `/grill-with-docs` — the next step; turns known unknowns into decisions. Writes its own ledger (`decisions/open-unknowns.md`); never write that file from here.
 - `/recon` — what the code *is*. This is about what you don't know about it.
 - adr:harness-loop-instrumentation — why the fourth box is framed as a checklist.

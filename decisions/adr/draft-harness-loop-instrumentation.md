@@ -137,9 +137,46 @@ Three rules here are load-bearing and must survive later "optimisation":
    stamp.
 3. **`/merge-quiz`'s bank must never be generated in the authoring context**, and the skill
    never merges — it reports a verdict and the human acts.
-4. **H8 Stage A can end in retirement.** If no merge would have been gated across ~20
+4. **A `taught` score and a `cold` score never share a heatmap cell.** Briefing the change
+   before quizzing reliably raises the score, so merging the two modes would let taught runs
+   mask real decay in the exact subsystem the heatmap exists to surface. `mode` is part of the
+   cell key; unlabelled legacy rows read as `taught` (the conservative default, since reading
+   an unknown as cold would overstate demonstrated prior understanding).
+5. **H8 Stage A can end in retirement.** If no merge would have been gated across ~20
    observations, H8 is retired rather than promoted. A harness with near-zero human_delta is
    theatre with a log file, and retiring it is the loop working.
+
+## Corrections made under use
+
+Three defects were found by `/merge-quiz`'s own fresh-context pass, run against this PR on the
+day it was authored — the anti-hack working exactly as specified, on its own author:
+
+1. **The Stage A observer measured the wrong diff.** `changedLines()` diffed the checked-out
+   branch instead of the PR named in `gh pr merge <N>`, so merging from `main` recorded
+   `changed_lines: 0`. The bias was one-directional — every such row counted toward the
+   20-merge minimum but never toward `wouldHave`, and `wouldHave === 0` is what triggers
+   `retire`. Now resolved from the PR itself, with `size_source` recorded.
+2. **Undeterminable diff sizes manufactured retirement evidence.** `wouldQuiz` returned
+   `false` for unknown sizes; it now returns `null`, and `stageAVerdict` excludes those rows
+   from the sample entirely rather than counting them as non-firing.
+3. **`parseDeviations` split indented sub-bullets into separate deviations**, inflating the
+   discovery count and fragmenting `recurrenceReport` groups below the >=3-repo threshold —
+   silently emptying the ADR backlog the whole edge depends on.
+
+A fourth was found by the same pass and is the most instructive: **`/blind-sweep` originally
+appended to `decisions/open-unknowns.md`, the artifact `/grill-with-docs` owns.**
+`artifactWrittenInSession` matches on path and session alone, never on authorship, so running
+one skill in a session where the other was suggested-and-engaged scored the *other* a false
+`capture_miss` — reintroducing, in the follow-up commit, the exact defect this ADR exists to
+remove. `/blind-sweep` now owns `decisions/blind-spots.md`, and `EXPECTED_ARTIFACT` carries a
+standing note that every `pathPattern` must be unique across skills.
+
+**`/merge-quiz` was also rewritten from an examiner into a tutor.** The first cut scored the
+user and handed back a percentage; against code an agent wrote, that names a deficit and
+supplies no remedy, which is the version nobody runs twice. It now briefs the change first,
+explains the mechanism after every answer, and ends every run — including a perfect one — with
+a remedy. Teaching is the product; the score is a by-product. The measurement cost is fenced by
+the `taught`/`cold` split above.
 
 ## Alternatives considered
 
