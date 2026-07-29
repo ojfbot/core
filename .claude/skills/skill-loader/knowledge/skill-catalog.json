@@ -1,5 +1,5 @@
 {
-  "version": "1.17",
+  "version": "1.18",
   "updated": "2026-07-29",
   "skills": [
     {
@@ -1832,6 +1832,71 @@
       "layer_affinity": [
         0,
         1
+      ]
+    },
+    {
+      "name": "merge-quiz",
+      "tier": 2,
+      "phase": "pre-merge",
+      "category": "product-verification",
+      "tags": [
+        "quiz",
+        "comprehension",
+        "pre-merge",
+        "cognitive-debt",
+        "review",
+        "understanding"
+      ],
+      "description": "Quiz the human before merging: question bank generated in a fresh non-authoring context from the diff+spec, 5 sampled one at a time, scored into the repo x domain comprehension heatmap. Advisory, never blocks.",
+      "triggers": [
+        "merge-quiz",
+        "quiz me before merge",
+        "quiz me on this PR",
+        "do I understand this change",
+        "test my understanding of this diff",
+        "am I ready to merge"
+      ],
+      "suggested_after": [
+        "pr-review",
+        "validate"
+      ],
+      "layer_affinity": [
+        0
+      ],
+      "scope": [
+        "user"
+      ]
+    },
+    {
+      "name": "blind-sweep",
+      "tier": 2,
+      "phase": "alignment",
+      "category": "methodology-meta",
+      "tags": [
+        "unknowns",
+        "blind-spot",
+        "four-boxes",
+        "consensus",
+        "pre-alignment",
+        "vocabulary"
+      ],
+      "description": "Sort what you know and don't know about an unfamiliar area into the four unknown-boxes via k=3 decorrelated sweeps; separates consensus from singletons and teaches the area's vocabulary. Appends decisions/open-unknowns.md.",
+      "triggers": [
+        "blind-sweep",
+        "blind spot pass",
+        "what am I not seeing",
+        "I know nothing about this area",
+        "classify my unknowns",
+        "what should I be asking"
+      ],
+      "suggested_after": [
+        "recon"
+      ],
+      "layer_affinity": [
+        0
+      ],
+      "scope": [
+        "user"
       ]
     }
   ]

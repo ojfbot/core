@@ -5,7 +5,7 @@
 // and a detector that blocks violates ADR-0086's shadow-first requirement outright.
 
 import { describe, it, expect } from 'vitest';
-import { classifyMergeCommand, wouldQuiz, stageAVerdict, QUIZ_THRESHOLD_LINES } from '../merge-quiz.mjs';
+import { classifyMergeCommand, wouldQuiz, stageAVerdict, comprehensionByCell, QUIZ_THRESHOLD_LINES } from '../merge-quiz.mjs';
 
 describe('classifyMergeCommand — narrow on purpose', () => {
   it('matches gh pr merge and captures the PR number', () => {
@@ -91,5 +91,42 @@ describe('stageAVerdict — the promote/retire decision, made on evidence', () =
   it('ignores unrelated ledger rows so a shared file cannot inflate the count', () => {
     const records = [...Array.from({ length: 20 }, () => merge(true)), { event: 'harness:deviation' }, {}];
     expect(stageAVerdict(records, { minMerges: 20 }).merges).toBe(20);
+  });
+
+  it('does not count quiz rows as merges — the two faces of the harness share a ledger', () => {
+    const records = [...Array.from({ length: 5 }, () => merge(true)), { event: 'harness:quiz-taken', score: 100 }];
+    expect(stageAVerdict(records, { minMerges: 20 }).merges).toBe(5);
+  });
+});
+
+describe('comprehensionByCell — the decay heatmap', () => {
+  const quiz = (repo, domain, score) => ({ event: 'harness:quiz-taken', repo, domain, score });
+
+  it('weights recent quizzes more heavily than old ones (EWMA, not a flat mean)', () => {
+    // A repo understood well six months ago says nothing about what landed last week.
+    const out = comprehensionByCell([quiz('core', 'tracking', 60), quiz('core', 'tracking', 100)], { alpha: 0.4 });
+    expect(out[0].ewma).toBeCloseTo(76, 5); // 0.4*100 + 0.6*60 — flat mean would be 80
+    expect(out[0].n).toBe(2);
+    expect(out[0].last).toBe(100);
+  });
+
+  it('sorts worst-first — the top row is where to re-engage', () => {
+    const out = comprehensionByCell([quiz('a', 'x', 90), quiz('b', 'y', 30), quiz('c', 'z', 60)]);
+    expect(out.map((c) => c.repo)).toEqual(['b', 'c', 'a']);
+  });
+
+  it('keys by repo AND domain, so one strong subsystem cannot mask a weak sibling', () => {
+    const out = comprehensionByCell([quiz('core', 'tracking', 100), quiz('core', 'hooks', 20)]);
+    expect(out).toHaveLength(2);
+    expect(out[0].domain).toBe('hooks');
+  });
+
+  it('ignores merge-observation rows and unscored rows', () => {
+    const records = [{ event: 'harness:merge-observed', would_quiz: true }, { event: 'harness:quiz-taken' }, quiz('a', 'x', 50)];
+    expect(comprehensionByCell(records)).toHaveLength(1);
+  });
+
+  it('returns [] when no quiz has ever been taken — never a fabricated baseline', () => {
+    expect(comprehensionByCell([{ event: 'harness:merge-observed' }])).toEqual([]);
   });
 });

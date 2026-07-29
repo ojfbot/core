@@ -1,4 +1,4 @@
-# ADR-XXXX: Loop harnesses ride the OPAV spine, and only hook-triggered ones ship
+# ADR-XXXX: Loop harnesses ride the OPAV spine; automation is gated on triggers, invocation is not
 slug: harness-loop-instrumentation
 serial: draft
 rev:
@@ -7,7 +7,7 @@ Status: Proposed
 domain: observation
 type: architecture
 OKR:
-Commands affected: /grill-with-docs, /handoff, /plan-feature, /roadmap
+Commands affected: /grill-with-docs, /handoff, /plan-feature, /roadmap, /merge-quiz, /blind-sweep
 Repos affected: core
 gate:
 baseline:
@@ -58,18 +58,28 @@ Two causes were separated by measurement rather than assumed:
    `suggestion_id`, into every suggestion. The agent is told, every time, and does not comply.
    The remaining gap is agent compliance, not wiring — the same finding as adr:follow-skill-suggestions.
 
-That second point decides the build order. Harnesses whose trigger is "a card enters a domain"
-or "the spec phase opens" are prompts someone has to remember to type, and there are 30 days of
-evidence that this does not happen. The swipe file's own thesis — that unknowns grow faster than
-attention — applies recursively to the harnesses themselves.
+That second point decides what may be *automated*. A harness whose trigger is "a card enters a
+domain" or "the spec phase opens" is a prompt someone has to remember to type, and there are 30
+days of evidence that this does not happen — the swipe file's own thesis, that unknowns grow
+faster than attention, applies recursively to the harnesses themselves. It does not decide what
+may be *built*: see the Decision.
 
 ## Decision
 
 Loop-harness records become new event families on the existing OPAV spine — never a parallel
-`.ojf/loop-log.jsonl` — and **only harnesses whose trigger is a hook or a merge gate ship.**
+`.ojf/loop-log.jsonl` — and **only harnesses whose trigger is a hook or a merge gate are
+automated**, while the capabilities themselves ship as skills the operator can invoke.
 H6 (`deviation-log`, Stop hook) and H8 Stage A (`merge-quiz`, PreToolUse observer) ship as
-harnesses; H5 and the useful parts of P01/P03/P05/P07 fold into skills that already run; H1,
-H2, H3 and H4 are explicitly not built.
+harnesses; H5 and the useful parts of P03/P05/P07 fold into skills that already run.
+
+**Automation and invocation are separate questions, and conflating them cost real capability.**
+The first cut of this decision deferred H1 and H8's quiz entirely, reasoning that their triggers
+depend on the operator remembering. That reasoning holds against wiring them as *unattended*
+harnesses; it does not hold against building them as **skills the operator invokes deliberately**.
+The 1-in-442 figure measures suggestions being *ignored* — it says nothing about a skill someone
+types on purpose, and H8 Stage A measures whether a gate would fire while no gate exists to fire.
+So `/merge-quiz` and `/blind-sweep` ship as user-scope skills: advisory, never blocking, sharing
+the harnesses' ledgers. H2 and H4 remain unbuilt.
 
 ## Consequences
 
@@ -82,7 +92,11 @@ H2, H3 and H4 are explicitly not built.
   `acted` is reachable. The measurement fix and the feature are the same change.
 - The deviation recurrence count generates the ADR backlog for free — a deviation in one repo is
   an edge case, the same one in three is a missing convention.
-- Nothing shipped depends on the operator remembering to invoke it.
+- The two *automated* harnesses depend on nothing being remembered. The two *skills* are
+  deliberately invoked, which is a different and legitimate trigger — and unlike an unattended
+  loop, an unused skill costs nothing but a catalog row.
+- The comprehension heatmap (repo × domain, EWMA) turns "am I actually learning this domain or
+  just accumulating repos" from a feeling into a falling number with a name on it.
 
 ### Costs
 
@@ -94,16 +108,20 @@ H2, H3 and H4 are explicitly not built.
   damage (it parses the file rather than trusting a count) but cannot manufacture a self-report
   that never happened. Expect `implementation-notes.md` to be absent at first; that is the
   measurement, not a bug.
-- Four of the eight researched harnesses are deferred, including the two with the highest
-  portfolio value (H3's VOI calibration record, H1's blind sweep).
+- H2 (taste ledger) and H4 (`reference:` lineage edge) are not built. H3's VOI filter ships as
+  a question gate inside `/grill-with-docs` rather than as a standalone harness, so the
+  `actually_changed_plan` calibration record it would have produced does not yet accumulate —
+  that remains the highest-value unbuilt piece.
+- `/merge-quiz` and `/blind-sweep` add two catalog rows to a suggester already emitting 385
+  ignored suggestions per 30 days. Their triggers are deliberately narrow (near-exact phrases)
+  so they are invocable without widening that channel.
 
 ### Neutral
 
 - `validate` and `plan-feature` carry `EXPECTED_ARTIFACT` entries with the same reachability
   smell as the one fixed here. They are annotated as surfaced ambiguities rather than guessed at,
   per that file's own rule, because resolving them changes what those skills *are*.
-- H2's taste ledger, H4's `reference:` lineage edge, RAGAS retrieval scoring and the
-  relay-boundary restatement harness stay unbuilt. The relay-boundary harness is the most
+- RAGAS retrieval scoring and the relay-boundary restatement harness stay unbuilt. The relay-boundary harness is the most
   original idea in either report and deserves its own experiment with its own eval.
 
 ## Standing invariants
@@ -117,7 +135,9 @@ Three rules here are load-bearing and must survive later "optimisation":
    the spec, as a subagent with no Write/Edit tools. An implementer quizzing itself tests what it
    is most confident about — self-preference bias converting a comprehension gate into a rubber
    stamp.
-3. **H8 Stage A can end in retirement.** If no merge would have been gated across ~20
+3. **`/merge-quiz`'s bank must never be generated in the authoring context**, and the skill
+   never merges — it reports a verdict and the human acts.
+4. **H8 Stage A can end in retirement.** If no merge would have been gated across ~20
    observations, H8 is retired rather than promoted. A harness with near-zero human_delta is
    theatre with a log file, and retiring it is the loop working.
 
@@ -125,7 +145,8 @@ Three rules here are load-bearing and must survive later "optimisation":
 
 | Alternative | Why rejected |
 |-------------|--------------|
-| Build all eight harnesses in the reports' order (H6→H8→H2→H5→H4→H3→H1) | Five of the eight trigger on a remembered prompt. With 1 `acted` in 442 suggestions, adding memory-triggered harnesses adds registry entries, not loops. |
+| Build all eight as unattended harnesses in the reports' order (H6→H8→H2→H5→H4→H3→H1) | Five of the eight trigger on a remembered prompt. As *unattended* loops they would add registry entries, not loops. Shipping the same capability as explicitly-invoked skills is a different question and is what H1/H8's quiz now do. |
+| Ship H8 Stage A with no quiz to promote to | Rejected on the second pass. Observing whether a gate *would* fire, while no gate and no quiz exist, measures a hypothetical. `/merge-quiz` makes Stage A's counterfactual real without violating shadow-first, because the skill is advisory rather than an automated control. |
 | Build `.ojf/loop-log.jsonl` per repo with OTel GenAI naming as specified | Creates a second spine beside a mature one that already carries the disposition model, the two-source contract and the projector. Better per-repo locality does not pay for two half-populated ledgers. |
 | Fix the act edge first and defer every harness | The 1/442 rate is partly agent compliance, which no single slice closes. Hook-triggered harnesses route around compliance entirely, so they are the fix rather than a competitor to it. |
 | Add `sample:`/`harnesses:` fields to the loops and northstar schemas | Unnecessary: every harness shipped is k=1 or bank-then-sample, and `trigger: hook` is already valid. The `harness-routine` trigger value named in `rm:rm-l2-ojfbot#S29`'s deliverable prose was never implemented in `loops-lint.mjs` — authoring against it would have ERRORed. |
