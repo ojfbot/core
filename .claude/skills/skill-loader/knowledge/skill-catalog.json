@@ -1,5 +1,5 @@
 {
-  "version": "1.18",
+  "version": "1.20",
   "updated": "2026-07-29",
   "skills": [
     {
@@ -1845,16 +1845,24 @@
         "pre-merge",
         "cognitive-debt",
         "review",
-        "understanding"
+        "understanding",
+        "teaching",
+        "explain",
+        "onboarding"
       ],
-      "description": "Quiz the human before merging: question bank generated in a fresh non-authoring context from the diff+spec, 5 sampled one at a time, scored into the repo x domain comprehension heatmap. Advisory, never blocks.",
+      "description": "Teach-then-test a change before merging. With no argument, lists open PRs and asks which. Briefs the change (mechanisms, blast radius, what's load-bearing), then asks 5 questions from a bank built in a fresh non-authoring context, explaining the mechanism after each answer. Scores into a repo x domain comprehension heatmap that keeps taught and cold runs apart. Advisory, never blocks.",
       "triggers": [
         "merge-quiz",
         "quiz me before merge",
         "quiz me on this PR",
         "do I understand this change",
         "test my understanding of this diff",
-        "am I ready to merge"
+        "am I ready to merge",
+        "which PR should I review",
+        "quiz me",
+        "explain this PR to me",
+        "walk me through this change",
+        "teach me this diff"
       ],
       "suggested_after": [
         "pr-review",

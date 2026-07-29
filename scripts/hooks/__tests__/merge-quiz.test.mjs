@@ -60,15 +60,31 @@ describe('wouldQuiz', () => {
     expect(wouldQuiz(QUIZ_THRESHOLD_LINES + 1)).toBe(true);
   });
 
-  it('does not fire below it, and never fires on an unknown size', () => {
+  it('does not fire below the threshold', () => {
     expect(wouldQuiz(QUIZ_THRESHOLD_LINES - 1)).toBe(false);
     expect(wouldQuiz(0)).toBe(false);
-    expect(wouldQuiz(null)).toBe(false); // diff size undeterminable → do not invent a gate
+  });
+
+  it('returns NULL, not false, when the size is undeterminable', () => {
+    // Regression (found by the /merge-quiz fresh-context pass on PR #295): returning `false`
+    // let unmeasurable merges pad the `merges` denominator while never reaching `wouldHave`,
+    // so every one of them pushed the verdict toward `retire` on no evidence at all.
+    expect(wouldQuiz(null)).toBeNull();
+    expect(wouldQuiz(undefined)).toBeNull();
+    expect(wouldQuiz(NaN)).toBeNull();
   });
 });
 
 describe('stageAVerdict — the promote/retire decision, made on evidence', () => {
   const merge = (would_quiz) => ({ event: 'harness:merge-observed', would_quiz });
+
+  it('EXCLUDES unknown-size rows from the sample entirely', () => {
+    const records = [...Array.from({ length: 20 }, () => merge(null)), merge(true), merge(false)];
+    const v = stageAVerdict(records, { minMerges: 20 });
+    expect(v.merges).toBe(2); // not 22
+    expect(v.unknown).toBe(20);
+    expect(v.verdict).toBe('keep-observing'); // must NOT reach `retire` on unmeasurable rows
+  });
 
   it('keeps observing below the minimum sample', () => {
     const v = stageAVerdict([merge(true), merge(false)], { minMerges: 20 });
@@ -128,5 +144,26 @@ describe('comprehensionByCell — the decay heatmap', () => {
 
   it('returns [] when no quiz has ever been taken — never a fabricated baseline', () => {
     expect(comprehensionByCell([{ event: 'harness:merge-observed' }])).toEqual([]);
+  });
+
+  it('keeps TAUGHT and COLD scores in separate cells — they answer different questions', () => {
+    // Briefing the change before quizzing reliably raises the score. If the two modes shared
+    // a cell, a run of taught quizzes would pull the average up and mask real decay in the
+    // exact subsystem the heatmap exists to surface.
+    const records = [
+      { event: 'harness:quiz-taken', repo: 'core', domain: 'tracking', mode: 'taught', score: 90 },
+      { event: 'harness:quiz-taken', repo: 'core', domain: 'tracking', mode: 'cold', score: 40 },
+    ];
+    const out = comprehensionByCell(records);
+    expect(out).toHaveLength(2);
+    expect(out.map((c) => c.mode)).toEqual(['cold', 'taught']); // worst-first
+    expect(out.find((c) => c.mode === 'cold').ewma).toBe(40);
+    expect(out.find((c) => c.mode === 'taught').ewma).toBe(90);
+  });
+
+  it('reads an unlabelled legacy row as taught — the conservative default', () => {
+    // Reading an unknown score as `cold` would overstate demonstrated prior understanding.
+    const out = comprehensionByCell([{ event: 'harness:quiz-taken', repo: 'a', domain: 'x', score: 70 }]);
+    expect(out[0].mode).toBe('taught');
   });
 });

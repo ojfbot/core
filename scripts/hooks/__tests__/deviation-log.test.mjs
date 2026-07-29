@@ -36,10 +36,38 @@ describe('parseDeviations — reads the territory, not the agent’s summary', (
     expect(parseDeviations(md)).toEqual(['real deviation']);
   });
 
-  it('keeps nested detail with its parent entry but does not invent entries', () => {
+  it('a deeper HEADING does not close the section — its items still belong to Deviations', () => {
     const md = ['## Deviations', '- parent entry', '', '### Sub detail', '- swallowed by the subsection'].join('\n');
-    // A deeper heading does NOT close the section; its items still belong to Deviations.
     expect(parseDeviations(md)).toEqual(['parent entry', 'swallowed by the subsection']);
+  });
+
+  it('folds indented SUB-BULLETS into their parent — one deviation, not three', () => {
+    // Regression, found by the /merge-quiz fresh-context pass on PR #295. `^\s*` on the item
+    // regex matched indented bullets as fresh entries, so a parent with two detail lines
+    // recorded as 3 deviations: it inflated the discovery count AND fragmented the recurrence
+    // groups, which silently empties the ADR backlog the whole edge depends on.
+    const md = ['## Deviations', '- parent deviation', '  - detail one', '  - detail two'].join('\n');
+    expect(parseDeviations(md)).toEqual(['parent deviation detail one detail two']);
+  });
+
+  it('folds sub-bullets nested more than one level deep', () => {
+    const md = ['## Deviations', '- parent', '  - child', '    - grandchild', '- sibling'].join('\n');
+    expect(parseDeviations(md)).toEqual(['parent child grandchild', 'sibling']);
+  });
+
+  it('treats a uniformly-indented section as top-level entries, not as one folded blob', () => {
+    // The baseline is the FIRST item's indent, so a section written entirely at one indent
+    // still yields separate deviations.
+    expect(parseDeviations(['## Deviations', '  - a', '  - b'].join('\n'))).toEqual(['a', 'b']);
+  });
+
+  it('self-corrects when a later item is shallower than the first', () => {
+    expect(parseDeviations(['## Deviations', '  - a', '- b'].join('\n'))).toEqual(['a', 'b']);
+  });
+
+  it('folds a sub-bullet that follows a blank line', () => {
+    const md = ['## Deviations', '- parent', '', '  - detail after a blank line'].join('\n');
+    expect(parseDeviations(md)).toEqual(['parent detail after a blank line']);
   });
 
   it('returns [] for notes with no Deviations section, and for empty input', () => {
