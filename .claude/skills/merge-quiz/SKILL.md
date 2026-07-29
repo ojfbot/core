@@ -21,7 +21,17 @@ You are teaching the **user** the change in front of them, and measuring what st
 
 ## Why this exists
 
-A diff shows lines changed. It does not show what was understood. In a fleet where an agent writes most of the code, correctness is covered by tests but *your model of the system* decays silently — Simon Willison's "cognitive debt". This is the only routine that measures that decay instead of assuming it away. You cannot self-assess it, by construction: not knowing is exactly the state that feels like knowing.
+A diff shows lines changed. It does not show what was understood. In a fleet where an agent writes most of the code, correctness is covered by tests but *your model of the system* decays silently — Simon Willison's **cognitive debt**: *"When we lose track of how code written by our agents works we take on cognitive debt."* You cannot self-assess it, by construction: not knowing is exactly the state that feels like knowing.
+
+**What the evidence actually supports — and where this skill goes beyond it.**
+
+The comprehension gap is real and measured. Anthropic's RCT (52 engineers learning an unfamiliar async library, AI-assisted vs hand-coding) found the AI group scored **50% vs 67%** on a comprehension quiz — *"participants in the AI group scored 17% lower than those who coded by hand"* — Cohen's d=0.738, p=0.01, while the small speed gain was not significant. Beginners judging LLM-code correctness manage ~32.5% per-task success (arXiv:2504.19037), with automation bias named explicitly.
+
+Read those honestly: the Anthropic study is not peer-reviewed, comes from a lab with a commercial stake, skews junior, and measures *skill acquisition on a new library* rather than *review adequacy on a PR*. And there is a real counterweight — "Echoes of AI" (arXiv:2507.00788, 151 participants, 95% professionals) found **no significant downstream maintainability penalty** from AI co-developed code.
+
+**The honest limit: no study quizzes a professional reviewer on a real pull request, and nothing shows that gating on such a quiz improves downstream outcomes.** This skill is a reasonable extrapolation from adjacent evidence, not a validated intervention. That is exactly why it is advisory rather than blocking, why Stage A can end in retirement, and why the heatmap is worth more than any single score — the fleet's own data is the only evidence that will ever tell us whether this works.
+
+For rubric design, the **"Explain in Plain English"** tradition in CS education (e.g. arXiv:2403.06050) is a decades-old validated instrument for assessing human code comprehension by explanation. Borrow question types from it rather than inventing them.
 
 ## Core principles
 
