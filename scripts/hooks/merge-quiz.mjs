@@ -243,6 +243,36 @@ async function main() {
   const outPath = expand(args.out ?? join(ledgerRoot, 'merge-observations.jsonl'));
 
   // --record: written by the /merge-quiz SKILL after the human takes the quiz. The hook
+  // --capture: deposit what was LEARNED into the selfco vault's append-only ledger, for
+  // `/vault sync` to fold into concept/entity pages later. Same seam vault-session.sh uses
+  // (wiki/log.md), same discipline: this script owns the deterministic framing and provenance
+  // stamp; the body is composed by the skill, because only the skill knows what was explained.
+  //
+  // WHAT GETS DEPOSITED IS THE GAP, NOT THE TRANSCRIPT. A quiz answered perfectly has nothing
+  // to teach later — depositing it would bulk the vault with confirmations of what the operator
+  // already knew, which is how a knowledge base turns into a log nobody reads. The deposit is
+  // the mechanism they did NOT know plus the explanation that closed it.
+  if (args.capture) {
+    const vault = expand(process.env.SELFCO_VAULT ?? '~/selfco');
+    const logPath = join(vault, 'wiki', 'log.md');
+    if (!existsSync(logPath)) {
+      console.error(`[merge-quiz] no vault ledger at ${logPath} — nothing captured (run /vault init)`);
+      return; // silent no-op like vault-session.sh; never a hard failure
+    }
+    const body = readFileSync(0, 'utf8').trim(); // the skill composes this on stdin
+    if (!body) {
+      console.error('[merge-quiz] --capture needs the learning block on stdin; nothing written');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    const repo = args.repo ?? basename(resolve(process.cwd()));
+    const head = `\n## [${today}] quiz-capture | ${repo}${args.pr ? ` PR#${args.pr}` : ''}\n`;
+    const prov = `- harness=merge-quiz · mode=${args.mode === 'cold' ? 'cold' : 'taught'} · score=${args.score ?? '?'} · domain=${args.domain ?? 'general'}\n\n`;
+    appendFileSync(logPath, `${head}${prov}${body}\n`);
+    console.error(`[merge-quiz] captured to ${logPath} — run /vault sync to fold it into pages`);
+    return;
+  }
+
   // observes; the skill quizzes. Same harness, same ledger, two faces.
   if (args.record) {
     const score = Number(args.score);
