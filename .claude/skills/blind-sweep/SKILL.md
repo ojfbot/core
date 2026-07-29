@@ -60,6 +60,8 @@ Before any sweep: read the area. Entry points, dependencies, tests, recent commi
 
 Send **one message with three Agent calls**. Each gets the same brief and **no knowledge of the others' output** — that isolation is the entire reason k>1 buys anything here (self-consistency, arXiv:2203.11171: decorrelated samples then aggregate). Three passes sharing a context is one pass.
 
+**Three is a deliberate stopping point, not a floor to raise.** More samples is not monotonically better: aggregate performance can rise and then *fall* as calls increase (arXiv:2403.02419). Raising k also raises the singleton count, and singletons are the bucket a human has to adjudicate — so a bigger sweep buys more unreviewed noise, not more coverage. If three sweeps converge, more will not change the answer; if they diverge wildly, that divergence is itself the finding and a fourth run won't resolve it.
+
 Vary the entry angle so they don't converge by construction:
 
 - **Sweep A — operational:** what breaks in production; failure modes, limits, ops burden.
