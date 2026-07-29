@@ -26,6 +26,25 @@ Before introducing new vocabulary in code, docs, or commits:
 2. Reuse existing terms when applicable; add to the glossary when introducing new ones.
 3. If no glossary exists in the project, name deliberately but do not create one unprompted.
 
+## Log deviations as you hit them
+
+When an edge case forces you off the agreed plan mid-task, don't stop and don't silently
+re-plan. Take the **conservative** option, log it, and keep going:
+
+1. Append a bullet under `## Deviations` in `implementation-notes.md` at the repo root
+   (create the file if absent). One line: what the plan assumed, what the territory turned
+   out to be, which way you went.
+2. Continue the task.
+
+Log the gap between plan and reality — not routine choices the plan already covered.
+
+Why: a deviation is the one signal that reports itself, unprompted, while the work is
+happening. It's how you find out what the plan didn't know. The same deviation showing up
+in three repos isn't three edge cases, it's one missing convention — worth an ADR.
+
+**This count is a discovery rate, never a defect rate.** More deviations logged is better,
+not worse. Never suppress one to keep a number down.
+
 ## Skills available across all sessions
 
 Every skill flagged `scope:["user"]` in core's `skill-catalog.json` is symlinked into

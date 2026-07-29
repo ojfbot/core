@@ -213,6 +213,70 @@ PY
     echo "  WARN: jq not found — add reconcile-skill-acted.mjs to ~/.claude/settings.json Stop manually"
   fi
 
+  # ── Deviation capture (H6, adr:harness-loop-instrumentation) ─────────────
+  # The independent plan-vs-territory detector. USER-SCOPE for the same reason
+  # as the recorder above: deviations happen in every repo and in chat/desktop
+  # sessions, not just inside core. SHADOW/observe-only, async, non-blocking;
+  # no-ops silently in any repo with no implementation-notes.md.
+  DEVIATION_HOOK="$CORE_DIR/scripts/hooks/deviation-log.mjs"
+  DEVIATION_CMD="node \"$DEVIATION_HOOK\""
+  if command -v jq >/dev/null 2>&1; then
+    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
+    # Match by script NAME, not absolute path — same duplicate-hook guard as above.
+    if jq -e 'any(.. | objects | .command? // empty; contains("deviation-log.mjs"))' "$USER_SETTINGS" >/dev/null 2>&1; then
+      echo "  deviation-log.mjs already in ~/.claude/settings.json — skipping"
+    else
+      if jq -e '.hooks.Stop' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$DEVIATION_CMD" \
+          '.hooks.Stop += [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$DEVIATION_CMD" \
+          '.hooks.Stop = [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      else
+        jq --arg cmd "$DEVIATION_CMD" \
+          '. + {"hooks":{"Stop":[{"hooks":[{"type":"command","command":$cmd,"async":true}]}]}}' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      fi
+      echo "  added deviation-log.mjs → ~/.claude/settings.json (Stop, async)"
+    fi
+  else
+    echo "  WARN: jq not found — add deviation-log.mjs to ~/.claude/settings.json Stop manually"
+  fi
+
+  # ── Pre-merge comprehension observer (H8 Stage A, adr:harness-loop-instrumentation) ──
+  # PreToolUse(Bash), SYNC by necessity (it must see the command before it runs), which is
+  # why the installed entry is the bash prefilter and NOT the .mjs: merge-quiz.sh rejects
+  # non-merge commands in ~4ms without spawning node. Do not "simplify" this to call the
+  # .mjs directly — that spawns node on every Bash call in every session.
+  # STAGE A IS OBSERVE-ONLY: it records what a gate would have caught and never blocks.
+  MERGEQUIZ_HOOK="$CORE_DIR/scripts/hooks/merge-quiz.sh"
+  MERGEQUIZ_CMD="\"$MERGEQUIZ_HOOK\""
+  if command -v jq >/dev/null 2>&1; then
+    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
+    if jq -e 'any(.. | objects | .command? // empty; contains("merge-quiz.sh"))' "$USER_SETTINGS" >/dev/null 2>&1; then
+      echo "  merge-quiz.sh already in ~/.claude/settings.json — skipping"
+    else
+      if jq -e '.hooks.PreToolUse' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$MERGEQUIZ_CMD" \
+          '.hooks.PreToolUse += [{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
+        jq --arg cmd "$MERGEQUIZ_CMD" \
+          '.hooks.PreToolUse = [{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      else
+        jq --arg cmd "$MERGEQUIZ_CMD" \
+          '. + {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]}}' \
+          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
+      fi
+      echo "  added merge-quiz.sh → ~/.claude/settings.json (PreToolUse: Bash, shadow)"
+    fi
+  else
+    echo "  WARN: jq not found — add merge-quiz.sh to ~/.claude/settings.json PreToolUse manually"
+  fi
+
   echo ""
   echo "User-scope install complete."
   exit 0

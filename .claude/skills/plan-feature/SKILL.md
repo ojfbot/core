@@ -71,7 +71,27 @@ Status: Proposed | Context / Decision / Consequences.
 Write the stub inline in the spec output. If the decision warrants its own file, tell the user:
 > "Save this ADR to `decisions/adr/` with: `/adr new "<decision title>"`"
 
-### 8. Suggested next command
+### 8. Order the spec decisions-first, with a revision forecast
+
+Before emitting, sort the calls in the spec by **how likely the user is to change them**, most-likely first. Data model, interfaces, and anything user-facing go at the top; mechanical consequences go at the bottom. Reviewers read the top of a document and skim the bottom, so this ordering is what decides whether the expensive decisions get genuine review or a nod.
+
+Tag each with a revision forecast:
+
+```
+| p(revise) | Decision | Why it might change |
+|-----------|----------|---------------------|
+| 0.60      | …        | …                   |
+```
+
+Rules that make the number worth having:
+
+- **Use a coarse 0–20 scale (0.00, 0.05, 0.10 … 1.00), not fine-grained probabilities.** Verbalized confidence collapses onto a few round values regardless of the scale offered, so a fine scale buys false precision, not resolution.
+- **Commit.** Spreading everything across 0.45–0.55 minimises expected error while saying nothing. A forecast that never discriminates is worse than no forecast, because it looks like calibration.
+- Forecast the *decision*, not the code. "Will the user change this call?" — not "is this hard to build?"
+
+The payoff is a scoreable claim: after the work lands, compare each `p(revise)` against what actually changed. Score with the **Murphy decomposition** — report *reliability* (are your 0.6s right 60% of the time?) and *resolution* (do you discriminate at all?) **separately**. A good Brier score with near-zero resolution is the hedging failure, and reporting Brier alone hides it. See adr:harness-loop-instrumentation.
+
+### 9. Suggested next command
 
 `/scaffold` with a brief description.
 

@@ -1,6 +1,6 @@
 {
-  "version": "1.16",
-  "updated": "2026-07-22",
+  "version": "1.17",
+  "updated": "2026-07-29",
   "skills": [
     {
       "name": "opm",
@@ -44,9 +44,12 @@
         "build",
         "feature",
         "adr",
-        "acceptance-criteria"
+        "acceptance-criteria",
+        "p-revise",
+        "decisions-first",
+        "calibration"
       ],
-      "description": "Turn a rough idea into a concrete, implementation-ready spec with acceptance criteria, test matrix, and ADR stub.",
+      "description": "Turn a rough idea into a concrete, implementation-ready spec with acceptance criteria, test matrix, and ADR stub. Orders decisions-first with a p(revise) forecast.",
       "triggers": [
         "plan-feature",
         "write a spec",
@@ -283,7 +286,7 @@
         "post-ship",
         "operations"
       ],
-      "description": "Generate runbook / handoff doc: overview, how to run, debug guide, operations, open items.",
+      "description": "Generate runbook / handoff doc, demo-first: the runnable artifact leads, then spec, then notes (overview, how to run, debug guide, operations, open items).",
       "triggers": [
         "handoff",
         "write a runbook",
@@ -560,9 +563,11 @@
         "plan",
         "prioritize",
         "features",
-        "product"
+        "product",
+        "p-revise",
+        "decisions-first"
       ],
-      "description": "Analyze codebase and produce short/medium/long-term roadmap with priorities and effort.",
+      "description": "Analyze codebase and produce short/medium/long-term roadmap with priorities, effort, and a p(revise) forecast ordering each horizon decisions-first.",
       "triggers": [
         "roadmap",
         "what should we build next",
@@ -1021,9 +1026,12 @@
         "design-concept",
         "ubiquitous-language",
         "context",
-        "pre-planning"
+        "pre-planning",
+        "unknowns",
+        "voi",
+        "architecture-delta"
       ],
-      "description": "Socratic alignment before planning. Updates CONTEXT.md and stages ADR drafts in-loop. No code. Output: shared design concept, CONTEXT.md diff, ADR stub drafts.",
+      "description": "Socratic alignment before planning. Asks only questions that would change the architecture; proposes CONTEXT.md updates and stages ADR drafts in-loop. No code. Output: shared design concept, open-unknowns ledger, CONTEXT.md diff, ADR stub drafts. Appends decisions/open-unknowns.md on confirmation.",
       "triggers": [
         "grill me",
         "grill with docs",
@@ -1035,7 +1043,11 @@
         "shared design concept",
         "before we plan",
         "facts vs decisions",
-        "confirm before acting"
+        "confirm before acting",
+        "open unknowns",
+        "what don't we know",
+        "blind spot",
+        "interview me"
       ],
       "suggested_after": [],
       "layer_affinity": [
@@ -1805,7 +1817,7 @@
         "cockpit",
         "drift"
       ],
-      "description": "Register a new (or drifted) repo on every fleet enumeration surface \u2014 northstar registry, daily-logger sweep, cockpit fleet cards, core ecosystem table, frame-standup lists, install-agents \u2014 with a reconcile mode that diffs all surfaces against the northstar registry.",
+      "description": "Register a new (or drifted) repo on every fleet enumeration surface — northstar registry, daily-logger sweep, cockpit fleet cards, core ecosystem table, frame-standup lists, install-agents — with a reconcile mode that diffs all surfaces against the northstar registry.",
       "triggers": [
         "fleet-onboard",
         "onboard this repo",
