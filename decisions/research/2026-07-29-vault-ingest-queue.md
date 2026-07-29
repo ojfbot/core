@@ -1,7 +1,7 @@
 # Vault ingest queue — agentic harness practice
 
 **Date:** 2026-07-29
-**Status:** staged for `/vault ingest` — NOT yet vaulted
+**Status:** staged for `/vault ingest` — NOT yet vaulted. Citation audit COMPLETE (§6); no blocking holds remain.
 **Method:** three parallel research agents (primary-engineering / academic / practitioner), each required to fetch-and-verify rather than cite from memory, and to mark UNVERIFIED rather than guess.
 **Companion to:** `adr:harness-loop-instrumentation`, core PR #295, PR #296
 
@@ -81,9 +81,8 @@ Ingest the guide **as a unit** (6 sections / 19 subsections), not one chapter.
 - **"From Industry Claims to Empirical Reality"** — Chowdhury, Banik, Ferdous, Shamim,
   **arXiv:2604.03196**, 2026-04-03. 3,109 PRs / 13 review agents. Verbatim: *"CRA-only PRs
   achieve a 45.20% merge rate, 23.17 percentage points lower than human-only PRs (68.37%)."*
-  The only falsifiable numbers in the corpus. **Note:** this is a *different* paper from the
-  `2607.03316` cited in the grounding report for a similar claim — that ID is still pending
-  verification (§6).
+  The only *confirmed* falsifiable numbers in the corpus. **Note:** a different paper from
+  `2607.03316`, whose 58%/43% figures are wrong or unconfirmed — see §6. Prefer this one.
 - **"AI Writes Better Code. We're Getting Worse at Reviewing It."** — Patrick Hammond, 2026-02-25.
   Vigilance decrement, automation complacency, context-switching cost, imported from aviation and
   radiology. ⚠️ ends in a sales CTA.
@@ -127,15 +126,52 @@ both. Record as **contested**.
 
 ---
 
-## 6. Pending — do not ingest until resolved
+## 6. Citation audit — RESOLVED
 
-The academic agent is resolving 11 `26xx` arXiv IDs from the grounding report
-(`2606.08571`, `2607.03316`, `2607.20526`, `2603.09309`, `2604.23178`, `2605.21384`,
-`2603.25723`, `2606.25447`, `2603.03135`…) plus 14 unverified `25xx` IDs.
+**All 25 IDs resolve. None fabricated.** The grounding report's "treat 2026 preprints as
+provisional" caveat was over-cautious about *existence*; the real problems are in the **claims
+attached to them**, and two are serious enough to block.
 
-**Nothing from that tranche enters the vault until each ID resolves.** Depositing an unverified
-citation is worse than depositing nothing — the vault's value is that its claims can be trusted
-without re-checking.
+### Do not repeat — claim is wrong
+
+**`2607.03316`** (Lin, Liang, Thongtanunam, Tantithamthavorn — *Is Agentic Code Review Helpful?
+Mining Developers' Feedback to CodeRabbit Reviews in the Wild*, 3 Jul 2026).
+The abstract says **56.3% rejected**, not 58%. The "43% of false positives from limited
+understanding of overall design" does **not** appear in the abstract and could not be confirmed
+in the body (HTML render 404s for both versions; the 6.2MB PDF didn't extract). A secondary
+summary suggests the paper's 43.3% is *the share of reviews addressing functional defects* — a
+completely different quantity. **Ship neither number until someone reads the PDF.** What the
+abstract does support: rejections driven by false positives, redundancy, out-of-scope, and
+misalignment with developer intent — and functional-concern reviews were *more* likely invalid.
+
+**`2604.23178`** (Sadman Kabir Soumik, single author — *Judging the Judges*, 25 Apr 2026).
+Two of the three claims in the grounding report are wrong, and it drops the headline:
+- ❌ "order-swapping fixes position bias" — **contradicted.** Position bias is already negligible
+  (≤0.04); swapping significantly helps only Gemini Flash (+4.7pp) and on the adversarial LLMBar
+  set it *hurts all models by 4–13pp*.
+- ✅ "Claude shows reverse verbosity bias" — holds. Claude prefers concise (−0.12); Pro/Flash/Llama
+  prefer longer (+0.24 to +0.44); GPT-4o neutral.
+- ❌ "self-preference hardest to remove" — **not in the paper.** It reports self-preference as
+  heterogeneous and "not uniformly tied to the judge's own family," with no difficulty ranking.
+- ⚠️ **Missing headline:** *style bias dominates* (0.10–0.76, markdown over plain prose), far
+  exceeding position bias and under-studied. For anyone building a judge harness that is the
+  finding — and the source doc doesn't have it.
+
+### Verified and supported
+`2606.08571` (confabulation on cross-domain questions; Smithson 2012 epistemology) ·
+`2607.20526` ConfidenceBench (15 models; best 0.103 vs 0.1875 baseline) ·
+`2603.09309` *Rescaling Confidence* (>78% on three round values; 0–20 beats 0–100) ·
+`2603.08035` CDRRM (judge plateaus past ~3k) · `2603.04861` (200–2,000 queries) ·
+`2605.21384` SpecBench · `2603.25723` · `2606.25447` · `2606.03135` · plus all 14 `25xx` IDs.
+
+### Evidentiary-weight tags for ingest
+`2606.08571` and `2604.23178` are **single-author**; `2607.20526` rests on **200 questions**.
+All resolve and say what's claimed (modulo the above), but they are not the weight of the
+2022–2025 core. Tag them.
+
+Fix before ingest: source-doc titles for `2606.08571`, `2607.20526`, `2603.08035`, `2606.25447`,
+`2606.03135` are truncated or acronym-only; `2603.04861`'s real title is not "ReCouPLe";
+`2603.09309` had no title at all. They are unfindable as written.
 
 ### Attribution errors already confirmed — do not repeat
 
@@ -156,10 +192,33 @@ without re-checking.
 
 ### One finding that already changed shipped code
 
-**`arXiv:2403.02419`** — aggregate performance over repeated LM calls is **non-monotonic in k**.
-`/blind-sweep` asserted k=3 with no reason it wasn't higher; the skill now records three as a
-deliberate stopping point (commit `fd2e49b`). Open question sent back to the agent: whether that
-result transfers from single-answer voting to a **set-union** task like a blind sweep.
+**The k question resolved, and the answer found a worse bug than the one I asked about.**
+
+`arXiv:2403.02419`'s non-monotonicity does **not** transfer to set-union — it needs a single
+correct answer and an argmax that discards minorities. Union recall is monotone by construction.
+My first caveat (commit `fd2e49b`) was therefore wrong on the mechanism, though right that k=3
+should be a stopping point: what actually decays is **precision**, since true items saturate
+while plausible-but-bogus ones keep arriving at a constant per-sweep rate.
+
+The real defect was in the aggregation. `/blind-sweep` ranked **consensus above singletons**
+("stable and real — act on it"). But frequency across sweeps measures **salience, not validity**,
+and an unknown-unknown is by definition what the model is *least* disposed to surface — so the
+high-value item is structurally the **singleton**, and consensus is mostly domain-standard
+material the operator already handles. The skill's own value ordering was inverted against its
+stated purpose. Backed by `2402.13212` (majority voting fails where many distinct valid answers
+exist) and `2311.17311` (standard self-consistency doesn't apply to free-form output).
+
+Fixed: never threshold or rank on frequency; adjudicate each candidate against a real artifact;
+decorrelation is the lever, not k.
+
+**`/merge-quiz`'s evidence base, stated honestly in the skill.** Direct hit: Anthropic's RCT
+(52 engineers) — AI-assisted group scored **50% vs 67%** on a comprehension quiz, d=0.738,
+p=0.01. Caveats recorded with it: not peer-reviewed, commercial stake, junior-skewed, measures
+skill acquisition rather than review adequacy. Counterweight kept: `2507.00788` "Echoes of AI"
+(151 participants, 95% professionals) found no significant maintainability penalty.
+**No study quizzes a professional reviewer on a real PR, and none shows that gating on a quiz
+improves outcomes** — the skill now says so about itself. Rubric design should borrow from the
+"Explain in Plain English" tradition (`2403.06050`) rather than invent question types.
 
 ---
 
