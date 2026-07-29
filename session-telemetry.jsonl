@@ -20,3 +20,5 @@
 {"ts":"2026-07-28T03:04:11Z","event":"session:start","session_id":"b3708c6d-9952-4c85-b185-2c77a796eb55","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-07-28T03:38:23Z","event":"session:start","session_id":"97c31f42-4f47-4336-9295-77faffdd011c","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-07-28T17:00:40Z","event":"session:start","session_id":"420affc1-a6e2-4029-b853-27c7723308e7","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-07-28T17:09:31Z","event":"session:start","session_id":"bc0e1e5e-0280-419d-8110-eeb8155e0b01","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-07-29T03:03:16Z","event":"session:start","session_id":"72677b15-05fe-46ba-9056-7e290718876c","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
