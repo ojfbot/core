@@ -89,6 +89,31 @@ _Next pressures land here as legs surface them._
 - **dms-core → ARCHIVED (temporary)** — membership inactive; reactivation re-enters as queued.
 - Leg 3 is now golf-only; Leg 4 is the GameWorld cluster leg (cluster card runs first).
 
+## [ITERATION 6 UPDATE — GOLF] — third cluster declared; membership topology decided for golf · DESIGNED (2026-07-27 sitting, landed 2026-07-30)
+
+- **Pressure became real, third instance:** the operator declared the **golf cluster**
+  (`cluster-golf`: golf course management — product · tools · hardware · publication · GTM ·
+  research). Historically the *first* cluster candidate — ITERATION 6's original evidence gate was
+  "leg 3's golf cluster (is it one app or a cluster?)". Answered: it is a cluster.
+- **The topology decision ITERATION 6 anticipated, now made for golf (⚑):** cluster members are
+  **REPOS, uniformly**. The cross-repo-member problem that made golf the hard case (`apps/fairway`
+  living inside mirrorworld) was **dissolved by decomposition**, not answered by exception —
+  fairway became its own repo (`l1-fairway`), and the property-subset reading
+  (fairway ≈ `ns:l1-mirrorworld#P2+#P5`, RFI Addendum A) is **DEAD**. mirrorworld is a *producer*
+  with a fairway-declared `depends_on` edge, not a member. f1/gameworld ratification of
+  repos-only as the all-cluster ruling still pends the 11b sitting.
+- **Also in the same ruling set:** gcgcca → **capture-agent** rename (fresh registration — gcgcca
+  was never registered); golf-runner born-named (renamed from golf-sales pre-registration, no
+  pointer needed); three seeds (golf-press, golf-runner, golf-research) + hardware seed carry
+  **UNRATIFIED** pull conditions.
+- **Disposition:** **designed, not built** — still no cluster node in schema/lint/registry; both
+  golf L1s ladder to `l2-ojfbot` directly; intended cluster refs recorded in SYNTHESIS only.
+  The formatted cluster block landed as design evidence at `confirmed/cluster-golf.md`
+  (`confirmed/capture-agent.md` + `confirmed/fairway.md` carry the L1 captures). The RFQ-004
+  build slice's content artifacts remain three (`cluster-gameworld`, `cluster-f1`,
+  `cluster-golf`) — golf's voice conversation has now happened; the mechanical half (node
+  syntax/loader/lint + pit-wall depends_on retrofit) is unchanged.
+
 ## [AUDIT FINDING] — the f1 `depends_on` edge is schema-doc-only (2026-07-02)
 - **Observed:** `depends_on` exists in schema.md (v1.1) but (a) f1-pit-wall's on-disk northstar
   carries NO depends_on field, and (b) `northstar-lint.mjs` never received the resolve-check —
