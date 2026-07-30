@@ -1,10 +1,11 @@
 # ADR-0066: Always-green CI policy
 slug: always-green-ci-policy
 serial: 0066
+rev: A
 domain: meta
 type: policy
 
-Date: 2026-05-05
+Date: 2026-05-05 (revised 2026-07-30 — rev A: gcgcca renamed to capture-agent; it is active, not archive-eligible)
 Status: Proposed
 OKR: 2026-Q2 / O2 (developer ergonomics) / KR3 (post-task quality discipline closes the feedback loop)
 Commands affected: /validate, /deploy, /push-all
@@ -63,7 +64,8 @@ A daily cluster canary (`core/scripts/audit-ci-health.sh`, scheduled in core's `
 - **Daily canary runs cost CI minutes.** Worth measuring after a month.
 
 ### Neutral
-- Some repos (foundry-recipes, gcgcca, GroupThink, hailstone, todo-todo, virtualLight) may be archived or inactive — exclude from required-check enforcement on a case-by-case basis. The audit script reports them; classification is a one-time decision per repo.
+- Some repos (foundry-recipes, GroupThink, hailstone, todo-todo, virtualLight) may be archived or inactive — exclude from required-check enforcement on a case-by-case basis. The audit script reports them; classification is a one-time decision per repo.
+  - *Rev A (2026-07-30):* `gcgcca` was removed from this list. It was renamed **capture-agent** on 2026-07-30 and registered as an active L1 northstar (`l1-capture-agent`, cluster-golf P1) — it is a live repo with a passing 67-test suite, so it must be **included** in required-check enforcement, not excluded as inactive.
 
 ## Alternatives considered
 
