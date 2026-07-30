@@ -3,7 +3,7 @@ type: defect-report
 slug: selfco-gcgcca-renamed-to-capture-agent
 class: phantom-reference
 severity: medium
-status: open
+status: verified-closed
 disposition: repair-doc
 location: "selfco:wiki/entities/capture-agent.md"
 claim: "repo: gcgcca"
