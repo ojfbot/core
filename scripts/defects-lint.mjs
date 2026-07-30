@@ -140,10 +140,24 @@ export function sweep(defects, cwd) {
     const claim = runProbe(d.claim_probe, cwd);
     const truth = d.truth_probe ? runProbe(d.truth_probe, cwd) : null;
 
+    // Exit-code contract, borrowed from grep: 0 = claim present, 1 = claim gone,
+    // >1 = the probe itself failed.
+    //
+    // The >1 case is not pedantry. A probe like `test $(...) -gt 0` collapses to a shell
+    // syntax error (exit 2) the moment its subshell returns empty — a missing directory, a
+    // renamed repo, an unexpected grep. Treating any non-zero as "claim-gone" turns every
+    // such failure into a FALSE CLOSE: the sweep reports a live defect as repaired on the
+    // strength of a broken command. Observed on 2026-07-30 with
+    // dr-core-adr-dangling-traces, which reported claim-gone while all 10 offending ADRs
+    // were still on disk.
+    //
+    // A checker that cannot run its own test must say so, never guess in the direction of
+    // "fixed".
     let verdict;
     if (claim.code === null) verdict = 'probe-error';
     else if (claim.code === 0) verdict = 'still-broken';
-    else verdict = 'claim-gone';
+    else if (claim.code === 1) verdict = 'claim-gone';
+    else verdict = 'probe-error';
 
     // A truth_probe that exits non-zero, times out, or prints nothing is BROKEN, and must
     // say so. Rendering it as a blank line hides a dead probe behind a plausible-looking
@@ -158,7 +172,11 @@ export function sweep(defects, cwd) {
 
     results.push({
       slug: d.slug, verdict,
-      detail: verdict === 'probe-error' ? claim.err : `claim_probe exit ${claim.code}`,
+      detail: verdict === 'probe-error'
+        ? (claim.code === null
+            ? claim.err
+            : `claim_probe exit ${claim.code} (>1 = probe failure, not a verdict): ${claim.err || '(no stderr)'}`)
+        : `claim_probe exit ${claim.code}`,
       truth: truthText,
       truthOk: !truth || (truth.code === 0 && truth.out !== ''),
       _defect: d,

@@ -103,3 +103,28 @@ its probes before sweeping a batch you did not write.
 
 Exit code is 0 in all modes except `--check` (schema errors only). A measurement never
 blocks — ADR-0086.
+
+## Probe-writing constraints (learned the hard way, 2026-07-30)
+
+**Exit codes follow grep's contract: `0` = claim present · `1` = claim gone · `>1` = the
+probe failed.** The sweep maps `>1` to `probe-error`, never to `claim-gone`. This matters
+because the natural-looking `test $(...) -gt 0` collapses to a shell syntax error the moment
+its subshell returns empty — a renamed repo, a missing directory, an unexpected grep — and
+under a naive "non-zero means gone" rule that silently **closes a live defect**. It happened:
+`dr-core-adr-dangling-traces` reported `claim-gone` while all ten offending ADRs sat on disk.
+Prefer `grep -q`, which already obeys the contract.
+
+**No backslashes in probe strings.** `defect-file.mjs` escapes backslashes on write and the
+frontmatter reader does not unescape, so `\n` round-trips as `\\n`. BSD `tr` then reads
+`'\\n'` as the two-character set `{backslash, n}` and translates every literal `n` to a
+space — `incoming` became `i comi g` in a real report. Use `paste -sd' ' -` to join lines,
+not `tr`.
+
+**Paths are repo-relative, not absolute.** The sweep runs probes with `cwd` = the core root.
+An absolute `~/ojfbot/core/scripts/...` breaks in a worktree, in CI, and on any other
+machine; `scripts/probes/…` works everywhere.
+
+**Anchor `claim_probe` to the artifact, never to the world.** A claim probe that tests
+reality closes when the world drifts rather than when someone repairs the document. When
+`gcgcca` was renamed, the claim probe survived precisely because it greps
+`wiki/entities/gcgcca.md`; only the informational `truth_probe` needed repointing.

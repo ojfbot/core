@@ -9,7 +9,7 @@ location: "selfco:wiki/entities/capture-agent.md"
 claim: "repo: gcgcca"
 actual: "The repo was renamed gcgcca -> capture-agent on 2026-07-30 (core b0d7963/cbb91f6). ~/ojfbot/gcgcca no longer exists."
 claim_probe: "grep -q '^repo: gcgcca' ~/selfco/wiki/entities/capture-agent.md"
-truth_probe: "ls -d ~/ojfbot/capture-agent ~/ojfbot/gcgcca 2>/dev/null | tr '\\n' ' '"
+truth_probe: "ls -d ~/ojfbot/capture-agent ~/ojfbot/gcgcca 2>/dev/null | paste -sd' ' -"
 filed: 2026-07-30
 filed_by: "agent:claude-opus-5"
 evidence: "caught by defects-lint --sweep, PROBE EXIT 128, 2026-07-30"
