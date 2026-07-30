@@ -248,6 +248,33 @@ keys:
                   lost to the undeclared one; S4 renames this to disagrees_with and keeps
                   `contradicts` as an alias.}
 
+  # typed edges (S4). Declared now because @context alone does not make a key legal — the
+  # linter validates against `keys`, and the first pages to carry these (the ontology
+  # design record and its sources) were flagged as using unknown keys. Values are bare
+  # slugs, matching the existing lineage keys; frontmatter stays wikilink-free.
+  # Inverses are DERIVED at index time, never stored: a stored symmetric edge doubles the
+  # edit surface and manufactures the unidirectional-inconsistency defect qSKOS flags.
+  about:             {shape: list, future: true, context: schema:about, note: "What a page is primarily about — as opposed to merely mentioning."}
+  mentions:          {shape: list, future: true, context: schema:mentions}
+  cites:             {shape: list, future: true, context: cito:cites, note: "Generic typed citation; the honest default when intent is unclear."}
+  uses:              {shape: list, future: true, context: cito:usesMethodIn, note: "Method or data reuse. The most-applied typed intent in every published pilot."}
+  cites_as_evidence: {shape: list, future: true, context: cito:citesAsEvidence}
+  agrees_with:       {shape: list, future: true, context: cito:agreesWith}
+  disagrees_with:    {shape: list, future: true, context: cito:disagreesWith, note: >
+                       Absorbs `critiques` — annotator-agreement evidence shows the two cannot
+                       be reliably separated. Serializes what the `> [!contradiction]` callout
+                       says in prose, and is the intended successor to the unused `contradicts:`.}
+  part_of:           {shape: list, future: true, context: dcterms:isPartOf}
+  built_on:          {shape: list, future: true, context: schema:isBasedOn}
+  depends_on:        {shape: list, future: true, context: selfco:dependsOn, note: "Locally minted — no standard term carries semver pinning. Aligns to northstar `depends_on`."}
+  consumes:          {shape: list, future: true, context: selfco:consumes, note: "Locally minted — package/API consumption."}
+  exact_match:       {shape: list, future: true, context: skos:exactMatch, note: "Identity. NOT owl:sameAs, which asserts full indiscernibility and is too strong."}
+  close_match:       {shape: list, future: true, context: skos:closeMatch}
+  broader:           {shape: list, future: true, context: skos:broader, note: "S7. Deliberately non-transitive — chaining a mixed hierarchy produces nonsense."}
+  narrower:          {shape: list, future: true, context: skos:narrower}
+  related:           {shape: list, future: true, context: skos:related, note: "S7. Disjoint with broaderTransitive (SKOS S27) — both is a detectable error."}
+  in_scheme:         {shape: list, future: true, context: skos:inScheme}
+
   # freshness (declared now, written from S3 onward — the honest replacement for last_synced)
   last_verified:    {shape: date,   future: true, note: "When a claim was last checked against ground truth. Written only by the verifying mechanism."}
   verified_against: {shape: string, future: true, note: "The ref it was checked against (repo HEAD SHA, run id). Makes 'changed' distinguishable from 'not re-examined'."}
