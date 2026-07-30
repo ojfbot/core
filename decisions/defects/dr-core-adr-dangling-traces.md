@@ -4,12 +4,12 @@ slug: core-adr-dangling-traces
 class: phantom-reference
 severity: medium
 status: open
-disposition: needs-investigation
+disposition: repair-doc
 location: "core:decisions/adr"
 claim: "traces: every value a slug that must resolve to a file on disk"
 actual: "11 dangling trace values across 11 ADRs: 10x part-of-series: developer-day (no such ADR) + 1x relates-to: catalog-scoped-user-skills-and-availability-aware-suggestions"
-claim_probe: "test $(cd ~/ojfbot/core && grep -h \"part-of-series: developer-day\" decisions/adr/*.md | wc -l | tr -d \" \") -gt 0"
-truth_probe: "cd ~/ojfbot/core && echo \"developer-day refs=$(grep -lh \"part-of-series: developer-day\" decisions/adr/*.md | wc -l | tr -d \" \") file-exists=$(ls decisions/adr/*developer-day*.md 2>/dev/null | wc -l | tr -d \" \")\""
+claim_probe: "grep -q 'part-of-series: developer-day' decisions/adr/*.md"
+truth_probe: "echo refs=$(grep -l 'part-of-series: developer-day$' decisions/adr/*.md | wc -l) exact-slug-exists=$(grep -lx 'slug: developer-day' decisions/adr/*.md | wc -l)"
 filed: 2026-07-30
 filed_by: "agent:claude-opus-5"
 evidence: "blocked /adr publish during ADR-0103..0105 accept, 2026-07-30"
@@ -39,24 +39,29 @@ The `developer-day` cluster is probably not a mistake in the ordinary sense. Ten
 consistently name a *series* that has no ADR of its own, which reads like deliberate
 authoring intent — grouping a body of work under a label — colliding with 0087's rule that
 every trace value resolve to a file. Either the rule is stricter than practice needs, or the
-ten ADRs should point at a real umbrella ADR. That is an operator call, hence
-`needs-investigation`.
+ten ADRs should point at a real umbrella ADR. **See the corrected diagnosis below — the
+umbrella exists and the references are simply truncated.**
 
 ## Repair
 
-Three candidate paths, in rough order of preference:
+> **Diagnosis corrected 2026-07-30, and it is much simpler than first filed.** The umbrella
+> ADR **exists**: `0056-developer-day-orchestration-master.md`, slug
+> `developer-day-orchestration-master`. The ten ADRs point at **`developer-day`** — a
+> *truncation* of that slug, not a reference to something missing. The first filing proposed
+> writing a new ADR, amending 0087, or dropping the values; none was right, because nothing
+> is missing and no rule needs weakening.
+>
+> The first `truth_probe` hid this by globbing `*developer-day*.md`, which matches the
+> umbrella's filename by substring and reported `umbrella-adr=1` — technically true, and
+> misleading. Now it tests for the exact slug.
 
-1. **Write the missing umbrella ADR** (`developer-day`) and let the ten point at it. Matches
-   how `selfco-ontology-program` works for ADR-0104/0105, and is the option that keeps
-   0087's rule intact.
-2. **Amend ADR-0087** to allow `part-of-series` to hold a free-text series label while
-   `parent`/`supersedes`/`amends`/`relates-to` stay slug-resolving. Narrower rule, no new
-   ADR — but it weakens the "every value resolves" invariant that makes the lint valuable.
-3. **Drop the `part-of-series` values** from the ten. Cheapest, and loses real grouping
-   information.
+**Mechanical, one token per file:** on ADRs 0056–0065, change
+`part-of-series: developer-day` to `part-of-series: developer-day-orchestration-master`.
+Ten files, no judgment required. Then `/adr publish` unblocks.
 
-ADR-0096's dangling `relates-to` is separate and simpler: either the target was never
-written or it was renamed. Resolve independently.
+ADR-0096's dangling `relates-to:
+catalog-scoped-user-skills-and-availability-aware-suggestions` is separate — a target that
+was never written or was renamed — and needs its own look.
 
 ## Closure
 

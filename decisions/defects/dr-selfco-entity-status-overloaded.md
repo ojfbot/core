@@ -9,7 +9,7 @@ location: "selfco:wiki/entities"
 claim: "status: unstarted | active | paused | shipped | archived"
 actual: "9 values in use across two orthogonal axes (lifecycle + relationship-to-fleet), plus 7 empty"
 claim_probe: "test $(grep -h '^status:' ~/selfco/wiki/entities/*.md | sed 's/status: *//' | sort -u | grep -c .) -gt 5"
-truth_probe: "grep -h '^status:' ~/selfco/wiki/entities/*.md | sed 's/status: *//' | sort -u | tr '\\n' ' '"
+truth_probe: "grep -h '^status:' ~/selfco/wiki/entities/*.md | sed 's/status: *//' | sort -u | paste -sd' ' -"
 filed: 2026-07-30
 filed_by: "agent:claude-opus-5"
 evidence: "S1 schema-as-data; audit 2026-07-29"
