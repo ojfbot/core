@@ -18,3 +18,8 @@ personal-knowledge/
 
 # Serena MCP server project state (cache + project config)
 .serena/
+
+# Python bytecode — vault skill scripts gained their first importable module
+# (schema_check.py) in 2026-07, so __pycache__ now appears wherever lint.py runs.
+__pycache__/
+*.pyc
