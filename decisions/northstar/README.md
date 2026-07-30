@@ -114,6 +114,28 @@ registry:
     app: f1-doctrine
     path: ../f1-doctrine/.claude/northstar.md
     ladders_up_to: l2-ojfbot
+  # GOLF UMBRELLA landing 2026-07-30 (voice sitting 2026-07-27). Cluster-golf design evidence:
+  # offsite/confirmed/cluster-golf.md — the cluster tier is still designed-not-built, so both L1s
+  # ladder to l2-ojfbot directly; intended cluster refs live in SYNTHESIS lines only.
+  # capture-agent: renamed from gcgcca 2026-07-30 (⚑ operator ruling; long form "golf course
+  # capture agent"). gcgcca was NEVER registered — fresh registration, no retirement entry.
+  # posture: active (A2 field; lint support = RFQ-005, not built).
+  - slug: l1-capture-agent
+    tier: L1
+    app: capture-agent
+    path: ../capture-agent/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
+  # fairway: decomposed OUT of mirrorworld (⚑ 2026-07-27) — consumer/producer split; mirrorworld's
+  # P2/P5 missions migrated here (ids retired there, never reused). AXES ARE PROPOSALS and the
+  # ladder is PROVISIONAL #P1 (open operator question #P1-vs-#P2) — see the northstar file header.
+  # posture: active (A2; RFQ-005 note as above).
+  - slug: l1-fairway
+    tier: L1
+    app: fairway
+    path: ../fairway/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -168,6 +190,11 @@ roadmaps:
   - slug: rm-l1-f1-doctrine
     northstar: l1-f1-doctrine
     path: ../f1-doctrine/.claude/roadmap.md
+  # fairway (2026-07-30): carries the successors of rm-l1-mirrorworld S5-S8/S17, migrated with
+  # the decomposition; producer-side slices keep repo: mirrorworld overrides (schema v1.1).
+  - slug: rm-l1-fairway
+    northstar: l1-fairway
+    path: ../fairway/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking

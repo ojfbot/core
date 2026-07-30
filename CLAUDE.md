@@ -46,12 +46,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | morning-cockpit | — | Local-first morning dashboard — beads, reading, research pods, Cockpit Chat | — | active |
 | lofi-beaver | — | Willow Bend story-world — 1-bit isometric game, Blender sprite pipeline | — | active |
 | bldgblog-corpus | — | Deterministic BLDGBLOG archive ingest — annotated corpus + selfco deposit-library | — | active |
-| gcgcca | — | USGS Earth Explorer orthoimagery query tool — Python+TS hybrid | — | active |
+| capture-agent | — | Golf-course capture agent (renamed from gcgcca 2026-07-30) — TX imagery corpus → segmentation model → Hugging Face; USGS Earth Explorer acquisition CLI, Python+TS hybrid | — | active |
+| fairway | 5187 | Golf digital twin — explorable twin surface (decomposed from mirrorworld 2026-07-30; consumer of mirrorworld + capture-agent) | — | active |
 | GroupThink | — | LLM tab-grouping Chrome extension — semantic treemap | — | shipped |
 | selfco-box | — | selfco vault runner — Notion/iOS/MCP capture daemon | — | paused |
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
 | virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
-| mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + apps/fairway golf digital twin; Bilawal Sidhu mentor corpus) | 0 | active |
+| mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + course intelligence; producer feeding fairway, which was decomposed out 2026-07-30; Bilawal Sidhu mentor corpus) | 0 | active |
 | f1-doctrine | — | RAQG question layer for the F1 stack — tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 
 ## Skills

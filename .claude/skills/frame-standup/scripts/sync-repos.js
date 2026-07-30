@@ -28,7 +28,8 @@ const REPOS = [
   'seh-study',
   'GroupThink',
   'landing',
-  'gcgcca',
+  'capture-agent', // renamed from gcgcca 2026-07-30
+  'fairway',
   'beaverGame',
   'asset-foundry',
   'github-actions',
