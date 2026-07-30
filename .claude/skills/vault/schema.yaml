@@ -222,7 +222,7 @@ keys:
 
   # entity: repo profile
   repo:        {shape: string, note: "MUST be a bare slug. One page holds a GitHub URL, one is empty on a person page (S2 repairs)."}
-  ports:       {shape: list,   note: "No uniqueness check today; asset-foundry and gcgcca both claim 3035/3036."}
+  ports:       {shape: list,   note: "No uniqueness check today; asset-foundry and capture-agent both claim 3035/3036."}
   last_synced: {shape: date,   note: >
                   ANTI-SIGNAL. Records when an agent last LOOKED, not whether what it wrote
                   is still true — so a stale fact under a fresh stamp reads as more
