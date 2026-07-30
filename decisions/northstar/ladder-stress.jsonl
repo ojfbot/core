@@ -2,3 +2,5 @@
 {"date":"2026-07-02","app":"shell","northstar":"l1-shell","parent":"ns:l2-ojfbot#P2","verdict":"clean","reason":"","actor":"chat-james"}
 {"date":"2026-07-02","app":"blogengine","northstar":"l1-blogengine","parent":"ns:l2-ojfbot#P1","verdict":"clean","reason":"","actor":"chat-james"}
 {"date":"2026-07-02","app":"blogengine","northstar":"l1-blogengine","parent":"ns:l2-ojfbot#P2","verdict":"clean","reason":"","actor":"chat-james"}
+{"date":"2026-07-30","app":"capture-agent","northstar":"l1-capture-agent","parent":"ns:l2-ojfbot#P1","verdict":"clean","reason":"PROPOSED by code-relay (Q5): the 2026-07-27 sitting briefs carried no explicit LADDER_STRESS verdicts. HF model page reads as a usable surface in its natural venue under venue-neutral P1 (rev 2026-07-23). Operator/chat to ratify.","actor":"code-relay-proposed"}
+{"date":"2026-07-30","app":"fairway","northstar":"l1-fairway","parent":"ns:l2-ojfbot#P1","verdict":"clean","reason":"PROPOSED by code-relay (Q5): no strain against venue-neutral P1 wording, but the ladder itself is PROVISIONAL (#P1-vs-#P2 open operator question Q2) — this verdict pends ratification together with the axes.","actor":"code-relay-proposed"}

@@ -48,7 +48,7 @@ cadence to breach"); and the entry declares `verifier: "none"`. Its `evidence_re
 points at a stream believed empty — unverified, Dolt was not running when this was found.
 
 Aggravating factor: 8 of the 14 repos with a `.handoff/` have no `.claude/skills/bead` installed
-(bldgblog-corpus, gcgcca, lofi-beaver, mc-motion, mc-perf, morning-cockpit, silicon-empires,
+(bldgblog-corpus, capture-agent (formerly gcgcca), lofi-beaver, mc-motion, mc-perf, morning-cockpit, silicon-empires,
 virtualLight), which explains the schema drift. Install is not sufficient, though — `f1-pit-wall`
 and `f1-substrate` have the skill and still produce zero reports. This is the ADR-0068 behavioral
 gap (0.8% skill-suggestion-followed rate) surfacing in a new place.

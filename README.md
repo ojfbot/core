@@ -142,7 +142,7 @@ Part of [Frame OS](https://github.com/ojfbot/shell) — an AI-native application
 | **core** | **Workflow framework — 40+ slash commands + TypeScript engine + skill suggestion/telemetry + /vault personal knowledge (this repo)** |
 | [FrameBus](https://github.com/ojfbot/FrameBus) | Event bus with ADR-0013, Playwright e2e |
 | [cv-builder](https://github.com/ojfbot/cv-builder) | AI-powered resume builder with LangGraph agents |
-| [gcgcca](https://github.com/ojfbot/gcgcca) | Pydantic + TypeScript type bridge |
+| [capture-agent](https://github.com/ojfbot/gcgcca) | Golf-course capture agent (formerly gcgcca; renamed 2026-07-30) — TX imagery → segmentation model → HF; Pydantic + TypeScript type bridge |
 | [blogengine](https://github.com/ojfbot/BlogEngine) | AI blog content creation platform |
 | [TripPlanner](https://github.com/ojfbot/TripPlanner) | AI trip planner with 11-phase pipeline |
 | [core-reader](https://github.com/ojfbot/core-reader) | Documentation viewer for the core framework |
