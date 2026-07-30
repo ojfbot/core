@@ -9,7 +9,7 @@ location: "selfco:wiki/index.md:7"
 claim: "Every page in `wiki/` is reachable from here."
 actual: "42 of 635 content pages (6.6%) are not reachable from index.md by any wikilink"
 claim_probe: "grep -q 'Every page in' ~/selfco/wiki/index.md"
-truth_probe: "sh ~/ojfbot/core/scripts/probes/selfco-unlisted-pages.sh"
+truth_probe: "sh scripts/probes/selfco-unlisted-pages.sh"
 filed: 2026-07-29
 filed_by: "agent:claude-fable-5"
 evidence: "session-2026-07-29-selfco-ontology-audit (F-22)"

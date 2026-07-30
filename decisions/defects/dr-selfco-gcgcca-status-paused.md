@@ -7,9 +7,9 @@ status: open
 disposition: needs-investigation
 location: "selfco:wiki/entities/gcgcca.md:6"
 claim: "status: paused"
-actual: "3 commits since last_synced; HEAD 2026-07-28 (1 day before filing). last_synced is 2026-05-11 — 78 days behind."
+actual: "3 commits since last_synced; HEAD 2026-07-28. last_synced is 2026-05-11 — 78 days behind. NB: the repo was renamed gcgcca -> capture-agent on 2026-07-30; the vault entity still says gcgcca (see dr-selfco-gcgcca-renamed-to-capture-agent)."
 claim_probe: "grep -q '^status: paused' ~/selfco/wiki/entities/gcgcca.md"
-truth_probe: "git -C ~/ojfbot/gcgcca log -1 --format=%cs"
+truth_probe: "git -C ~/ojfbot/capture-agent log -1 --format=%cs"
 filed: 2026-07-29
 filed_by: "agent:claude-fable-5"
 evidence: "session-2026-07-29-selfco-ontology-audit"
@@ -41,6 +41,13 @@ a review queue (EXPIRE), never in a generator.
 Operator decides: confirm `paused` (and the recent commits were incidental), flip to
 `active`, or fire the `revive_trigger`. Then reconcile the body's stale commit/test claims,
 which are `repair-doc` and mechanical once status is settled.
+
+> **Probe revised 2026-07-30.** `gcgcca` was renamed to `capture-agent` on `main` hours
+> after this report was filed, so `truth_probe` pointed at a directory that no longer
+> exists. The sweep reported `PROBE EXIT 128` rather than a verdict — the loud-failure
+> design working: a broken probe is never mistaken for a passing one. Repointed at the new
+> name. The *claim* probe still targets `wiki/entities/gcgcca.md`, which is correct: that
+> page still exists under the old name, which is now its own defect.
 
 ## Closure
 
