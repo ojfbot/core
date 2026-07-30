@@ -1,10 +1,11 @@
-# ADR-XXXX: selfco gains a typed ontology layer, sequenced behind a change-impact index
+# ADR-0103: selfco gains a typed ontology layer, sequenced behind a change-impact index
 
 slug: selfco-ontology-program
-serial: draft
+serial: 0103
 rev:
 Date: 2026-07-30
-Status: Proposed
+Date accepted: 2026-07-30
+Status: Accepted
 domain: knowledge
 type: architecture
 OKR:

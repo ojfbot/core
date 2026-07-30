@@ -1,10 +1,11 @@
-# ADR-XXXX: Behavioral misreports get their own ledger, and only an independent sweep may close one
+# ADR-0104: Behavioral misreports get their own ledger, and only an independent sweep may close one
 
 slug: defect-ledger-and-closure-loop
-serial: draft
+serial: 0104
 rev:
 Date: 2026-07-30
-Status: Proposed
+Date accepted: 2026-07-30
+Status: Accepted
 domain: observation
 type: architecture
 OKR:
