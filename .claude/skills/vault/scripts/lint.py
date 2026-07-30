@@ -328,6 +328,12 @@ def main() -> int:
         help="Vault root or wiki/ dir. Default: $SELFCO_VAULT or ~/selfco",
     )
     ap.add_argument(
+        "--schema",
+        action="store_true",
+        help="Validate frontmatter against schema.yaml (unknown keys, enum values, required keys, "
+             "source origin). SHADOW: reports only, never blocks, never mutates (ADR-0086).",
+    )
+    ap.add_argument(
         "--gate",
         action="store_true",
         help="Exit 1 on blocking findings: broken [[links]] or raw/ items without a wiki/sources/ page. "
@@ -446,6 +452,29 @@ def main() -> int:
     print(f"\n== raw/ items with no wiki/sources/ page: {len(raw_unprocessed)} ==")
     for p in raw_unprocessed:
         print(f"  - raw/{p.relative_to(raw)}")
+
+    # --schema: frontmatter conformance against the machine-readable declaration.
+    # SHADOW ONLY. Findings name the offending value AND the admissible set, so an agent
+    # reading the report can self-repair; "invalid" alone is unactionable.
+    if getattr(args, "schema", False):
+        schema_path = Path(__file__).resolve().parent.parent / "schema.yaml"
+        if not schema_path.is_file():
+            print(f"\n== schema check ==\n  ! schema.yaml not found at {schema_path}")
+        else:
+            try:
+                from schema_check import load_schema, check as schema_run
+                findings = schema_run(wiki, load_schema(schema_path))
+            except Exception as exc:  # a mis-parsed schema must be loud, never silently skipped
+                print(f"\n== schema check ==\n  ! FAILED: {exc}")
+            else:
+                total = sum(len(v) for v in findings.values())
+                print(f"\n== schema conformance (shadow, non-blocking): {total} findings ==")
+                for rule, items in findings.items():
+                    print(f"  -- {rule}: {len(items)}")
+                    for line in items[:40]:
+                        print(f"     {line}")
+                    if len(items) > 40:
+                        print(f"     ... and {len(items) - 40} more")
 
     # --stale: ADR-0080. Layered on top of the orphan check — every stale page is an
     # orphan; not every orphan is stale (new pages have a grace period via the

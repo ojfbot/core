@@ -47,6 +47,16 @@ wiki/
 
 ## Page schemas
 
+> **The machine-readable schema is `core/.claude/skills/vault/schema.yaml`.** It is the
+> source of truth for page types, every frontmatter key, the enums, and the predicate->URI
+> mapping. What follows is the *readable* summary — where the two disagree, the YAML wins,
+> and the disagreement is a bug to file. Checked by
+> `lint.py ~/selfco --schema` (shadow: reports, never blocks).
+>
+> Added 2026-07-30 (S1). This document was one of four prose restatements of the same
+> schema; an audit found only 3 of 9 facts unanimous across them.
+
+
 Every page has YAML frontmatter, an `Up: [[index]]` line, and the sections below. Keep them — Obsidian's graph color groups key on the folder, and the index/log automation keys on frontmatter. Empty sections are fine; omitted is better than padded.
 
 ### `wiki/sources/<slug>.md` — a source summary

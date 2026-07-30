@@ -1,5 +1,14 @@
 # selfco LLM Wiki — architecture brief
 
+> **The machine-readable schema is `core/.claude/skills/vault/schema.yaml`.** It is the
+> source of truth for page types, every frontmatter key, the enums, and the predicate->URI
+> mapping. What follows is the *readable* summary — where the two disagree, the YAML wins,
+> and the disagreement is a bug to file. Checked by
+> `lint.py ~/selfco --schema` (shadow: reports, never blocks).
+>
+> Added 2026-07-30 (S1). This document was one of four prose restatements of the same
+> schema; an audit found only 3 of 9 facts unanimous across them.
+
 `~/selfco` (`${SELFCO_VAULT:-~/selfco}`) is a personal knowledge base built as **Andrej Karpathy's "LLM Wiki"**
 (<https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f>): _"Obsidian is the IDE; the LLM is the
 programmer; the wiki is the codebase."_ You curate raw material; the LLM owns and maintains `wiki/`. It parallels

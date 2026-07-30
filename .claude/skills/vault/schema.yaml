@@ -1,0 +1,307 @@
+# selfco vault schema — the machine-readable source of truth.
+#
+# WHY THIS FILE EXISTS
+# The schema was previously restated in prose across four documents:
+#   ~/selfco/CLAUDE.md · vault/templates/vault-claude-md.md
+#   vault/knowledge/wiki-schema.md · core/domain-knowledge/selfco-vault.md
+# A 2026-07-29 audit diffed them: only 3 of 9 schema facts were unanimous, and they
+# disagreed about which of themselves was canonical. Four prose copies cannot be kept in
+# step by discipline. This file is the one machine-readable declaration; those documents
+# now CITE it rather than restate it.
+#
+# WHAT IT DECLARES vs WHAT IS ASPIRATIONAL
+# This declares the schema as ACTUALLY USED, measured against the live corpus on
+# 2026-07-29 (668 wiki pages). Keys that were in production but undeclared (tier, verdict,
+# revive_trigger, created, author, publication, published, path, repos, location, acquired)
+# are declared here — they are load-bearing decision state, not drift to be punished.
+# Where the observed schema is *wrong* (the overloaded `status:` key), the value is
+# declared as-observed and the problem is filed as a defect, not silently redesigned.
+# Declaring reality is this file's job; changing it is a later slice's.
+#
+# CONSUMERS
+#   lint.py --schema      validates the corpus against this file (SHADOW: reports, never blocks)
+#   templates/*.md        page scaffolds; must stay consistent with `required` below
+# Adding a key here does not backfill it. Migration is forward-only, backfill-on-touch.
+
+version: 1
+measured_against: "2026-07-29, 668 wiki pages"
+
+# ---------------------------------------------------------------------------
+# @context — short local key -> standard vocabulary URI.
+#
+# Borrowed from JSON-LD's context pattern so local names stay short and readable while
+# carrying a canonical meaning, and the corpus stays exportable to RDF later if ever
+# wanted. NOT YAML-LD: that is a Community Group Final Report, not Rec-track, so we take
+# the idea and not the dependency.
+#
+# The mapping is the point of "reuse what already exists". Only `depends_on` and
+# `consumes` are locally minted, because no standard term carries the semver-pinned
+# dependency and package-consumption semantics the fleet needs.
+# ---------------------------------------------------------------------------
+"@context":
+  schema: "https://schema.org/"
+  dcterms: "http://purl.org/dc/terms/"
+  skos: "http://www.w3.org/2004/02/skos/core#"
+  prov: "http://www.w3.org/ns/prov#"
+  cito: "http://purl.org/spar/cito/"
+  selfco: "urn:ojfbot:selfco:"
+
+  # topicality
+  about: "schema:about"
+  mentions: "schema:mentions"
+  # citation intent (CiTO). Deliberately coarse: annotator-agreement evidence shows fine
+  # rhetorical distinctions are unreliable, so `critiques` is absorbed by `disagrees_with`.
+  cites: "cito:cites"
+  uses: "cito:usesMethodIn"
+  cites_as_evidence: "cito:citesAsEvidence"
+  agrees_with: "cito:agreesWith"
+  disagrees_with: "cito:disagreesWith"
+  extends: "cito:extends"
+  # lineage
+  supersedes: "dcterms:replaces"
+  superseded_by: "dcterms:isReplacedBy"
+  # structure
+  part_of: "dcterms:isPartOf"
+  built_on: "schema:isBasedOn"
+  depends_on: "selfco:dependsOn"
+  consumes: "selfco:consumes"
+  # attribution & provenance
+  creator: "dcterms:creator"
+  source: "dcterms:source"
+  derived_from: "prov:wasDerivedFrom"
+  attributed_to: "prov:wasAttributedTo"
+  generated_by: "prov:wasGeneratedBy"
+  # identity
+  exact_match: "skos:exactMatch"
+  close_match: "skos:closeMatch"
+  # concept scheme (S7; declared now so the vocabulary is stable before use)
+  broader: "skos:broader"
+  narrower: "skos:narrower"
+  related: "skos:related"
+  in_scheme: "skos:inScheme"
+
+# ---------------------------------------------------------------------------
+# Page types. `folder` is the identity signal — Obsidian graph colours and every
+# existing tool key on it.
+# ---------------------------------------------------------------------------
+page_types:
+  source:
+    folder: wiki/sources
+    observed: 232
+    description: "One summary page per item in raw/, or per virtual source."
+    required: [type, tags, ingested]
+    # `raw` OR `url` is required — expressed as a rule, not a key flag (see rules.source_has_origin)
+    optional: [raw, url, retrieved, author, publication, published, path, repos,
+               virtual, supersedes, superseded_by, extends]
+    sections: ["TL;DR", "Key takeaways", "Notable quotes / data", "Links", "Touched pages"]
+
+  entity:
+    folder: wiki/entities
+    observed: 160
+    description: "A person, org, product, tool, or ojfbot repo."
+    required: [type, tags, kind]
+    optional: [aliases, status, repo, ports, last_synced, created, tier, verdict,
+               revive_trigger, location, acquired]
+    sections: ["What it is", "Current state", "Relationships", "Sources", "Open threads"]
+
+  concept:
+    folder: wiki/concepts
+    observed: 153
+    description: "An idea, framework, theory, or method."
+    required: [type, tags, status]
+    optional: [extends]
+    sections: ["Definition", "Why it matters", "How it works / key claims", "Related", "Open questions"]
+
+  synthesis:
+    folder: wiki/synthesis
+    observed: 118
+    description: "A comparison, theme, roadmap, or cross-cutting analysis."
+    required: [type, tags]
+    optional: [extends, supersedes, superseded_by]
+    sections: ["Question / thesis", "Comparison / analysis", "Sources", "Implications"]
+
+  index:
+    folder: wiki
+    observed: 1
+    description: "The master catalog. Every page must be reachable from here."
+    required: [type]
+    optional: []
+    sections: []
+
+  run:
+    folder: canvas/runs
+    observed: 1
+    outside_wiki: true
+    description: >
+      Agent-run state rendered onto a canvas. Declared here because it has a Base view
+      (bases/runs.base) and a renderer contract, and was documented NOWHERE before this
+      file. Its generator (selfco-box run-render) is currently paused.
+    required: [type, slug, status]
+    optional: [title, created, seed, summary, last_event, tasks_total, tasks_verified,
+               gates_waiting, tags, staleness]
+    sections: []
+
+# ---------------------------------------------------------------------------
+# Enums, declared PER PAGE TYPE. `status:` means different things on an entity than on a
+# concept; one flat enum could never validate both.
+# ---------------------------------------------------------------------------
+enums:
+  kind:
+    applies_to: [entity]
+    values: [person, org, product, tool, repo]
+    observed: {person: 46, repo: 44, product: 33, tool: 22, org: 15}
+
+  concept_status:
+    applies_to: [concept]
+    key: status
+    values: [seedling, growing, evergreen]
+    observed: {growing: 73, seedling: 44, evergreen: 36}
+    note: >
+      Maturity, author-assigned. Audit finding: 24 of 36 `evergreen` pages have exactly
+      one commit — declared stable at birth and never re-read. `evergreen` is the value a
+      reader uses to decide NOT to re-verify, so a false one is the most misleading value
+      in the corpus. Not enforceable from data; surfaced for review only.
+
+  entity_status:
+    applies_to: [entity]
+    key: status
+    values: [unstarted, active, paused, shipped, archived, scaffold, referenced, tracking, incoming]
+    observed: {active: 91, paused: 7, archived: 7, unstarted: 4, scaffold: 3,
+               referenced: 2, tracking: 1, shipped: 1, incoming: 1, empty: 7}
+    note: >
+      OVERLOADED — declared as observed, not endorsed. Two orthogonal axes share one key:
+      LIFECYCLE (unstarted/active/paused/shipped/archived/scaffold) and
+      RELATIONSHIP-TO-FLEET (referenced = we point at it but do not own it; tracking = an
+      external repo we watch; incoming = hardware not yet arrived). A repo can be both
+      `referenced` and `active`; today it can only say one. Filed as
+      dr-selfco-entity-status-overloaded. Splitting it is a later slice — this file
+      declares what is, so the lint stops flagging legitimate values as errors.
+
+  tier:
+    applies_to: [entity]
+    values: [platform, flagship, flagship-candidate, experiment]
+    observed: {experiment: 7, platform: 2, flagship: 2, flagship-candidate: 1}
+    note: "Ratified in wiki/synthesis/fleet-tier-model.md; consumed by bases/repos.base. Was undeclared."
+
+  staleness:
+    applies_to: [any]
+    values: [ignore]
+    note: "Per-page lint escape hatch. Used only by the three generated `_*` scratch files."
+
+# ---------------------------------------------------------------------------
+# Frontmatter keys. `was_undeclared: true` marks the 11 keys found in production use but
+# absent from every prose spec — the drift this file exists to end.
+# ---------------------------------------------------------------------------
+keys:
+  type:        {shape: enum,   values: [source, entity, concept, synthesis, index, run]}
+  tags:        {shape: list,   note: "Uncontrolled today: 988 distinct, 46% singletons. Scheme lands in S7."}
+  kind:        {shape: enum,   enum: kind}
+  status:      {shape: enum,   enum: "per page_type — concept_status | entity_status"}
+  aliases:     {shape: list,   note: "Alt names for Obsidian link autocomplete. Quote every value."}
+
+  # source origin & provenance
+  raw:         {shape: path_or_list, note: >
+                  Four shapes observed: scalar path, YAML list (hal-cover-letter-corpus),
+                  quoted prose for virtual sources, and empty. Only scalar was declared.
+                  A scalar-only parser mis-reports the list form as an orphan.}
+  url:         {shape: url}
+  retrieved:   {shape: date}
+  ingested:    {shape: date}
+  path:        {shape: string, was_undeclared: true, note: "For link-don't-copy sources living in another repo."}
+  repos:       {shape: list,   was_undeclared: true, note: "Bare slugs. Only on sync-*.md pages — a typed source->entity edge in disguise."}
+  virtual:     {shape: bool,   note: >
+                  Declares a source with no archivable artifact — the /vault sync feed, a
+                  census assembled from many places. CLAUDE.md has always sanctioned
+                  "virtual sources" in prose but gave them no way to SAY so, leaving them
+                  indistinguishable from pages that simply lost their origin. 4 pages need
+                  this today (3 sync-*, hal-blender-census); forward-only, so they surface
+                  in the shadow report until touched.}
+  author:      {shape: string, was_undeclared: true, note: "Declared only in templates/article-ingest.md. Maps to dcterms:creator."}
+  publication: {shape: string, was_undeclared: true}
+  published:   {shape: date,   was_undeclared: true, note: "The source's own publication date, distinct from ingested/retrieved."}
+
+  # entity: repo profile
+  repo:        {shape: string, note: "MUST be a bare slug. One page holds a GitHub URL, one is empty on a person page (S2 repairs)."}
+  ports:       {shape: list,   note: "No uniqueness check today; asset-foundry and gcgcca both claim 3035/3036."}
+  last_synced: {shape: date,   note: >
+                  ANTI-SIGNAL. Records when an agent last LOOKED, not whether what it wrote
+                  is still true — so a stale fact under a fresh stamp reads as more
+                  trustworthy. 18 of 59 pages were hand-edited after it without bumping it.
+                  Superseded by last_verified + verified_against (declared below, unused
+                  until S3). Filed as dr-selfco-last-synced-conflates-check-and-edit.}
+  created:     {shape: date,   was_undeclared: true}
+  tier:        {shape: enum,   enum: tier, was_undeclared: true}
+  verdict:     {shape: string, was_undeclared: true, note: "Prose kill-log decision. Ratified in fleet-kill-log.md."}
+  revive_trigger: {shape: string, was_undeclared: true, note: >
+                  Prose resurrection condition. All three say 'else archive-with-verdict at
+                  next quarterly review' — a scheduled obligation with no calendar entry.}
+  location:    {shape: string, was_undeclared: true, note: "Hardware inventory."}
+  acquired:    {shape: date,   was_undeclared: true, note: "Hardware inventory."}
+
+  # lineage (bare slugs, never wikilinks — frontmatter stays link-free)
+  supersedes:    {shape: list, context: dcterms:replaces}
+  superseded_by: {shape: list, context: dcterms:isReplacedBy}
+  extends:       {shape: list, context: cito:extends}
+  contradicts:   {shape: list, context: cito:disagreesWith, declared_unused: true, note: >
+                  Declared in CLAUDE.md, used by ZERO pages. What people actually reach for
+                  is the body callout `> [!contradiction]` (11 uses). The declared mechanism
+                  lost to the undeclared one; S4 renames this to disagrees_with and keeps
+                  `contradicts` as an alias.}
+
+  # freshness (declared now, written from S3 onward — the honest replacement for last_synced)
+  last_verified:    {shape: date,   future: true, note: "When a claim was last checked against ground truth. Written only by the verifying mechanism."}
+  verified_against: {shape: string, future: true, note: "The ref it was checked against (repo HEAD SHA, run id). Makes 'changed' distinguishable from 'not re-examined'."}
+
+  # provenance (declared now, written from S6 onward)
+  attributed_to: {shape: string, future: true, context: prov:wasAttributedTo, note: "human | agent:<model>@<version>"}
+  generated_by:  {shape: string, future: true, context: prov:wasGeneratedBy}
+  derived_from:  {shape: list,   future: true, context: prov:wasDerivedFrom}
+
+  # misc observed
+  staleness:  {shape: enum, enum: staleness}
+  category:   {shape: enum, values: [reference-data], declared_unused: true, note: >
+                Class-level staleness exemption documented in four places, used by zero
+                pages — despite the vault holding textbook reference-data sources.}
+  tags-note:  {shape: string, one_off: true, note: "Single use. Not a real key; do not propagate."}
+
+  # run pages (outside wiki/)
+  slug:           {shape: string, applies_to: [run]}
+  title:          {shape: string, applies_to: [run]}
+  seed:           {shape: path,   applies_to: [run]}
+  summary:        {shape: string, applies_to: [run]}
+  last_event:     {shape: datetime, applies_to: [run]}
+  tasks_total:    {shape: int,   applies_to: [run]}
+  tasks_verified: {shape: int,   applies_to: [run]}
+  gates_waiting:  {shape: int,   applies_to: [run]}
+
+# ---------------------------------------------------------------------------
+# Structural rules. Severity mirrors SHACL's three tiers; everything ships at `info` or
+# `warning` first and is promoted only on evidence (ADR-0086 Brassboard -> Operational).
+# ---------------------------------------------------------------------------
+rules:
+  known_key:
+    severity: warning
+    description: "Every frontmatter key appears in `keys` above."
+  enum_value:
+    severity: warning
+    description: "Every enum-shaped value is in its declared value list, resolved per page type."
+  required_present:
+    severity: warning
+    description: "Every key in the page type's `required` list is present and non-empty."
+  source_has_origin:
+    severity: warning
+    description: >
+      A source page declares an origin: `raw`, `url`, `path`, or `virtual: true`. A block-list
+      `raw:` counts — a scalar-only reader scores a page with four archived PDFs as having none.
+  slug_is_kebab:
+    severity: info
+    description: >
+      Page filenames are kebab-case ASCII. Deliberate carve-out: ojfbot repo entities use
+      the repo directory name verbatim, so virtualLight/GroupThink/TripPlanner are correct.
+  up_link_present:
+    severity: info
+    description: "Body carries `Up: [[index]]`. Currently 666/666 eligible — the one invariant at full compliance."
+
+# Not enforced here — these live in lint.py's graph pass because they need the whole
+# corpus, not one file: broken wikilinks, raw-without-source, orphans, staleness,
+# index-membership, ports uniqueness, supersession-chain integrity.
