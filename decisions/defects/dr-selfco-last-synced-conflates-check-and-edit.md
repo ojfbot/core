@@ -8,8 +8,8 @@ disposition: repair-mechanism
 location: "selfco:CLAUDE.md:75"
 claim: "last_synced: YYYY-MM-DD"
 actual: "The key conflates 'when an agent last looked' with 'when this page was last correct'. 18 of 59 pages were hand-edited after their last_synced without bumping it; 12 of 40 repos have commits newer than theirs."
-claim_probe: "! grep -q 'last_verified' ~/selfco/CLAUDE.md"
-truth_probe: "grep -rl '^last_synced:' ~/selfco/wiki/entities/ | wc -l | tr -d ' '"
+claim_probe: "test $(grep -rl '^last_verified:' ~/selfco/wiki/entities/ 2>/dev/null | wc -l | tr -d ' ') -eq 0"
+truth_probe: "echo \"last_synced=$(grep -rl '^last_synced:' ~/selfco/wiki/entities/ | wc -l | tr -d ' ') last_verified=$(grep -rl '^last_verified:' ~/selfco/wiki/entities/ 2>/dev/null | wc -l | tr -d ' ')\""
 filed: 2026-07-29
 filed_by: "agent:claude-fable-5"
 evidence: "session-2026-07-29-selfco-ontology-audit"
@@ -51,6 +51,17 @@ they drift independently and already have).
 
 ## Closure
 
-`claim_probe` is inverted: exits 0 (defect present) while `last_verified` is absent from
-the schema, non-zero once it is declared. Schema presence only — backfill across 59 pages
-is forward-only per the migration decision, not a closure condition.
+`claim_probe` is inverted: it exits 0 (defect present) while **no page carries
+`last_verified`**, and non-zero once at least one does.
+
+> **Probe revised 2026-07-30 (S1).** It originally grepped `~/selfco/CLAUDE.md` for the
+> key's *declaration*. Two problems. First, S1 moved the schema to `schema.yaml`, so the
+> probe was aimed at a file that no longer owns the fact — it would have gone on reporting
+> `still-broken` forever regardless of any repair. Second, and worse, declaring a key is
+> not fixing the problem: `last_verified` **is** now declared in `schema.yaml`, and the
+> old probe would have flipped to `claim-gone` on that alone, closing a defect where not a
+> single page had gained a trustworthy freshness stamp.
+>
+> A probe that closes on a declaration rather than on a change in the world is the
+> ledger's own version of the disease it tracks. Probes get maintained when the thing they
+> point at moves; that maintenance is recorded, not silent.
