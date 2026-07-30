@@ -1,10 +1,11 @@
-# ADR-XXXX: The vault schema is one machine-readable file; prose documents cite it, never restate it
+# ADR-0105: The vault schema is one machine-readable file; prose documents cite it, never restate it
 
 slug: vault-schema-as-data
-serial: draft
+serial: 0105
 rev:
 Date: 2026-07-30
-Status: Proposed
+Date accepted: 2026-07-30
+Status: Accepted
 domain: knowledge
 type: architecture
 OKR:
