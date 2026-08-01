@@ -68,6 +68,11 @@ now a standing constraint on every ticket.
 - Doctrine that constrains any answer here: ADR-0086 (shadow-first, RIDM promotion), gate-0
   (humans merge), and the standing rule that a measurement never blocks.
 
+**Staged input (2026-08-01):** `decisions/adr/draft-bead-substrate-stability.md` — audited
+assumptions + gated slices for the bead data layer (durability, loud emissions, committed
+digests, substrate RIDM). Its DS2 feeds #318, DS4/DS5 feed #309. Charted as *input to*
+tickets, resolving none of them.
+
 **The risk this map must not walk into:** the conductor becomes loop #33 — watching 32 others, with
 no verifier of its own, producing one more artifact nobody reads. *Who watches the conductor* exists
 to make that a decision rather than a discovery.
