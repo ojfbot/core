@@ -69,7 +69,7 @@ Every role definition across all five segments centers the full arc; harness art
 
 1. (#328) Should the public narrative lead with the one genre the market screens hardest (eval frameworks) or with the rarer combined artifact (full-arc case study)?
 2. (#327) Does dive-briefing's roadmap need an explicit "engagement simulation" slice (discovery doc + stakeholder/plumbing narrative) to cover genre 3/4, or is that a separate artifact?
-3. (#321) Is the pr-quiz buy-in story tellable at pattern level without SAP specifics — and does SAP policy allow even that?
+3. (#321) **RESOLVED 2026-08-01** (`adr:employer-evidence-boundary`): tellable at pattern level under the stranger test — de-identified, no employer or system name, no team size, no internal metrics. Whether employer policy permits it is an unvalidated assumption recorded in `decisions/open-unknowns.md`.
 4. (follow-up cycle, if warranted) The skeptic sweep this cycle lacked: FDE-critical sources, attrition lore, buyer-side outcome evidence.
 
 ## Key sources
