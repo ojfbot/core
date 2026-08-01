@@ -315,7 +315,10 @@ Recorded because the same errors would otherwise propagate into #328's venue map
 
 Verified directly against `origin/main` of **public** `ojfbot/core` this session:
 
-- `git grep -w -E "SAP|TeamBot" origin/main` returns **9 files**.
+- A word-boundary grep for the employer name and the internal system nickname over `origin/main`
+  returns **9 files**. (The search terms are deliberately not reproduced here — see
+  `adr:boundary-enforced-by-construction`: a list of the protected terms is the disclosure it
+  prevents. The live list is the denylist in gitignored `personal-knowledge/`.)
 - `decisions/wayfinder/fde-operating-presence.md:19-20` binds the internal system nickname to the
   employer name and quotes a strategic framing sentence, in one place.
 - `decisions/research/2026-08-01-fde-deliverables-audit.md` carries the employer name and a
@@ -362,8 +365,10 @@ is plausibly employer-owned); internal metrics, adoption rates, team sizes, org 
   the fact that flipping repos public is a higher-yield move than any slice in the current 19.
 - **#328 (positioning narrative + venue map)** — ticket body is **partly invalidated in its
   framing**. It proposes "what would a 3-person FDE team + a McKinsey-style process consultant
-  deliver for SAP" as the candidate public frame. Two problems: that frame names the employer, which
-  §7 shows is the live exposure and is #321's to rule on; and §3.2/2.11 shows the consultant-pairing
+  deliver for [the employer]" as the candidate public frame. Two problems: that frame names the
+  employer, which §7 shows is the live exposure and was #321's to rule on (**ruled 2026-08-01**:
+  de-identified pattern-level only — so the frame is now void as written); and §3.2/2.11 shows the
+  consultant-pairing
   instinct is right but inverted — the FDE is the *engineer* in that pair, and pitching ROI and
   value-case ownership pitches the Technical Deployment Lead role instead. The venue map itself is
   unaffected.
