@@ -76,6 +76,16 @@ Closed tickets:
 - Client-data placement: client-named baselines live in the private engagement repo's northstar
   file only; the public registry carries slug/path/anonymous comment; the public map's existing
   client intel gets a sanitization pass (new task ticket) — Yuri, 2026-08-01
+- Dossier→presence seam (#347): one-way valve, operator = the only crossing point. Public git
+  stays absolutely lint-clean (client term-set joins the same gitignored denylist as
+  `adr:employer-evidence-boundary`; stranger test; default form "a DFW restoration contractor");
+  disclosure upgrades are per-artifact via the client principal's written sign-off, recorded in a
+  permission ledger in `fieldwork-1`; cleared renders never enter public git — the operator
+  publishes them directly to presence surfaces; refusal narrows, never erases (de-identified
+  render still publishes; only outright documentation-refusal re-scopes); case-study skeleton
+  committed at kickoff = G3 spine + before/after baseline + G1 eval receipts + G4 plumbing
+  sidebar, blanks filled weekly; #356 executes its scrub under this same protocol — Yuri,
+  2026-08-01
 
 ## Tickets
 
@@ -83,7 +93,7 @@ Closed tickets:
 |-------------------------------|------|------------|--------|
 | Engagement northstar: naming, properties, movement contract (#345) | grilling | — | closed |
 | Discovery instrument for conversation #1 (#346) | grilling | — | open |
-| Dossier→presence seam: sanitization gate + permission protocol (#347) | grilling | — | open |
+| Dossier→presence seam: sanitization gate + permission protocol (#347) | grilling | — | closed |
 | DFW restoration competitor + segment teardown (#348) | research | — | open |
 | Engagement repo bootstrap (private; proof-plan skeleton; fleet-onboard) (#349) | task | Engagement northstar | open |
 | Engagement stage-gates + TPM discipline (#350) | grilling | Engagement northstar | open |
@@ -99,6 +109,11 @@ Frontier after #345 (2026-08-01): Discovery instrument, Dossier→presence seam,
 teardown, Engagement repo bootstrap (unblocked; repo = `fieldwork-1`), Engagement stage-gates
 (unblocked; scope WIDENED to include the SEH 17-process mapping onto self-built components),
 Public-map client-intel sanitization.
+
+Frontier after #347 (2026-08-01): Discovery instrument, Competitor teardown, Engagement repo
+bootstrap, Engagement stage-gates, Public-map client-intel sanitization (unparked — #347's
+protocol is the one it was waiting to share; same term-set, describe-never-reproduce). #347
+blocked no tickets; no fog graduates from this close.
 
 ## Not yet specified
 
