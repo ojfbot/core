@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
 | agent-anatomy | — | Anatomy of the fleet's multi-agent system — diagrams + pattern excerpts, blogengine article companion | 0 | scaffold |
 | buddy-check | — | SME-calibrated dive Q&A + eval harness — judge calibration, hybrid-RAG lab (dive-briefing's private sibling) | — | active |
-| silicon-empires | — | AoE-style RTS of the AI-infrastructure complex — SPEC-canon repo | 0 | active |
+| silicon-empires | — | AoE-style RTS of the AI-infrastructure complex — SPEC-canon repo | 1.5 | active |
 | f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness | — | active |
 | f1-substrate | — | F1 telemetry substrate — DuckDB FastF1 store, gap algorithm, FastAPI query layer | — | active |
 | f1-press-room | — | F1 teaching studio — claim-checked articles + shorts off the f1 export seam | — | active |
