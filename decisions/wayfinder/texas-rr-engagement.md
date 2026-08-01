@@ -61,13 +61,27 @@ Pre-map rulings (grilled at charting, recorded here — not closed tickets):
 
 Closed tickets:
 
-(none — charting session)
+- Engagement northstar (#345): `l1-fieldwork-1`, engagement-scoped ordinal (repo `fieldwork-1`,
+  private; retires at sustainment/exit, engagement #2 mints `l1-fieldwork-2`); 5 properties —
+  arc traversed / value in the customer's numbers / dossier G1–G6 / playbook shadow /
+  mechanized-auditable delivery; standard movement contract (`Movement proposal:` lines only,
+  operator-asserted currents); numerics PROPOSED, operator calibrates — Yuri, 2026-08-01
+- SE-processes elevation: NASA SEH process model (system design top-down, product realization
+  bottom-up, technical management cross-cutting) applied recursively to the engagement's
+  self-built components (P5) — refines, does not reverse, the "no literal ISO-15288 client-facing
+  framing" ruling; the 17-process mapping detail is widened into the Engagement stage-gates
+  ticket — Yuri, 2026-08-01 (mid-#345 session)
+- Re-anchor ruled: this map re-anchors `l2-ojfbot` → `ns:l1-fieldwork-1` at the repo bootstrap
+  (#349), when the northstar file exists on disk and the anchor resolves — Yuri, 2026-08-01
+- Client-data placement: client-named baselines live in the private engagement repo's northstar
+  file only; the public registry carries slug/path/anonymous comment; the public map's existing
+  client intel gets a sanitization pass (new task ticket) — Yuri, 2026-08-01
 
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| Engagement northstar: naming, properties, movement contract (#345) | grilling | — | open |
+| Engagement northstar: naming, properties, movement contract (#345) | grilling | — | closed |
 | Discovery instrument for conversation #1 (#346) | grilling | — | open |
 | Dossier→presence seam: sanitization gate + permission protocol (#347) | grilling | — | open |
 | DFW restoration competitor + segment teardown (#348) | research | — | open |
@@ -75,10 +89,16 @@ Closed tickets:
 | Engagement stage-gates + TPM discipline (#350) | grilling | Engagement northstar | open |
 | Playbook shadow: format, home, capture points (#351) | grilling | Engagement stage-gates | open |
 | Sustainment + exit boundary (#352) | grilling | Engagement stage-gates | open |
+| Public-map client-intel sanitization (#356) | task | — | open |
 
 Frontier at charting: Engagement northstar, Discovery instrument, Dossier→presence seam,
 Competitor teardown. Recommended first work session: **Engagement northstar** (unblocks two) or
 **Discovery instrument** (gates the first real-world conversation).
+
+Frontier after #345 (2026-08-01): Discovery instrument, Dossier→presence seam, Competitor
+teardown, Engagement repo bootstrap (unblocked; repo = `fieldwork-1`), Engagement stage-gates
+(unblocked; scope WIDENED to include the SEH 17-process mapping onto self-built components),
+Public-map client-intel sanitization.
 
 ## Not yet specified
 
@@ -88,13 +108,13 @@ Competitor teardown. Recommended first work session: **Engagement northstar** (u
 - **Commercial model beyond the documentation-rights trade** — whether engagement #2 (or a later
   phase of #1) is paid, and how that changes the boundary rules. Statable after the first
   engagement produces measured value.
-- **seh-study / SE-competency tie-in** — whether the engagement doubles as the SE learning
-  vehicle; deliberately not chosen at charting (fleet machinery ruled in, literal SE framing
-  ruled out). Revisit only if the operator elevates it.
 - **Sub-network + builder-side data access shape** — what data the 100+ subs and the pilot
   builder can actually provide; statable after discovery conversation #1.
-- **Engagement northstar re-anchor** — once the northstar ticket closes, whether this map
-  re-anchors from `l2-ojfbot` to the new `l1-*` entry; statable at that close.
+
+Graduated 2026-08-01 (#345 session): *seh-study / SE-competency tie-in* — operator elevated the
+NASA SEH process model for self-built components; entered the northstar as P5, detail mapping
+widened into the Engagement stage-gates ticket. *Engagement northstar re-anchor* — ruled yes,
+executes at the repo bootstrap. Both recorded under Decisions so far.
 
 ## Out of scope
 
