@@ -51,7 +51,9 @@ Every skill flagged `scope:["user"]` in core's `skill-catalog.json` is symlinked
 `~/.claude/skills/`, so it works in any session on this machine — not just inside ojfbot. Today that
 includes the Pocock stack (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`), session-boundary skills
 (`/bead`, `/resume`), the daily flow (`/frame-standup`, `/adr`, `/skill-loader`, `/daily-logger`), and
-the lifecycle gates (`/investigate`, `/validate`, `/roadmap`). `/vault` is opt-in via `--with-selfco`.
+the lifecycle gates (`/investigate`, `/validate`, `/roadmap`). `/wayfinder` sits upstream of all of
+them — charting foggy, multi-session initiatives — and degrades to a file-only "lite" mode outside
+the fleet, where there is no northstar registry to anchor to. `/vault` is opt-in via `--with-selfco`.
 
 The set is **catalog-driven** — flag a skill `scope:["user"]` in the catalog and re-run
 `core/scripts/install-agents.sh --user-scope` to sync. Skills resolve through symlinks to
