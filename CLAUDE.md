@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | agent-anatomy | — | Anatomy of the fleet's multi-agent system — diagrams + pattern excerpts, blogengine article companion | 0 | scaffold |
 | buddy-check | — | SME-calibrated dive Q&A + eval harness — judge calibration, hybrid-RAG lab (dive-briefing's private sibling) | — | active |
 | silicon-empires | — | AoE-style RTS of the AI-infrastructure complex — SPEC-canon repo | 1.5 | active |
-| f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness | — | active |
+| f1-pit-wall | — | F1 race-engineering dashboard — telemetry literacy + claim-grounding harness; race_engineer persona seeded empty (no fabrication) | — | active |
 | f1-substrate | — | F1 telemetry substrate — DuckDB FastF1 store, gap algorithm, FastAPI query layer | — | active |
 | f1-press-room | — | F1 teaching studio — claim-checked articles + shorts off the f1 export seam | — | active |
 | morning-cockpit | — | Local-first morning dashboard — beads, reading, research pods, Cockpit Chat | — | active |
@@ -53,7 +53,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
 | virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
 | mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + course intelligence; producer feeding fairway, which was decomposed out 2026-07-30; Bilawal Sidhu mentor corpus) | 0 | active |
-| f1-doctrine | — | RAQG question layer for the F1 stack — tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
+| f1-doctrine | — | RAQG question layer for the F1 stack — bound question registry (33 nl-query-corpus entries migrated, PR #1; S1 merged), tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 
 ## Skills
 
