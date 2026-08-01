@@ -230,6 +230,13 @@ whose entrance criteria now look satisfied (offer to flip `status: queued → re
 THIS step's human judgment, the one thing the compiler never does), and `delivered` slices
 awaiting the merge ritual. These feed Step 5 ranking and Step 7b dispatch.
 
+**A slice whose entrance you cannot assert either way has found fog** — the blocker is an open
+question, not a missing deliverable. Route it to `/wayfinder` to chart rather than leaving it
+`queued` indefinitely, which is how a slice quietly becomes permanent backlog. Surface it in the
+day plan as "chart it", not as a dispatchable action; charting is a session of its own and closes
+zero slices. (Boundary: *what/whether* → `/wayfinder`; *how to ship safely in stages* →
+`/gated-slice`.)
+
 ### Step 5 — Generate the day plan
 
 Cross-reference: daily-logger suggested actions + open action backlog +

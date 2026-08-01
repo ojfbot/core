@@ -1,7 +1,11 @@
 # Wayfinder map format
 
-The map is file-canonical at `core/decisions/wayfinder/<slug>.md`; GitHub child issues are the
-projection (`adr:wayfinder-decision-maps`). Slug: kebab-case initiative name, no date.
+The map is file-canonical; GitHub child issues are the projection
+(`adr:wayfinder-decision-maps`). Slug: kebab-case initiative name, no date.
+
+Where the file lands depends on the charting mode (`knowledge/fleet-substrate.md`):
+**full** → `<core_root>/decisions/wayfinder/<slug>.md` (the one map library);
+**lite** → `<cwd>/decisions/wayfinder/<slug>.md`, with `northstar:` and `tracker_issue:` omitted.
 
 ## Map file
 

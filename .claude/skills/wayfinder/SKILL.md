@@ -18,23 +18,26 @@ You are a wayfinder charting work that is too big for one agent session and wrap
 ## Core principles
 
 1. **Plan, don't do.** A wayfinder session either charts the map or works exactly one ticket. Resolving tickets during charting is the signature failure.
-2. **The map is file-canonical; issues are the projection.** The map lives at `decisions/wayfinder/<slug>.md`; tickets are GitHub child issues with native blocking edges so the frontier renders in the tracker. Fix the map by editing the file (same posture as roadmap files vs compiled beads).
+2. **The map is file-canonical; issues are the projection.** In full mode the map lives at `<core_root>/decisions/wayfinder/<slug>.md` — one library, so any surface can enumerate every open frontier in a single read; tickets are GitHub child issues with native blocking edges so the frontier renders in the tracker. Fix the map by editing the file (same posture as roadmap files vs compiled beads). In lite mode it lives at `<cwd>/decisions/wayfinder/<slug>.md` with no tracker projection (`knowledge/fleet-substrate.md`).
 3. **Placement litmus** (`adr:wayfinder-decision-maps`): can you state `success` + a machine-runnable `check`? → it's a roadmap slice, not a ticket here. Can you state only the question precisely? → wayfinder ticket. Can't state the question yet? → `## Not yet specified` fog. Fog graduates to a ticket when the question — not the answer — becomes statable.
 4. **Facts are gathered; decisions are the user's.** Charting may explore the repo freely, but every ticket's decision belongs to the user (grilling tickets are HITL by definition — an agent answering its own ticket has broken the loop).
 5. **Refer by name.** Tickets are referenced by title in prose, never bare issue numbers.
 
 ## Modes
 
+This skill is installed at user scope, so it can fire anywhere on this machine. **Before anything else, decide the charting mode** — `scripts/resolve-anchor.mjs --detect` returns `full` (fleet substrate resolves) or `lite` (it doesn't). Announce it in one line; a lite map must never be mistaken for an anchored one. The full mode table is in `knowledge/fleet-substrate.md`.
+
 ### Chart (default — new map)
 
-1. **Grill the Destination first** (via `/grill-with-docs`, charting variant — breadth-first): what does "arrived" look like? Name it before anything else; if the map is anchored to a northstar, cite the properties (`ns:<slug>#P<n>`, resolve-or-fail). The Destination fixes scope.
+1. **Grill the Destination first** (via `/grill-with-docs`, charting variant — breadth-first): what does "arrived" look like? Name it before anything else; if the map is anchored to a northstar, cite the properties (`ns:<slug>#P<n>`, resolve-or-fail — run `scripts/resolve-anchor.mjs --anchor=ns:<slug>#P<n>` and don't write the anchor if it exits non-zero). The Destination fixes scope.
+1b. **Read the reference layer** (full mode only): consult `~/selfco/wiki/` — `synthesis/`, `concepts/`, `entities/` — for prior lenses bearing on the Destination, and cite what you use under `## Notes`. Design-time, read-only, one-way: a vault page informs a ticket body, it never *is* a decision (`adr:bonded-pair-division-of-labor`, draft).
 2. **No-fog early exit:** if the journey fits one session, skip the map — say so and route to `/plan-feature` directly.
 3. Breadth-first over the fog: enumerate the open questions, apply the placement litmus to each, and type every ticket:
    - `research` (AFK) — resolved via the **deep-research harness, ONE cycle at a time** (sequential-research rule; a charting session that fans research out in parallel is a bug, not a speedup); findings filed to `decisions/research/`, never throwaway branches.
    - `grilling` (HITL, the default) — resolved via `/grill-with-docs`; its in-loop ADR stubs give `## Decisions so far` real `decisions/adr/` entries to index.
    - `prototype` (HITL) — resolved via `/prototype`; artifact linked from the ticket (disposition per `/prototype`, incl. the kept-branch primary-source option).
    - `task` (either) — manual unblocking work: provisioning, access, data moves.
-4. Write the map file (`knowledge/map-format.md`), then create the child issues labelled `wayfinder:<type>` in dependency order, wiring blocking edges with the tracker's native blocked-by relationship — the **frontier** (open + unblocked + unclaimed) must render in the tracker. Sized so each ticket fits one session.
+4. Write the map file (`knowledge/map-format.md`) at the mode's path, then — **full mode only** — create the child issues labelled `wayfinder:<type>` in dependency order, wiring blocking edges with the tracker's native blocked-by relationship, so the **frontier** (open + unblocked + unclaimed) renders in the tracker. In lite mode the Tickets table *is* the frontier. Sized so each ticket fits one session.
 5. **Stop.** Zero tickets resolved in the charting session.
 
 ### Work (one ticket per session)
@@ -64,7 +67,8 @@ The charted decisions are exactly what make `entrance`/`success`/`check` statabl
 - **Parallel research is the tempting bug.** Upstream's chart-time fan-out is rewritten to sequential here (2026-06-05 API-saturation failure; the verify stage collapses under concurrency). Slower charting is the accepted price — the SKILL says so, so don't "optimize" it back.
 - **Don't put deliveries on the map.** If a ticket's closure would be a merged PR, it's a roadmap slice that skipped the litmus — move it out. Mixing deliveries into the map (or questions into the roadmap) breaks both ledgers' closure semantics.
 - **The map body in the tracker is a projection.** Editing the GitHub issue body and not the file forks canon; the file wins, same as roadmaps vs beads.
-- **A standup that can't assert a slice's entrance found fog.** The move is "chart it" — not leaving the slice queued forever (`/frame-standup` cross-ref).
+- **A standup that can't assert a slice's entrance found fog.** The move is "chart it" — not leaving the slice queued forever (`/frame-standup` Step 4.6 routes here).
+- **Lite mode is a degradation, not a dialect.** Say so out loud when it engages. The failure is a map that silently drops its `northstar:` anchor because the substrate wasn't found, then reads later as deliberately unanchored. A *claimed* anchor that won't resolve is an error — never write it and carry on.
 
 ---
 
@@ -73,5 +77,7 @@ $ARGUMENTS
 ## See Also
 
 - `knowledge/map-format.md` — the map file schema + ticket issue template
+- `knowledge/fleet-substrate.md` — full/lite modes, substrate read order, sharp edges (slug identity, vantage misses)
+- `scripts/resolve-anchor.mjs` — `--detect` (mode) and `--anchor=ns:<slug>#P<n>` (resolve-or-fail)
 - `decisions/adr/0101-wayfinder-decision-maps.md` — the governing decision (adapted from mattpocock/skills v1.1, verdicts D11–D13)
 - `/grill-with-docs` (grilling tickets, charting variant) · `/prototype` (prototype tickets) · `/gated-slice` (post-decision staging) · `/plan-feature --from-conversation` + `/orchestrate --emit=github-issues` (handoff)

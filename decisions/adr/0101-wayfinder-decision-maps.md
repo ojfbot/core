@@ -1,8 +1,8 @@
 # ADR-0101: /wayfinder — file-canonical decision maps upstream of the roadmap spine
 slug: wayfinder-decision-maps
 serial: 0101
-rev:
-Date: 2026-07-22
+rev: A
+Date: 2026-07-22 (revised 2026-07-31 — promoted to user scope; adds full/lite charting modes, an anchor resolver, and the selfco design-time read)
 Status: Accepted
 domain: workflow-engine
 type: tooling
@@ -112,6 +112,45 @@ unacknowledged fog — the move is "chart it," not "leave it queued."
 | Parallel research fan-out at chart time (upstream behavior) | Violates the sequential deep-research rule (2026-06-05 overnight batch failure: concurrency saturates the API and collapses the verify stage). |
 | Extend `/gated-slice` with a "foggy mode" instead of a new skill | Conflates deciding with shipping; gated-slice's TPM/shadow/RIDM machinery presumes the destination is already decided. |
 | Keep using ad-hoc grill sessions + offsite docs | Status quo: no frontier, no dependency ordering, decisions scattered across transcripts with no index. |
+
+## Rev A — user scope, two charting modes (2026-07-31)
+
+`/wayfinder` was catalog-registered but never flagged `scope: ["user"]`, so despite the
+catalog-driven promise of `adr:catalog-scoped-user-skills` it resolved only inside ojfbot repos —
+charting was unavailable exactly when fog is thickest, at the start of something that doesn't have
+a repo yet. Flagged for user scope (catalog v1.21). The rest of Rev A is what user scope forces:
+
+- **Two charting modes.** `full` when the northstar registry resolves from the cwd, `lite` when it
+  doesn't. Lite writes the map to `<cwd>/decisions/wayfinder/`, omits the `northstar:` anchor and
+  the tracker projection, and must announce itself. Rejected the alternative of refusing outright
+  off-fleet: the charting discipline is worth more than the anchoring, and a map that can't be
+  written is a map that gets written in a transcript instead. A *claimed* anchor that won't
+  resolve stays an error — silent de-anchoring is the failure mode this guards.
+- **`scripts/resolve-anchor.mjs`.** Rev-zero mandated "resolve-or-fail" for `ns:<slug>#P<n>` but
+  named no mechanism, so it was unenforced prose. The script (`--detect`, `--anchor=`) imports
+  `northstar-fm.mjs` and makes both the mode and the anchor deterministic — the house split where
+  facts belong to a script and judgment stays in the SKILL.
+- **Map path disambiguated.** `SKILL.md` said `decisions/wayfinder/<slug>.md` while
+  `knowledge/map-format.md` said `core/decisions/wayfinder/<slug>.md`. Harmless inside core, a
+  live bug from an arbitrary cwd. Full mode resolves to the core library; one library is what lets
+  a surface enumerate every open frontier in a single read.
+- **selfco read at charting time.** Per `adr:bonded-pair-division-of-labor` (draft) the spine reads
+  the vault's understanding objects at design time only; charting *is* design time, and the
+  `operating-surface-bonded-pair` map was already doing this by hand. Read-only, one-way, full mode
+  only — a vault page informs a ticket body, it never *is* a decision.
+- **`/frame-standup` route made real.** Rev-zero's Gotcha claimed a standup cross-ref that did not
+  exist in `frame-standup`; Step 4.6 now routes an unassertable slice entrance to charting instead
+  of leaving it `queued` indefinitely.
+
+Unchanged: file-canonical maps, serialized research, the two-ledger separation, and the MANDATORY
+trigger posture (upstream's `disable-model-invocation: true` stays rejected — under-firing, not
+over-firing, is this fleet's measured failure per ADR-0068).
+
+Filed in passing: `decisions/defects/dr-northstar-fm-inline-comment-not-stripped.md` —
+`northstar-fm.mjs` doesn't strip YAML inline comments, so `buddy-check`'s registry slug parses with
+its comment attached. `northstar-lint.mjs` missed it because it resolves by `path`; the resolver is
+the fleet's first slug-keyed consumer. Worked around for slug comparison only, because a naive
+strip would truncate live roadmap values containing `PR #165`.
 
 ## Provenance
 
