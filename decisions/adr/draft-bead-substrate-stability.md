@@ -74,8 +74,14 @@ Order is dependency order; DS1→DS2 and DS3 are independent tracks. Every slice
 - **Deliverable:** `bead-session.sh` emit calls route failures to `~/selfco/tracking/loop-health.jsonl`
   (A8 pattern: `{ts, event: 'emit-failed', verb, repo, stderr_tail}`) instead of `\|\| true`.
   Still exit 0 — a failed emission must never break a session (shadow posture).
-- **Entrance:** none. **Success:** a forced failure (Dolt stopped) leaves a ledger line; a
-  normal session leaves none. **Check:** hook test alongside `reconcile-skill-acted.test.mjs`.
+- **Entrance:** (a) the silent drop is **reproduced on the operator's Mac** — stop the Dolt
+  server, run one real session, confirm the emission vanished with no trace anywhere (fixes
+  land on demonstrated bugs, not narrated ones); (b) the existing hook test suite runs green
+  locally, so the new test lands in a working harness; (c) `~/selfco/tracking/` exists and
+  is writable from hook context (the `loop-health.jsonl` writer's own precondition).
+- **Success:** a forced failure (Dolt stopped) leaves a ledger line; a
+  normal session leaves none; session exit code unchanged in both cases.
+  **Check:** hook test alongside `reconcile-skill-acted.test.mjs`.
 
 ### DS2 — Emission-loss verifier (G2 → the registry's missing `verifier:`)
 - **Deliverable:** wrappers also append every *attempted* emission to a local intent ledger;
@@ -91,7 +97,14 @@ Order is dependency order; DS1→DS2 and DS3 are independent tracks. Every slice
   Mac as step 1) on the existing launchd rail + a **restore drill**: restore into a scratch
   dir, `SELECT count(*)` sanity, append one line `{ts, backup_age_h, restore_ok, rows}` to a
   committed digest file in core.
-- **Entrance:** none (do not wait on DS1/2 — durability first). **Success:** two consecutive
+- **Entrance:** (a) the installed Dolt's command surface is confirmed on the Mac —
+  `dolt version` + `dolt backup --help` (if the installed version lacks `backup`, the slice
+  re-plans onto `dolt push` to a file remote *before* any code); (b) store size and free
+  space measured (`du -sh ~/.beads-dolt` vs destination headroom) — a backup that fills the
+  disk is a new outage; (c) the backup **destination is chosen by the operator** (second
+  local path is fine for the first gate; off-machine is a later gate, not a blocker);
+  (d) does NOT wait on DS1/DS2 — durability first.
+- **Success:** two consecutive
   drill lines with `restore_ok: true`. **TPMs:** backup age < 26h; drill passes on first
   *unattended* run. **Shadow note:** backup is read-only w.r.t. the live store — no
   enforcement stage needed; the drill IS the verifier.
@@ -102,7 +115,12 @@ Order is dependency order; DS1→DS2 and DS3 are independent tracks. Every slice
   ts per repo, queue depth. Registry entry for `dolt-beads` gains a second, file-scheme
   `evidence_ref` so pane 08 and any conductor read real state from any vantage instead of
   UNVERIFIABLE.
-- **Entrance:** none. **Success:** pane 08 renders dolt-beads freshness from the digest on a
+- **Entrance:** (a) the rail it rides is proven alive — `telemetry/daily` has a commit
+  < 48h old (a digest on a dead rail is a second corpse, the exact selfco failure mode);
+  (b) digest schema agreed with the operator in one line (tables, per-repo last-event ts,
+  queue depth — nothing that could leak bead *content* into a public repo);
+  (c) read path confirmed read-only (SELECT-only queries, no verbs).
+- **Success:** pane 08 renders dolt-beads freshness from the digest on a
   host where `:3307` is unreachable. **TPM:** digest age < 26h.
 
 ### DS5 — Substrate decision (G4 — RIDM gate, human, not a build)
