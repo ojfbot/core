@@ -62,11 +62,15 @@ Pre-map rulings (grilled at charting, recorded here — not closed tickets):
 - Distribution scope: existing three surfaces + LinkedIn + X + Instagram + new tech-blog domain — Yuri, 2026-08-01
 - Trend ingestion is scheduled automation feeding selfco, not hardened manual ingest — Yuri, 2026-08-01
 
+Closed tickets:
+
+- Primary-source FDE checklist built (6 genres; eval frameworks = the hiring gate, "not a demo role"); H1 cost-orchestration REFUTED as FDE deliverable, H2 eval-gating MIXED (core supported, pr-quiz sub-claims unevidenced, capture loop runs vendor-ward), H3 customer-facing core SUPPORTED — FDE deliverables checklist + fleet re-audit (#320) → decisions/research/2026-08-01-fde-deliverables-audit.md
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| FDE deliverables checklist + fleet re-audit (#320) | research | — | open |
+| FDE deliverables checklist + fleet re-audit (#320) | research | — | closed |
 | TeamBot public-evidence boundary (#321) | grilling | — | open |
 | Flywheel first loop (#322) | grilling | — | open |
 | Ingestion source roster + cadence (#323) | grilling | — | open |
