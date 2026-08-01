@@ -136,6 +136,17 @@ registry:
     path: ../fairway/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # fieldwork-1: first field engagement (private repo — dossier + delivery workspace; wayfinder
+  # decisions/wayfinder/texas-rr-engagement.md, ruled at #345 close 2026-08-01). Engagement-scoped
+  # + ordinal by design: retires at sustainment/exit; engagement #2 mints l1-fieldwork-2.
+  # Northstar file lands with the repo bootstrap (#349) — absent-checkout WARN until then.
+  # NUMERIC CURRENTS/TARGETS ARE PROPOSALS (operator to calibrate).
+  - slug: l1-fieldwork-1
+    tier: L1
+    app: fieldwork-1
+    path: ../fieldwork-1/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
