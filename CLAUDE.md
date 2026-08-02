@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 | github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
-| f1-learning-studio | — | F1 learning studio — first /wayfinder decision map (ADR-0101 dogfood) | 0 | scaffold |
+| f1-learning-studio | — | F1 learning studio — /wayfinder decision map (ADR-0101 dogfood) | 0 | scaffold |
 | workstation-yuri | — | macOS workstation automation: Focus modes, wallpapers, iTerm2, Hammerspoon, future Swift app. Reads `core/scripts/launcher/registrations/`. Supersedes core ADR-0064. | 0 | scaffold |
 | dive-briefing | 8610 | Public dive-Q&A RAG service — hybrid retrieval + per-claim citation verification over tiered corpus packs (buddy-check's public sibling) | 0 | active |
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
