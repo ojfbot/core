@@ -3,7 +3,7 @@ type: wayfinder-map
 slug: diagram-first-output
 northstar: l2-ojfbot
 tracker_issue: "#366"
-status: charting
+status: working
 ---
 
 # Wayfinder — diagram-first output
@@ -45,22 +45,28 @@ overwhelmed by LLM output and cannot see what is being built.
   evidence via a weekly watch that posts deltas as comments on the deep-research ticket; the
   spike weighs both directions.
 - tldraw SDK licensing/watermark terms flagged for the research ticket.
+- **Process note (2026-08-03):** #367 and #370 were both resolved in one session, operator present and
+  deciding in-loop — a deliberate fast-track of the one-ticket-per-session cadence, not a drift.
 
 ## Decisions so far
 
-_None yet — charting session closes zero tickets._
+- Fleet convention = promoted mermaid.md idiom (OPM shapes, OPL verbs, title+caption, strict
+  floor, ≤15 nodes) → `domain-knowledge/diagram-conventions.md` — What is the fleet diagram
+  convention? (#367, PR #375)
+- Tier-1 user-scoped `/diagram` skill; modes explain/orient/fleet; two-track boundary with /opm
+  kept — /diagram skill design (#370, PR #375)
 
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What is the fleet diagram convention? (#367) | grilling | — | open |
+| What is the fleet diagram convention? (#367) | grilling | — | closed |
 | tldraw agent ecosystem deep-research (#368) | research | — | open |
-| Where do diagrams live and when are they required? (#369) | grilling | What is the fleet diagram convention? | open |
-| /diagram skill design (#370) | grilling | What is the fleet diagram convention? | open |
-| Automation design — diagrams without asking (#371) | grilling | /diagram skill design | open |
+| Where do diagrams live and when are they required? (#369) | grilling | — | open |
+| /diagram skill design (#370) | grilling | — | closed |
+| Automation design — diagrams without asking (#371) | grilling | — | open |
 | Canvas playground spike (#372) | prototype | tldraw agent ecosystem deep-research | open |
-| Does an Adobe Express publish endpoint belong? (#373) | grilling | What is the fleet diagram convention?, /diagram skill design | open |
+| Does an Adobe Express publish endpoint belong? (#373) | grilling | — | open |
 
 ## Not yet specified
 
