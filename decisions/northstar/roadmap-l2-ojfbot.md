@@ -511,7 +511,7 @@ slices:
     claimable_by: human_only
     kind: m
     repo: core
-    status: queued
+    status: ready
     depends_on: "rm:rm-l2-ojfbot#S32"
 ---
 
