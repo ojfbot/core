@@ -25,7 +25,7 @@ You are a wayfinder charting work that is too big for one agent session and wrap
 
 ## Modes
 
-This skill is installed at user scope, so it can fire anywhere on this machine. **Before anything else, decide the charting mode** — `scripts/resolve-anchor.mjs --detect` returns `full` (fleet substrate resolves) or `lite` (it doesn't). Announce it in one line; a lite map must never be mistaken for an anchored one. The full mode table is in `knowledge/fleet-substrate.md`.
+This skill is installed at user scope, so it can fire anywhere on this machine. **Before anything else, decide the charting mode** — `scripts/resolve-anchor.mjs --detect` returns `full` (fleet substrate resolves) or `lite` (it doesn't). Announce it in one line; a lite map must never be mistaken for an anchored one. **Read `knowledge/fleet-substrate.md` before acting on the detected mode** — it is the full mode table (substrate read order, lite-mode differences, sharp edges); mode behavior must follow it, not memory.
 
 ### Chart (default — new map)
 

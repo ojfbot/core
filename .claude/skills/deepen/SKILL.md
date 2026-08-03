@@ -161,6 +161,6 @@ $ARGUMENTS
 - `knowledge/refactor-cost-model.md` — weighing test impact, blast radius, migration risk against ergonomics gain
 - `knowledge/ousterhout-summary.md` — depth, information hiding, complexity sources
 - `scripts/measure-depth.mjs` — per-file metric calculator (run from repo root with `--scope=<path>`)
-- `../recon/recon.md` — aerial-view orientation (run first)
-- `../sweep/sweep.md` — dead-code finder (complements deepen — sweep removes, deepen consolidates)
-- `../techdebt/techdebt.md` — file proposals as TECHDEBT.md entries for tracking over time
+- `../recon/SKILL.md` — aerial-view orientation (run first)
+- `../sweep/SKILL.md` — dead-code finder (complements deepen — sweep removes, deepen consolidates)
+- `../techdebt/SKILL.md` — file proposals as TECHDEBT.md entries for tracking over time

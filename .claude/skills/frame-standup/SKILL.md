@@ -204,6 +204,10 @@ as a one-click day-plan item (ADR-0081, the paced loading-discipline rollout). S
 
 ### Step 4.6 — Load the active northstar(s)
 
+> **Load `knowledge/northstar.md`** before running this step — it defines how Step 4.6 and
+> Step 5 consume the three-tier northstar (what `read-northstar.mjs` returns, how to pick the
+> property a priority advances, and the `[no-northstar]` flag semantics).
+
 Load the three-tier northstar so the day plan can frame each priority against a measurable
 property (`draft-three-tier-northstar`). Always loads the **L2 ojfbot** northstar (the default
 frame); pass `--focus` for the apps surfaced in Step 4 to also load their **L1** northstars:

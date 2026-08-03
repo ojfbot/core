@@ -66,4 +66,4 @@ $ARGUMENTS
 
 ## See Also
 - `/writing-beats` — turn this fragments file into a structured article journey.
-- `/grill-me` — if the topic itself needs sharpening before you mine for material.
+- `/grill-with-docs` — if the topic itself needs sharpening before you mine for material.

@@ -167,7 +167,7 @@ $ARGUMENTS
 
 - `knowledge/seams-and-anti-patterns.md` — seams, mock-at-boundaries rules, anti-pattern catalog
 - `../test-expand/knowledge/test-patterns.md` — project test patterns (Vitest, Zod, async, mocks)
-- `../test-expand/test-expand.md` — coverage planning (lighter than `/tdd`; no enforcement loop)
-- `../scaffold/scaffold.md` — when the test demands new structure
-- `../deepen/deepen.md` — when 3+ tests in a row are awkward
+- `../test-expand/SKILL.md` — coverage planning (lighter than `/tdd`; no enforcement loop)
+- `../scaffold/SKILL.md` — when the test demands new structure
+- `../deepen/SKILL.md` — when 3+ tests in a row are awkward
 - `domain-knowledge/coding-standards.md` — TypeScript rules (strict null, async/await, type exports)
