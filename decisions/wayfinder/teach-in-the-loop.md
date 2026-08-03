@@ -61,6 +61,24 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 - **Adoption precedent:** `decisions/adopt-stack/pocock-skills-v1-1.md` (ADR-0097 framework).
   Row D6 rejected a fourth work-item surface — the shadow-space ruling is this map's answer to
   that precedent, made explicit in the corpus-location ticket.
+- **Destination qualified by the ZPD-sensor ruling (#384, 2026-08-03):** "lesson placement is
+  computed, not guessed" now reads — the *floor* is computed per-workspace from mission and
+  learning records (D22); the heatmap makes that choice better-informed **across** workspaces, but
+  never authoritative. The Destination sentence stands as written; its authority claim does not.
+- **P5 text diverges from the ZPD-sensor ruling — amendment deferred, not skipped.** `ns:l1-core#P5`
+  names "repo × domain cells" as the primary measure; #384 re-keys to **bounded context × mode**
+  (repo demoted to record metadata) and holds out the cells placement selected, so P5's
+  `verification` string is not runnable as written. Ruled: record the divergence here and in
+  `adr:comprehension-heatmap-zpd-role`, and let the northstar amendment ride with the slice that
+  builds the re-keyed sensor — rather than spend a second human-gated registry PR against numbers
+  that are still uncalibrated proposals. (Operator, 2026-08-03.)
+- **Standing risk against P5 — the instrument has never fired.** Measured 2026-08-03: 89 rows in
+  `~/selfco/tracking/merge-observations.jsonl`, **all** Stage-A `harness:merge-observed`,
+  `quizzed: false` on every one; **0 `harness:quiz-taken` records, 0 cells, 0 `domain` values ever
+  written** — across 5 days and 25 qualifying merges, including PR #404 (4,137 lines) on this map's
+  own branch. P5's primary measure currently reads an empty file. #384 ruled **no backfill and no
+  seeding** (min-n gate only): if cells never accrue, the H8 retirement rule is the thing that
+  catches it, and it is allowed to.
 
 ## Decisions so far
 
@@ -94,6 +112,24 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
   (never merged), `prototypes/386-html-lesson/VERDICT.md`. Narrows #383 — the interactive-HTML
   half of that research question now has in-fleet evidence to check field findings against.
 
+- **ZPD sensor: can the merge-quiz heatmap place lessons? (#384, 2026-08-03)** — **NOT AS-IS.** The
+  heatmap **augments** D22's records+mission floor and never overrides it: it contributes a
+  cross-workspace topic *nomination* only for cells at n ≥ k, never outranking the workspace's own
+  mission (R1). **Selector ≠ ruler** (R2): P5's uplift is read only from a pre-registered holdout of
+  cells placement did *not* select, because selecting the worst cell and then measuring its movement
+  manufactures taught-vs-cold divergence from regression to the mean alone. **Re-keyed to bounded
+  context × mode**, repo demoted to record metadata (R3) — `repo × domain` fragments across 43 repos
+  and an unbounded free-text axis and never reaches n; six ADR-0044 contexts × 2 modes = 12 cells
+  that fill. Learning records stay **files-canonical** with a lesson-served ledger event as the
+  machine index (R4; location is #382's). **Cold start: min-n gate only, no backfill** (R5). P5-text
+  divergence noted, amendment deferred to the building slice (R6). Three emissions must change
+  first, in order: persist the per-question difficulty/facet profile that `--record` currently
+  discards (the blocking one — without it a 60 from missing the *hard* questions is
+  indistinguishable from a 60 from missing the *easy* ones, and those want opposite lessons); a
+  path → bounded-context classifier (a **roadmap slice**, not a ticket — success and check are both
+  statable); the lesson-served event. Record: `adr:comprehension-heatmap-zpd-role` (draft). Did
+  **not** touch the comprehension-GATE question (#366 fog). Unblocks #385.
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
@@ -102,14 +138,19 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 | Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | **closed 2026-08-03** |
 | Where does the teach corpus live? (#382) | grilling | — | open |
 | Field evidence: /teach in the wild + interactive-HTML lesson patterns (#383) | research | — | open |
-| ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | open |
-| Retention boundary ruling (#385) | grilling | ZPD sensor | open |
+| ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | **closed 2026-08-03** |
+| Retention boundary ruling (#385) | grilling | — | open — unblocked by #384 |
 | HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | **closed 2026-08-03** |
 | Second-surface HTML probe: /merge-quiz as an interactive page (#391) | prototype | — | open — unblocked |
 | Design-system inheritance: how do lessons wear the ojfbot brand? (#393) | grilling | — | open — unblocked, informs #391 |
 
 ## Not yet specified
 
+- **Holdout policy for the P5 ruler** — #384's R2 ruled that uplift is read only from cells
+  placement did *not* select, but not *which* cells form the holdout, how the pre-registration is
+  recorded, or what happens when a cell crosses from holdout into selected. **Graduation candidate**
+  once the sensor re-key (bounded context × mode) lands — the question is only fully statable
+  against a real cell population. Until then P5 must not publish an uplift number.
 - **Teach-session trigger points** — where in the build loop workspaces spawn (standup drip,
   post-merge suggestion, prototype disposition, /investigate postflight): the "ambient drip".
   Statable only after the corpus-location and ZPD-sensor tickets close. The D25 ruling (teach
@@ -138,3 +179,8 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 - `NOTES.md` per-workspace preference scratchpad — rejected D25 of the teach adopt-stack pass;
   teaching preferences live in fleet memory and are injected at workspace spawn. (Operator,
   2026-08-03.)
+- The heatmap as placement **authority** — a sufficiently-observed low cell overriding
+  records+mission was ruled out by #384's R1. It augments; it never outranks the workspace mission.
+  (Operator, 2026-08-03.)
+- Backfilling or seeding the heatmap to escape cold start — #384's R5. Cells accrue naturally or the
+  H8 retirement rule fires. (Operator, 2026-08-03.)
