@@ -122,16 +122,45 @@ function machineKeys(text) {
 }
 
 /**
+ * Bead filenames git knows about in root's .handoff/, or null when root is not a git
+ * checkout (or git itself is unavailable). Null means "no git vantage" — the caller
+ * falls back to disk enumeration rather than treating everything as untracked.
+ */
+export function trackedBeadFiles(root) {
+  try {
+    const out = execFileSync('git', ['-C', root, 'ls-files', '.handoff'], {
+      encoding: 'utf8', timeout: PROBE_TIMEOUT_MS, stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    return new Set(out.split('\n').filter(Boolean).map((p) => path.basename(p)));
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Scan one repo's .handoff/. Returns { beads, errors, warns } — errors are schema
  * violations (gate under --strict), warns are drift/convention notices (never gate).
+ *
+ * Enumeration is git-vantage: only beads git tracks are counted and schema-checked,
+ * because those are the only ones CI's fresh checkout can see. A file present on disk
+ * but absent from git inflates the local count and vanishes in CI — the exact inverse
+ * of the unreachable-repo case, scoped the same way: downgrade to WARN, never let the
+ * two vantages disagree silently (bead:20260803-1200-brief-untracked-bead-ledger-vantage-gap).
  */
 export function scanRepo(root, repoName) {
   const dir = path.join(root, '.handoff');
   const beads = []; const errors = []; const warns = [];
   if (!existsSync(dir)) return { beads, errors, warns, present: false };
 
+  const tracked = trackedBeadFiles(root);
+  if (tracked == null) warns.push(`${repoName}/.handoff: not a git checkout — enumerating from disk (vantage unverifiable)`);
+
   // README.md is directory documentation, not a bead.
   for (const file of readdirSync(dir).filter((f) => f.endsWith('.md') && f.toLowerCase() !== 'readme.md').sort()) {
+    if (tracked != null && !tracked.has(file)) {
+      warns.push(`${repoName}/.handoff/${file}: present but untracked — invisible from CI's vantage; track it or triage it (not counted)`);
+      continue;
+    }
     const where = `${repoName}/.handoff/${file}`;
     let text;
     try { text = readFileSync(path.join(dir, file), 'utf8'); } catch (e) { errors.push(`${where}: unreadable (${e.message})`); continue; }
