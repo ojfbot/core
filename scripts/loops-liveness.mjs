@@ -124,7 +124,19 @@ export async function liveness(core, home = os.homedir(), now = Date.now()) {
   for (const l of loops) {
     const base = { slug: l.slug, cadence: l.cadence, trigger: l.trigger, repo: l.repo };
     if (l.status !== 'live') { results.push({ ...base, verdict: 'EXCLUDED', detail: `status: ${l.status} (deliberate park)` }); continue; }
-    if (l.cadence === 'event' || l.cadence === 'manual') { results.push({ ...base, verdict: 'EXCLUDED', detail: `cadence: ${l.cadence} — nothing to breach` }); continue; }
+    // TD-006 fix (rm:rm-l2-ojfbot#S32): event/manual loops used to be excluded wholesale,
+    // which is exactly where the lying hook-bead-session entry hid — a loop can be born
+    // dead and stay green. Policy chosen (of the slice's two options): event loops must
+    // declare a verifier; one that declares none is UNVERIFIABLE, not EXCLUDED. Recency
+    // evaluation was rejected because event loops have no cadence contract to breach —
+    // an honest "nothing checks this" beats a false STALE/OK.
+    if (l.cadence === 'event' || l.cadence === 'manual') {
+      const noVerifier = !l.verifier || String(l.verifier).trim().toLowerCase() === 'none';
+      results.push(noVerifier
+        ? { ...base, verdict: 'UNVERIFIABLE', detail: `cadence: ${l.cadence} with verifier: none — nothing independently checks this loop ever fires (TD-006 class)` }
+        : { ...base, verdict: 'EXCLUDED', detail: `cadence: ${l.cadence} — verifier declared: ${String(l.verifier).slice(0, 80)}` });
+      continue;
+    }
 
     if (l.cadence === 'always-on') {
       const ev = readEvidence(l, core, home);

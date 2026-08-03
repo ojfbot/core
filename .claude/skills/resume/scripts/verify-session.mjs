@@ -29,7 +29,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, writeFileSync, readdirSync } from 'node:fs';
+import { existsSync, writeFileSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
@@ -70,7 +70,69 @@ function stamp(d) {
   };
 }
 
-function backfillBead(pr, repo) {
+// ── responding_to resolution (rm:rm-l2-ojfbot#S32, TD-006) ─────────────────────────
+// A backfilled report with responding_to: null retires NO open hook in orient.py's
+// formula — the backfill looked done while changing nothing. Resolve which open brief
+// this PR answers, by the documented join (explicit ref > branch-slug tokens >
+// time-window). Ambiguity stays null and is FLAGGED, never guessed: closing the wrong
+// hook is worse than closing none.
+
+/** Minimal frontmatter read for open briefs: id/type/status/hook/refs/created_at. */
+function loadOpenBriefs(handoffDir) {
+  if (!existsSync(handoffDir)) return [];
+  const briefs = [];
+  for (const file of readdirSync(handoffDir).filter((f) => f.endsWith('.md'))) {
+    let text;
+    try { text = readFileSync(path.join(handoffDir, file), 'utf8'); } catch { continue; }
+    const m = /^---\n([\s\S]*?)\n---/.exec(text);
+    if (!m) continue;
+    const fm = {}; const refs = []; let inRefs = false;
+    for (const line of m[1].split('\n')) {
+      const item = /^\s+-\s*(.+)$/.exec(line);
+      if (inRefs && item) { refs.push(item[1].trim()); continue; }
+      const kv = /^([\w-]+):\s*(.*)$/.exec(line);
+      if (!kv) continue;
+      inRefs = kv[1] === 'refs' && kv[2] === '';
+      if (kv[2] !== '') fm[kv[1]] = kv[2].replace(/^["']|["']$/g, '');
+    }
+    if ((fm.type ?? fm.kind) !== 'brief' || fm.status !== 'live') continue;
+    const created = Date.parse(fm.created_at || fm.date || '') ||
+      (() => { const d = /^(\d{4})-?(\d{2})-?(\d{2})/.exec(fm.id || file); return d ? Date.parse(`${d[1]}-${d[2]}-${d[3]}T00:00:00Z`) : NaN; })();
+    briefs.push({ id: fm.id || file.replace(/\.md$/, ''), hook: fm.hook || '', refs, createdAt: created });
+  }
+  return briefs;
+}
+
+const tokensOf = (s) => new Set(String(s || '').toLowerCase().split(/[^a-z0-9]+/).filter((t) => t.length >= 3));
+
+/** Returns { id, via } | { ambiguous: [ids], via } | null. */
+function resolveRespondingTo(pr, meta, briefs, days) {
+  const pick = (cands, via) => (cands.length === 1 ? { id: cands[0].id, via }
+    : cands.length > 1 ? { ambiguous: cands.map((b) => b.id), via } : null);
+
+  const key = `github:${meta.ownerRepo}#${pr.number}`;
+  const explicit = briefs.filter((b) => b.hook.includes(key) || b.refs.some((r) => r.includes(key)));
+  if (explicit.length) return pick(explicit, 'explicit-ref');
+
+  const branchTokens = tokensOf(pr.headRefName);
+  const byTokens = briefs.filter((b) => {
+    let overlap = 0;
+    for (const t of tokensOf(b.id)) if (branchTokens.has(t)) overlap++;
+    return overlap >= 2;
+  });
+  if (byTokens.length) return pick(byTokens, 'branch-tokens');
+
+  const mergedAt = Date.parse(pr.mergedAt || '');
+  if (!Number.isNaN(mergedAt)) {
+    const from = mergedAt - days * 86400 * 1000;
+    const inWindow = briefs.filter((b) => !Number.isNaN(b.createdAt) && b.createdAt >= from && b.createdAt <= mergedAt);
+    if (inWindow.length === 1) return { id: inWindow[0].id, via: 'time-window' };
+    if (inWindow.length > 1) return { ambiguous: inWindow.map((b) => b.id), via: 'time-window' };
+  }
+  return null;
+}
+
+function backfillBead(pr, repo, resolution) {
   const meta = parsePrUrl(pr.url) || { ownerRepo: path.basename(repo), number: pr.number };
   const now = new Date();
   const s = stamp(now);
@@ -78,22 +140,26 @@ function backfillBead(pr, repo) {
   const refs = [`github:${meta.ownerRepo}#${pr.number}`];
   if (pr.url) refs.push(`url:${pr.url}`);
   const author = (pr.author && (pr.author.login || pr.author.name)) || 'unknown';
+  const resolved = resolution && resolution.id ? resolution.id : null;
+  const ambiguous = resolution && resolution.ambiguous ? resolution.ambiguous : null;
   const body = `---
 id: ${id}
 type: report
 title: "(backfilled) ${pr.title.replace(/"/g, "'")}"
 actor: verify-session
 session_id: ${s.iso}
-responding_to: null
+responding_to: ${resolved ?? 'null'}
 refs:
 ${refs.map((r) => `  - ${r}`).join('\n')}
-hook: null
+hook: ${resolved ?? 'null'}
 status: closed
 created_at: ${s.iso}
 labels:
   backfilled: "true"
   source: verify-session
-  pr: "${pr.number}"
+  pr: "${pr.number}"${resolved ? `
+  responding_to_via: "${resolution.via}"` : ''}${ambiguous ? `
+  responding_to_ambiguous: "${ambiguous.join(',')}"` : ''}
 ---
 ## What got done
 
@@ -134,13 +200,22 @@ function main() {
       !referenced.has(p.number));
   }
 
-  const beads = candidates.map((p) => backfillBead(p, flags.repo));
+  const openBriefs = loadOpenBriefs(handoff);
+  const beads = candidates.map((p) => {
+    const meta = parsePrUrl(p.url) || { ownerRepo: path.basename(flags.repo), number: p.number };
+    const resolution = resolveRespondingTo(p, meta, openBriefs, flags.days);
+    return { ...backfillBead(p, flags.repo, resolution), resolution };
+  });
 
   if (flags.json) {
     process.stdout.write(JSON.stringify({
       repo: flags.repo, mode: flags.write ? 'write' : 'shadow',
       conflicts, backfillCount: beads.length,
-      backfill: beads.map((b) => ({ id: b.id, pr: b.prNumber })),
+      backfill: beads.map((b) => ({
+        id: b.id, pr: b.prNumber,
+        respondingTo: b.resolution?.id ?? null,
+        ambiguous: b.resolution?.ambiguous ?? null,
+      })),
     }, null, 2) + '\n');
     return 0;
   }
@@ -164,7 +239,11 @@ function main() {
   }
   for (const b of beads) {
     const collision = existing.has(b.filename);
-    console.log(`- PR #${b.prNumber} → \`${b.filename}\`${collision ? '  (EXISTS — skipping, append-only)' : ''}`);
+    const r = b.resolution;
+    const hookNote = r && r.id ? `  → retires hook \`${r.id}\` (${r.via})`
+      : r && r.ambiguous ? `  ⚠ AMBIGUOUS (${r.via}): ${r.ambiguous.join(', ')} — responding_to stays null, resolve by hand`
+      : '  · no open brief matched — responding_to: null';
+    console.log(`- PR #${b.prNumber} → \`${b.filename}\`${collision ? '  (EXISTS — skipping, append-only)' : hookNote}`);
   }
   console.log('');
 

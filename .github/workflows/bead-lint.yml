@@ -1,0 +1,27 @@
+# bead-lint — shadow measurement of the .handoff/ bead ledger (rm:rm-l2-ojfbot#S32, TD-006).
+# SHADOW: `--check` without `--strict` always exits 0 — WARNs and schema errors are visible
+# in the log but never fail a PR. Enforcing before S33 backfills the 28-hook baseline would
+# red-wall every PR on day one. The S33 promotion RIDM flips this to
+# `--check --strict --max-open-hook-age-days=30` with the fleet clean at promotion time.
+# Vantage scoping mirrors northstar-lint.yml: sibling repos unreachable from a single-repo
+# checkout downgrade to WARN — the gate never fails a PR over a checkout it cannot see.
+name: bead-lint
+
+on:
+  pull_request:
+    paths:
+      - '.handoff/**'
+      - 'scripts/bead-lint.mjs'
+      - 'scripts/lib/northstar-fm.mjs'
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Dep-free .mjs script — no pnpm install needed.
+      - name: bead-lint (shadow — reports, never fails)
+        run: node scripts/bead-lint.mjs --check
