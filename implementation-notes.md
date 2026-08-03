@@ -32,3 +32,14 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - S32 bead-lint (2026-08-02): plan had machine keys parsed from structured hook:/refs:
   frontmatter; parseFM only list-parses registry keys, so refs: items were dropped.
   Switched to a raw-text scan of the frontmatter block.
+- #386 HTML lesson spike (2026-08-03): ticket asked for 2–3 lessons to judge four things —
+  authoring effort, side-panel fidelity, **stylesheet reuse**, and HTML-vs-Markdown. Operator
+  scoped the session to ONE lesson. One lesson cannot demonstrate reuse across lessons, so
+  that dimension is recorded UNVERIFIED rather than silently claimed; the other three are
+  measured. #391 (second-surface probe) is the natural place reuse gets its first real test,
+  since it inherits the same stylesheet.
+- #386 render-path probing (2026-08-03): first attempt used an iframe `srcdoc` to simulate a
+  renderer with no directory origin. `srcdoc` inherits the parent document's base URL, so the
+  external stylesheet resolved and the test passed when it should have failed. Re-ran with a
+  real navigation into a directory with no `assets/` sibling (HTTP 404) — that reproduced the
+  condition and produced the verdict. Noting because the false pass looked entirely convincing.
