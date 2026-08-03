@@ -39,6 +39,14 @@ No mode given: `explain` if the session has built something, else `orient` on th
 4. **Two-track boundary.** If the user wants a durable, lintable model of a repo's system,
    hand off to `/opm` — never hand-maintain a parallel formal model here.
 5. **Diagrams land beside the work.** A diagram that lives nowhere is decoration.
+6. **Always deliver rendered.** Chat shows fences as code — end every invocation by rendering
+   the SVG(s) locally (`pnpm dlx @mermaid-js/mermaid-cli`, which doubles as the parse check) and
+   sending them to the user's side panel. Never make the operator read raw Mermaid.
+7. **Obsidian is the norm for standing diagrams.** Operator-facing mental-model diagrams also
+   land in the vault at `~/selfco/diagrams/` (Obsidian renders Mermaid natively). Outside
+   `wiki/`, same as `bases/` and `canvas/`, so the wiki lint invariant is never touched.
+   Session-delta explainers skip this unless the operator asks; standing files (fleet maps,
+   repo orientations) default to it.
 
 ## Modes
 
