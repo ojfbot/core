@@ -43,3 +43,11 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   external stylesheet resolved and the test passed when it should have failed. Re-ran with a
   real navigation into a directory with no `assets/` sibling (HTTP 404) — that reproduced the
   condition and produced the verdict. Noting because the false pass looked entirely convincing.
+- skill-hardening Wave 1b (2026-08-03): the sprawl-≤15 TPM was not reachable from the brief's
+  worklist alone — three gate/contract-heavy skills (grill-with-docs 1456w, gated-slice 1243w,
+  tdd 969w) bottom out above 800 because Gotchas + Constraints + inline gates alone exceed the
+  threshold; two of the brief's "remaining D4 fails" (claude-md-rollout, day-run) had no honest
+  reference content to move (pure step-skeleton). Conservative path taken: disclosed two
+  non-D4-fail D8 offenders instead (deepen 1332→770, diagram-intake 1005→709) to reach sprawl=15
+  without touching gate-skill contracts, and left the two skills as the ≤3 allowed D4 fails.
+  Territory lesson: a Gotchas-heavy gate skill has a sprawl floor the threshold doesn't model.

@@ -71,16 +71,7 @@ git commit -m "chore: initial scaffold"
 
 After the project skeleton is created, the new repo must be registered in fleet-wide systems. Output each registration as a concrete action with the exact file and line to edit:
 
-1. **daily-logger sweep** — Add the repo name to the `REPOS` array in `daily-logger/src/collect-context.ts` with a comment describing the app's role. Without this, the daily article generator will not pick up any commits, PRs, or issues from the new repo.
-2. **daily-logger SYSTEM_PROMPT** — Add a bullet describing the new repo to the "Additional repos" list in the `SYSTEM_PROMPT` constant in `daily-logger/src/generate-article.ts`. Without this, the article generator sweeps the repo's commits but Claude has no context about what the app is — it will either ignore the activity or mischaracterise it. Include the app's purpose and its relationship to Frame.
-3. **daily-logger KNOWN_REPOS** — Add the repo name to the `KNOWN_REPOS` set in `daily-logger/src/build-api.ts`. Without this, the API builder will not recognize the repo when extracting `reposActive` from article bodies, and the repo will be invisible to `repos.json` statistics and the `/frame-standup` action backlog.
-4. **Shell production remote** (Frame OS sub-apps only) — Add `VITE_REMOTE_<NAME>=https://<slug>.jim.software` to `shell/.env.production` so the Module Federation host resolves the remote in production rather than falling back to localhost.
-5. **Security scan workflow** — Copy the fleet-standard TruffleHog security scan workflow into `.github/workflows/security-scan.yml`. Use any existing fleet repo as the canonical source.
-6. **`frame-ui-components` CI clone** (if the app consumes shared components) — Add the `git clone https://github.com/ojfbot/frame-ui-components` step before `pnpm install` in CI so the `file:../frame-ui-components` dep resolves.
-7. **`@carbon/styles` peer dep** (if the app uses `frame-ui-components`) — Add `@carbon/styles` as an explicit dependency in the app's `package.json` (peer dep gap in `frame-ui-components` until patched upstream).
-8. **selfco vault entity** — Create `~/selfco/wiki/entities/<slug>.md` (kind: `repo`, status: `unstarted`, per the schema in `~/selfco/CLAUDE.md` and `templates/entity.md` in the vault), add its `- [[<slug>]] — <one-liner>` line to `wiki/index.md`, and append a `## [date] sync | new repo <slug>` entry to `wiki/log.md` (then commit/push the vault per its git-mirror rule). Equivalently: run `/vault sync` after the repo's first commit. Without this, the repo is invisible to `/vault query`/`orient` and to every future cultivate pass — the knowledge-space twin of the daily-logger sweep omission below.
-
-> **Why this step exists:** `seh-study` shipped 15 commits in one day and the daily-logger missed all of them because the repo was never added to the sweep. Likewise `lofi-beaver`, `morning-cockpit`, and `workstation-yuri` shipped for weeks with no vault entity page (caught 2026-06-11). This checklist prevents that class of omission for every future app.
+> **Load `knowledge/fleet-registration.md`** before emitting Step 7/8 output — the full 8-item registration checklist (daily-logger sweep/SYSTEM_PROMPT/KNOWN_REPOS, shell remote, security scan, CI clone, `@carbon/styles`, selfco vault entity) and the incident history behind it.
 
 ### 8. Output next-steps checklist
 

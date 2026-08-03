@@ -56,16 +56,7 @@ git log --oneline -5
 
 Read the relevant architecture file from `domain-knowledge/`:
 
-| Repo | Architecture file |
-|------|------------------|
-| core | `domain-knowledge/frame-os-context.md` |
-| cv-builder | `domain-knowledge/cv-builder-architecture.md` |
-| blogengine | `domain-knowledge/blogengine-architecture.md` |
-| TripPlanner | `domain-knowledge/tripplanner-architecture.md` |
-| mrplug | `domain-knowledge/mrplug-architecture.md` |
-| purefoy | `domain-knowledge/purefoy-architecture.md` |
-| shell | `domain-knowledge/frame-os-context.md` |
-| daily-logger | `domain-knowledge/daily-logger-architecture.md` |
+> **Load `knowledge/repo-architecture-map.md`** before reading repo context — the repo → architecture-file table.
 
 If a `.claude/standup.md` exists in the repo, read it for current priorities.
 
@@ -113,31 +104,7 @@ Based on the current state, suggest relevant skills:
 
 Present a structured summary:
 
-```
-## Session Brief — <repo> (<branch>)
-
-**Agent:** <agent-id> (role: <role>, status: <active|resumed>)
-**Hook:** <bead-id on hook | empty>
-
-**Environment**
-  Dolt: running | not running
-  Dev servers: <list with status>
-  Git: <clean | N uncommitted changes>, <N unpushed commits>
-
-**Active agents**: <count>
-  <list if > 1, showing role + app + hook>
-
-**Open issues** (top 5)
-  <list>
-
-**Suggested skills**
-  /<skill> — <reason>
-  /<skill> — <reason>
-
-**Loaded context**
-  <architecture file>
-  <standup.md if present>
-```
+> **Load `knowledge/session-brief-template.md`** before presenting the summary — the structured Session Brief output template.
 
 If `$ARGUMENTS` specified a focus area, weight the suggestions and context
 loading toward that area.

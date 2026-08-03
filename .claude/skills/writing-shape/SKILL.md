@@ -45,13 +45,7 @@ Once all sections are shaped: read it top to bottom for flow, fix transitions be
 
 ### Step 4 — Output
 
-```
-## Shaped: <title>
-File: <path>
-Sections: <N> shaped
-Notable form decisions: <e.g. "turned the 'reasons' section from bullets into prose; pulled the config into a table">
-Next: /council-review for a multi-persona pass before publishing, or ship it.
-```
+> **Load `knowledge/output-format.md`** before writing the closing block — the Shaped-article summary format (title, path, sections shaped, notable form decisions, next step).
 
 ## Gotchas
 

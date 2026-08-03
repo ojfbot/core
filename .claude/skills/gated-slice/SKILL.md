@@ -29,31 +29,11 @@ promoted only on measured data.
   the load-bearing reason to reach for this skill.
 - **Skip** for a single feature with a clear test matrix (`/plan-feature`), or trivial work. Naming
   gates and TPMs for a one-PR change is overhead theater.
-- **Upstream boundary** (`adr:wayfinder-decision-maps`): this skill assumes the destination and route
-  are already *decided*. If the open question is still *what/whether* — the initiative is wrapped in
-  fog, decisions interdependent and unmade — chart it with `/wayfinder` first; hand back here when
-  nothing is left to decide. Rule of thumb: *what/whether → wayfinder; how to ship safely in stages →
-  gated-slice; once sliced → roadmap slices dispatched by day-run.* Wayfinder tickets are questions
-  closed by answers; the slices this skill cuts are deliveries closed by merged PRs.
+> **Load `knowledge/wayfinder-boundary.md`** before accepting the effort when the destination or route may still be undecided — the wayfinder-vs-gated-slice boundary rule.
 
 ## Vocabulary (SEH ↔ harness — say these precisely)
 
-| Concept | Term to use | Source | Note |
-|---|---|---|---|
-| Checkpoint with entry + exit | **Control Gate** / **Key Decision Point (KDP)** | NASA SEH | — |
-| Minimum to *start* a gate | **Entrance Criteria** | NASA SEH | — |
-| What must be *demonstrated to pass* | **Success Criteria** | NASA SEH | formerly "exit criteria" — use the current term |
-| Qualitative stakeholder goal | **Measure of Effectiveness (MOE)** | NASA SEH | not a design-to number |
-| Quantitative measure ensuring the MOE | **Measure of Performance (MOP)** | NASA SEH | 2+ per MOE typical |
-| MOP tracked vs a baseline; deviation → corrective action | **Technical Performance Measure (TPM)** | NASA SEH | **our "metrics" ARE TPMs serving MOEs** |
-| Observe-only / simulated stage before enforcing | **Brassboard / shadow stage** | Brassboard + TRL (SEH); **"shadow mode" is a harness extension** | runs, emits TPMs, takes NO action |
-| Actually enforcing | **Operational** | — | promoted-to state |
-| Data-gated promotion decision | **RIDM** (Risk-Informed Decision Making) | NASA SEH | promote on TPM thresholds, not a hunch |
-| "Did I build it right?" (meets spec) | **Verification** | NASA SEH | proof of compliance with specification |
-| "Am I building the right thing?" (meets intent) | **Validation** | NASA SEH | proof it accomplishes the intended purpose |
-| Thin end-to-end shippable unit | **Vertical Slice** | **harness extension** (closest SEH: life-cycle phase / Product Baseline / WBS) | flag the gap |
-
-The full definitions are in `domain-knowledge/GLOSSARY.md` and `knowledge/seh-mapping.md`.
+> **Load `knowledge/seh-vocabulary.md`** before writing any gate, criterion, or TPM — the full SEH ↔ harness term table (Control Gate/KDP, Entrance/Success Criteria, MOE → MOP → TPM, Brassboard/shadow, RIDM, Verification vs Validation, Vertical Slice) and which terms are harness extensions.
 
 ## Steps
 
@@ -98,56 +78,15 @@ and their gating TPMs. End with the suggested next step (hand slice 1 to `/plan-
 
 ## Output format
 
-```
-## /gated-slice — <effort>
-
-Restatement: <one sentence>   ·   Warrants Control-Gated Slices: <yes/no + why>
-
-### Slices (vertical, ordered by value-first)
-| # | Slice | Layers traversed | Observable value shipped |
-|---|-------|------------------|--------------------------|
-| 1 | ...   | ...              | ...                      |
-
-### Slice <N>: <name> — Control Gates
-| Gate | Entrance Criteria | Success Criteria (MOE → MOP → TPM, threshold) | V&V |
-|------|-------------------|-----------------------------------------------|-----|
-| C0   | ...               | MOE: ... → MOP: ... → TPM: <metric> vs <baseline>, pass if <threshold> | Verif/Valid |
-
-Enforcement control(s): <name> — **requires Brassboard/shadow stage at <gate>** (observe-only, emits <TPMs>, no action).
-RIDM promotion: shadow → operational at <gate> is gated on <TPMs> clearing <thresholds>; on breach → stay shadow / roll back.
-
-Harness extensions flagged: vertical slice (≈ life-cycle phase/WBS); shadow mode (≈ Brassboard + TRL).
-Next: hand Slice 1 to /plan-feature → /tdd; revisit gates as TPM data arrives.
-```
+> **Load `knowledge/output-format.md`** before emitting the plan (Step 6) — the exact output template: slice ladder, per-slice gate tables, shadow/RIDM lines, and the harness-extension flags.
 
 ## Worked exemplar — ADR-0081 (CLAUDE.md loading-discipline)
 
-The canonical example (see `knowledge/seh-mapping.md` for the full walk-through):
-
-- **Slices:** S1 measure + audit (merged) · S3 rollout (merged) · S2 enforcement gate (in progress).
-- **S2 Control Gates C0→C7:** C0 criteria spec · C1 deterministic tripwire · C2 Haiku judge ·
-  C3 TPM/event log · **C4 shadow mode (Brassboard, observe-only)** · C5 clearance + block→ask ·
-  C6 flip-to-enforce (RIDM-gated) · C7 generalization review.
-- **TPMs:** M1 always-loaded footprint · M2 Layer-1 conditionality · M3 gate precision / override rate
-  (>30% override = overfit) · M4 over-decomposition · M5 judge false-block rate.
-- **Data-gated promotion:** **M3 + M5 gate the C4→C6 (shadow→operational) RIDM decision** — the gate
-  stays in Brassboard emitting M3/M5 until both clear threshold; C6 is the flip made on that data.
+> **Load `knowledge/adr-0081-exemplar.md`** before laying out gates if you need a calibration example — the canonical ADR-0081 walk-through (slices, C0→C7 gates, TPMs M1–M5, the C4→C6 RIDM promotion).
 
 ## Deliverable tracking (the spine this skill feeds)
 
-A gated-slice effort is exactly the **scope-appropriate** case (TD-006 scope gate) that the
-deliverable-tracking spine exists for. As slices and gates transition, emit them onto the append-only
-ledger so the roadmap **canvas is a live projection**, not a stale hand-edited drawing:
-
-- **On entering a slice / gate:** `node scripts/gate-event.mjs <program> <slice> <gate> entered`
-- **During validation:** `/validate` and `/tdd` emit `validating` → `passed`/`failed` (see those skills).
-- **On delivery:** `node scripts/gate-event.mjs <program> <slice> <gate> delivered --evidence=<pr>`
-
-**Emit-not-magic:** there is no Claude Code tool event for a semantic gate pass — you emit it. The
-canvas node id **must equal the slice id**; the projector owns each node's color + its
-`<!--gate-status-->` block and nothing else (prose is yours). The reconciler hook (`reconcile-tracking.mjs`,
-SHADOW) audits canvas==ledger + evidence-on-pass + validating-staleness; **auto-repair is OFF**. No
-`passed`/`delivered` without resolvable evidence. See `adr:deliverable-tracking-spine`.
+> **Load `knowledge/deliverable-tracking.md`** before emitting the plan and whenever a slice or gate transitions — the `gate-event.mjs` emission commands, the canvas/ledger rules (emit-not-magic, node id = slice id), and the no-evidence-no-pass rule.
 
 ## Constraints
 

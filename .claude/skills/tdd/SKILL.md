@@ -16,12 +16,7 @@ You are a senior engineer enforcing red-green-refactor on a single behavior chan
 
 ## Core principles
 
-1. **Test only at pre-agreed seams.** A seam is the public boundary you observe behavior through. Before any test is written, name the seams under test and confirm them with the user — the fewest seams, at the highest level that still exercises the behavior; the ideal number is one. If a spec from `/plan-feature --from-conversation` already names the seams, inherit them instead of re-negotiating.
-2. **Test before code.** The failing test is the spec for this turn. No code until the test exists and fails for the *expected* reason.
-3. **Minimal change to green.** Whatever turns the test green is enough. Do not over-engineer; do not anticipate next-test needs.
-4. **Refactor only at green.** Cleanup happens with all tests passing. Never refactor and add behavior in the same step. (Cross-cutting structural smells belong to the review stage; green-time refactors are the small, fresh-context cleanups.)
-5. **Hard-to-test means hard-to-design.** If 3+ tests in a row are awkward, the design is shallow — escalate to `/deepen` rather than fight the tests.
-6. **Guidance, not gatekeeping.** If the user explicitly says "skip TDD for this," respect it and continue. Note the deferred test so it isn't forgotten.
+> **Load `knowledge/core-principles.md`** before starting the loop — the six principles (pre-agreed seams, test-before-code, minimal-green, refactor-at-green, escalation, guidance-not-gatekeeping) plus the seam-agreement detail Step 2 applies.
 
 ## Steps
 
@@ -29,35 +24,23 @@ You are a senior engineer enforcing red-green-refactor on a single behavior chan
 
 One sentence. Specific. Falsifiable.
 
-> Bad: "make the parser more robust"
-> Good: "`parseSlashCommand('  /foo bar')` returns `{name: 'foo', args: ['bar']}`, not `null`"
-
 If you can't write the assertion, run a mini-grill on the user (or escalate to `/grill-with-docs`) until you can.
 
 ### 2. Agree the seams
 
-Name the public boundary the test will observe behavior through, and confirm it with the user before writing anything: *"What's the public interface, and which seams should we test?"* Aim for the fewest seams at the highest level that still exercises the behavior — ideally one. A test at an unconfirmed seam doesn't get written. If the driving spec or ticket already names the seams (a `/plan-feature --from-conversation` spec records them as Testing Decisions), inherit them and confirm only deviations.
+Name the public boundary the test will observe behavior through, and confirm it with the user before writing anything: *"What's the public interface, and which seams should we test?"* A test at an unconfirmed seam doesn't get written.
 
 > **Load `knowledge/seams-and-anti-patterns.md`** for what makes a good seam, mock-at-boundaries rules, and the anti-pattern catalog.
 
 ### 3. Locate or create the test file
 
-- Read project conventions: where do existing tests live? `__tests__/`? Co-located `*.test.ts`? Run `find` to confirm.
-- Match the project's pattern. Do not introduce a new test layout in the middle of a TDD loop.
-- If you must create a new test file, name it after the unit under test plus `.test.ts`.
+Match the project's pattern. Do not introduce a new test layout in the middle of a TDD loop.
 
 > **Load `../test-expand/knowledge/test-patterns.md`** for project-specific patterns (Vitest setup, Zod schemas, async, mocks).
 
 ### 4. Write the failing test — one test per turn
 
-- One assertion per `it()`. Multiple `expect`s are fine if they describe the same scenario.
-- Use the existing test framework (Vitest in this repo) and matchers.
-- Name the test by the behavior being asserted, not the function being called.
-
-```ts
-// Good: it('returns null when input is empty')
-// Bad:  it('parseSlashCommand test 1')
-```
+> **Load `knowledge/loop-mechanics.md`** before writing the test — per-step detail for Steps 1, 3, 4, 6, and 7 (assertion examples, file conventions, test-writing rules, minimal-green tactics, refactor-scan list).
 
 ### 5. Run the test. Confirm red
 
@@ -68,70 +51,19 @@ Name the public boundary the test will observe behavior through, and confirm it 
 
 ### 6. Make the smallest change that turns the test green
 
-- Smallest. Possible. Change.
-- Hardcoded return values are fine if they pass the test. The next test will force a more general implementation.
-- Resist the urge to also implement the *next* assertion. That's a separate turn.
-- Run the test. Confirm green. Run the *full* test suite. Confirm nothing broke.
+Smallest. Possible. Change. Run the test. Confirm green. Run the *full* test suite. Confirm nothing broke.
 
 ### 7. Offer refactor candidates
-
-At green, scan what you just wrote and the surrounding code:
-- Duplication (with the test, with adjacent code, across files)
-- Names that lie or are unclear
-- Conditional complexity that could collapse
-- Module boundaries the change violated
 
 Propose 0–3 refactor moves. State each with a one-line rationale. **Wait for user approval before applying.** Refactor with all tests still green.
 
 ### 8. Postflight escalation check
 
-If during this loop:
-- 3+ tests in a row were awkward to write, **suggest `/deepen`** on the affected module — the design is shallow.
-- The test required heavy mocking that obscured intent, **suggest `/deepen`** — surface area is too wide.
-- The fix was a single character but the test needed 30 lines of setup, **suggest `/deepen`** — implementation is buried in shallow wrappers.
+> **Load `knowledge/escalation-triggers.md`** at the end of every loop — the full trigger list (awkward-test streaks, heavy mocking, buried implementations) and what to do when triggered; each trigger routes to `/deepen`.
 
-> **Load `knowledge/escalation-triggers.md`** for the full trigger list and what to do when triggered.
+## Modes and output
 
-## Modes
-
-- **Default** — full red-green-refactor loop, one test at a time.
-- `--watch` — run vitest in watch mode (`pnpm test:watch <pattern>`) and react to red/green transitions automatically.
-- `--scope=<file>` — limit changes to a single file. Reject any code change outside it.
-- `--no-refactor` — skip step 7. Use when the user explicitly wants minimal-change discipline only.
-
-## Output format
-
-```
-## Behavior under test
-<one sentence>
-
-## Test (red)
-<file path: line numbers>
-<code block>
-
-Run: <command>
-Result: FAIL — <expected failure message>
-
-## Implementation (green)
-<file path: line numbers>
-<diff or code block>
-
-Run: <command>
-Result: PASS
-
-## Full suite check
-Run: <command>
-Result: <N passed / M failed / K skipped>
-
-## Refactor candidates
-1. <move> — <why>
-2. <move> — <why>
-
-(awaiting approval; reply "skip" to commit as-is)
-
-## Escalation
-<none | suggest /deepen on <path> because <trigger>>
-```
+> **Load `knowledge/modes-output-composition.md`** when invoked with a flag (`--watch`, `--scope`, `--no-refactor`), before emitting the loop report, or when routing to sibling skills — modes, the output format, composition rules, and See-Also map.
 
 ## Constraints
 
@@ -140,13 +72,6 @@ Result: <N passed / M failed / K skipped>
 - Never proceed past red if the failure is for the wrong reason.
 - If a test requires structure beyond a single function or shallow change, stop and propose `/scaffold` (for new structure) or `/deepen` (for fixing existing structure). Do not silently expand scope.
 - Guidance only. If the user wants to skip TDD, respect it; note the deferred test in your output.
-
-## Composition
-
-- Precedes nothing — `/tdd` is the implementation step itself.
-- Composes with `/scaffold` (which wires types and stubs without business logic) and `/test-expand` (which plans coverage without enforcing the loop).
-- Postflight escalation routes to `/deepen` when shallow-design smells appear.
-- Anti-pattern: invoking `/tdd` repeatedly to drive a multi-feature change. TDD is per-behavior. Multi-feature work should pass through `/plan-feature` first.
 
 ## Gotchas
 
@@ -162,12 +87,3 @@ Result: <N passed / M failed / K skipped>
 ---
 
 $ARGUMENTS
-
-## See Also
-
-- `knowledge/seams-and-anti-patterns.md` — seams, mock-at-boundaries rules, anti-pattern catalog
-- `../test-expand/knowledge/test-patterns.md` — project test patterns (Vitest, Zod, async, mocks)
-- `../test-expand/SKILL.md` — coverage planning (lighter than `/tdd`; no enforcement loop)
-- `../scaffold/SKILL.md` — when the test demands new structure
-- `../deepen/SKILL.md` — when 3+ tests in a row are awkward
-- `domain-knowledge/coding-standards.md` — TypeScript rules (strict null, async/await, type exports)
