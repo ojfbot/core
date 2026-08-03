@@ -3,7 +3,7 @@ type: wayfinder-map
 slug: teach-in-the-loop
 northstar: l1-core
 tracker_issue: 379
-status: charting
+status: working
 ---
 
 # Wayfinder — teach in the loop
@@ -62,19 +62,25 @@ ticket closes "no", the anchor falls back to `ns:l2-ojfbot#P2` and the frontmatt
 
 ## Decisions so far
 
-*(none — charting session closed zero tickets)*
+- **Adopt-stack pass: mattpocock/skills teach (#380, 2026-08-03)** — Gate 0 LIBRARY (0/6) at pin
+  `2ab95809`; seven opinions ABSORBED (mission interrogation; vetted resources with internal fleet
+  artifacts first-class; community delegation external-domains-only; evidence-gated learning records;
+  records+mission ZPD placement as per-workspace floor; HTML lesson + assets shape with #386 as
+  verifier; reference/glossary split with understanding-gate), one REJECTED (NOTES.md — teaching
+  preferences live in fleet memory, injected at workspace spawn). Record:
+  `decisions/adopt-stack/pocock-skills-teach.md` (D18–D25, extends `pocock-skills-v1-1.md`).
 
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| Adopt-stack pass: mattpocock/skills teach (#380) | grilling | — | open |
-| Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | open |
+| Adopt-stack pass: mattpocock/skills teach (#380) | grilling | — | **closed 2026-08-03** |
+| Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | open — unblocked |
 | Where does the teach corpus live? (#382) | grilling | — | open |
 | Field evidence: /teach in the wild + interactive-HTML lesson patterns (#383) | research | — | open |
 | ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | open |
 | Retention boundary ruling (#385) | grilling | ZPD sensor | open |
-| HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | open |
+| HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | open — unblocked |
 
 ## Not yet specified
 
@@ -83,7 +89,9 @@ ticket closes "no", the anchor falls back to `ns:l2-ojfbot#P2` and the frontmatt
   closes; one probe at a time keeps the scope ruling honest.
 - **Teach-session trigger points** — where in the build loop workspaces spawn (standup drip,
   post-merge suggestion, prototype disposition, /investigate postflight): the "ambient drip".
-  Statable only after the corpus-location and ZPD-sensor tickets close.
+  Statable only after the corpus-location and ZPD-sensor tickets close. The D25 ruling (teach
+  adopt-stack pass) adds one requirement to whatever spawn mechanism emerges: it injects teaching
+  preferences from fleet memory at spawn.
 - **Agent-side co-learning** — the `se-competency-engine` lockstep bet: the same lessons doubling
   as agent evals so operator and fleet competence rise together.
 - **Lesson staleness** — what happens to a lesson when the code it teaches moves (cousin of the
@@ -102,4 +110,7 @@ ticket closes "no", the anchor falls back to `ns:l2-ojfbot#P2` and the frontmatt
 - Rebuilding seh-study's Leitner engine inside this map — the Retention boundary ruling may
   *point* at it, not rebuild it. (Operator, 2026-08-03.)
 - Adobe Express as lesson store — mirrors the #373-adjacent ruling on #366. (Operator,
+  2026-08-03.)
+- `NOTES.md` per-workspace preference scratchpad — rejected D25 of the teach adopt-stack pass;
+  teaching preferences live in fleet memory and are injected at workspace spawn. (Operator,
   2026-08-03.)
