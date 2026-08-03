@@ -1,5 +1,5 @@
 ---
-id: core-117-pocock-skills-pickup-2026-06-02
+id: 2026-06-02-core-117-pocock-skills-pickup
 type: brief
 title: "core#117 — land Pocock skill conventions + 7 new skills (rebase, resolve catalog, renumber ADR)"
 actor: code-claude (the 2026-06-02 fleet PR-cleanup session)

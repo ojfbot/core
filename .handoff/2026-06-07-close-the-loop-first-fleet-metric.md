@@ -1,5 +1,5 @@
 ---
-id: 20260607-1020-brief-close-the-loop-metric
+id: 2026-06-07-close-the-loop-first-fleet-metric
 type: brief
 title: "Close the loop: pick the first fleet metric for closed-loop keep/discard control"
 actor: code-claude

@@ -3,7 +3,7 @@ id: 20260613-1959-report-opav-slice-0-shipped-suggestion-id-minted-ignored-
 type: report
 title: "OPAV Slice 0 shipped — SUGGESTION_ID minted + ignored-denominator repaired (ADR-0093)"
 actor: code-claude
-responding_to: 20260613-1900-brief-opav-loop-program
+responding_to: 2026-06-13-opav-loop-program
 session_id: 2026-06-13T19:59:15Z
 refs:
   - adr:suggestion-identity-and-denominator
