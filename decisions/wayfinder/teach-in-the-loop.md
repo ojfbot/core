@@ -106,6 +106,7 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 | Retention boundary ruling (#385) | grilling | ZPD sensor | open |
 | HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | **closed 2026-08-03** |
 | Second-surface HTML probe: /merge-quiz as an interactive page (#391) | prototype | — | open — unblocked |
+| Design-system inheritance: how do lessons wear the ojfbot brand? (#393) | grilling | — | open — unblocked, informs #391 |
 
 ## Not yet specified
 
@@ -117,7 +118,8 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 - **Agent-side co-learning** — the `se-competency-engine` lockstep bet: the same lessons doubling
   as agent evals so operator and fleet competence rise together.
 - **Lesson staleness** — what happens to a lesson when the code it teaches moves (cousin of the
-  diagram-staleness fog on #366).
+  diagram-staleness fog on #366). #393 touches one face of this: an inlined copy of the fleet's
+  design tokens drifts when the brand moves, which is the same staleness with a different source.
 - **daily-logger articles ↔ lessons** — whether the chronological blog and the lesson corpus
   feed each other.
 - **Voice capture as mission input** — PLAUD → MISSION.md refinement.
