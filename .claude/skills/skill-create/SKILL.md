@@ -25,6 +25,7 @@ You are a skill author. Given a workflow description or session pattern, you pro
 4. **Generic, not specific** — skills must not hardcode project names (cv-builder, LangGraph, Carbon, blogengine). Reference `domain-knowledge/` dynamically.
 5. **Triggers must earn their triggers** — phrases must be specific enough to avoid false positives but natural enough to match real usage.
 6. **Architecture-rubric compliance** — every new skill is born compliant with `skill-audit/knowledge/architecture-rubric.md`: exactly one `category` (use `methodology-meta` if it's off the nine, don't force a fit), a `## Gotchas` section seeded from day one, a model-facing `description` (trigger words, not human prose), and reference material in `knowledge/` once `SKILL.md` exceeds ~400 words. This is what stops catalog/structure drift from recurring.
+7. **Predictability by construction** (rubric checklist 8–11, absorbed from `decisions/adopt-stack/pocock-writing-great-skills.md`) — end each step on a checkable, demanding completion criterion; steer with positive framing (prohibitions only as hard guardrails, paired with the positive target); prefer a pretrained leading word over a restated phrase; and before shipping, apply the no-op test sentence by sentence — a sentence that wouldn't change behavior versus the model's default gets deleted whole.
 
 ## Workflow
 
