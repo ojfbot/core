@@ -81,6 +81,19 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
   draft `adr:l1-core-operator-competence-property`. #384/#382 inherit the pre-registration duty
   for the staged metric's activation criteria.
 
+- **HTML lesson pattern spike (#386, 2026-08-03)** — HTML earns its keep, and D23's `./assets/`
+  opinion is **amended**: "self-contained" and "shared stylesheet in `./assets/`" conflict at the
+  render boundary, and self-contained wins. Measured on one lesson built to the full D23 spec —
+  strip the sibling stylesheet and the page falls back to Times at an 8px body margin (0 rules
+  loaded), so every Tufte/printability opinion is the first casualty, while the inline quiz JS
+  keeps working. Presentation is the fragile part, not interactivity. Ruling: `assets/lesson.css`
+  stays the **authoring** source (D23's shared-first-component instinct is right for authoring);
+  the **shipped** lesson is build output with the CSS inlined (~6.7 KB → 10.8 KB, an 8-line
+  inliner — a step, not a build system). Also found: hand length-matching quiz answers is
+  error-prone and wants a checker. Primary source: branch `wayfinder/386-html-lesson-spike`
+  (never merged), `prototypes/386-html-lesson/VERDICT.md`. Narrows #383 — the interactive-HTML
+  half of that research question now has in-fleet evidence to check field findings against.
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
@@ -91,13 +104,11 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
 | Field evidence: /teach in the wild + interactive-HTML lesson patterns (#383) | research | — | open |
 | ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | open |
 | Retention boundary ruling (#385) | grilling | ZPD sensor | open |
-| HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | open — unblocked |
+| HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | **closed 2026-08-03** |
+| Second-surface HTML probe: /merge-quiz as an interactive page (#391) | prototype | — | open — unblocked |
 
 ## Not yet specified
 
-- **Second-surface HTML probe target** — which non-lesson surface gets the one probe (merge-quiz
-  as an interactive HTML page? standup brief?). Graduates when the HTML lesson pattern spike
-  closes; one probe at a time keeps the scope ruling honest.
 - **Teach-session trigger points** — where in the build loop workspaces spawn (standup drip,
   post-merge suggestion, prototype disposition, /investigate postflight): the "ambient drip".
   Statable only after the corpus-location and ZPD-sensor tickets close. The D25 ruling (teach
