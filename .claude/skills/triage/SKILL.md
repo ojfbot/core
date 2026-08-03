@@ -166,7 +166,7 @@ $ARGUMENTS
 ## See Also
 
 - `knowledge/triage-rubric.md` — severity p0–p3, effort xs–xl, domain taxonomy, type taxonomy, tie-break rules
-- `../roadmap/roadmap.md` — directional prioritization (this skill applies it to issues)
-- `../plan-feature/plan-feature.md` — turn a triaged p0/p1 issue into a spec
-- `../orchestrate/orchestrate.md` — decompose accepted plans into ordered work
+- `../roadmap/SKILL.md` — directional prioritization (this skill applies it to issues)
+- `../plan-feature/SKILL.md` — turn a triaged p0/p1 issue into a spec
+- `../orchestrate/SKILL.md` — decompose accepted plans into ordered work
 - GitHub label commands: see § "Required GitHub label setup" above

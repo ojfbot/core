@@ -63,8 +63,11 @@ When the skill triggers at session end:
 ```
 1. Identify what kind of bead this session warrants (report? decision? discovery?).
 2. Use `scripts/write.py <type>` to scaffold.
-3. Fill in the template fields. Do not pad — empty sections are fine, omitted is better than fluff.
-4. Save the bead to `.handoff/`. The filename is generated; do not rename.
+3. **Read `references/bead-schemas.md` before filling the frontmatter** — it defines the
+   required and optional fields per bead type; a bead with wrong frontmatter is invisible
+   to downstream ingestion.
+4. Fill in the template fields. Do not pad — empty sections are fine, omitted is better than fluff.
+5. Save the bead to `.handoff/`. The filename is generated; do not rename.
 ```
 
 ## A note on identity
