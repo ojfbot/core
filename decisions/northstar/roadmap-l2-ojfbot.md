@@ -488,7 +488,7 @@ slices:
     advances: "ns:l2-ojfbot#P2"
     moves_from: 43
     moves_to: 45
-    deliverable: "Three artifacts closing TD-006. (1) decisions/loops/loops.md: the hook-bead-session entry corrected to what scripts/hooks/bead-session.sh actually does (a PostToolUse skill/bash recorder), with the absent session-close report-bead loop declared honestly as its own entry or explicitly marked unimplemented — an entry that lies is worse than a missing one. (2) scripts/bead-lint.mjs, dep-free .mjs in the northstar-lint.mjs mould, reusing parseFM/loadRegistry/repoRootOf from scripts/lib/northstar-fm.mjs: frontmatter parses; type in brief|report|decision|discovery (flag `kind:`); status in live|closed|superseded; id present and equal to the filename stem (the bead-schemas.md invariant replay.py depends on); report responding_to resolves; per-repo open-hook count and age. Plus .github/workflows/bead-lint.yml mirroring northstar-lint.yml including its vantage scoping — sibling repos unreachable from a single-repo checkout downgrade to WARN, never failing a PR over a checkout it cannot see. (3) The event-loop liveness blind spot closed: either loops-liveness.mjs evaluates cadence: event loops against evidence_ref recency, or event loops are required to declare a verifier — pick one and record why in the slice's PR."
+    deliverable: "Five artifacts closing TD-006 (amended 2026-08-02 from three, while still queued: the two additions make S33's 'no new machinery' claim true — its tool today writes reports that retire nothing). (1) decisions/loops/loops.md: the hook-bead-session entry corrected to what scripts/hooks/bead-session.sh actually does (a PostToolUse skill/bash recorder), with the absent session-close report-bead loop declared honestly as its own entry or explicitly marked unimplemented — an entry that lies is worse than a missing one. (2) scripts/bead-lint.mjs, dep-free .mjs in the northstar-lint.mjs mould, reusing parseFM/loadRegistry/repoRootOf from scripts/lib/northstar-fm.mjs: frontmatter parses; type in brief|report|decision|discovery (flag `kind:`); status in live|closed|superseded; id present and equal to the filename stem (the bead-schemas.md invariant replay.py depends on); report responding_to resolves; per-repo open-hook count and age. Plus .github/workflows/bead-lint.yml mirroring northstar-lint.yml including its vantage scoping — sibling repos unreachable from a single-repo checkout downgrade to WARN, never failing a PR over a checkout it cannot see. Also a --sweep mode in the defects-lint.mjs mould (adr:defect-ledger-and-closure-loop): probe each open hook's github:/rm: refs against merged PRs and delivered slices, verdicts evidence-shipped/no-evidence/probe-error, proposal-only — the sweep never writes a closure; probe failure is never a verdict. (3) The event-loop liveness blind spot closed: either loops-liveness.mjs evaluates cadence: event loops against evidence_ref recency, or event loops are required to declare a verifier — pick one and record why in the slice's PR. (4) .claude/skills/resume/scripts/verify-session.mjs backfill fixed to resolve responding_to (explicit github: ref match in an open brief's hook:/refs:, else brief-slug × headRefName tokens, else unique time-window; ambiguous stays null + labels.responding_to_ambiguous — never guess toward closed), so a backfilled report actually retires its hook in orient.py's formula. (5) Forward-only hook convention: briefs created after this slice merges should carry a machine key (github:owner/repo#N or rm:<roadmap>#S<n>) in hook: or refs: — WARN in bead-lint, never blocking; documented in the /bead skill's schema reference and templates; backfill of pre-existing drifted beads stays S33's job."
     entrance: "TD-006 filed in TECHDEBT.md with the fleet audit numbers; the 28-open-hook baseline recorded as the TPM t0."
     success: "bead-lint runs across the fleet and reports the 28-hook baseline without failing any PR (shadow/WARN-only per ADR-0086 — enforcing before S33 backfills would red-wall every PR on day one); the hook-bead-session registry entry matches the script's real behaviour; loops-liveness no longer silently skips the loop class this defect hid in."
     check: "node scripts/bead-lint.mjs --check"
@@ -496,7 +496,7 @@ slices:
     claimable_by: either
     kind: m
     repo: core
-    status: queued
+    status: ready
   - id: S33
     phase: PH6
     title: "Backfill the bead ledger — resolve the 28 open hooks to shipped-or-pending, then promote bead-lint from shadow"
@@ -511,7 +511,7 @@ slices:
     claimable_by: human_only
     kind: m
     repo: core
-    status: queued
+    status: ready
     depends_on: "rm:rm-l2-ojfbot#S32"
 ---
 

@@ -6,7 +6,7 @@ actor: {actor}
 to: {to}
 session_id: {session_id}
 refs: []
-hook: {hook}
+hook: {hook}  # machine key preferred: github:owner/repo#N or rm:<roadmap>#S<n> (S32 convention)
 status: live
 created_at: {created_at}
 labels:

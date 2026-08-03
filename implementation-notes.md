@@ -24,6 +24,14 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - daily-logger's sweep list turned out to live in src/collect-context.ts (code, not the README prose) — the rename would have silently dropped the repo from the nightly sweep; fixed in daily-logger#259.
 - Sitting's gcgcca git-state snapshot (push-u needed, 7 dirty) was stale by landing time — PRs #3/#4 already merged, main clean; the push-u step was dropped as obsolete.
 - RFI §6.2 "code-side Notion unauthenticated" is stale — read access works; found no mirrorworld itinerary row and stale property-subset framing on the Notion golf pages (flagged for chat-side refresh in core#298).
+- S32 bead-lint (2026-08-02): plan assumed fleet roots derive from the northstar/roadmap
+  registries; territory had 15 repos with .handoff/ vs 9 registry-derived (mirrorworld,
+  capture-agent, lofi-beaver et al. unregistered-or-unlinked). Went conservative-wide:
+  added sibling-of-core .handoff/ enumeration (matches the cockpit adapter's glob) so the
+  debt is not under-counted.
+- S32 bead-lint (2026-08-02): plan had machine keys parsed from structured hook:/refs:
+  frontmatter; parseFM only list-parses registry keys, so refs: items were dropped.
+  Switched to a raw-text scan of the frontmatter block.
 
 ## Deviations — frame-standup ledger closure 2026-07-25 / 2026-07-31
 

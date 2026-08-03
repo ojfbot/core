@@ -257,17 +257,30 @@ loops:
     status: live
     repo: core
   - slug: hook-bead-session
-    purpose: "Session-close bead emission — writes the session's report bead + events"
+    purpose: "In-session work recorder — PostToolUse hook (Skill/Bash matchers) linking task/PR beads to the session's agent bead in Dolt. Never touches .handoff/. (Corrected by rm:rm-l2-ojfbot#S32 — the prior entry claimed session-close report-bead emission, which this script has never done; TD-006.)"
     trigger: hook
     trigger_ref: scripts/hooks/bead-session.sh
     installed_ref: .claude/settings.json
     cadence: event
-    state_spine: "Dolt beads + .handoff/"
-    verifier: "none"
-    stop_rule: "fires at session end only"
+    state_spine: "Dolt beads"
+    verifier: "scripts/bead-lint.mjs measures the ledger this loop was falsely credited with closing"
+    stop_rule: "fires per tool use only"
     evidence_ref: "dolt:bead_events"
     owner: operator
     status: live
+    repo: core
+  - slug: session-close-report-bead
+    purpose: "Session-close report-bead emission into .handoff/ — the closure half of the bead ledger. DECLARED, NOT IMPLEMENTED: no mechanism writes a report bead or flips a brief at session end; closure is /bead-skill discipline plus the S33 human backfill. An entry that lies is worse than a missing one (TD-006) — this one says so."
+    trigger: none
+    trigger_ref: none
+    installed_ref: none
+    cadence: event
+    state_spine: ".handoff/"
+    verifier: "scripts/bead-lint.mjs --check (open-hook count + age; shadow until the S33 promotion)"
+    stop_rule: "n/a — unimplemented"
+    evidence_ref: "none"
+    owner: operator
+    status: missing
     repo: core
   - slug: hook-claude-md-gate
     purpose: "PreToolUse gate enforcing CLAUDE.md loading discipline (ADR-0081) on edits"

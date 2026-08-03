@@ -66,15 +66,22 @@ describe('loops-liveness', () => {
     expect(results.map((r) => r.verdict)).toEqual(['OK', 'OK']);
   });
 
-  it('excludes event/manual cadences and disabled loops, stating why', async () => {
+  it('excludes event/manual loops ONLY when they declare a verifier; verifier-none is UNVERIFIABLE (TD-006)', async () => {
+    // Policy (rm:rm-l2-ojfbot#S32): the old wholesale event/manual exclusion is exactly
+    // where the lying hook-bead-session entry hid — a loop can be born dead and stay
+    // green. An event loop must declare a verifier to earn EXCLUDED.
     writeRegistry(ctx.core, [
-      loop({ slug: 'a-hook', trigger: 'hook', cadence: 'event' }),
-      loop({ slug: 'a-ritual', trigger: 'manual', cadence: 'manual' }),
+      loop({ slug: 'a-hook', trigger: 'hook', cadence: 'event', verifier: 'bead-lint measures it' }),
+      loop({ slug: 'a-hook-unchecked', trigger: 'hook', cadence: 'event' }),
+      loop({ slug: 'a-ritual', trigger: 'manual', cadence: 'manual', verifier: 'none' }),
       loop({ slug: 'parked', status: 'disabled', evidence_ref: 'file:nope.log' }),
     ]);
     const { results } = await liveness(ctx.core, ctx.home, NOW);
-    expect(results.every((r) => r.verdict === 'EXCLUDED')).toBe(true);
-    expect(results.map((r) => r.detail).join()).toMatch(/nothing to breach.*nothing to breach.*deliberate park/s);
+    expect(results.map((r) => r.verdict)).toEqual(['EXCLUDED', 'UNVERIFIABLE', 'UNVERIFIABLE', 'EXCLUDED']);
+    expect(results[0].detail).toMatch(/verifier declared/);
+    expect(results[1].detail).toMatch(/nothing independently checks/);
+    expect(results[2].detail).toMatch(/nothing independently checks/);
+    expect(results[3].detail).toMatch(/deliberate park/);
   });
 
   it('marks unreadable evidence UNVERIFIABLE with the reason — never silently OK', async () => {
