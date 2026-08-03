@@ -74,6 +74,10 @@ overwhelmed by LLM output and cannot see what is being built.
 - Snapshot-lineage ↔ bead mapping — is a bead the "Clip" a DiagramSnapshot pins to?
 - Diagrams feeding daily-logger articles.
 - Comprehension-gate ↔ `/merge-quiz` relationship (graduates once Where-do-diagrams-live closes).
+- ICOM extension to the convention — drawing IDEF0 Controls (constraints governing a process:
+  rulings, ADR rows, charting rules) and Mechanisms (skills/agents performing it) distinctly from
+  consumed Inputs; operator-endorsed candidate 2026-08-03, from the SE-pattern learning note on
+  teach-in-the-loop PR #387.
 
 ## Out of scope
 
