@@ -38,6 +38,16 @@ properties:
     verification: "skill:authoring events flowing shadow-first; the 4 gold-set skill-authoring scenarios reclassify correctly; at least one before/after outcome join produced for a really-changed skill."
     ladders_up_to: "ns:l2-ojfbot#P2"
     okr_drivers: []
+  # P5 added 2026-08-03 via wayfinder teach-in-the-loop ticket #381 (adr:l1-core-operator-
+  # competence-property, draft). NUMERIC CURRENT/TARGET ARE PROPOSALS — operator calibrates at
+  # amendment-PR review (l1-fieldwork-1 precedent).
+  - id: P5
+    name: "The harness raises operator competence"
+    target: "Operator uplift is measured, never assumed: taught-vs-cold movement on the merge-quiz EWMA heatmap (repo x domain cells, taught/cold never merged) is the primary measure; a lessons-served-at-ZPD rate activates as a staged second metric only per the #384 ZPD-sensor and #382 corpus rulings. No uplift published before the instrument's capture quality is green (P1 discipline)."
+    current: 5
+    verification: "Heatmap cells show taught-vs-cold divergence attributable to served lessons; the instrument passes its own capture-quality check against labeled observations before any rate is cited; the staged ZPD-rate metric carries pre-registered activation criteria inherited from the #384/#382 rulings."
+    ladders_up_to: "ns:l2-ojfbot#P2"
+    okr_drivers: []
 ---
 
 # Northstar — core (L1)
@@ -67,3 +77,15 @@ at this catalog size (see the 2026-07-17 SOTA pass).
 Also ladders to `ns:l2-ojfbot#P2`. Interventions (pushy descriptions, trigger pruning, forced-eval
 activation, router-skill patterns) are data-gated on P1+P2: every change is measured against the
 frozen eval and the honest live funnel, shadow-first with pre-committed promotion criteria.
+
+## P5 — The harness raises operator competence
+
+Added 2026-08-03 (wayfinder `teach-in-the-loop`, ticket #381). Ladders to `ns:l2-ojfbot#P2` — the
+same "work is self-measuring" bet as P1–P4, extended to the human half of the loop: the harness's
+product surface includes the operator it teaches, not only the agent it instruments. The teach loop
+(mission-grounded shadow-space workspaces, D18–D25) is the instrument. Guardrails inherited from the
+`se-competency-engine` synthesis: effort-first, feedback-not-answers, formative-only grading,
+**measured uplift** — deskilling is a documented risk (`ai-augmentation-evidence`), so uplift is
+claimed only from the ruler (taught-vs-cold heatmap divergence), never assumed from lessons served.
+The lessons-served-at-ZPD second metric stays dormant until the #384 (ZPD sensor) and #382 (corpus
+location) rulings define its instrument; its activation criteria are pre-registered there, not here.
