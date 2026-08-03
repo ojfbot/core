@@ -1,3 +1,21 @@
+---
+id: adr-0081-loading-discipline-handoff
+type: brief
+title: "ADR-0081 CLAUDE.md loading-discipline rollout — resume handoff"
+actor: code-claude
+to: code-claude
+refs:
+  - adr:0081
+  - path:core/CLAUDE-MD-ROLLOUT.md
+  - path:core/scripts/claude-md/footprint.mjs
+hook: claude-md-rollout
+status: live
+created_at: 2026-06-04T00:00:00-0500
+labels:
+  project: claude-md-loading-discipline
+  frontmatter_backfilled: "2026-08-03 conformance sweep (bead:20260803-1240-decision-frontmatter-repairs-are-edits)"
+---
+
 # Handoff — ADR-0081 CLAUDE.md loading-discipline + rollout
 
 _Date: 2026-06-04 · Initiative spanning a config audit → ADR → implementation. Read this to resume._
