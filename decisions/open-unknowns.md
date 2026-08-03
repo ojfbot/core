@@ -78,9 +78,9 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
 
 **Deferred decisions**
 - P5 numeric current/target calibration — unblocked by: operator review of amendment PR #389
-- Whether the merge-quiz heatmap augments or overrides records+mission ZPD placement — unblocked by: #384
+- ~~Whether the merge-quiz heatmap augments or overrides records+mission ZPD placement~~ — **CLOSED 2026-08-03 by #384: augments, min-n gated, never overrides** (`adr:comprehension-heatmap-zpd-role`)
 - Teach corpus / learning-records location — unblocked by: #382
-- Activation criteria for the staged lessons-served-at-ZPD metric — unblocked by: #384 + #382 closing (pre-registration duty recorded in the ADR draft)
+- Activation criteria for the staged lessons-served-at-ZPD metric — unblocked by: #384 + #382 closing. **#384's half closed 2026-08-03**; #382 remains. #384 contributes: placement nominates only at n ≥ k, and the rate may only be cited over the pre-registered holdout (R2).
 
 **Unvalidated assumptions**
 - The merge-quiz heatmap has (or will accrue) enough cell coverage for taught-vs-cold divergence attributable to served lessons to be detectable
@@ -88,3 +88,21 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
 
 **Standard considerations not covered**
 - A deskilling counter-metric (operator dependence rising while quiz scores rise) — the ai-augmentation-evidence synthesis names the risk; P5 as accepted measures uplift only
+
+## 2026-08-03 — ZPD sensor: the comprehension heatmap augments, never places alone (wayfinder #384)
+
+**Deferred decisions**
+- The value of `k` (the min-n gate below which a cell contributes no nomination) — unblocked by: the slice that builds the re-keyed sensor, against a real cell population
+- Which cells form P5's pre-registered holdout, how the pre-registration is recorded, and what happens when a cell crosses from holdout into selected — unblocked by: the sensor re-key landing (graduation candidate, recorded in the map's `## Not yet specified`)
+- The P5 northstar amendment reconciling "repo × domain cells" with bounded-context × mode + holdout — unblocked by: the building slice (R6 deferred it deliberately, not by omission)
+
+**Unvalidated assumptions**
+- That bounded context × mode is a grain the operator's comprehension actually varies along — the pooling argument is arithmetic (12 cells fill, 43×N×2 do not), not empirical
+- That a per-question difficulty/facet profile is sufficient to separate proximal from foundational gaps — it is necessary (a 60 from hard misses vs easy misses want opposite lessons), but sufficiency is untested
+- That a diff maps to exactly one of the six ADR-0044 bounded contexts — the contexts are drawn by concern and a repo may participate in several; no path→context mapping exists to check this against
+- That `mode` (taught/cold) self-report is honest enough to key cells on — the script cannot verify it, and under R2 a mislabel now corrupts the holdout as well as the cell
+
+**Standard considerations not covered**
+- Comprehension-as-competence validity: `.claude/skills/merge-quiz/SKILL.md:32` states the instrument is "a reasonable extrapolation from adjacent evidence, not a validated intervention," and neither vault page (`ai-augmentation-evidence`, `se-competency-engine`) treats self-report or quiz-score validity as a measurement question. #384 constrains how far decisions may lean on the instrument; it does not upgrade its evidentiary standing.
+- No time decay in the EWMA (α=0.4, per-observation, not per-day, and not CLI-reachable) — a stale cell never ages, which matters more for a placement prior than for a score.
+- Zero invocations: the instrument P5 depends on produced no data in 5 days across 25 qualifying merges. R5 declines to backfill; the H8 retirement rule is the designated catch.
