@@ -1,9 +1,10 @@
-# ADR: l1-core earns an operator-competence property (P5), teach loop as instrument
+# ADR-0106: l1-core earns an operator-competence property (P5), teach loop as instrument
 slug: l1-core-operator-competence-property
-serial: draft
+serial: 0106
 rev:
 Date: 2026-08-03
-Status: Proposed
+Date accepted: 2026-08-03
+Status: Accepted
 domain: meta
 type: policy
 OKR:
