@@ -1,0 +1,180 @@
+/* PROTOTYPE — delete after #386 (does the D23 HTML lesson shape render in the side panel?)
+   Shared teach-workspace stylesheet. D23: "the first component a workspace earns."
+   Tufte-leaning: wide margin for sidenotes, serif body, restrained rules, print-first. */
+
+:root {
+  --ink: #111010;
+  --ink-soft: #55504a;
+  --paper: #fffcf7;
+  --rule: #d8d1c6;
+  --accent: #7d2e2e;
+  --mark: #f3ead8;
+  --ok: #2f5d3a;
+  --no: #8a3232;
+  --measure: 38rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e3da;
+    --ink-soft: #a49d92;
+    --paper: #16150f;
+    --rule: #3a362e;
+    --accent: #d98e8e;
+    --mark: #262218;
+    --ok: #86c095;
+    --no: #d98e8e;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 3rem 1.5rem 6rem;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  font-size: 17px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+.lesson { max-width: var(--measure); margin: 0 auto; }
+
+.lesson-meta {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.4rem;
+}
+
+h1 {
+  font-size: 1.9rem;
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 0 0 0.6rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 2.4rem 0 0.6rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+h3 { font-size: 1rem; font-weight: 600; margin: 1.4rem 0 0.35rem; }
+
+p { margin: 0 0 1rem; }
+
+.win {
+  border-left: 3px solid var(--accent);
+  padding: 0.1rem 0 0.1rem 0.9rem;
+  margin: 1.2rem 0 2rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  margin: 1rem 0 1.4rem;
+}
+.ledger th, .ledger td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.45rem 0.7rem 0.45rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+.ledger th {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+.table-scroll { overflow-x: auto; }
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.86em;
+  background: var(--mark);
+  padding: 0.1em 0.32em;
+  border-radius: 2px;
+}
+
+cite {
+  font-style: normal;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 0.74em;
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+cite::before { content: "["; }
+cite::after { content: "]"; }
+
+/* Quiz — D23: answers length-matched, no formatting clues to the correct option. */
+.quiz { margin-top: 2.6rem; }
+
+.q {
+  margin: 0 0 1.8rem;
+  padding: 1rem 1.1rem;
+  background: var(--mark);
+  border-radius: 3px;
+}
+.q > p { margin: 0 0 0.8rem; font-weight: 600; }
+
+.opt {
+  display: block;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.94rem;
+  color: inherit;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 0.5rem 0.7rem;
+  margin: 0 0 0.4rem;
+  cursor: pointer;
+}
+.opt:hover { border-color: var(--ink-soft); }
+.opt[data-state="right"] { border-color: var(--ok); box-shadow: inset 3px 0 0 var(--ok); }
+.opt[data-state="wrong"] { border-color: var(--no); box-shadow: inset 3px 0 0 var(--no); }
+.opt:disabled { cursor: default; opacity: 0.75; }
+.opt[data-state] { opacity: 1; }
+
+.feedback {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  margin: 0.6rem 0 0;
+  min-height: 1.2em;
+}
+
+.followup {
+  margin-top: 3rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.sources { font-size: 0.88rem; }
+.sources li { margin-bottom: 0.35rem; }
+.sources .primary { font-weight: 600; color: var(--ink); }
+
+a { color: var(--accent); }
+
+@media print {
+  :root { --paper: #fff; --ink: #000; --mark: #f4f2ee; }
+  body { padding: 0; font-size: 11pt; }
+  .lesson { max-width: none; }
+  .opt { break-inside: avoid; }
+  .q { background: none; border: 1px solid #999; }
+  h2 { break-after: avoid; }
+}
