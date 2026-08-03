@@ -130,19 +130,45 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
   statable); the lesson-served event. Record: `adr:comprehension-heatmap-zpd-role` (draft). Did
   **not** touch the comprehension-GATE question (#366 fog). Unblocks #385.
 
+- **Where does the teach corpus live? (#382, 2026-08-03)** — Two stages as the operator ruled
+  (per-repo worktree authoring → `~/selfco/teach/` corpus; sibling repo rejected), and the deposit
+  between them is **a skill step that emits evidence plus a reconciler that flags its absence**
+  (R2). The `/diagram` precedent cited in support of the location was measured and is the
+  *cautionary* case: its deposit is a prose principle, and `~/selfco/diagrams/` holds **2 files**
+  (both stamped the hour the convention was written), **untracked**, with **0** ledger rows
+  recording a deposit — against 540 / 194 / 90 / 60 rows in the four hook-emitted channels. So
+  `/teach`'s deposit writes the artifacts *and* appends `harness:lesson-deposited` to
+  `~/selfco/tracking/teach-sessions.jsonl`, and `reconcile-teach-deposits.mjs` (shadow first, after
+  `reconcile-tracking.mjs`) compares pushed branches against deposit rows — because TD-006's failure
+  was the **unwatched absence**, which emission alone does not catch. The authoring branch is
+  **pushed, never merged** (R3, #386's disposition), so a missed deposit is recoverable rather than
+  fatal and the reconciler has a left-hand side. Learning records land at
+  `~/selfco/teach/<topic-slug>/learning-records/` as files (R4) — closing the #382↔#384 seam by
+  **role, not duplication**: files are the record, the ledger event is the index, and
+  `lesson-deposited` ≠ #384's `lesson-served` (corpus growth must never read as teaching delivered).
+  Read path is `teach/index.md` appended by the same emitting step (R5), since Obsidian will not
+  render a standalone `.html` as a page. Corpus keyed by **topic slug** per `adr:adr-slug-identity`
+  (R6, derived not grilled). **D6 answer** (R1): `teach/` is an artifact sink because it carries no
+  claim, assignment, or closure state — nothing in it is ever open — so it fragments no work-item
+  provenance. Folder role declared in **both** vault copies now, and the **dropped `diagrams/` row
+  repaired in the same edit** (R7): ADR-0088 exists to prevent exactly that loss, and the row was
+  dropped anyway within a day, in the same table. Record:
+  `adr:teach-corpus-deposit-architecture` (draft).
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | Adopt-stack pass: mattpocock/skills teach (#380) | grilling | — | **closed 2026-08-03** |
 | Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | **closed 2026-08-03** |
-| Where does the teach corpus live? (#382) | grilling | — | open |
+| Where does the teach corpus live? (#382) | grilling | — | **closed 2026-08-03** |
 | Field evidence: /teach in the wild + interactive-HTML lesson patterns (#383) | research | — | open |
 | ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | **closed 2026-08-03** |
 | Retention boundary ruling (#385) | grilling | — | open — unblocked by #384 |
 | HTML lesson pattern spike (#386) | prototype | Adopt-stack pass | **closed 2026-08-03** |
 | Second-surface HTML probe: /merge-quiz as an interactive page (#391) | prototype | — | open — unblocked |
 | Design-system inheritance: how do lessons wear the ojfbot brand? (#393) | grilling | — | open — unblocked, informs #391 |
+| Teach-session trigger points: where does a workspace spawn? (#406) | grilling | — | open — graduated from fog by #382 + #384 |
 
 ## Not yet specified
 
@@ -151,11 +177,10 @@ it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 se
   recorded, or what happens when a cell crosses from holdout into selected. **Graduation candidate**
   once the sensor re-key (bounded context × mode) lands — the question is only fully statable
   against a real cell population. Until then P5 must not publish an uplift number.
-- **Teach-session trigger points** — where in the build loop workspaces spawn (standup drip,
-  post-merge suggestion, prototype disposition, /investigate postflight): the "ambient drip".
-  Statable only after the corpus-location and ZPD-sensor tickets close. The D25 ruling (teach
-  adopt-stack pass) adds one requirement to whatever spawn mechanism emerges: it injects teaching
-  preferences from fleet memory at spawn.
+- **Retention of pushed `teach/*` branches** — #382's R3 pushes an authoring branch per lesson and
+  never merges it, across every repo that teaches. Nothing prunes them and no retention rule is
+  written. Statable as a question once the deposit step exists and the first branches accumulate;
+  until then there is nothing to set a policy against.
 - **Agent-side co-learning** — the `se-competency-engine` lockstep bet: the same lessons doubling
   as agent evals so operator and fleet competence rise together.
 - **Lesson staleness** — what happens to a lesson when the code it teaches moves (cousin of the

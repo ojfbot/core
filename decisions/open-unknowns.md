@@ -106,3 +106,23 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
 - Comprehension-as-competence validity: `.claude/skills/merge-quiz/SKILL.md:32` states the instrument is "a reasonable extrapolation from adjacent evidence, not a validated intervention," and neither vault page (`ai-augmentation-evidence`, `se-competency-engine`) treats self-report or quiz-score validity as a measurement question. #384 constrains how far decisions may lean on the instrument; it does not upgrade its evidentiary standing.
 - No time decay in the EWMA (α=0.4, per-observation, not per-day, and not CLI-reachable) — a stale cell never ages, which matters more for a placement prior than for a score.
 - Zero invocations: the instrument P5 depends on produced no data in 5 days across 25 qualifying merges. R5 declines to backfill; the H8 retirement rule is the designated catch.
+
+## 2026-08-03 — Teach corpus: a two-stage sink whose deposit emits evidence and is reconciled (wayfinder #382)
+
+**Deferred decisions**
+- Retention of pushed `teach/*` branches — R3 pushes one per lesson across every teaching repo and nothing prunes them; unblocked by: the deposit step existing and the first branches accumulating (recorded in the map's `## Not yet specified`)
+- The `teach-sessions.jsonl` row schema beyond the event name — what a `harness:lesson-deposited` row must carry for the reconciler to match it to a branch; unblocked by: the slice that builds the deposit step
+- Whether `reconcile-teach-deposits.mjs` ever promotes from shadow to a gate, and on what orphan rate — deliberately deferred per `adr:control-gated-slices`
+- Whether a SessionEnd hook is added as a belt over R2's braces — available if the reconciler's measured orphan rate justifies it; rejected as the *sole* mechanism, not rejected outright
+- Whether `schema.yaml` should extend past `wiki/` page types to declare sink folders — R7 mirrors two rows correctly and repairs one drop, but does not fix the two-prose-copies arrangement ADR-0105 identified as unmaintainable
+
+**Unvalidated assumptions**
+- That topic slugs are stable enough to be identity (R6) — a renamed topic orphans a folder, and supersession-over-deletion means the corpus only grows; derived from `adr:adr-slug-identity` rather than separately grilled
+- That an agent reliably runs an explicit deposit step when the skill says to — R2's reconciler exists precisely because this is *not* assumed, but the reconciler's own value assumes someone reads its report; nothing yet routes it
+- That authoring in a worktree next to the code produces better lessons than authoring elsewhere — the shadow-space ruling is an argument from working-tree cleanliness, not from lesson quality, and no lesson has been authored either way
+- That `harness:lesson-deposited` and #384's `harness:lesson-served` stay distinct in practice — the boundary is stated, but one skill will emit both and collapsing them is the cheap mistake
+
+**Standard considerations not covered**
+- The corpus is empty by construction and will stay so until three artifacts ship (deposit step, reconciler, ledger schema). This ruling constrains a mechanism that does not run; it must not be read as capability — the same caution `adr:comprehension-heatmap-zpd-role` records about the heatmap.
+- No access or privacy boundary is stated for the corpus. Lessons cite diffs from private repos and land in a vault that has had a public-disclosure seam ruled on elsewhere (texas-rr engagement, #347); nothing here says what a lesson may quote.
+- Nothing routes the reconciler's report to a human. TD-006's 96-day gap was not caused by missing data — `bead-lint` existed — but by nobody reading it.
