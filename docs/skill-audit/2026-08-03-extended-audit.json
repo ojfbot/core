@@ -1,0 +1,3299 @@
+{
+  "summary": {
+    "generated_at": "2026-08-03T19:58:10.567Z",
+    "skills": 68,
+    "deterministic_verdicts": {
+      "aligned": 39,
+      "needs_work": 27,
+      "refactor": 2
+    },
+    "extended_verdicts": {
+      "aligned": 14,
+      "needs_work": 47,
+      "refactor": 7
+    },
+    "j_signal_tallies": {
+      "J1": {
+        "aligned": 62,
+        "partial": 6,
+        "gap": 0
+      },
+      "J2": {
+        "aligned": 66,
+        "partial": 0,
+        "gap": 2
+      },
+      "J3": {
+        "aligned": 58,
+        "partial": 9,
+        "gap": 1
+      },
+      "J4": {
+        "aligned": 60,
+        "partial": 6,
+        "gap": 2
+      },
+      "J5": {
+        "aligned": 59,
+        "partial": 9,
+        "gap": 0
+      },
+      "J6": {
+        "aligned": 53,
+        "partial": 4,
+        "gap": 11
+      },
+      "J7": {
+        "aligned": 57,
+        "partial": 11,
+        "gap": 0
+      },
+      "J8": {
+        "aligned": 57,
+        "partial": 7,
+        "gap": 4
+      }
+    },
+    "fix_classes": {
+      "none": 32,
+      "disclose": 14,
+      "prune": 11,
+      "add-criteria": 6,
+      "split": 4,
+      "rewrite-description": 1
+    },
+    "shadow": {
+      "sprawl_count": 30,
+      "total_body_words": 69464,
+      "total_desc_words": 4349,
+      "total_negations": 518,
+      "dup_line_skills": 3
+    }
+  },
+  "rows": [
+    {
+      "name": "adopt-stack",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1028,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 10,
+        "D9_negation_per_100w": 0.97,
+        "D10_desc_words": 86,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Tightly scoped, evidence-grounded workflow; Gotchas are specific fabrication traps, not filler.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "adr",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 972,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 0.93,
+        "D10_desc_words": 27,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Subcommand rigidity protects an identity invariant rather than railroading a judgment task.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "agent-debug",
+      "category": "runbooks",
+      "straddle": false,
+      "word_count": 607,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 5,
+        "D9_negation_per_100w": 0.82,
+        "D10_desc_words": 43,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Step 4's explicit 7-mode checklist gives the diagnosis an exhaustiveness bar most skills lack.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "bead",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1084,
+      "has_knowledge": false,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 0.83,
+        "D10_desc_words": 159,
+        "D10_trigger_count": 10,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J8"
+      ],
+      "j_evidence": {
+        "J8": "references/bead-schemas.md — frontmatter schema per bead type"
+      },
+      "fix": "disclose",
+      "note": "references/bead-schemas.md is load-bearing for correct frontmatter but only appears in a passive file listing, never a 'load before filling template' directive.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "blind-sweep",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1834,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 26,
+        "D9_negation_per_100w": 1.42,
+        "D10_desc_words": 68,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Unusually disciplined about its own epistemic limits; every step ends on a checkable rule.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "caveman",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 416,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.96,
+        "D10_desc_words": 65,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Small, example-anchored, self-contained; Gotchas correctly separate style compression from content protection.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "claude-md-audit",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1372,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 11,
+        "D9_negation_per_100w": 0.8,
+        "D10_desc_words": 94,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Delete-safety and @import-theater Gotchas are genuine field traps; output demands an explicit '@import blocks: 0' assertion.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "claude-md-rollout",
+      "category": "business-automation",
+      "straddle": false,
+      "word_count": 612,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 6,
+        "D9_negation_per_100w": 0.98,
+        "D10_desc_words": 91,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "Do exactly one repo, then stop even if more are untouched"
+      },
+      "fix": "none",
+      "note": "Deliberately rigid pacing control (one repo, never batch, never auto-merge) — load-bearing safety, not accidental railroading.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "council-review",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 787,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 5,
+        "D9_negation_per_100w": 0.64,
+        "D10_desc_words": 57,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Knowledge pointers land exactly at the step that needs them; 150% length cap gives synthesis a hard completion bound.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "daily-logger",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 472,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 1,
+        "D9_negation_per_100w": 0.21,
+        "D10_desc_words": 52,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Partial",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J6"
+      ],
+      "j_evidence": {
+        "J6": "## Four-phase pipeline"
+      },
+      "fix": "prune",
+      "note": "knowledge/architecture-brief.md heading says 'Four-phase pipeline' but the body lists a Phase 5 (API Build).",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "day-run",
+      "category": "infrastructure-ops",
+      "straddle": false,
+      "word_count": 422,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": false,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.66,
+        "D10_desc_words": 0,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4",
+        "D5"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Tight, single-purpose dispatch skill with concrete gotchas and checkable per-slice verdicts.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "deepen",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1332,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.3,
+        "D10_desc_words": 36,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "`../recon/recon.md` — aerial-view orientation (run first)"
+      },
+      "fix": "prune",
+      "note": "See Also points to <skill>/<skill>.md files (recon.md, sweep.md, techdebt.md) that don't exist — those dirs only contain SKILL.md.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "deploy",
+      "category": "cicd-deployment",
+      "straddle": false,
+      "word_count": 605,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.66,
+        "D10_desc_words": 49,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Partial",
+        "J8": "Gap"
+      },
+      "j_gaps": [
+        "J6",
+        "J8"
+      ],
+      "j_partials": [
+        "J7"
+      ],
+      "j_evidence": {
+        "J6": "load `knowledge/blast-radius-guide.md`",
+        "J7": "What metrics, logs, or error rates to watch for the first 30 minutes post-deploy.",
+        "J8": "load `knowledge/blast-radius-guide.md`"
+      },
+      "fix": "disclose",
+      "note": "Step 3's entire content (blast-radius framework) is missing — knowledge/ only has preflight-checklist.md and rollback-guide.md.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "diagram",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 719,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 1.25,
+        "D10_desc_words": 108,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Clean three-mode comprehension skill; bounded node counts and render requirement give real completion criteria.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "diagram-intake",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1005,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 6,
+        "D9_negation_per_100w": 0.6,
+        "D10_desc_words": 59,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J8"
+      ],
+      "j_evidence": {
+        "J8": "state what you can read and ask the user to clarify specific items"
+      },
+      "fix": "add-criteria",
+      "note": "Step 1's visual-parse is inherently fuzzy and has no explicit per-label confidence checkpoint before the crisp Steps 2-6.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "doc-refactor",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 498,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.41,
+        "D10_desc_words": 41,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Partial",
+        "J8": "Gap"
+      },
+      "j_gaps": [
+        "J6",
+        "J8"
+      ],
+      "j_partials": [
+        "J7"
+      ],
+      "j_evidence": {
+        "J6": "Load `knowledge/mermaid-templates.md` for common Mermaid patterns",
+        "J7": "what stubs were created, and what still needs a human to fill in",
+        "J8": "Load `knowledge/mermaid-templates.md` for common Mermaid patterns"
+      },
+      "fix": "disclose",
+      "note": "Step 4 depends on a knowledge file that doesn't exist — knowledge/ only has docs-structure.md and readme-template.md.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "extension-audit",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 614,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 2,
+        "D9_negation_per_100w": 0.33,
+        "D10_desc_words": 43,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Well-scoped security audit with severity rules, both knowledge files verified present.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "fleet-onboard",
+      "category": "environment",
+      "straddle": false,
+      "word_count": 764,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": false,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.52,
+        "D10_desc_words": 87,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D2",
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Dense 14-surface matrix but single coherent job; self-hedges its own staleness risk.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "frame-dev",
+      "category": "infrastructure-ops",
+      "straddle": false,
+      "word_count": 526,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": false,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 2,
+        "D9_negation_per_100w": 0.38,
+        "D10_desc_words": 18,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4",
+        "D5"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Small launcher skill; ports/URLs consistent; gotchas are genuine field failure modes.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "frame-standup",
+      "category": "business-automation",
+      "straddle": true,
+      "word_count": 3193,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": false
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 23,
+        "D9_negation_per_100w": 0.72,
+        "D10_desc_words": 102,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 1
+      },
+      "fails": [
+        "D7"
+      ],
+      "verdict": "Refactor candidate",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Gap",
+        "J5": "Aligned",
+        "J6": "Partial",
+        "J7": "Aligned",
+        "J8": "Gap"
+      },
+      "j_gaps": [
+        "J4",
+        "J8"
+      ],
+      "j_partials": [
+        "J6"
+      ],
+      "j_evidence": {
+        "J4": "Sweep dead leases, then post unassigned work to the queue",
+        "J6": "How `/frame-standup` Step 4.6 + Step 5 use the three-tier northstar.",
+        "J8": "How `/frame-standup` Step 4.6 + Step 5 use the three-tier northstar."
+      },
+      "fix": "split",
+      "note": "3300-word skill bundles content-audit, telemetry, queue-sweep/dispatch, and movement-recording; knowledge/northstar.md describes exactly how Steps 4.6/5 should use it but is never pointed to from SKILL.md.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "gastown",
+      "category": "business-automation",
+      "straddle": false,
+      "word_count": 1330,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 0.53,
+        "D10_desc_words": 69,
+        "D10_trigger_count": 10,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Gap",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J4"
+      ],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "A1 before all else; G-series requires A1+A2; never skip steps.",
+        "J4": "audit adoption progress, plan incremental work, review GasTownPilot UI implementations, and keep GitHub roadmap issues"
+      },
+      "fix": "split",
+      "note": "Four modes span audit, scaffolding-planning, UI review, and cicd ops — a real straddle.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "gated-slice",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1875,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 0.37,
+        "D10_desc_words": 135,
+        "D10_trigger_count": 9,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Dense, precise planning skill; numeric TPM requirement gives a real exhaustiveness bar.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "git-guardrails",
+      "category": "infrastructure-ops",
+      "straddle": false,
+      "word_count": 781,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 1.02,
+        "D10_desc_words": 64,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Tight read-only-by-default skill; Gotchas genuinely field-learned.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "grill-with-docs",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 2290,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 10,
+        "D9_negation_per_100w": 0.44,
+        "D10_desc_words": 85,
+        "D10_trigger_count": 15,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J5"
+      ],
+      "j_evidence": {
+        "J5": "Ask before you assume. Every silent assumption is a future bug"
+      },
+      "fix": "prune",
+      "note": "Excellent gate-style skill with hard confirmation stop-gate; Core Principle 1's opener is generic exhortation restated more concretely later.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "handoff",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 553,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 2,
+        "D9_negation_per_100w": 0.36,
+        "D10_desc_words": 44,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Partial"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J5",
+        "J7",
+        "J8"
+      ],
+      "j_evidence": {
+        "J5": "Be specific, not generic.",
+        "J7": "Understand entry points, data flows, and failure modes from the actual implementation.",
+        "J8": "Understand entry points, data flows, and failure modes from the actual implementation."
+      },
+      "fix": "add-criteria",
+      "note": "Step 1 ('read the code') has no checkable done-state; risk of a shallow skim before the fully-specified writing step.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "hardening",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 536,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.75,
+        "D10_desc_words": 39,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Compact three-dimension audit with an explicit exhaustiveness bar.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "init",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 764,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": false,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 3,
+        "D9_negation_per_100w": 0.39,
+        "D10_desc_words": 13,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4",
+        "D5"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "| purefoy | `domain-knowledge/purefoy-architecture.md` |"
+      },
+      "fix": "rewrite-description",
+      "note": "Step 3's hardcoded repo-to-architecture-file table lists only 8 repos while the fleet has ~45; unlisted repos get no context-loading guidance.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "investigate",
+      "category": "runbooks",
+      "straddle": false,
+      "word_count": 914,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 0.88,
+        "D10_desc_words": 52,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Exemplary gate skill (J3-exempt): phase-ordered, strong Gotchas, explicit persistence rationale tied to a real downstream consumer.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "lint-audit",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 769,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 6,
+        "D9_negation_per_100w": 0.78,
+        "D10_desc_words": 51,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "@frame/eslint-plugin v2.0.0 (8 rules)"
+      },
+      "fix": "disclose",
+      "note": "Pinned plugin version and hardcoded TD-002/TD-003/TD-004 mappings baked into SKILL.md are stale-risk; push to knowledge/ or derive live.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "merge-quiz",
+      "category": "product-verification",
+      "straddle": false,
+      "word_count": 3029,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 33,
+        "D9_negation_per_100w": 1.09,
+        "D10_desc_words": 78,
+        "D10_trigger_count": 11,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Partial",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3",
+        "J4"
+      ],
+      "j_evidence": {
+        "J3": "No exceptions, and no \"but I'll be careful.\"",
+        "J4": "This appends to `~/selfco/wiki/log.md`, the vault's append-only ledger"
+      },
+      "fix": "split",
+      "note": "3100+ words with no knowledge/ disclosure; the vault-capture step is a distinct concern worth delegating to /vault.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "observe",
+      "category": "runbooks",
+      "straddle": false,
+      "word_count": 569,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 1,
+        "D9_negation_per_100w": 0.18,
+        "D10_desc_words": 42,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Tight, evidence-gated incident-report skill with genuine LangGraph-specific gotchas.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "opm",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 548,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": false,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 1.46,
+        "D10_desc_words": 127,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D3",
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Gap",
+        "J3": "Aligned",
+        "J4": "Partial",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J2"
+      ],
+      "j_partials": [
+        "J4"
+      ],
+      "j_evidence": {
+        "J2": "## Boundaries",
+        "J4": "Four modes: model (author or update the .opl from repo reality"
+      },
+      "fix": "disclose",
+      "note": "No Gotchas section at all, and the four modes (author/render/lint/query) touch distinct skill categories.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "orchestrate",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 2762,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 15,
+        "D9_negation_per_100w": 0.54,
+        "D10_desc_words": 58,
+        "D10_trigger_count": 10,
+        "D11_dup_lines": 3
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Gap",
+        "J4": "Partial",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J3"
+      ],
+      "j_partials": [
+        "J4"
+      ],
+      "j_evidence": {
+        "J3": "Find the session bead ID (created by bead-session.sh when this skill was invoked)",
+        "J4": "Modes — emit GitHub issues (Pocock /to-issues)"
+      },
+      "fix": "split",
+      "note": "Mandatory jq-parsed bead/convoy bookkeeping at every step heavily railroads execution; also embeds a separate GitHub-issue-emission workflow.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "plan-feature",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1335,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.3,
+        "D10_desc_words": 51,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Well-scoped spec-writing skill with real gotchas, falsifiable-criteria discipline, explicit confirmation gates.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "pr-review",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1299,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 13,
+        "D9_negation_per_100w": 1,
+        "D10_desc_words": 55,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [
+        "J8"
+      ],
+      "j_evidence": {
+        "J6": "Load `knowledge/framework-checks.md` if the PR touches LangGraph, RAG pipeline",
+        "J8": "if the PR touches LangGraph, RAG pipeline, browser extension, or Carbon components"
+      },
+      "fix": "disclose",
+      "note": "knowledge/framework-checks.md is referenced twice but doesn't exist — a dead pointer that silently drops framework-specific checks.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "prototype",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1006,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 3,
+        "D9_negation_per_100w": 0.3,
+        "D10_desc_words": 78,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Clean single-purpose throwaway-prototyping skill; question-first framing guards against premature completion.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "push-all",
+      "category": "cicd-deployment",
+      "straddle": false,
+      "word_count": 546,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.73,
+        "D10_desc_words": 52,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J5"
+      ],
+      "j_evidence": {
+        "J1": "Run `git status` and `git diff --staged`.",
+        "J5": "Run `git status` and `git diff --staged`."
+      },
+      "fix": "prune",
+      "note": "Step 1's git-status/diff-staged sequence largely restates the git-commit workflow already mandated at the environment level.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "rag-audit",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 571,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 2,
+        "D9_negation_per_100w": 0.35,
+        "D10_desc_words": 40,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [
+        "J8"
+      ],
+      "j_evidence": {
+        "J6": "Load `knowledge/migration-paths.md` if the current store needs to be upgraded",
+        "J8": "Load `knowledge/migration-paths.md` if the current store needs to be upgraded"
+      },
+      "fix": "disclose",
+      "note": "knowledge/migration-paths.md referenced but does not exist (only rag-invariants.md present), so migration guidance silently never loads.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "recon",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 499,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 0,
+        "D9_negation_per_100w": 0,
+        "D10_desc_words": 53,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J5",
+        "J7"
+      ],
+      "j_evidence": {
+        "J1": "Then survey: directory layout, key directories, package.json/pyproject.toml/etc.",
+        "J5": "Then survey: directory layout, key directories, package.json/pyproject.toml/etc.",
+        "J7": "Unusual patterns, tech debt hot-spots, security surface, missing tests, dead code"
+      },
+      "fix": "prune",
+      "note": "Steps 1-5 largely restate what a competent agent already does; the real differentiator (Notable observations) has no exhaustiveness bar.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "resume",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 831,
+      "has_knowledge": false,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": false,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 11,
+        "D9_negation_per_100w": 1.32,
+        "D10_desc_words": 153,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D3",
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Gap",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J2"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J2": "## Dependencies"
+      },
+      "fix": "disclose",
+      "note": "Excellent anti-confabulation design but no ## Gotchas section despite carrying real field lessons inline (e.g. the id-join trap).",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "resume-audit",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1277,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 0.55,
+        "D10_desc_words": 60,
+        "D10_trigger_count": 10,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "Gap classification is mandatory — every gap must be classified"
+      },
+      "fix": "none",
+      "note": "Rigid mandatory-classification is well-justified for an audit skill; strong evidence-cited Gotchas.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "roadmap",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 626,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 3,
+        "D9_negation_per_100w": 0.48,
+        "D10_desc_words": 42,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J5",
+        "J7"
+      ],
+      "j_evidence": {
+        "J1": "Current state first — understand what exists before projecting forward",
+        "J5": "Concrete over aspirational — short-term items must be actionable",
+        "J7": "Default: structured markdown document."
+      },
+      "fix": "add-criteria",
+      "note": "Core Principles read as generic PM advice and the output format lacks a demanding completion bar.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "scaffold",
+      "category": "code-scaffolding",
+      "straddle": false,
+      "word_count": 565,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 6,
+        "D9_negation_per_100w": 1.06,
+        "D10_desc_words": 43,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J7"
+      ],
+      "j_evidence": {
+        "J7": "Files created/modified, what still needs implementation, open questions"
+      },
+      "fix": "add-criteria",
+      "note": "Tight, well-scoped; only the final output-summary step lacks a checkable exhaustiveness bar.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "scaffold-app",
+      "category": "code-scaffolding",
+      "straddle": false,
+      "word_count": 1043,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 0.67,
+        "D10_desc_words": 41,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Partial",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J4"
+      ],
+      "j_evidence": {
+        "J4": "the new repo must be registered in fleet-wide systems"
+      },
+      "fix": "disclose",
+      "note": "Step 7 bundles code-scaffolding with fleet-wide registration — flag straddle:true rather than split (bundling is intentional to prevent omission).",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "scaffold-frame-app",
+      "category": "code-scaffolding",
+      "straddle": false,
+      "word_count": 1448,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": false,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 0.55,
+        "D10_desc_words": 43,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D5"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Partial",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3",
+        "J6"
+      ],
+      "j_evidence": {
+        "J3": "Write all files per app-templates.md langgraph-app template, with these mandatory patterns",
+        "J6": "Load knowledge/validation-checklist.md for the full 30-item checklist"
+      },
+      "fix": "prune",
+      "note": "Excellent checkable validation gate, but the JIT pointer claims a '30-item checklist' while Step 9 lists 28 — reconcile.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "screenshot-audit",
+      "category": "product-verification",
+      "straddle": false,
+      "word_count": 581,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.2,
+        "D10_desc_words": 40,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J7"
+      ],
+      "j_evidence": {
+        "J7": "Classify each change"
+      },
+      "fix": "add-criteria",
+      "note": "Strong bias-correcting Gotchas; Step 2 never states an exhaustiveness requirement that every pair be classified.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "selfco-ingest",
+      "category": "data-analysis",
+      "straddle": false,
+      "word_count": 2857,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 26,
+        "D9_negation_per_100w": 0.91,
+        "D10_desc_words": 93,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Partial",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J4",
+        "J5",
+        "J8"
+      ],
+      "j_evidence": {
+        "J1": "Active voice. No \"it was argued that...\"",
+        "J4": "ALTER COLUMN \"tags\" SET MULTI_SELECT(",
+        "J5": "Trust the developer audience — cultural shorthand is fine",
+        "J8": "Wait for him to react before proceeding"
+      },
+      "fix": "disclose",
+      "note": "Strong 500-1000-word completion floor, but fully inline with no knowledge/ dir; mixes generic style tips with tag-schema governance.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "setup-ci-cd",
+      "category": "cicd-deployment",
+      "straddle": false,
+      "word_count": 544,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.29,
+        "D10_desc_words": 40,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J5",
+        "J7"
+      ],
+      "j_evidence": {
+        "J1": "Detect, don't assume — read the actual stack",
+        "J5": "Respect existing conventions.",
+        "J7": "What was created, what was skipped (already existed), manual steps needed"
+      },
+      "fix": "prune",
+      "note": "Sharp self-aware Gotchas; Core Principles/Constraints repeat generic conventions without process specificity.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "skill-audit",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 780,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 1.03,
+        "D10_desc_words": 69,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Economized judgment-pass scope, sharp catalog-vs-disk-drift Gotchas, clear JIT pointer to the rubric.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "skill-create",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1140,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 0.79,
+        "D10_desc_words": 57,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Strong self-referential Gotchas and a demanding read-back verification checklist that guards against premature completion.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "skill-loader",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 684,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 5,
+        "D9_negation_per_100w": 0.73,
+        "D10_desc_words": 56,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Gap"
+      },
+      "j_gaps": [
+        "J8"
+      ],
+      "j_partials": [
+        "J5",
+        "J7"
+      ],
+      "j_evidence": {
+        "J5": "Less is more — install only what is needed.",
+        "J7": "Produce the full catalog grouped by lifecycle phase.",
+        "J8": "Load `knowledge/skill-catalog.json` for the full skill inventory"
+      },
+      "fix": "disclose",
+      "note": "knowledge/flows.md (a genuinely useful lifecycle map) is never referenced anywhere in SKILL.md — an orphaned must-have file.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "skill-metrics",
+      "category": "data-analysis",
+      "straddle": false,
+      "word_count": 1035,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 6,
+        "D9_negation_per_100w": 0.58,
+        "D10_desc_words": 50,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 1
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Evidence-first metrics skill; script path resolves correctly, knowledge file substantive, no dead references.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "spec-review",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1331,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 10,
+        "D9_negation_per_100w": 0.75,
+        "D10_desc_words": 68,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "Do not skip this step."
+      },
+      "fix": "none",
+      "note": "Solid 9-step cross-check with clear verdict table; one 'do not skip' directive proportionate to the step it guards.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "speculative-pass",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 2403,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 0.37,
+        "D10_desc_words": 149,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "Any failure means regenerate that stance, not ship-with-a-caveat."
+      },
+      "fix": "none",
+      "note": "Unusually rich generator skill with a falsifiable self-test; rigid structure enforcement is the load-bearing design.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "summarize",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 321,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 1,
+        "D9_negation_per_100w": 0.31,
+        "D10_desc_words": 44,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Partial",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Partial",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J1",
+        "J5",
+        "J7"
+      ],
+      "j_evidence": {
+        "J1": "Focus on: purpose, key responsibilities, important functions/types/interfaces, notable patterns",
+        "J5": "If text is provided directly: summarize it.",
+        "J7": "thorough breakdown covering all major types, functions, patterns, dependencies, and concerns"
+      },
+      "fix": "prune",
+      "note": "Main body mostly restates default summarization instincts; the Gotchas section carries all the real signal.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "sweep",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 520,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 8,
+        "D9_negation_per_100w": 1.54,
+        "D10_desc_words": 39,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Clean maintenance-pass skill: bundled scripts exist, knowledge is a real detection catalog, Gotchas are genuine judgment traps.",
+      "extended_verdict": "Aligned"
+    },
+    {
+      "name": "tdd",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1623,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 12,
+        "D9_negation_per_100w": 0.74,
+        "D10_desc_words": 59,
+        "D10_trigger_count": 9,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "../test-expand/test-expand.md — coverage planning (lighter than /tdd)"
+      },
+      "fix": "prune",
+      "note": "Exemplary red-green-refactor skill; but three See Also links point at nonexistent <name>.md files — every sibling uses SKILL.md.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "techdebt",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 649,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 5,
+        "D9_negation_per_100w": 0.77,
+        "D10_desc_words": 50,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "/^\\.claude\\/commands\\//,"
+      },
+      "fix": "disclose",
+      "note": "Well-designed meta-skill; its own knowledge/allowed-paths.md has drifted — the isAllowedPath() sample still says .claude/commands/ where the prose says .claude/skills/**.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "test-expand",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 610,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.15,
+        "D10_desc_words": 44,
+        "D10_trigger_count": 8,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Partial",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J7"
+      ],
+      "j_evidence": {
+        "J7": "Which branches are not covered? (if/else, switch, error paths, edge cases)"
+      },
+      "fix": "add-criteria",
+      "note": "Solid tests-only skill; the gap-mapping step never states a closing exhaustiveness bar before Propose.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "triage",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1489,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 12,
+        "D9_negation_per_100w": 0.81,
+        "D10_desc_words": 36,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [
+        "J3"
+      ],
+      "j_evidence": {
+        "J3": "Never deviates without explicit user override.",
+        "J6": "../roadmap/roadmap.md — directional prioritization (this skill applies it to issues)"
+      },
+      "fix": "disclose",
+      "note": "Rigorous reproducible-triage skill; See Also links three nonexistent <skill>/<skill>.md files, same pattern as tdd.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "validate",
+      "category": "code-quality-review",
+      "straddle": false,
+      "word_count": 1192,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 9,
+        "D9_negation_per_100w": 0.76,
+        "D10_desc_words": 46,
+        "D10_trigger_count": 10,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Partial",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J4"
+      ],
+      "j_evidence": {
+        "J4": "emit the transition onto the tracking spine — emit-not-magic"
+      },
+      "fix": "none",
+      "note": "Clean gate skill (J3-exempt); deliverable-tracking emission is a secondary concern bolted onto the core review procedure.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "vault",
+      "category": "data-analysis",
+      "straddle": true,
+      "word_count": 399,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": false
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 0,
+        "D9_negation_per_100w": 0,
+        "D10_desc_words": 101,
+        "D10_trigger_count": 17,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D7"
+      ],
+      "verdict": "Refactor candidate",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "SKILL.md is an honest stub deferring to vault.md; dense but cohesive, genuine field-learned Gotchas, consumer-app split already prevents straddle.",
+      "extended_verdict": "Refactor candidate"
+    },
+    {
+      "name": "wayfinder",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 1251,
+      "has_knowledge": true,
+      "has_scripts": true,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": true,
+        "D9_negation_count": 19,
+        "D9_negation_per_100w": 1.52,
+        "D10_desc_words": 71,
+        "D10_trigger_count": 7,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Partial",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Partial"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J3",
+        "J8"
+      ],
+      "j_evidence": {
+        "J3": "No code, no deliverables, no ticket resolution during charting.",
+        "J8": "The full mode table is in `knowledge/fleet-substrate.md`."
+      },
+      "fix": "disclose",
+      "note": "The fleet-substrate.md mode table is must-have for full-mode detection but pointed to with a soft descriptive sentence rather than an imperative read directive.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "workbench",
+      "category": "infrastructure-ops",
+      "straddle": false,
+      "word_count": 764,
+      "has_knowledge": true,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": true,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 5,
+        "D9_negation_per_100w": 0.65,
+        "D10_desc_words": 39,
+        "D10_trigger_count": 4,
+        "D11_dup_lines": 0
+      },
+      "fails": [],
+      "verdict": "Aligned",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Partial",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [
+        "J6"
+      ],
+      "j_evidence": {
+        "J6": "preserved on disk as a fallback during the migration"
+      },
+      "fix": "prune",
+      "note": "Tight launcher wrapper; one dangling reference to an in-progress migration whose status isn't verifiable from the file.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "writing-beats",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 718,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 4,
+        "D9_negation_per_100w": 0.56,
+        "D10_desc_words": 87,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Well-scoped pipeline-stage skill; beat-at-a-time rigidity is justified with explicit revise/reorder escape hatches.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "writing-fragments",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 662,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": false,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 1.06,
+        "D10_desc_words": 81,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Gap",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [
+        "J6"
+      ],
+      "j_partials": [],
+      "j_evidence": {
+        "J6": "`/grill-me` — if the topic itself needs sharpening before you mine for material."
+      },
+      "fix": "prune",
+      "note": "See Also references a /grill-me skill that does not exist in the library (the real skill is grill-with-docs).",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "writing-shape",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 744,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 7,
+        "D9_negation_per_100w": 0.94,
+        "D10_desc_words": 87,
+        "D10_trigger_count": 5,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Clean pipeline-stage skill; per-paragraph form discipline is concrete and Gotchas map to Core Principles.",
+      "extended_verdict": "Needs work"
+    },
+    {
+      "name": "zoom-out",
+      "category": "methodology-meta",
+      "straddle": false,
+      "word_count": 539,
+      "has_knowledge": false,
+      "has_scripts": false,
+      "signals": {
+        "D1": true,
+        "D2": true,
+        "D3": true,
+        "D4": false,
+        "D5": true,
+        "D6_soft": true,
+        "D7": true
+      },
+      "shadow": {
+        "D8_sprawl": false,
+        "D9_negation_count": 1,
+        "D9_negation_per_100w": 0.19,
+        "D10_desc_words": 90,
+        "D10_trigger_count": 6,
+        "D11_dup_lines": 0
+      },
+      "fails": [
+        "D4"
+      ],
+      "verdict": "Needs work",
+      "J": {
+        "J1": "Aligned",
+        "J2": "Aligned",
+        "J3": "Aligned",
+        "J4": "Aligned",
+        "J5": "Aligned",
+        "J6": "Aligned",
+        "J7": "Aligned",
+        "J8": "Aligned"
+      },
+      "j_gaps": [],
+      "j_partials": [],
+      "j_evidence": {},
+      "fix": "none",
+      "note": "Lightweight, well-bounded orientation skill; one-screen budget gives a demanding, checkable completion criterion.",
+      "extended_verdict": "Needs work"
+    }
+  ]
+}
