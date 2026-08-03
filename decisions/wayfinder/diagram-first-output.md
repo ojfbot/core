@@ -27,8 +27,7 @@ overwhelmed by LLM output and cannot see what is being built.
   CONTEXT.md reserves "Scene" for tldraw's scene JSON). The durable pattern is
   **snapshot-per-unit-of-work lineage**. Caveat on record: Matt has publicly experimented with
   building diagrams in React instead of tldraw for speed and a consistent visual language
-  ([tweet](https://x.com/mattpocockuk/status/1983942609891467605)); the operator ruled tldraw the
-  core bet regardless.
+  ([tweet](https://x.com/mattpocockuk/status/1983942609891467605)).
 - **Existing substrate.** `core/personal-knowledge/mermaid.md` (2026-08-02, gitignored): 7
   diagrams in the OPM/OJF-OPL idiom (OPL verb-labeled edges, embedded titles, captions,
   `securityLevel: strict`, `htmlLabels: false`) plus `mermaid-preview.html`, an ad-hoc render-test
@@ -37,9 +36,14 @@ overwhelmed by LLM output and cannot see what is being built.
   repos; zero in ADRs, beads, roadmaps, or READMEs. Artifacts render mermaid natively;
   `agent-anatomy` is a natural consumer repo.
 - **Grilled 2026-08-03** (this map's charting session): Destination includes all four elements
-  (standing skill · automatic · tldraw surface · comprehension gate); **two-track** vs `/opm`;
-  **tldraw = core bet** for the surface with Mermaid as the canonical committed text layer;
-  **Adobe Express** rejected as canonical layer, charted as downstream publish endpoint only.
+  (standing skill · automatic · canvas surface · comprehension gate); **two-track** vs `/opm`;
+  Mermaid = the canonical committed text layer; **Adobe Express** rejected as canonical layer,
+  charted as downstream publish endpoint only.
+- **Revised 2026-08-03 (same day, post-charting):** the operator initially ruled tldraw the core
+  bet, then softened it — **the canvas UI is the requirement; tldraw is the leading candidate,
+  not a marriage.** Matt Pocock's own diagram experiments (tldraw vs React) are tracked as
+  evidence via a weekly watch that posts deltas as comments on the deep-research ticket; the
+  spike weighs both directions.
 - tldraw SDK licensing/watermark terms flagged for the research ticket.
 
 ## Decisions so far
@@ -55,7 +59,7 @@ _None yet — charting session closes zero tickets._
 | Where do diagrams live and when are they required? (#369) | grilling | What is the fleet diagram convention? | open |
 | /diagram skill design (#370) | grilling | What is the fleet diagram convention? | open |
 | Automation design — diagrams without asking (#371) | grilling | /diagram skill design | open |
-| tldraw Diagram Playground spike (#372) | prototype | tldraw agent ecosystem deep-research | open |
+| Canvas playground spike (#372) | prototype | tldraw agent ecosystem deep-research | open |
 | Does an Adobe Express publish endpoint belong? (#373) | grilling | What is the fleet diagram convention?, /diagram skill design | open |
 
 ## Not yet specified
@@ -68,5 +72,5 @@ _None yet — charting session closes zero tickets._
 ## Out of scope
 
 - Replacing `/opm` — ruled two-track by the operator, 2026-08-03.
-- Mermaid-only initiative (no interactive surface) — ruled out by the operator (tldraw core bet), 2026-08-03.
+- Mermaid-only initiative (no interactive surface) — ruled out by the operator (canvas surface required), 2026-08-03.
 - Adobe Express as the canonical diagram store — ruled out by the operator, 2026-08-03.
