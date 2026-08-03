@@ -1,7 +1,42 @@
 {
-  "version": "1.21",
-  "updated": "2026-07-31",
+  "version": "1.22",
+  "updated": "2026-08-03",
   "skills": [
+    {
+      "name": "diagram",
+      "tier": 1,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "tags": [
+        "diagram",
+        "mermaid",
+        "explainer",
+        "comprehension",
+        "legibility",
+        "fleet-map"
+      ],
+      "description": "Lightweight Mermaid explainer diagrams per domain-knowledge/diagram-conventions.md. Modes: explain (default -- diagram what this session/branch built), orient <target> (what a repo/module IS), fleet (altitude view over northstars/roadmaps/wayfinder frontiers). 1-3 small captioned diagrams placed beside the work. Distinct from /opm (formal committed system model) and /doc-refactor (docs normalization).",
+      "triggers": [
+        "diagram",
+        "diagram this",
+        "draw the architecture",
+        "diagram what we built",
+        "explain with a diagram",
+        "show me a diagram",
+        "fleet map",
+        "I don't understand what I'm building"
+      ],
+      "suggested_after": [
+        "recon"
+      ],
+      "layer_affinity": [
+        1,
+        2
+      ],
+      "scope": [
+        "user"
+      ]
+    },
     {
       "name": "opm",
       "tier": 2,
