@@ -360,6 +360,13 @@ starts from a truthful queue (ADR-0002):
 node "$CLAUDE_PROJECT_DIR/scripts/hooks/bead-emit.mjs" queue-sweep || true
 ```
 
+Then the **handoff-ledger heartbeat** (rm:rm-l2-ojfbot#S32, TD-006): one line of
+open-hook truth so bead rot is seen daily. Measurement only — never blocks the standup:
+
+```bash
+node "$CLAUDE_PROJECT_DIR/scripts/bead-lint.mjs" --format=summary || true
+```
+
 Then any surfaced priority the user did **not** select for immediate dispatch is
 *unassigned, pickable work*. Post each to the real unassigned queue so it
 appears in the morning-cockpit **Available** lane (ADR-0002, `labels.queue=available`):

@@ -17,7 +17,14 @@ refs:                             # cross-references; each is a typed URI
   - bead:<id>
   - adr:0006
   - url:https://...
-hook: <hook-id-or-null>           # the work assignment this bead belongs to
+hook: <hook-id-or-null>           # the work assignment this bead belongs to.
+                                  # FORWARD-ONLY CONVENTION (rm:rm-l2-ojfbot#S32): new briefs
+                                  # should carry a MACHINE KEY here or in refs — either
+                                  # github:owner/repo#N or rm:<roadmap>#S<n>. Free prose,
+                                  # empty string, and bare slugs are unsweepable: no tool can
+                                  # ever match them against merged PRs or delivered slices,
+                                  # so the hook can only be closed by hand. bead-lint WARNs
+                                  # (never blocks) on new briefs without one.
 status: live | closed | superseded
 created_at: <iso-timestamp>
 labels:                           # free-form, optional
