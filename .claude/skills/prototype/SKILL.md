@@ -33,21 +33,7 @@ You are an engineer building a **throwaway prototype**: code whose only job is t
 
 One sentence. Write it at the top of the prototype file and in your reply. Pick the mode:
 
-- **Logic mode** — the question is about behavior, state transitions, edge cases, ordering, concurrency. → interactive terminal harness.
-- **UI mode** — the question is about layout, interaction feel, information density, visual hierarchy. → multiple variants in one route, switched by `?variant=` param.
-
-### Step 2a — Logic mode: build a terminal harness
-
-- A tiny CLI loop (Node `readline` / Python `input()`) that lets you fire the inputs/events the real system would receive.
-- After each input, print the **complete** state (the LangGraph state object, the reducer output, the SSE buffer — whatever the question is about).
-- Drive it through the hard cases by hand: out-of-order events, cancellation, double-submit, empty input, the case nobody can reason about on a whiteboard.
-
-### Step 2b — UI mode: build N variants
-
-- One page/route. `const variant = new URLSearchParams(location.search).get("variant")`.
-- 2–4 **radically different** takes — not tweaks. Different layouts, different interaction models. Hardcode fake data.
-- Use the project's real component library (Carbon) so the comparison is honest, but skip wiring real data/state.
-- List the variant URLs in your reply so the user can flip between them side by side.
+> **Load `knowledge/modes.md`** before picking the mode and building (Step 2) — mode selection criteria plus the logic-harness and UI-variant construction detail.
 
 ### Step 3 — Answer the question
 
@@ -57,30 +43,12 @@ Run it. Drive it. Write down: **the question, what you observed, the verdict** (
 
 - Record the verdict somewhere durable: a commit message, an ADR (run `/adr` if it's an architectural decision), a note in the relevant `domain-knowledge/*-architecture.md`, or the PRD/issue.
 - **Delete the prototype** (default), or one of two kept dispositions:
-  - Kept in-tree as a marked reference — only on explicit user request, `// PROTOTYPE` markers intact.
-  - **Kept on a throwaway branch as a primary source** (`adr:pocock-lifecycle-absorption`, amending ADR-0083): when the prototype encodes a decision more precisely than prose can (a state machine, reducer, schema shape), commit it to a clearly-named branch off main (never merged) and leave a context pointer on the driving issue/ticket — this is the disposition wayfinder prototype tickets usually want, so the spec can later inline the decision-rich snippet with attribution.
+  > **Load `knowledge/dispositions.md`** before keeping a prototype — the two kept dispositions and when each applies.
 - Hand off: the validated finding now feeds `/scaffold`, `/tdd`, or `/plan-feature`.
 
 ## Output
 
-```
-## Prototype: <question>
-
-Mode: logic | ui
-Run: <exact command or variant URLs>
-
-### Observations
-<what happened when you drove it>
-
-### Verdict
-<the answer — which variant, whether it holds, what breaks>
-
-### Recorded in
-<commit / ADR-NNNN / architecture doc / issue>
-
-### Disposition
-Deleted | Kept (marked) | Kept on throwaway branch as primary source (branch + issue pointer) — <why>
-```
+> **Load `knowledge/output-template.md`** before writing the verdict reply — the exact output block format.
 
 ## Gotchas
 

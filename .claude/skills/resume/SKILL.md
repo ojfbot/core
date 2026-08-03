@@ -13,16 +13,7 @@ It is the hardened sibling of `/bead orient`. Use `/bead orient` for a cheap, ma
 
 > **A self-report is never fact on its own.** Only claims corroborated by ground truth ([git]/[PR]) may be stated as done. Everything else is "unverified" — and CONFLICT / GAP rows MUST be surfaced to the user, never glossed.
 
-The four evidence tiers, highest trust first:
-
-| Tier | Source | Trust |
-|------|--------|-------|
-| **[git]** | commits, branches, working tree | GROUND TRUTH (local) |
-| **[PR]** | `gh pr list` / view | GROUND TRUTH (remote) |
-| **[DOLT]** | the bead store (sessions/convoys) | self-report (best-effort) |
-| **[READ]** | `.handoff/` markdown beads | self-report (lowest) |
-
-The two bead worlds (markdown `.handoff/` and the Dolt store) share **no join key** — markdown `session_id` is an ISO timestamp, Dolt `session_id` is a Claude `$SESSION_ID` UUID. They are correlated **only by commit-SHA + repo + time-window**, never by id. Do not assume an id-join.
+> **Load `knowledge/evidence-tiers.md`** before reading or citing tier tags — the four-tier trust table and the no-join-key rule between the two bead worlds.
 
 ## Procedure (pickup)
 
@@ -50,21 +41,9 @@ The two bead worlds (markdown `.handoff/` and the Dolt store) share **no join ke
 
 At a session/slice close-out, reconstruct what actually shipped and backfill the record for any work that has **no self-report** — the ojfbot analog of TeamBot's integration agent backfilling from git:
 
-```
-node <skill>/scripts/verify-session.mjs --repo <repo> --days 14            # SHADOW (dry-run)
-node <skill>/scripts/verify-session.mjs --repo <repo> --days 14 --write    # create the beads
-```
+> **Load `knowledge/verify-backfill.md`** before running `--verify` — the shadow/`--write` commands and the append-only rules the pass runs under.
 
-- It finds **merged PRs in the window that no `.handoff/` bead references** and proposes a `report` bead per PR, reconstructed from [PR]/[git] ground truth and tagged `(backfilled by integration)` — a visible signal that the session-close discipline was skipped.
-- It **defaults to shadow** (prints, writes nothing) because writing is an action-taking control (ADR-0086 shadow-first). Add `--write` only when you intend to create the append-only beads.
-- It is **append-only**: never overwrites an existing bead, never overwrites a verified self-report. CONFLICT rows are surfaced, never auto-resolved.
-
-## Files in this skill
-
-- `scripts/verify-session-state.sh` — preflight; STOP on untrustworthy ground.
-- `scripts/reconstruct-state.mjs` — assemble the four-tier provenance ledger (read-only).
-- `scripts/verify-session.mjs` — git-backfill verify pass (shadow by default; `--write` to act).
-- The [READ] tier reuses `../bead/scripts/normalize.py` — the schema-drift shim that canonicalizes `.handoff/` beads on read (so reconstruction is reliable despite real-world drift).
+> **Load `knowledge/scripts-and-dependencies.md`** before invoking this skill's scripts — the file inventory and runtime dependencies.
 
 ## What this skill is NOT
 
@@ -72,6 +51,3 @@ node <skill>/scripts/verify-session.mjs --repo <repo> --days 14 --write    # cre
 - Not a runbook generator — that's `/handoff`.
 - Not a Dolt requirement. [git]/[PR]/[READ] work in any repo with no workspace build; [DOLT] corroborates when a Dolt server is reachable, and degrades to an explicit "unavailable" note otherwise — never a crash, never a silent omission.
 
-## Dependencies
-
-`git` and `gh` (ground-truth tiers); a Python 3 with PyYAML for the [READ] tier (the bead scripts already ship this way); `node` for the `.mjs` scripts. The [DOLT] tier additionally needs `mysql2` + a running Dolt on `:3307` (best-effort).

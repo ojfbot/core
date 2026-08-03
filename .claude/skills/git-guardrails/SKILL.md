@@ -19,17 +19,9 @@ You enforce safe git usage. Most of this is already covered by the project's `.c
 
 ## The policy
 
-These are the operations that need a human's explicit, in-context go-ahead — never run them on a standing authorization, never as a shortcut around an obstacle:
+These are the operations that need a human's explicit, in-context go-ahead — never run them on a standing authorization, never as a shortcut around an obstacle.
 
-| Class | Examples | Why |
-|-------|----------|-----|
-| **History rewrite on shared refs** | `push --force` / `push -f` to a branch others use, `push --force` to `main`/`master` (always refuse), amending/rebasing published commits | Destroys others' work, breaks downstream clones |
-| **Destructive local** | `reset --hard`, `checkout -- .` / `restore .`, `clean -fd`, `branch -D`, `stash drop`/`clear` | Silently discards uncommitted or unmerged work |
-| **Bypassing safety** | `--no-verify`, `--no-gpg-sign`, `commit --amend` after a failed pre-commit hook, `-c core.hooksPath=/dev/null` | Skips the checks that exist for a reason; amend-after-failure modifies the *previous* commit |
-| **Config tampering** | `git config` changes to user/signing/hooks, editing `.git/config` | Changes identity or disables protections invisibly |
-| **Indiscriminate staging** | `git add -A` / `git add .` when the tree contains `.env`, credentials, or large binaries | Leaks secrets, bloats history |
-
-Safe by default: `status`, `diff`, `log`, `add <specific files>`, `commit` (new commits, not amends), `pull`, `fetch`, `push -u origin <feature-branch>` (non-force), `stash` (push, not drop).
+> **Load `knowledge/dangerous-git-policy.md`** before auditing coverage, mapping deny rules, or assessing a command — the class-by-class dangerous-operations table (examples + why) and the safe-by-default list.
 
 ## Workflow
 

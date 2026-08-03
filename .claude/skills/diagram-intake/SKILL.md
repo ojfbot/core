@@ -24,17 +24,7 @@ text notes. The image is read natively by Claude Code's multimodal capability.
 
 ## Core Principles
 
-1. **Map before interpreting** — identify app labels in the diagram first,
-   resolve them to canonical repo names using `knowledge/context-map.md`,
-   then interpret goals within each app's context.
-2. **Cross-reference, don't assume** — every goal should be checked against
-   the app's roadmap phase and known blockers from its architecture doc.
-3. **Preserve the human's framing** — the diagram represents JFO's mental
-   model. Don't rewrite goals into engineering jargon unless the mapping is
-   obvious. Preserve intent and phrasing.
-4. **Category goals are real** — if the diagram shows cross-cutting themes
-   (arrows connecting apps, circled groups, top-level labels), capture them
-   as category goals that affect multiple repos.
+> **Load `knowledge/core-principles.md`** before parsing the image — the interpretation posture (map-before-interpret, cross-reference-don't-assume, preserve-the-human's-framing, category-goals-are-real).
 
 ---
 
@@ -55,16 +45,9 @@ and ask the user to clarify specific items rather than guessing.
 
 ### Step 2 — Resolve app names
 
-> **Load `knowledge/context-map.md`** for the mapping table.
+> **Load `knowledge/context-map.md`** before resolving any label — the full label→repo mapping table, ambiguity rules (e.g. "Blog" → blogengine vs daily-logger), and JFO's abbreviations.
 
-Map each label from the diagram to its canonical repo name. Common mappings:
-- "Resume" / "CV" / "Builder" → cv-builder
-- "Blog" / "Logger" / "Log" → blogengine or daily-logger (context-dependent)
-- "Shell" / "Frame" / "OS" → shell
-- "Trips" / "Planner" → TripPlanner
-- "Extension" / "Plug" / "Chrome" → mrplug
-
-Flag any label that doesn't map to a known repo.
+Map each label from the diagram to its canonical repo name. Flag any label that doesn't map to a known repo.
 
 ### Step 3 — Load app context
 
@@ -91,43 +74,7 @@ For each goal from the diagram:
 
 ### Step 5 — Output structured priorities
 
-Output in this format, compatible with `/frame-standup` Step 7:
-
-```markdown
-## Diagram Priorities — <date>
-
-### Category goals (cross-app)
-1. <goal from diagram> → affects: [repo1, repo2]
-   Alignment: <how this maps to roadmap>
-
-### Per-app priorities
-
-#### <repo-name> (Phase <N>)
-Standup context: <one-line from standup.md if available>
-
-1. <goal from diagram>
-   Maps to: <roadmap item or blocker>
-   Suggested command: /<framework-command>
-   Priority: P0 | P1 | P2
-   Specificity: high | medium | low
-   
-2. <goal from diagram>
-   ...
-
-3. <goal from diagram>
-   ...
-
-#### <next-repo>
-...
-```
-
-The `Specificity` field is critical for downstream orchestration:
-- **high**: Goal is a concrete engineering task (e.g. "fix GET /api/tools contract")
-  → can be decomposed directly into implementation tasks
-- **medium**: Goal identifies the area but not exact work (e.g. "auth improvements")
-  → needs a planning/investigation pass before decomposition
-- **low**: Goal is aspirational or exploratory (e.g. "make it better")
-  → needs a full planning cycle with user input
+> **Load `knowledge/output-format.md`** before emitting priorities — the structured format compatible with `/frame-standup` Step 7, the Specificity field semantics (high/medium/low), and consumption notes for the orchestrator.
 
 ### Step 6 — Surface gaps and offer next steps
 
@@ -140,13 +87,6 @@ After outputting priorities:
    the full day plan with audit context.
 
 ---
-
-## Output format notes
-
-- The output is designed to be consumed by `/frame-standup` Step 7 or `/orchestrate`
-- Each goal retains the user's original phrasing alongside the canonical mapping
-- The Specificity field determines how many decomposition layers the orchestrator needs
-- Category goals become cross-app coordination constraints for the orchestrator
 
 ## Gotchas
 

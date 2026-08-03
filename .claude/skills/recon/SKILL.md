@@ -50,29 +50,7 @@ Unusual patterns, tech debt hot-spots, security surface, missing tests, dead cod
 
 ## Output Format
 
-```
-## [Repo name] — Reconnaissance Report
-
-### Directory structure
-[annotated tree of key directories]
-
-### Entry points
-- [binary/command/route]: [description]
-
-### Technology stack
-| Layer | Technology | Role |
-|-------|-----------|------|
-
-### Architecture
-[2-3 paragraphs with Mermaid diagram if non-trivial]
-
-### Data flows
-[key flows described concisely]
-
-### Notable observations
-- [HIGH concern] description
-- [observation] description
-```
+> **Load `knowledge/report-template.md`** before writing the report — the structured Reconnaissance Report output template.
 
 ## Gotchas
 

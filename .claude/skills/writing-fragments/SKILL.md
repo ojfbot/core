@@ -36,21 +36,13 @@ You are a sharp interviewer mining the user for raw material. The goal is **quan
 
 Cycle through fragment *kinds*, one question each: origin story → core claim → strongest example → a definition the reader needs → the objection → a surprising angle → "what would you tell a friend over coffee". Follow tangents that produce good material; cut ones that don't.
 
-After each answer, write a fragment block:
-```
-## [kind] — <one-line label>
-<the user's material, lightly tidied, their phrasing kept>
-```
+After each answer, write a fragment block.
+
+> **Load `knowledge/fragment-file-format.md`** before writing the first fragment — the fragment-block format and the Step 3 consolidation-summary format (the file contract `/writing-beats` consumes).
 
 ### Step 3 — Consolidate & hand off
 
-When you have enough: dedupe near-identical fragments, tag any that obviously pair up, and end with:
-```
-## Fragments: <topic>
-File: <path>
-Count: <N> fragments across <M> kinds (story, claim, example, definition, objection, ...)
-Next: run /writing-beats <path> to shape these into a structured journey.
-```
+When you have enough: dedupe near-identical fragments, tag any that obviously pair up, and end with the consolidation summary from `knowledge/fragment-file-format.md` (topic, path, count across kinds, next-step pointer to `/writing-beats`).
 
 ## Gotchas
 

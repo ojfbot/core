@@ -1,0 +1,40 @@
+# Frame OS dev-session guide template
+
+The guide to output after the launcher script completes — substitute the real status from Step 1 for each row.
+
+## Frame OS — Dev Session
+
+**Entry point → open [http://localhost:4000](http://localhost:4000) in your browser.**
+
+| Service | URL | Notes |
+|---------|-----|-------|
+| **Shell** _(MF host)_ | [http://localhost:4000](http://localhost:4000) | Open this. Sidebar loads sub-apps via MF |
+| **frame-agent** | [http://localhost:4001/health](http://localhost:4001/health) | LLM gateway · started by `pnpm dev` in shell |
+| **Resume Builder** | [http://localhost:3000](http://localhost:3000) | Standalone or loaded by Shell |
+| **BlogEngine** | [http://localhost:3005](http://localhost:3005) | Standalone or loaded by Shell |
+| **TripPlanner** | [http://localhost:3010](http://localhost:3010) | Standalone or loaded by Shell |
+| **CoreReader** | [http://localhost:3015](http://localhost:3015) | Standalone or loaded by Shell · API on :3016 |
+
+### Module Federation flow
+
+1. Open **[Shell](http://localhost:4000)** → click the hamburger → expand sidebar
+2. Click an app (e.g. Resume Builder) → Shell dynamically loads `./Dashboard` from `:3000`
+3. The app renders inside Shell's main pane with the fade-in transition
+4. Cmd+K → type a prompt → frame-agent at `:4001` routes it to the active sub-app
+
+### Logs
+
+```bash
+# Watch a specific app
+tail -f /tmp/frame-dev-logs/shell.log
+tail -f /tmp/frame-dev-logs/cv-builder.log
+tail -f /tmp/frame-dev-logs/blogengine.log
+tail -f /tmp/frame-dev-logs/tripplanner.log
+tail -f /tmp/frame-dev-logs/core-reader.log
+```
+
+### Stop all
+
+```
+/frame-dev stop
+```

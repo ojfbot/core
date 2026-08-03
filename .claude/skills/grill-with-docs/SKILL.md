@@ -18,27 +18,13 @@ You are a senior engineer running an alignment conversation. Your job is to gril
 
 ## Core principles
 
-1. **Ask before you assume.** Every silent assumption is a future bug or rework. Surface them.
-2. **Resolve dependencies between decisions.** If decision A determines decision B, walk A first. Don't ask B in a vacuum.
-3. **Converge on a shared mental model**, not a long list of facts. The output is a *design concept*, not a transcript.
-4. **Update language artifacts in-loop.** New terms go straight into CONTEXT.md / GLOSSARY.md as drafts. Non-obvious decisions get an ADR stub.
-5. **One question at a time.** Multiple questions in one turn dilute the user's attention and let real ambiguity hide.
-6. **Facts are yours to find; decisions are the user's to make.** If a question can be answered by exploring the environment — code, docs, git history, config — look it up instead of asking. Only *decisions* (trade-offs, priorities, intent) go to the user. Never answer a decision question yourself, even when the grill runs inside another skill and the user is slow to respond — an agent answering its own grill has broken the loop.
-7. **Nothing is acted on until the user confirms shared understanding.** The grill's output is a proposal. No implementation, no file edits, no scaffolding, no next-skill invocation on the strength of the grill alone — the user's explicit confirmation of the design concept is the gate.
+> **Load `knowledge/core-principles.md`** before asking the first question — the seven principles the grill runs on (ask-before-assume, dependency order, convergence, in-loop docs, one question at a time, facts-vs-decisions, confirmation gate).
 
 ## Steps
 
 ### 1. Load context
 
-Read these in order:
-- `CLAUDE.md` (project conventions)
-- `domain-knowledge/agent-defaults.md` (default grilling posture)
-- `domain-knowledge/CONTEXT.md` (existing ubiquitous language)
-- `domain-knowledge/GLOSSARY.md` (existing terms)
-- The most relevant `domain-knowledge/<repo>-architecture.md` if the work is repo-specific
-- 2-3 most recent ADRs in `decisions/adr/` to understand current architectural direction
-
-If `CONTEXT.md` doesn't exist in this repo, note that — your grill will need to seed it.
+> **Load `knowledge/context-loading.md`** before anything else — the ordered read list (conventions, ubiquitous language, recent ADRs) and what to do when CONTEXT.md is missing.
 
 ### 2. Restate the user's intent
 
@@ -71,15 +57,7 @@ Stop when:
 
 Step 4 raises assumptions "even if some are deferred" — this is where the deferred ones go, instead of evaporating with the session.
 
-List what is still unresolved at the point the grill stops, in three buckets:
-
-- **Deferred decisions** — raised, consciously not decided yet. Name who/what unblocks each.
-- **Unvalidated assumptions** — the design concept rests on these and nobody checked them.
-- **Standard considerations not covered** — the domain-conventional concerns this work touches but the grill never reached (migration, auth, rate limits, failure modes, whatever the domain's usual checklist is).
-
-**Be honest about what this third bucket is.** It is a checklist of domain-standard considerations you may have skipped. It is *not* a guarantee of blind-spot coverage — a model asked to name what nobody thought of will confabulate plausible-sounding gaps. Prefer "I did not cover X, which work in this domain usually covers" over "your blind spot is X".
-
-An empty bucket is a legitimate result. Write "none" rather than inventing entries to fill the section.
+> **Load `knowledge/open-unknowns-ledger.md`** before collecting — the three buckets (deferred decisions, unvalidated assumptions, standard considerations not covered), the honesty rule for the third bucket, and why an empty bucket is a legitimate result.
 
 ### 5. Update CONTEXT.md and GLOSSARY.md
 
@@ -95,12 +73,7 @@ If the conversation surfaces a new term, a new bounded-context boundary, a new w
 
 For each decision the user made during grilling that isn't already documented:
 
-- Output an ADR stub using the template at `decisions/adr/template.md`.
-- Status: `Proposed`. Identity: `slug: <kebab-stable-id>`, `serial: draft` — **never assign or reserve a number** (ADR-0087; `/adr accept` assigns the serial).
-- Don't write the file yet — output the draft inline. The user runs `/adr new "<title>"` to commit it.
-- Cap at 3 ADR stubs per session. If more decisions emerge, the work is too big — suggest splitting.
-
-**Order them decisions-first.** Lead with the calls the user is most likely to revisit — data model, interfaces, anything user-facing — and put mechanical consequences last. Root-first per the decision-tree walk from Step 3. The user reads the top of a list and skims the bottom, so the ordering is what decides whether the expensive decisions get reviewed or skimmed.
+> **Load `knowledge/adr-stub-guide.md`** before drafting any stub — the stub mechanics (template, slug-not-serial identity per ADR-0087, inline-not-written, 3-stub cap) and the decisions-first ordering rule.
 
 ### 7. Output the shared design concept
 
@@ -112,30 +85,11 @@ First, the stop-gate: ask the user to confirm the shared design concept. Until t
 
 **Once — and only once — the user confirms**, append the Step 4.5 buckets to `decisions/open-unknowns.md` in the working repo (create it if absent). This is the skill's one durable artifact and the only file it writes.
 
-```markdown
-## <YYYY-MM-DD> — <design concept in a few words>
+Append; never rewrite prior entries.
 
-**Deferred decisions**
-- <item> — unblocked by: <who/what>
+> **Load `knowledge/open-unknowns-ledger.md`** before writing the ledger — the exact entry format, the append-only/repo-local rationale, and why this write is the skill's `expected_artifact`.
 
-**Unvalidated assumptions**
-- <item>
-
-**Standard considerations not covered**
-- <item>
-```
-
-Append; never rewrite prior entries. `decisions/` is repo-local, unlike `domain-knowledge/CONTEXT.md`, which is a symlink into core — that is precisely why this ledger is writable and CONTEXT.md is not.
-
-Two reasons this write exists, and both matter:
-- **For the user:** deferred unknowns survive the session instead of evaporating. The same unknown recurring across repos is a missing convention, not an edge case — promote it to an ADR.
-- **For the instrumentation:** this is the skill's `expected_artifact` (`packages/workflows/src/tracking/expected-artifact.ts`). Before it existed, the skill wrote nothing to disk, so it had no reachable path to `acted` and was mis-measured as ignored forever. A grill that stays entirely in chat is `engaged_no_act`, not done.
-
-Then suggest:
-- `/plan-feature --from-conversation` if the work needs a spec.
-- `/scaffold` if the design is concrete enough to skip the spec (rare).
-- `/investigate` if the conversation revealed the real question is "why is X broken" rather than "let's build Y".
-- `/deepen` if the conversation revealed shallow modules in the affected area.
+> **Load `knowledge/composition-and-next-skills.md`** before suggesting the next skill — the routing table (`/plan-feature`, `/scaffold`, `/investigate`, `/deepen`).
 
 ## Modes
 
@@ -145,46 +99,7 @@ Then suggest:
 
 ## Output format
 
-Structured markdown:
-
-```
-## Restated intent
-<one sentence>
-
-## Decision tree (sketch)
-<tiny tree: root question + branches>
-
-## Grilling
-
-**Q:** <question>
-**A:** <user's answer>
-
-**Q:** <next question>
-...
-
-## Shared design concept
-<one paragraph>
-
-## Open unknowns
-**Deferred decisions:** <items, or "none">
-**Unvalidated assumptions:** <items, or "none">
-**Standard considerations not covered:** <items, or "none">
-
-## CONTEXT.md updates (proposed diff)
-<unified diff or before/after blocks>
-
-## GLOSSARY.md updates (proposed)
-<term: definition lines>
-
-## ADR drafts
-### ADR-XXXX: <title> (Proposed)
-<adr stub>
-
-## Suggested next skill
-/<skill> with rationale
-```
-
-The `## Suggested next skill` section is emitted only *after* the user confirms the shared design concept (Step 8's stop-gate) — the earlier sections form the proposal; the suggestion belongs to the turn that follows confirmation.
+> **Load `knowledge/output-format.md`** before emitting the grill output — the structured-markdown template (section order included) and the rule that `## Suggested next skill` is emitted only after the Step 8 confirmation.
 
 ## Constraints
 
@@ -209,20 +124,8 @@ The `## Suggested next skill` section is emitted only *after* the user confirms 
 
 ## Composition
 
-- This skill is the heavyweight version of the default grilling posture in `agent-defaults.md`. Default posture fires every session; this skill is invoked when the work warrants formal artifacts (CONTEXT.md updates, ADR stubs).
-- Composes with `/plan-feature --from-conversation` (consumes the design concept) and `/spec-review` (peer-reviews the resulting spec).
-- **Charting variant:** when invoked from a wayfinder grilling ticket (`adr:wayfinder-decision-maps`), grill breadth-first across the map's open questions — the goal is to resolve *that ticket's* decision and surface which blocked tickets it unblocks, not to drill depth-first into implementation detail that belongs to a later spec.
-- Anti-pattern: chaining this skill back-to-back without the user actually doing work in between. If you finish a grill and immediately want to grill again, the first grill failed.
+> **Load `knowledge/composition-and-next-skills.md`** when this skill is invoked from another workflow (wayfinder grilling ticket, orchestrated session) or when choosing what follows the grill — composition notes, the charting variant, and related files.
 
 ---
 
 $ARGUMENTS
-
-## See Also
-
-- `domain-knowledge/CONTEXT.md` — bounded contexts and aggregates
-- `domain-knowledge/GLOSSARY.md` — A→Z definitions
-- `domain-knowledge/agent-defaults.md` — default grilling posture (lighter version)
-- `decisions/adr/template.md` — ADR format
-- `/plan-feature` — successor skill (consume design concept via `--from-conversation`)
-- `/adr` — commit ADR stubs to `decisions/adr/`

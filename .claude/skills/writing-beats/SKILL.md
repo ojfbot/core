@@ -34,14 +34,10 @@ Load the fragments file / notes. Identify the through-line: what does the reader
 
 ### Step 2 — Lay the beat sheet
 
-Produce an ordered list. Each entry:
-```
-### Beat N — <label>
-Purpose: <belief-change | needed-info | payoff>
-Reader goes from: <state> → <state>
-Raw material: <which fragments feed this>
-Risk: <where they might object / get lost — or "—">
-```
+Produce an ordered list.
+
+> **Load `knowledge/beat-formats.md`** before laying the sheet — the beat-sheet entry template (Purpose / Reader goes from / Raw material / Risk fields) and the Step 4 hand-off block.
+
 Show the whole sheet. Get the user to approve / reorder before drafting anything.
 
 ### Step 3 — Develop beats one at a time
@@ -50,13 +46,7 @@ For the current beat: pull in its fragments, draft it in plain prose (a few para
 
 ### Step 4 — Hand off
 
-When all beats are drafted:
-```
-## Beats: <title>
-File: <path>
-Beats: <N> drafted, in order
-Next: run /writing-shape <path> to turn these beats into finished article prose.
-```
+When all beats are drafted, emit the hand-off block from `knowledge/beat-formats.md` (file path, number of beats, next-step pointer to `/writing-shape`).
 
 ## Gotchas
 
