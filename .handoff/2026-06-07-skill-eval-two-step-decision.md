@@ -1,11 +1,11 @@
 ---
-id: 20260607-1632-decision-loop-metric-two-step
+id: 2026-06-07-skill-eval-two-step-decision
 type: decision
 title: "First closed-loop metric: vault-lint rig → per-skill eval (two-step, shadow-first)"
 actor: code-claude
 session_id: 2026-06-07T16:32:51Z
 refs:
-  - bead:20260607-1020-brief-close-the-loop-metric
+  - bead:2026-06-07-close-the-loop-first-fleet-metric
   - file:~/selfco/wiki/synthesis/karpathy-loop-in-ojfbot.md
   - file:~/selfco/wiki/concepts/karpathy-loop.md
   - adr:0086
@@ -15,7 +15,7 @@ status: live
 created_at: 2026-06-07T16:32:51Z
 labels:
   origin: karpathy-loop-teaching-session
-  answers-brief: 20260607-1020-brief-close-the-loop-metric
+  answers-brief: 2026-06-07-close-the-loop-first-fleet-metric
   next-skill: grill-with-docs
 ---
 

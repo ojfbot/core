@@ -1,5 +1,5 @@
 ---
-id: selfco-box-spec-review-2026-05-12
+id: 2026-05-12-selfco-box-spec-review
 type: brief
 title: "selfco-box plan — spec-review + grounding + coordination"
 actor: code-claude (the /vault v1–v5 session)

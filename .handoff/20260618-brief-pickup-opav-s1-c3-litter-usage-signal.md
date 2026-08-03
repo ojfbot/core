@@ -1,4 +1,5 @@
 ---
+id: 20260618-brief-pickup-opav-s1-c3-litter-usage-signal
 type: brief
 actor: code-claude
 date: 2026-06-18
@@ -8,7 +9,7 @@ refs:
   - .handoff/20260614-shipped-opav-s1-c0-c2-shadow-spine-landed-both-prs-merged.md
   - .handoff/20260613-1959-brief-pickup-opav-slice-1-skill-action-instrumentation-v.md
   - decisions/adr/0096-skill-architecture-taxonomy.md
-status: open
+status: live
 hooks:
   - "DO NOT REBUILD: skill-action instrumentation C0–C2 (SHADOW) already merged to main 2026-06-14 (ADR-0095, PRs #157/#158). This pickup VERIFIES + advances to C3, it does not re-architect."
   - "SYNC FIRST: the session that raised this was on stale branch adr/suggestion-identity-and-denominator (pre-June-14). Start from a clean checkout of origin/main."

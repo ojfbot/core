@@ -5,7 +5,7 @@ title: "Pickup: OPAV Slice 1 — skill-action instrumentation (verify S0 exit ga
 actor: code-claude
 to: code-claude
 session_id: 2026-06-13T19:59:15Z
-responding_to: 20260613-1900-brief-opav-loop-program
+responding_to: 2026-06-13-opav-loop-program
 refs:
   - adr:suggestion-identity-and-denominator
   - adr:skill-action-instrumentation

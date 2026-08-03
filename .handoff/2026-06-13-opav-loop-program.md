@@ -1,5 +1,5 @@
 ---
-id: 20260613-1900-brief-opav-loop-program
+id: 2026-06-13-opav-loop-program
 type: brief
 title: "Pickup: OPAV skill self-improvement loop — full gated-slice plan + 4 ADRs, red-team-hardened"
 actor: code-claude

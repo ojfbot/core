@@ -1,13 +1,13 @@
 ---
-id: 20260609-2226-report-karpathy-loop-lint-rig-done
+id: 2026-06-09-karpathy-loop-lint-rig-done-next-per-skill-eval
 type: report
 title: "Karpathy-loop lint rig DONE (Goodhart confirmed) — next: grill the per-skill-eval harness"
 actor: code-claude
 session_id: 2026-06-10T03:26:21Z
-responding_to: 20260607-1632-decision-loop-metric-two-step
+responding_to: 2026-06-07-skill-eval-two-step-decision
 refs:
-  - bead:20260607-1020-brief-close-the-loop-metric
-  - bead:20260607-1632-decision-loop-metric-two-step
+  - bead:2026-06-07-close-the-loop-first-fleet-metric
+  - bead:2026-06-07-skill-eval-two-step-decision
   - file:~/selfco/wiki/concepts/karpathy-loop.md
   - file:~/selfco/wiki/synthesis/karpathy-loop-in-ojfbot.md
   - url:https://github.com/karpathy/autoresearch
