@@ -72,26 +72,48 @@ unchanged is a conformance repair, not a claim revision. **Decide which it is be
 touching them**; the append-only rule exists to protect the ledger's auditability, and a
 silent `sed` across 32 schema errors is precisely the move that would break it.
 
-## What to do
+## The plan (operator-reviewed 2026-08-03, sitting that wrote this brief)
 
-**Do not start by committing the 11.** The first question is the operator's, not yours.
+The errors decompose into five classes needing different treatment — do not handle them
+as one cleanup:
 
-1. **Get the ruling.** Three options, and they are genuinely different:
-   - *Track them* — the ledger becomes honest, CI and local agree, open-hook count rises,
-     and S33's baseline moves before the human pass.
-   - *Leave them untracked* — accept that `.handoff/` is partly a local scratch space, and
-     then **fix the script** so local and CI agree (e.g. enumerate via `git ls-files` and
-     WARN on untracked-but-present, mirroring the vantage treatment).
-   - *Triage individually* — some are genuinely session-local scratch and should be deleted;
-     others are real ledger entries. This is the most work and the most correct.
-2. **Measure both vantages before deciding anything.** Get the CI-side number honestly:
-   `git stash -u` is *not* safe here (concurrent agents). Instead clone to a temp dir and
-   run the lint there — `git clone ~/ojfbot/core /tmp/... && node scripts/bead-lint.mjs`.
-   The delta between that and the local 87/40 is the actual size of this problem, and it
-   belongs in S33's report bead as a finding.
-3. **Fix `responding_to` before or with tracking**, or the count goes the wrong way. Each
-   of the three live `#319` briefs has a shipped report; wire them.
-4. **Then, and only then,** consider whether this is an S33 sub-task or its own slice.
+| Class | Count | Nature | Who decides |
+|---|---|---|---|
+| 1. Untracked beads (core) | 11 | vantage split, local≠CI | operator |
+| 2. Invalid status enums (`done`/`open`/`delivered`/prose) | ~8 | mechanical | agent, after ruling A |
+| 3. id≠stem / missing id / missing frontmatter | ~18 | mechanical-to-authored | agent |
+| 4. `responding_to: null` on shipped reports | ~9 | wiring, evidence exists | agent |
+| 5. Open hooks (oldest 96d) | 40 | **truth claims** | human only — this IS S33 |
+
+Class 5 stays out of scope: bead-lint has no `--apply` precisely because closure is a
+truth claim.
+
+**Execute in this order — B before C matters, C before D is mandatory, E is untouched:**
+
+- **A. Policy bead first** (operator, 5 min): rule that *frontmatter-only conformance
+  repairs on unchanged prose are edits, not supersessions*. Without it, 32 corrections
+  means 32 superseding beads and a doubled ledger. Write the ruling as a `decision` bead.
+- **B. Fix the measurement before the measured** (1 short session, PR): make
+  `bead-lint.mjs` enumerate via `git ls-files` + WARN on present-but-untracked, mirroring
+  its existing repo-vantage pattern. Kills the two-denominators problem permanently,
+  fleet-wide, before anyone trusts a number. Before writing code, measure the CI-side
+  number honestly: `git clone ~/ojfbot/core /tmp/core-ci-vantage && node scripts/bead-lint.mjs`
+  there (`git stash -u` is NOT safe — concurrent agents). The local-vs-clone delta belongs
+  in S33's report bead as a finding.
+- **C. Mechanical conformance sweep** (1 session, PR, scripted + hand-checked):
+  status enums → nearest valid (`done`→`closed`; prose statuses → `live`, prose moved to
+  body) · id≠stem → rewrite `id` to match filename stem (replay.py invariant), never
+  rename files · missing frontmatter (11 f1/silicon-empires beads) → author minimal blocks
+  from content, the only semi-judgment cases · wire `responding_to` where the brief↔report
+  pairing is evidenced (the #319 sitting chain sits in one directory).
+- **D. Track the 11** — only after C, so committing them retires hooks instead of raising
+  the enforced count. Then local and CI agree and lint reads clean except real open hooks.
+  The track-vs-triage call per file remains the operator's (a few may be genuine scratch).
+- **E. S33 human truth-pass proceeds unchanged**, now against an honest baseline:
+  `/resume --verify` + `bead-lint --sweep`, then the shadow→strict promotion RIDM.
+
+Total: ~3 agent sessions + two operator rulings (A, and D's track-vs-triage). A session
+picking this brief up starts with A (ask if no decision bead exists yet), then B.
 
 ## Gotchas
 
