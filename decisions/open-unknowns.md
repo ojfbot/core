@@ -73,3 +73,18 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
   never entered the permission protocol.
 - Revocation after publication: no takedown protocol exists if the client withdraws a
   previously granted clearance.
+
+## 2026-08-03 — l1-core P5: operator competence, uplift-primary measure (wayfinder #381)
+
+**Deferred decisions**
+- P5 numeric current/target calibration — unblocked by: operator review of amendment PR #389
+- Whether the merge-quiz heatmap augments or overrides records+mission ZPD placement — unblocked by: #384
+- Teach corpus / learning-records location — unblocked by: #382
+- Activation criteria for the staged lessons-served-at-ZPD metric — unblocked by: #384 + #382 closing (pre-registration duty recorded in the ADR draft)
+
+**Unvalidated assumptions**
+- The merge-quiz heatmap has (or will accrue) enough cell coverage for taught-vs-cold divergence attributable to served lessons to be detectable
+- The taught/cold separation is maintained cleanly enough in the observation data to serve as the uplift ruler
+
+**Standard considerations not covered**
+- A deskilling counter-metric (operator dependence rising while quiz scores rise) — the ai-augmentation-evidence synthesis names the risk; P5 as accepted measures uplift only

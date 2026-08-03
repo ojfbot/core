@@ -20,10 +20,12 @@ corpus, and HTML lessons rendering in the side panel as routinely as SVG diagram
 Guardrails inherited from the `se-competency-engine` vault synthesis: effort-first,
 feedback-not-answers, formative-only grading, measured uplift.
 
-Anchor: serves `ns:l2-ojfbot#P2` (work is legible and traces to a measurable property) today;
-the frontmatter names `l1-core` because the map's anchor **bid** — carried by the
-operator-competence property ticket — is that l1-core earns a fifth property for this. If that
-ticket closes "no", the anchor falls back to `ns:l2-ojfbot#P2` and the frontmatter is corrected.
+Anchor: **ratified `ns:l1-core#P5`** — the anchor bid closed "yes" at the operator-competence
+ticket (2026-08-03): l1-core earns a fifth property, "The harness raises operator competence,"
+with the teach loop as its instrument. The amendment is staged via the registry's own PR path
+(core PR #389, human-gated: numeric current/target are proposals for operator calibration); until
+it merges, the frontmatter `northstar: l1-core` resolves at slug level and P5 serves
+`ns:l2-ojfbot#P2` through its ladder.
 
 ## Notes
 
@@ -70,12 +72,21 @@ ticket closes "no", the anchor falls back to `ns:l2-ojfbot#P2` and the frontmatt
   preferences live in fleet memory, injected at workspace spawn). Record:
   `decisions/adopt-stack/pocock-skills-teach.md` (D18–D25, extends `pocock-skills-v1-1.md`).
 
+- **Does l1-core earn an operator-competence property? (#381, 2026-08-03)** — **YES**: l1-core
+  gains P5 "The harness raises operator competence," teach loop as instrument. Measure =
+  uplift-primary, ZPD-rate staged: taught-vs-cold movement on the merge-quiz EWMA heatmap is the
+  primary measure; lessons-served-at-ZPD activates only per the #384/#382 rulings.
+  Measurement-first (P1 discipline): no uplift published before the instrument is green.
+  Amendment staged via registry PR path (core PR #389, human-gated, numbers = proposals); ADR
+  draft `adr:l1-core-operator-competence-property`. #384/#382 inherit the pre-registration duty
+  for the staged metric's activation criteria.
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | Adopt-stack pass: mattpocock/skills teach (#380) | grilling | — | **closed 2026-08-03** |
-| Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | open — unblocked |
+| Does l1-core earn an operator-competence property? (#381) | grilling | Adopt-stack pass | **closed 2026-08-03** |
 | Where does the teach corpus live? (#382) | grilling | — | open |
 | Field evidence: /teach in the wild + interactive-HTML lesson patterns (#383) | research | — | open |
 | ZPD sensor: can the merge-quiz heatmap place lessons? (#384) | grilling | — | open |
