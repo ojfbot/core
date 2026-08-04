@@ -39,6 +39,10 @@ If `$ARGUMENTS` is empty:
 - Produce the full catalog grouped by lifecycle phase.
 - Highlight which skills are installed in the current repo vs available.
 
+> **Load `knowledge/flows.md`** before grouping or sequencing skills — it is the lifecycle
+> on-ramps map (which skill comes next from an idea, a bug, a backlog, a foggy initiative).
+> Recommendations must be consistent with those flows.
+
 ### Phase 3: Output the recommendation
 
 For each recommended skill:

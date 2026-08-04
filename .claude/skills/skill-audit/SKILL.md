@@ -39,7 +39,9 @@ every skill into a product/ops bucket.
    ```bash
    node .claude/skills/skill-audit/scripts/audit-architecture.mjs $ARGUMENTS
    ```
-   This computes D1–D7 for every skill, the coverage map, drift, straddlers, and
+   This computes D1–D7 for every skill, the shadow measures D8–D11 (sprawl,
+   negation density, description load, duplicate lines — observe-only, excluded
+   from verdicts until RIDM promotion), the coverage map, drift, straddlers, and
    missing-Gotchas, and appends a summary line to
    `~/.claude/skill-architecture-audit.jsonl` (the OPAV Observation substrate).
    Pass `--no-log` for a dry run.
@@ -47,12 +49,16 @@ every skill into a product/ops bucket.
 2. **Load the rubric.** Read `knowledge/architecture-rubric.md` for the J-signal
    definitions before judging anything.
 
-3. **Layer the judgment signals (J1–J4)** on the skills the script flagged
+3. **Layer the judgment signals (J1–J8)** on the skills the script flagged
    (`Needs work` / `Refactor candidate`, and any `straddle`). Don't re-judge
    skills that are deterministically `Aligned` unless asked — economize. For each
    flagged skill, read its `SKILL.md` and score J1 (states the obvious?),
    J2 (are its Gotchas real or filler?), J3 (railroads? — gate skills exempt),
-   J4 (genuinely straddles?).
+   J4 (genuinely straddles?), J5 (no-op sentences), J6 (sediment),
+   J7 (completion criteria checkable + demanding?), J8 (premature-completion
+   risk / weak context pointers). A full-fleet J-pass (every skill, not just
+   flagged) is an *extended audit* — run it only on explicit request, fanned out
+   to subagents.
 
 4. **Produce the report:** coverage map (gaps first), straddle list with
    split/keep recommendations, prioritized fix backlog (missing Gotchas on
@@ -105,8 +111,12 @@ every skill into a product/ops bucket.
 - **Word-count for D4 is a heuristic, not a verdict.** A 380-word skill with no
   `knowledge/` passes D4; a 420-word one fails. Treat near-threshold D4 fails as
   advisory — the real question is whether reference material is buried inline.
-- **Don't run the judgment pass on all 57 skills by default.** That's a large
-  token spend. Judge only what the deterministic pass flags, unless the user
-  explicitly asks for a full re-judge.
+- **Don't run the judgment pass on the whole library by default.** That's a
+  large token spend. Judge only what the deterministic pass flags, unless the
+  user explicitly asks for a full re-judge (an extended audit).
+- **Description/trigger fixes are eval-gated.** A D10 or J finding against a
+  description is a *proposal*; the change ships only if the frozen-holdout
+  suggester κ (`core/scripts/suggester-eval.mjs`) does not regress. The
+  `MANDATORY:` prefix is a deliberate ADR-0068 countermeasure, not sediment.
 
 $ARGUMENTS

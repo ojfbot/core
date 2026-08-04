@@ -32,6 +32,25 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - S32 bead-lint (2026-08-02): plan had machine keys parsed from structured hook:/refs:
   frontmatter; parseFM only list-parses registry keys, so refs: items were dropped.
   Switched to a raw-text scan of the frontmatter block.
+- #386 HTML lesson spike (2026-08-03): ticket asked for 2–3 lessons to judge four things —
+  authoring effort, side-panel fidelity, **stylesheet reuse**, and HTML-vs-Markdown. Operator
+  scoped the session to ONE lesson. One lesson cannot demonstrate reuse across lessons, so
+  that dimension is recorded UNVERIFIED rather than silently claimed; the other three are
+  measured. #391 (second-surface probe) is the natural place reuse gets its first real test,
+  since it inherits the same stylesheet.
+- #386 render-path probing (2026-08-03): first attempt used an iframe `srcdoc` to simulate a
+  renderer with no directory origin. `srcdoc` inherits the parent document's base URL, so the
+  external stylesheet resolved and the test passed when it should have failed. Re-ran with a
+  real navigation into a directory with no `assets/` sibling (HTTP 404) — that reproduced the
+  condition and produced the verdict. Noting because the false pass looked entirely convincing.
+- skill-hardening Wave 1b (2026-08-03): the sprawl-≤15 TPM was not reachable from the brief's
+  worklist alone — three gate/contract-heavy skills (grill-with-docs 1456w, gated-slice 1243w,
+  tdd 969w) bottom out above 800 because Gotchas + Constraints + inline gates alone exceed the
+  threshold; two of the brief's "remaining D4 fails" (claude-md-rollout, day-run) had no honest
+  reference content to move (pure step-skeleton). Conservative path taken: disclosed two
+  non-D4-fail D8 offenders instead (deepen 1332→770, diagram-intake 1005→709) to reach sprawl=15
+  without touching gate-skill contracts, and left the two skills as the ≤3 allowed D4 fails.
+  Territory lesson: a Gotchas-heavy gate skill has a sprawl floor the threshold doesn't model.
 
 ## Deviations — frame-standup ledger closure 2026-07-25 / 2026-07-31
 

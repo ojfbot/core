@@ -23,7 +23,7 @@ baseline:
 traces:
   supersedes:
   amends:
-  relates-to: [control-gated-slices, follow-skill-suggestions, catalog-scoped-user-skills-and-availability-aware-suggestions, suggestion-identity-and-denominator]
+  relates-to: [control-gated-slices, follow-skill-suggestions, catalog-scoped-user-skills, suggestion-identity-and-denominator]
   parent:
   part-of-series:
 

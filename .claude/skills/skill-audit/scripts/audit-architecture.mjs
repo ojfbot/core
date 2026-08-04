@@ -35,6 +35,9 @@ const catalogPath = expandHome(
 const auditLogPath = expandHome(args["audit-log"] ?? "~/.claude/skill-architecture-audit.jsonl");
 const format = args.format ?? "markdown";
 const WORD_THRESHOLD = Number(args["word-threshold"] ?? 400);
+// Shadow-signal thresholds (D8–D11, observe-only; decisions/adopt-stack/pocock-writing-great-skills.md)
+const SPRAWL_THRESHOLD = Number(args["sprawl-threshold"] ?? 800);
+const NEGATION_RE = /\b(never|do not|don't|avoid|must not)\b/gi;
 
 const CATEGORIES = [
   "library-api-reference",
@@ -78,6 +81,20 @@ for (const name of diskSkills) {
   const D6soft = !(DETERMINISTIC_RE.test(body) && !hasScripts); // pass unless deterministic-language && no scripts
   const D7 = !(entry?.straddle === true);
 
+  // Shadow signals D8–D11 — measured + logged, excluded from fails/verdict until
+  // RIDM promotion (ADR-0086). See architecture-rubric.md "Shadow deterministic signals".
+  const negationCount = (body.match(NEGATION_RE) ?? []).length;
+  const descWords = (fm.description ?? "").trim() ? (fm.description ?? "").trim().split(/\s+/).length : 0;
+  const triggerCount = Array.isArray(entry?.triggers) ? entry.triggers.length : 0;
+  const shadow = {
+    D8_sprawl: wordCount >= SPRAWL_THRESHOLD,
+    D9_negation_count: negationCount,
+    D9_negation_per_100w: wordCount ? Number(((negationCount * 100) / wordCount).toFixed(2)) : 0,
+    D10_desc_words: descWords,
+    D10_trigger_count: triggerCount,
+    D11_dup_lines: duplicateLineCount(body),
+  };
+
   const fails = [];
   if (!D1) fails.push("D1");
   if (!D2) fails.push("D2");
@@ -99,6 +116,7 @@ for (const name of diskSkills) {
     has_knowledge: hasKnowledge,
     has_scripts: hasScripts,
     signals: { D1, D2, D3, D4, D5, D6_soft: D6soft, D7 },
+    shadow,
     fails,
     verdict,
   });
@@ -133,6 +151,14 @@ const summary = {
     aligned: rows.filter((r) => r.verdict === "Aligned").length,
     needs_work: rows.filter((r) => r.verdict === "Needs work").length,
     refactor: rows.filter((r) => r.verdict === "Refactor candidate").length,
+  },
+  // Additive shadow aggregates (observe-only; not part of the verdict roll-up).
+  shadow: {
+    sprawl_count: rows.filter((r) => r.shadow.D8_sprawl).length,
+    total_body_words: rows.reduce((n, r) => n + r.word_count, 0),
+    total_desc_words: rows.reduce((n, r) => n + r.shadow.D10_desc_words, 0),
+    total_negations: rows.reduce((n, r) => n + r.shadow.D9_negation_count, 0),
+    dup_line_skills: rows.filter((r) => r.shadow.D11_dup_lines > 0).length,
   },
 };
 
@@ -240,6 +266,18 @@ function stripFrontmatter(md) {
   return md.replace(/^---\n[\s\S]*?\n---\n?/, "");
 }
 
+// D11 proxy: count of distinct normalized non-trivial lines (> 6 words) that
+// appear 2+ times in the body — duplication, not leading-word repetition.
+function duplicateLineCount(body) {
+  const seen = new Map();
+  for (const raw of body.split(/\r?\n/)) {
+    const norm = raw.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    if (norm.split(" ").length <= 6) continue;
+    seen.set(norm, (seen.get(norm) ?? 0) + 1);
+  }
+  return [...seen.values()].filter((n) => n >= 2).length;
+}
+
 // A description is "model-facing" if it reads as a trigger condition rather than
 // a human blurb: MANDATORY directive, "when user asks to", quoted trigger phrases,
 // or "Use this skill when".
@@ -265,6 +303,7 @@ function renderScorecard(name) {
   lines.push(`- Category: ${r.category ?? "(uncategorized)"}${r.straddle ? " — STRADDLE" : ""}`);
   lines.push(`- SKILL.md words: ${r.word_count} · knowledge/: ${r.has_knowledge} · scripts/: ${r.has_scripts}`);
   lines.push(`- Signals: ${sigStr(r.signals)}`);
+  lines.push(`- Shadow (observe-only): sprawl:${r.shadow.D8_sprawl ? "⚠" : "ok"} · negations:${r.shadow.D9_negation_count} (${r.shadow.D9_negation_per_100w}/100w) · desc:${r.shadow.D10_desc_words}w/${r.shadow.D10_trigger_count} triggers · dup-lines:${r.shadow.D11_dup_lines}`);
   lines.push(`- Fails: ${r.fails.length ? r.fails.join(", ") : "none"}`);
   lines.push(`- Verdict: **${r.verdict}**`);
   return lines.join("\n");
@@ -308,12 +347,18 @@ function renderFull(r) {
   lines.push("");
   lines.push("## Per-skill (deterministic)");
   lines.push("");
-  lines.push("| Skill | Category | Verdict | Fails |");
-  lines.push("|-------|----------|---------|-------|");
+  lines.push("| Skill | Category | Verdict | Fails | Words | Neg/100w | Desc w | Dup |");
+  lines.push("|-------|----------|---------|-------|------:|---------:|-------:|----:|");
   for (const row of r.rows) {
-    lines.push(`| \`${row.name}\` | ${row.category ?? "—"}${row.straddle ? " ⚠" : ""} | ${row.verdict} | ${row.fails.join(",") || "—"} |`);
+    const s = row.shadow;
+    lines.push(`| \`${row.name}\` | ${row.category ?? "—"}${row.straddle ? " ⚠" : ""} | ${row.verdict} | ${row.fails.join(",") || "—"} | ${row.word_count}${s.D8_sprawl ? " ⚠" : ""} | ${s.D9_negation_per_100w} | ${s.D10_desc_words} | ${s.D11_dup_lines} |`);
   }
   lines.push("");
-  lines.push("_D1 cataloged · D2 categorized · D3 Gotchas · D4 progressive-disclosure · D5 model-facing desc · D6 scripts(soft) · D7 single-category. Judgment signals (J1–J4) are layered by the /skill-audit skill._");
+  lines.push("## Shadow aggregates (observe-only, D8–D11)");
+  lines.push("");
+  const sh = r.summary.shadow;
+  lines.push(`Sprawl (body ≥ threshold): ${sh.sprawl_count} skills · total body words: ${sh.total_body_words} · total description words (context load): ${sh.total_desc_words} · total negations: ${sh.total_negations} · skills with dup lines: ${sh.dup_line_skills}`);
+  lines.push("");
+  lines.push("_D1 cataloged · D2 categorized · D3 Gotchas · D4 progressive-disclosure · D5 model-facing desc · D6 scripts(soft) · D7 single-category. Shadow D8 sprawl · D9 negation density · D10 description load · D11 dup lines are observe-only (not in the verdict). Judgment signals (J1–J8) are layered by the /skill-audit skill._");
   return lines.join("\n");
 }

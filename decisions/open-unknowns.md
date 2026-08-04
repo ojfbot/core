@@ -73,3 +73,56 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
   never entered the permission protocol.
 - Revocation after publication: no takedown protocol exists if the client withdraws a
   previously granted clearance.
+
+## 2026-08-03 — l1-core P5: operator competence, uplift-primary measure (wayfinder #381)
+
+**Deferred decisions**
+- P5 numeric current/target calibration — unblocked by: operator review of amendment PR #389
+- ~~Whether the merge-quiz heatmap augments or overrides records+mission ZPD placement~~ — **CLOSED 2026-08-03 by #384: augments, min-n gated, never overrides** (`adr:comprehension-heatmap-zpd-role`)
+- Teach corpus / learning-records location — unblocked by: #382
+- Activation criteria for the staged lessons-served-at-ZPD metric — unblocked by: #384 + #382 closing. **#384's half closed 2026-08-03**; #382 remains. #384 contributes: placement nominates only at n ≥ k, and the rate may only be cited over the pre-registered holdout (R2).
+
+**Unvalidated assumptions**
+- The merge-quiz heatmap has (or will accrue) enough cell coverage for taught-vs-cold divergence attributable to served lessons to be detectable
+- The taught/cold separation is maintained cleanly enough in the observation data to serve as the uplift ruler
+
+**Standard considerations not covered**
+- A deskilling counter-metric (operator dependence rising while quiz scores rise) — the ai-augmentation-evidence synthesis names the risk; P5 as accepted measures uplift only
+
+## 2026-08-03 — ZPD sensor: the comprehension heatmap augments, never places alone (wayfinder #384)
+
+**Deferred decisions**
+- The value of `k` (the min-n gate below which a cell contributes no nomination) — unblocked by: the slice that builds the re-keyed sensor, against a real cell population
+- Which cells form P5's pre-registered holdout, how the pre-registration is recorded, and what happens when a cell crosses from holdout into selected — unblocked by: the sensor re-key landing (graduation candidate, recorded in the map's `## Not yet specified`)
+- The P5 northstar amendment reconciling "repo × domain cells" with bounded-context × mode + holdout — unblocked by: the building slice (R6 deferred it deliberately, not by omission)
+
+**Unvalidated assumptions**
+- That bounded context × mode is a grain the operator's comprehension actually varies along — the pooling argument is arithmetic (12 cells fill, 43×N×2 do not), not empirical
+- That a per-question difficulty/facet profile is sufficient to separate proximal from foundational gaps — it is necessary (a 60 from hard misses vs easy misses want opposite lessons), but sufficiency is untested
+- That a diff maps to exactly one of the six ADR-0044 bounded contexts — the contexts are drawn by concern and a repo may participate in several; no path→context mapping exists to check this against
+- That `mode` (taught/cold) self-report is honest enough to key cells on — the script cannot verify it, and under R2 a mislabel now corrupts the holdout as well as the cell
+
+**Standard considerations not covered**
+- Comprehension-as-competence validity: `.claude/skills/merge-quiz/SKILL.md:32` states the instrument is "a reasonable extrapolation from adjacent evidence, not a validated intervention," and neither vault page (`ai-augmentation-evidence`, `se-competency-engine`) treats self-report or quiz-score validity as a measurement question. #384 constrains how far decisions may lean on the instrument; it does not upgrade its evidentiary standing.
+- No time decay in the EWMA (α=0.4, per-observation, not per-day, and not CLI-reachable) — a stale cell never ages, which matters more for a placement prior than for a score.
+- Zero invocations: the instrument P5 depends on produced no data in 5 days across 25 qualifying merges. R5 declines to backfill; the H8 retirement rule is the designated catch.
+
+## 2026-08-03 — Teach corpus: a two-stage sink whose deposit emits evidence and is reconciled (wayfinder #382)
+
+**Deferred decisions**
+- Retention of pushed `teach/*` branches — R3 pushes one per lesson across every teaching repo and nothing prunes them; unblocked by: the deposit step existing and the first branches accumulating (recorded in the map's `## Not yet specified`)
+- The `teach-sessions.jsonl` row schema beyond the event name — what a `harness:lesson-deposited` row must carry for the reconciler to match it to a branch; unblocked by: the slice that builds the deposit step
+- Whether `reconcile-teach-deposits.mjs` ever promotes from shadow to a gate, and on what orphan rate — deliberately deferred per `adr:control-gated-slices`
+- Whether a SessionEnd hook is added as a belt over R2's braces — available if the reconciler's measured orphan rate justifies it; rejected as the *sole* mechanism, not rejected outright
+- Whether `schema.yaml` should extend past `wiki/` page types to declare sink folders — R7 mirrors two rows correctly and repairs one drop, but does not fix the two-prose-copies arrangement ADR-0105 identified as unmaintainable
+
+**Unvalidated assumptions**
+- That topic slugs are stable enough to be identity (R6) — a renamed topic orphans a folder, and supersession-over-deletion means the corpus only grows; derived from `adr:adr-slug-identity` rather than separately grilled
+- That an agent reliably runs an explicit deposit step when the skill says to — R2's reconciler exists precisely because this is *not* assumed, but the reconciler's own value assumes someone reads its report; nothing yet routes it
+- That authoring in a worktree next to the code produces better lessons than authoring elsewhere — the shadow-space ruling is an argument from working-tree cleanliness, not from lesson quality, and no lesson has been authored either way
+- That `harness:lesson-deposited` and #384's `harness:lesson-served` stay distinct in practice — the boundary is stated, but one skill will emit both and collapsing them is the cheap mistake
+
+**Standard considerations not covered**
+- The corpus is empty by construction and will stay so until three artifacts ship (deposit step, reconciler, ledger schema). This ruling constrains a mechanism that does not run; it must not be read as capability — the same caution `adr:comprehension-heatmap-zpd-role` records about the heatmap.
+- No access or privacy boundary is stated for the corpus. Lessons cite diffs from private repos and land in a vault that has had a public-disclosure seam ruled on elsewhere (texas-rr engagement, #347); nothing here says what a lesson may quote.
+- Nothing routes the reconciler's report to a human. TD-006's 96-day gap was not caused by missing data — `bead-lint` existed — but by nobody reading it.

@@ -1944,6 +1944,47 @@
       "scope": [
         "user"
       ]
+    },
+    {
+      "name": "teach",
+      "tier": 2,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "tags": [
+        "teach",
+        "teaching",
+        "lesson",
+        "learning",
+        "zpd",
+        "competence",
+        "html-lesson",
+        "corpus",
+        "pedagogy"
+      ],
+      "description": "Spawns a standalone teach workspace in a per-repo git worktree: interrogates a MISSION, vets RESOURCES (fleet artifacts first-class), places the lesson at the zone of proximal development from learning-records + mission, authors self-contained interactive HTML lessons (CSS inlined per #386), and deposits to the fleet corpus at ~/selfco/teach/ with a harness:lesson-deposited evidence row. Distinct from /merge-quiz, which tests comprehension of one diff.",
+      "triggers": [
+        "teach",
+        "teach me",
+        "teach me this",
+        "teach me about",
+        "build a lesson",
+        "make me a lesson",
+        "spawn a teach workspace",
+        "teach session",
+        "I want to learn",
+        "help me learn"
+      ],
+      "suggested_after": [
+        "merge-quiz",
+        "investigate",
+        "diagram"
+      ],
+      "layer_affinity": [
+        0
+      ],
+      "scope": [
+        "user"
+      ]
     }
   ]
 }

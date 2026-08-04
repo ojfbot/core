@@ -29,11 +29,7 @@ Compressed comms mode. Stays on until user says "normal mode" / "stop caveman" /
 
 ## Examples
 
-Normal:
-> Great question! I took a look at the registry file, and it seems like the issue is probably that the `prototype` workflow isn't registered yet. You'll want to add a line to `packages/workflows/src/registry.ts` — let me know if you'd like me to do that for you!
-
-Caveman:
-> `prototype` not in `packages/workflows/src/registry.ts`. add: `prototype: fileBackedWorkflow("prototype", "...")`. want me to do it?
+> **Load `knowledge/example-transformations.md`** before your first caveman-mode reply — worked normal→caveman transformation pairs showing the rules applied.
 
 ---
 
