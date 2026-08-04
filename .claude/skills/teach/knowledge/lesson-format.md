@@ -117,7 +117,20 @@ do, not what the lesson covered.
 
 ## Reference documents
 
-`reference/*.html` — the compressed, print-quality essence of a topic.
+`reference/*.md` — **markdown by default**, the compressed essence of a topic.
 
 Lessons are rarely revisited; references are (D24). A reference is not a lesson transcript — it is
-what the learner keeps on the desk afterwards. Same self-containment rule applies: inline the CSS.
+what the learner keeps on the desk afterwards.
+
+**This is where the fleet diverges from D24, and the reason is D24's own argument.** Because a
+reference is the artifact most likely to be reopened, its format is decided by where it gets
+reopened: the vault. Obsidian will not render a standalone `.html` as a page — the same finding that
+put `teach/index.md` in markdown — so an HTML reference is an attachment you must bounce out to a
+browser to read. That is the worst possible handling for a desk copy. Markdown renders natively and
+stays browsable where it is kept, and it links into the rest of the vault with `[[wikilinks]]`.
+
+`reference/*.html` is still accepted and still right for one case: a genuinely print-quality
+cheat-sheet, where layout carries meaning. Inline the CSS if you write one, same as a lesson.
+
+Deliberate divergence, same class as D25 (`NOTES.md` rejected). Found by the second `/teach`
+invocation, whose markdown reference silently failed to deposit.

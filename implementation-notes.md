@@ -68,3 +68,14 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   rather than hand-editing the corpus. Suggests the deposit needs a supersession path — same
   question D21 already answers for *records* (supersede, never delete) and which the corpus
   architecture did not carry over to lessons.
+- /teach second invocation (2026-08-04): plan followed D24's `reference/*.html`. Territory: the
+  deposit silently dropped a markdown reference — `classifyArtifacts` filtered references to `.html`,
+  so a dry run reported "1 lesson" and no reference, with no error. Two problems, not one: the filter
+  was too narrow, AND the convention was wrong for this fleet. D24's own argument (lessons are read
+  once, references get revisited) decides the format by where it gets reopened — the vault — and
+  Obsidian will not render standalone `.html` as a page, so an HTML reference is an attachment you
+  must bounce to a browser. Took the conservative option: markdown is now the default for
+  references, `.html` still accepted for genuinely print-quality cheat-sheets, documented as a
+  deliberate divergence (same class as D25) rather than a bug fix. Note the silent-drop shape is the
+  same failure the deposit architecture exists to prevent — an artifact vanishing with nothing
+  emitted; the reconciler would not have caught it because the lesson still deposited.
