@@ -319,45 +319,45 @@ it's <em>unfinished</em> — it has taken on a debt to name its falsifier later.
   <h3>Check yourself</h3>
   <p><strong>1.</strong> An agent returns: "ABSORB — this is the standard pattern in the source and it
   is internally consistent with their other skills." Which discriminator question does it fail?</p>
-  <button data-q="1" data-ok="0">It fails landing, because no local file or existing check is named anywhere</button>
-  <button data-q="1" data-ok="1">It fails the independent problem — the case is made only about the source</button>
-  <button data-q="1" data-ok="0">It fails the falsifier, as no measurement that would overturn it is given</button>
-  <button data-q="1" data-ok="0">It fails all three at once and should be sent back to the agent for rewrite</button>
-  <p class="explain" hidden><strong>The independent problem.</strong> Strictly it names no landing and
+  <input class="opt" type="radio" name="q1" id="q1a"><label for="q1a">It fails landing, because no local file or existing check is named anywhere</label>
+  <input class="opt ok" type="radio" name="q1" id="q1b"><label for="q1b">It fails the independent problem — the case is made only about the source</label>
+  <input class="opt" type="radio" name="q1" id="q1c"><label for="q1c">It fails the falsifier, as no measurement that would overturn it is given</label>
+  <input class="opt" type="radio" name="q1" id="q1d"><label for="q1d">It fails all three at once and should be sent back to the agent for rewrite</label>
+  <div class="explain"><strong>The independent problem.</strong> Strictly it names no landing and
   no falsifier either — but "consistent with their other skills" is the diagnostic phrase, because it
   is an argument <em>about the source</em>. Landing and falsifier can be added by an agent on request;
   a missing local problem usually means there wasn't one. Reviewing tip: reach for question 2 first,
-  since it is the one that can't be patched.</p>
+  since it is the one that can't be patched.</div>
 </div>
 
 <div class="quiz">
   <h3></h3>
   <p><strong>2.</strong> Why does the corpus's reject set carry more information per verdict than its
   absorb set?</p>
-  <button data-q="2" data-ok="0">Rejecting is rarer, so each instance is more informative by scarcity</button>
-  <button data-q="2" data-ok="1">A reject argues against a coherent source, so it exposes local evidence</button>
-  <button data-q="2" data-ok="0">Rejects are reviewed more carefully by the operator before being ratified</button>
-  <button data-q="2" data-ok="0">Absorbing costs nothing, whereas a reject has to be defended to the author</button>
-  <p class="explain" hidden><strong>It has to argue against something coherent.</strong> Agreeing with
+  <input class="opt" type="radio" name="q2" id="q2a"><label for="q2a">Rejecting is rarer, so each instance is more informative by scarcity</label>
+  <input class="opt ok" type="radio" name="q2" id="q2b"><label for="q2b">A reject argues against a coherent source, so it exposes local evidence</label>
+  <input class="opt" type="radio" name="q2" id="q2c"><label for="q2c">Rejects are reviewed more carefully by the operator before being ratified</label>
+  <input class="opt" type="radio" name="q2" id="q2d"><label for="q2d">Absorbing costs nothing, whereas a reject has to be defended to the author</label>
+  <div class="explain"><strong>It has to argue against something coherent.</strong> Agreeing with
   a well-made source can be done with no local knowledge at all — that is exactly why absorbs can be
   hollow. Disagreeing requires you to produce the thing you have that is better, which is local
   evidence by construction. D28 has to show 84–100% vs ~80% precisely <em>because</em> the router is a
-  reasonable idea.</p>
+  reasonable idea.</div>
 </div>
 
 <div class="quiz">
   <h3></h3>
   <p><strong>3.</strong> You are reviewing an agent's adopt-stack output and have four minutes. What
   is the highest-yield thing to do?</p>
-  <button data-q="3" data-ok="0">Read the source material yourself and form an independent verdict on it</button>
-  <button data-q="3" data-ok="0">Check each absorbed opinion against the skills that already exist in core</button>
-  <button data-q="3" data-ok="1">Scan for bare absorbs, then run the three questions on only those rows</button>
-  <button data-q="3" data-ok="0">Verify the Gate 0 measurements were taken against the correct pinned commit</button>
-  <p class="explain" hidden><strong>Scan for bare absorbs.</strong> The qualifiers are the agent
+  <input class="opt" type="radio" name="q3" id="q3a"><label for="q3a">Read the source material yourself and form an independent verdict on it</label>
+  <input class="opt" type="radio" name="q3" id="q3b"><label for="q3b">Check each absorbed opinion against the skills that already exist in core</label>
+  <input class="opt ok" type="radio" name="q3" id="q3c"><label for="q3c">Scan for bare absorbs, then run the three questions on only those rows</label>
+  <input class="opt" type="radio" name="q3" id="q3d"><label for="q3d">Verify the Gate 0 measurements were taken against the correct pinned commit</label>
+  <div class="explain"><strong>Scan for bare absorbs.</strong> The qualifiers are the agent
   showing its translation work, so qualified rows are cheap to trust and expensive to re-derive.
   Reading the source yourself is the option that raises manual load — the thing this whole lesson is
   built to avoid. The scan is a filter that turns a full audit into three or four rows worth
-  interrogating.</p>
+  interrogating.</div>
 </div>
 
 <h2>What to say when someone asks how you work</h2>
@@ -381,19 +381,3 @@ the discriminator being applied by people who were not thinking of it as a discr
 <code>adr:wrap-absorb-reject</code> still a draft? A framework governing thirty-six ratified decisions
 that is itself unratified is the kind of thing this lesson should make you notice.</p>
 
-<script>
-document.querySelectorAll('.quiz').forEach(function (q) {
-  var done = false;
-  q.querySelectorAll('button').forEach(function (b) {
-    b.addEventListener('click', function () {
-      if (done) return;
-      done = true;
-      q.querySelectorAll('button').forEach(function (o) {
-        o.dataset.state = o.dataset.ok === '1' ? 'correct' : 'wrong';
-        o.disabled = true;
-      });
-      q.querySelector('.explain').hidden = false;
-    });
-  });
-});
-</script>
