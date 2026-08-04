@@ -33,16 +33,19 @@ Vetted 2026-08-04. Pruned to five, ordered by what they are actually good for.
   unverified against primary.
 
 - **The 80%-prompt-cut reporting** ([BigGo](https://finance.biggo.com/news/7df48019614f68c0), plus
-  circulating X threads) — the ablation method and the `CLAUDE_CODE_SIMPLE=1` claim. Reach for it
-  only with the trust caveat attached. Trust: **lowest tier here.** The ablation description is
-  corroborated across several write-ups; the environment-variable claim is effectively
-  single-sourced and should be verified before anyone repeats it as fact.
+  circulating X threads) — **caution resolved 2026-08-04.** Rated lowest-tier here, with
+  `CLAUDE_CODE_SIMPLE=1` flagged as effectively single-sourced and not to be repeated unverified.
+  The primary transcript confirms both it and a `--system-prompt` override. Superseded by primary;
+  kept so the resolution is recorded rather than the caution just vanishing.
+  See [[teach/prompt-ablation/|prompt-ablation]].
 
 ## Gaps
 
-- **The full talk was not obtained.** Every transcript route failed (403s and empty responses); the
-  operator supplied one segment. The reference document covers *that segment* faithfully and says so.
-  Nothing here should be read as "everything Boris covered" in the talk as a whole.
+- **~~The full talk was not obtained.~~ SUPERSEDED 2026-08-04** — the page is reachable and
+  unpaywalled after all; the earlier 403s were transcript-scraper services, not the source. All
+  thirteen topics are now mapped in [[teach/prompt-ablation/|prompt-ablation]]. This document remains
+  the §10–11 deep dive. Left visible rather than deleted: a gap that silently closes teaches the next
+  session nothing.
 - **Boris's own claim that this "hasn't really been written about a lot"** is, as far as this
   sourcing went, correct — no independent technical treatment of agent-orchestration algebra was
   found. That is a genuine gap in the literature, not a gap in the search, and it is the reason the

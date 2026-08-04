@@ -1,9 +1,16 @@
 # Reference — dynamic workflows, loops, and routines
 
-The compressed essence of the Boris Cherny transcript segment supplied 2026-08-04, plus what the
-live `Workflow` tool contract adds. **Scope honesty:** this covers the *supplied excerpt* of a
-~36-minute talk, not the whole talk. Source:
+The compressed essence of the dynamic-workflows and loops/routines material (§10–11 of the talk),
+plus what the live `Workflow` tool contract adds. Source:
 [ycrootaccess.com/p/boris-cherny-building-claude-code](https://www.ycrootaccess.com/p/boris-cherny-building-claude-code).
+
+> **Superseded scope note (2026-08-04).** This document was written from an operator-supplied excerpt
+> and originally recorded that the full talk could not be obtained. **That is no longer true** — the
+> page is reachable and unpaywalled, and the other eleven topics are now mapped in
+> [[teach/prompt-ablation/|prompt-ablation]] → `reference/boris-cherny-full-talk-map.md`. This
+> document remains the deep dive on §10–11; it is no longer the fleet's only coverage of the talk.
+> Correcting in place rather than rewriting, because a record whose stated limits silently expire is
+> how a caveat becomes folklore.
 
 Lessons are read once; references get revisited (D24). This is the desk copy.
 
