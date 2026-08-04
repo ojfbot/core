@@ -1,0 +1,399 @@
+<meta charset="utf-8">
+<title>Telling absorption from cargo cult</title>
+<style>
+/* inlined from assets/lesson.css — #386: shipped lessons are self-contained */
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz. Options are length-matched by the author — nothing here may imply an answer,
+ * so every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+.quiz button {
+  display: block;
+  width: 100%;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz button:hover:not([disabled]) {
+  border-color: var(--accent);
+}
+.quiz button[data-state="correct"] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.quiz button[data-state="wrong"] {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.quiz .explain {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .explain[hidden] {
+  display: none;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz button {
+    display: none;
+  }
+  .quiz .explain[hidden] {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
+</style>
+<h1>Telling absorption from cargo&nbsp;cult</h1>
+
+<p><em>Lesson 0001 · pocock-absorb-vs-cargo-cult · for reviewing verdicts you didn't write</em></p>
+
+<p>You have thirty-six verdicts about Matt Pocock's skills library sitting in your own repository —
+D1 through D36, across three <code>decisions/adopt-stack/</code> records. Agents produced them. You
+ratified the slates. The uncomfortable question is whether you could <em>grade</em> one.</p>
+
+<p>That is not a knowledge gap. You can read them. It is a discrimination gap, and the distance
+across it is short — because the records already contain the answer, in a form nobody wrote down.</p>
+
+<h2>The thing that generates the practices</h2>
+
+<p>Start with what Pocock says he is optimizing for, because everything else is downstream of it:
+<strong>predictability</strong> — "the agent taking the same <em>process</em> every run, not producing
+the same output — is the root virtue; every lever below serves it."<span class="cite"> (D26)</span></p>
+
+<p>Notice what that objective licenses. If the goal were good output, you would tune prompts. Because
+the goal is a stable process, you build <em>structure that constrains the process</em>: information
+hierarchies, completion criteria, leading words, hooks. This is why his work reads as harness design
+rather than prompt engineering — and it is the same instinct that made your own deposit step a script
+instead of a paragraph asking nicely.</p>
+
+<p>Cargo cult is what happens when you copy the levers without the objective. The levers still look
+right. They just aren't attached to anything.</p>
+
+<h2>The discriminator</h2>
+
+<p>Three questions. A real absorption answers all three; adoption-for-form fails the second.</p>
+
+<ol>
+  <li><strong>Landing.</strong> Does the verdict name the specific local surface the opinion attaches
+    to — a file, a line, an existing check?</li>
+  <li><strong>Independent problem.</strong> Can you state the local problem it solves
+    <em>without mentioning the source</em>?</li>
+  <li><strong>Falsifier.</strong> Is there a named measurement or condition under which this verdict
+    would be wrong?</li>
+</ol>
+
+<p class="sidenote">Question 2 is the load-bearing one. "It fits our philosophy" and "his framework is
+coherent" are both answers <em>about the source</em>. Neither survives the rewrite.</p>
+
+<p>Run it on D28. The opinion is Pocock's router skill, for when user-invoked skills multiply. The
+verdict is <strong>REJECT</strong>, and the reason is that the fleet already measured it: a
+hook-forced suggester scored 84–100% against the router's ~80%.<span class="cite"> (D28, citing D15
+and <code>2026-07-17-skill-loop-sota</code>)</span> Landing: named. Problem: "we need discovery to
+work and we measured two mechanisms" — no mention of Pocock required. Falsifier: the number. If the
+router had won, the verdict flips.</p>
+
+<p>That is a reject carrying <em>evidence</em>, not preference. It is also why rejects are worth more
+than absorbs when you are auditing: a reject has to argue against a coherent source, so it shows its
+work.</p>
+
+<h2>The tell you can scan for</h2>
+
+<p>Now look at the <em>shape</em> of the verdicts rather than their content:</p>
+
+<table>
+  <tr><th>Verdict as written</th><th>What the qualifier is doing</th></tr>
+  <tr><td><code>ABSORB, eval-gated</code><span class="cite"> D29</span></td><td>ties it to an instrument that must pass</td></tr>
+  <tr><td><code>ABSORB as judgment signal (J5)</code><span class="cite"> D32</span></td><td>names the existing lens it sharpens</td></tr>
+  <tr><td><code>REJECT as stated; ABSORB the accounting</code><span class="cite"> D27</span></td><td>splits the opinion from its mechanism</td></tr>
+  <tr><td><code>ABSORB — amended by #386</code><span class="cite"> D23</span></td><td>records a later measurement overruling it</td></tr>
+</table>
+
+<p>Every qualifier is the local translation happening in the open. So the scan is cheap:
+<strong>a qualified verdict has usually done the work; a bare <code>ABSORB</code> of a whole shape is
+where adoption-for-form hides.</strong> That is a heuristic, not a law — which the next section is
+about — but it costs you seconds on output you didn't write.</p>
+
+<h2>The hard case, which is the actual lesson</h2>
+
+<p>D26 — the predictability opinion above — is a bare <code>ABSORB</code> with no measurement
+attached. By the scan, it is suspect. Is it?</p>
+
+<p>Work the discriminator. <em>Landing:</em> yes, <code>SKILL.md</code> L7 and a
+<code>GLOSSARY.md</code> entry. <em>Independent problem:</em> yes, and this is the interesting part —
+the record says it "names what the fleet's audit apparatus already optimizes for but had no word
+for." The apparatus predates the reading. The problem is a missing name for an existing thing, which
+is stateable with no reference to Pocock at all. <em>Falsifier:</em> thin, but real — go look at the
+audit apparatus and check whether it actually did optimize for process stability. If it didn't, the
+verdict is retroactive storytelling.</p>
+
+<p>So it passes, and it is still the weakest species of absorption: <strong>vocabulary</strong>. That
+is the cheapest thing to adopt and the easiest to justify — and it carries a specific delayed risk.
+Once the word is in your glossary, you start doing things <em>because the word implies them</em>
+rather than because you measured a need. The cargo cult doesn't arrive with the verdict. It arrives
+three decisions later, when someone cites the word as authority.</p>
+
+<p>Which sharpens the heuristic into something you can defend out loud: a bare absorb isn't wrong,
+it's <em>unfinished</em> — it has taken on a debt to name its falsifier later.</p>
+
+<div class="quiz">
+  <h3>Check yourself</h3>
+  <p><strong>1.</strong> An agent returns: "ABSORB — this is the standard pattern in the source and it
+  is internally consistent with their other skills." Which discriminator question does it fail?</p>
+  <button data-q="1" data-ok="0">It fails landing, because no local file or existing check is named anywhere</button>
+  <button data-q="1" data-ok="1">It fails the independent problem — the case is made only about the source</button>
+  <button data-q="1" data-ok="0">It fails the falsifier, as no measurement that would overturn it is given</button>
+  <button data-q="1" data-ok="0">It fails all three at once and should be sent back to the agent for rewrite</button>
+  <p class="explain" hidden><strong>The independent problem.</strong> Strictly it names no landing and
+  no falsifier either — but "consistent with their other skills" is the diagnostic phrase, because it
+  is an argument <em>about the source</em>. Landing and falsifier can be added by an agent on request;
+  a missing local problem usually means there wasn't one. Reviewing tip: reach for question 2 first,
+  since it is the one that can't be patched.</p>
+</div>
+
+<div class="quiz">
+  <h3></h3>
+  <p><strong>2.</strong> Why does the corpus's reject set carry more information per verdict than its
+  absorb set?</p>
+  <button data-q="2" data-ok="0">Rejecting is rarer, so each instance is more informative by scarcity</button>
+  <button data-q="2" data-ok="1">A reject argues against a coherent source, so it exposes local evidence</button>
+  <button data-q="2" data-ok="0">Rejects are reviewed more carefully by the operator before being ratified</button>
+  <button data-q="2" data-ok="0">Absorbing costs nothing, whereas a reject has to be defended to the author</button>
+  <p class="explain" hidden><strong>It has to argue against something coherent.</strong> Agreeing with
+  a well-made source can be done with no local knowledge at all — that is exactly why absorbs can be
+  hollow. Disagreeing requires you to produce the thing you have that is better, which is local
+  evidence by construction. D28 has to show 84–100% vs ~80% precisely <em>because</em> the router is a
+  reasonable idea.</p>
+</div>
+
+<div class="quiz">
+  <h3></h3>
+  <p><strong>3.</strong> You are reviewing an agent's adopt-stack output and have four minutes. What
+  is the highest-yield thing to do?</p>
+  <button data-q="3" data-ok="0">Read the source material yourself and form an independent verdict on it</button>
+  <button data-q="3" data-ok="0">Check each absorbed opinion against the skills that already exist in core</button>
+  <button data-q="3" data-ok="1">Scan for bare absorbs, then run the three questions on only those rows</button>
+  <button data-q="3" data-ok="0">Verify the Gate 0 measurements were taken against the correct pinned commit</button>
+  <p class="explain" hidden><strong>Scan for bare absorbs.</strong> The qualifiers are the agent
+  showing its translation work, so qualified rows are cheap to trust and expensive to re-derive.
+  Reading the source yourself is the option that raises manual load — the thing this whole lesson is
+  built to avoid. The scan is a filter that turns a full audit into three or four rows worth
+  interrogating.</p>
+</div>
+
+<h2>What to say when someone asks how you work</h2>
+
+<p>The articulable version is one sentence: <em>an opinion earns a place only when you can name what
+it lands on, state the problem it solves without naming its author, and say what would prove it
+wrong.</em> Everything else — the records, the gates, the numbered verdicts — is bookkeeping that
+makes that sentence checkable by someone who wasn't there.</p>
+
+<p class="sidenote">This is also, notice, the same structure as the deposit ruling: a mechanism that
+emits evidence beats a convention that asks nicely, because only one of them can be checked by
+someone who wasn't in the room.</p>
+
+<h2>Going deeper</h2>
+
+<p>One source, not a list: <strong><code>core/decisions/adopt-stack/pocock-writing-great-skills.md</code></strong>
+(D26–D36). Its verdicts are the most heavily qualified in the corpus, so it is the best place to see
+the discriminator being applied by people who were not thinking of it as a discriminator.</p>
+
+<p><strong>Worth asking next:</strong> Which of your 36 verdicts fail question 2 — and is
+<code>adr:wrap-absorb-reject</code> still a draft? A framework governing thirty-six ratified decisions
+that is itself unratified is the kind of thing this lesson should make you notice.</p>
+
+<script>
+document.querySelectorAll('.quiz').forEach(function (q) {
+  var done = false;
+  q.querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (done) return;
+      done = true;
+      q.querySelectorAll('button').forEach(function (o) {
+        o.dataset.state = o.dataset.ok === '1' ? 'correct' : 'wrong';
+        o.disabled = true;
+      });
+      q.querySelector('.explain').hidden = false;
+    });
+  });
+});
+</script>
