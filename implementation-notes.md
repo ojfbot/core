@@ -70,3 +70,20 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - 2026-08-02 fde-skills-audit session: plan assumed the #321 denylist lint exists and would gate the artifact; no lint script exists on disk or any branch. Fell back to manual grep of outputs (clean). Lint implementation is an unclaimed prerequisite, flagged in the report bead.
 - 2026-08-03 vantage-gap execution session (brief 20260803-1200): plan step D said "the 11" untracked beads; territory at Step-0 verification was 12 — a diagram-first-output session dropped `20260803-1209-brief-diagram-first-output-work-the-frontier.md` nine minutes after the brief was committed. Took the conservative option: kept it in the D triage table flagged post-brief, touched nothing.
 - 2026-08-03 vantage-gap execution session: plan said all C repairs go up in the PR; two tracked repair targets (`20260803-1130-report-newline-sitting6`, `20260803-0140-report-newline-u14-u12-u17`) exist only in unpushed local-main commits, so a branch off origin/main cannot carry them and a branch off local main would publish the operator's 9 unpushed commits ("do not push"). Took the conservative option: deferred those two fixes (status done→closed on 1130; responding_to wiring on both), flagged in PR #378 and the report bead.
+- /teach first real invocation (2026-08-04): plan assumed #386's finding held — "inline quiz JS
+  survives; presentation is the fragile part." Territory: that was measured in a **browser**. The
+  side panel renders a lesson as a static snapshot, so the inlined CSS applies and the script never
+  runs; the operator reported lesson 0001's quiz buttons doing nothing. In the surface the map's
+  Destination actually names ("rendering in the side panel as routinely as SVG diagrams"), the
+  finding is inverted. Took the conservative option: rebuilt the quiz on radio inputs + `:checked`
+  (zero JS, works in side panel / browser / Obsidian attachment / print) and recorded the
+  measurement in `lesson-format.md` rather than leaving #386's conclusion to be re-applied by the
+  next lesson. #386's *stylesheet* conclusion is untouched and still correct.
+- /teach first real invocation (2026-08-04): plan had one deposit per lesson. Territory: correcting
+  a deposited lesson has no path — re-running `deposit.mjs` appends a second
+  `harness:lesson-deposited` row and a second `teach/index.md` line for the same topic, so the index
+  now double-lists one lesson. Took the conservative option: re-deposited anyway (silently mutating
+  a deposited artifact is worse than a noisy index, and two writes did happen), and logged the gap
+  rather than hand-editing the corpus. Suggests the deposit needs a supersession path — same
+  question D21 already answers for *records* (supersede, never delete) and which the corpus
+  architecture did not carry over to lessons.
