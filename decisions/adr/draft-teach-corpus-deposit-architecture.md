@@ -39,7 +39,7 @@ reassuring one**:
 |---|---|
 | `/diagram`'s deposit mechanism | prose principle #7 in `.claude/skills/diagram/SKILL.md` — a convention, no hook, no emission |
 | Files in `~/selfco/diagrams/` | **2**, both stamped `Aug 3 12:04` (the day the convention was written) |
-| Git state of `~/selfco/diagrams/` | **untracked** — never committed to the vault repo |
+| Git state of `~/selfco/diagrams/` at the time of the ruling | **untracked** — never committed to the vault repo (*superseded 2026-08-04: a concurrent vault session committed both files in `877e93f`, so this row no longer reproduces. The measurement stands as of the ruling; the argument does not rest on it — see the note below.*) |
 | Ledger rows recording a diagram deposit, any file, any event name | **0** |
 | `diagrams/` row mirrored into `core/.claude/skills/vault/templates/vault-claude-md.md` per ADR-0088 | **absent** (0 occurrences); the live-vault row is itself an uncommitted edit |
 
@@ -52,6 +52,13 @@ Set against the channels that *do* accumulate, every one of them hook-emitted:
 | `merge-observations.jsonl` | 90 | `scripts/hooks/merge-quiz.mjs` |
 | `deviations.jsonl` | 60 | `scripts/hooks/deviation-log.mjs` (Stop) |
 | convention-deposit channels | ~0 | prose |
+
+**Evidence correction, 2026-08-04.** One row above has already decayed: a concurrent vault session
+committed both `diagrams/` files (`877e93f`) hours after this decision merged, so "untracked" is no
+longer true. The load-bearing measurement is unaffected — **zero ledger rows record a diagram
+deposit**, then and now — and that is the row the argument rests on. Recording the decay rather than
+quietly editing it: a decision whose cited evidence silently stops reproducing is how a ruling turns
+into folklore, and this one is specifically about mechanisms that fail without anyone noticing.
 
 This is the TD-006 shape exactly. `hook-bead-session` was *declared* and never implemented; the
 result was 28 open hooks against 9 reports ever, and nothing in the system noticed, because nothing
