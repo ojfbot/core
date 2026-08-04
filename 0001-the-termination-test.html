@@ -1,0 +1,399 @@
+<meta charset="utf-8">
+<title>The termination test</title>
+<style>
+/* inlined from assets/lesson.css — #386: shipped lessons are self-contained */
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz — DELIBERATELY ZERO JAVASCRIPT.
+ *
+ * #386 measured a lesson in a browser and concluded "presentation is the fragile part, not
+ * interactivity — the inline quiz JS survives." That is true in a browser and INVERTED in the
+ * side panel, which renders a lesson as a static snapshot: the inlined CSS survives and the
+ * script never runs, so a JS quiz is dead exactly where the map's Destination wants lessons to
+ * live ("rendering in the side panel as routinely as SVG diagrams do today"). Measured
+ * 2026-08-04 on lesson 0001, whose buttons did nothing for the operator.
+ *
+ * So interactivity rides radio inputs + :checked selectors. It works in the side panel, in a
+ * browser, in an Obsidian attachment, and it degrades to plain readable prose in anything that
+ * strips CSS too. Nothing here may imply an answer: options are length-matched by the author,
+ * and every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+/* Visually hidden, still focusable — keyboard and screen-reader reachable. */
+.quiz .opt {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.quiz label {
+  display: block;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz label:hover {
+  border-color: var(--accent);
+}
+.quiz .opt:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The option the reader chose. */
+.quiz .opt:checked + label {
+  font-weight: 500;
+}
+.quiz .opt.ok:checked + label {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.quiz .opt:not(.ok):checked + label {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+/* Once anything is chosen, mark the correct option wherever it sits in the list. */
+.quiz:has(.opt:checked) .opt.ok + label {
+  border-color: var(--accent);
+}
+/* Explanation appears only after an answer — effort before answers. */
+.quiz .explain {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .opt:checked ~ .explain {
+  display: block;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz label {
+    border-color: #999;
+  }
+  .quiz .explain {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
+</style>
+<h1>The termination test</h1>
+
+<p class="cite">Lesson 0001 · topic <strong>shape-up</strong> · mission: diagnose a planning
+system with Shape Up as the lens, and decide what to adopt without cargo-culting it.</p>
+
+<p>Every planning system holds something still and lets something else move. Naming which is
+which takes about a minute and tells you more about the system than its documentation does.
+Shape Up is unusually useful as a lens here — not because its answers are right, but because
+it states its answers out loud, which most systems don't.</p>
+
+<p>This lesson gives you three questions and one worked example. By the end you should be able
+to run them on a planning system you have never seen.</p>
+
+<h2>The instrument</h2>
+
+<p><strong>Q1 — What is fixed, and what floats?</strong> Time, scope, quality: pick which one
+is nailed down. Singer's formulation is the crispest thing in the book:</p>
+
+<blockquote>Estimates start with a design and end with a number. Appetites start with a number
+and end with a design.<span class="cite"> — §1.2 Set Boundaries (R2)</span></blockquote>
+
+<p>Those run in opposite directions. An estimate takes scope as given and yields a duration; an
+appetite takes duration as given and forces scope to absorb the variance. So Q1 is not a
+vocabulary question. It asks which end of the problem the system refuses to negotiate.</p>
+
+<p><strong>Q2 — What makes work stop, other than being finished?</strong> Most systems have no
+answer. That is itself the answer, and it is worth writing down rather than glossing.</p>
+
+<p><strong>Q3 — On overrun, what is the <em>default</em>?</strong> Not what is permitted —
+what happens when nobody argues. Defaults are where a system's real policy lives, because they
+are what occurs under fatigue.<span class="sidenote">Q3 is the load-bearing one. A system can
+have a beautiful Q1 answer and still never stop anything, because the default on overrun is
+"carry on".</span></p>
+
+<h2>Worked example: run it on Shape Up</h2>
+
+<p>Answers visible. Read this as a demonstration of the sort, not as facts to memorise.</p>
+
+<p><strong>Q1 → time is fixed; scope floats.</strong> The cycle is the constant. Singer works
+the example on the book you are reading: with one week left he can fix typos or add a section,
+so he cuts the section. His note on why is the mechanism — <em>"Without the pressure of the
+fixed deadline, I wouldn't make the trade-off."</em><span class="cite"> (R2)</span> The fixed
+end is not there to hurry anyone. It exists to force a choice that otherwise never gets made.</p>
+
+<p><strong>Q2 → the cycle boundary, plus a comparison rule.</strong> Work stops at six weeks,
+and the judgment of "good enough" is made by comparing <em>down to baseline</em> — what
+customers do today without this — rather than up to an ideal.<span class="cite"> (R1)</span>
+Both halves matter: a deadline with no comparison rule just produces anxiety.</p>
+
+<p><strong>Q3 → cancel, and return to shaping.</strong> Overrun does not buy time; the project
+goes back to be re-shaped.<span class="cite"> (R3)</span> But the book states two conditions
+under which it extends anyway, and this is where a slogan becomes a rule you can actually
+apply: the remaining work must be true must-haves that survived every attempt to scope-hammer
+them, <em>and</em> all of it must be downhill — no unsolved problems, no open
+questions.<span class="cite"> (R1 §3.5, "When to extend a project")</span></p>
+
+<p>That second condition is the sharp one. Uphill work left at the deadline is read as evidence
+that the <em>shaping</em> was wrong, not that the team was slow. So the exception is not a
+loophole; it is a diagnostic that routes the failure to the right place.</p>
+
+<p class="cite">Caveat: these three questions are not Singer's framework. They are assembled
+from §1.2, §2.2 and §3.5 to serve this mission. Repeating them to someone as "Shape Up's
+diagnostic" would overstate the source.</p>
+
+<h2>The adoption guard</h2>
+
+<p>Once you can diagnose a system, the temptation is to import whatever it has that you lack.
+That is where the cargo cult starts, and the tell is subtle: the mechanism is genuinely good
+<em>and</em> you genuinely want it. Both can be true while the adoption is still hollow.</p>
+
+<p>The test is one question: <strong>does the problem the mechanism solves exist here,
+independent of the source?</strong> If the only evidence that you need it is that Basecamp
+found it useful, you are copying a shape. If you can point at your own overruns first, and
+reach for the mechanism second, you are absorbing.</p>
+
+<h2>Now you run it</h2>
+
+<p>Target: <strong>Control-Gated Slices</strong> (core ADR-0086) — vertical slices governed by
+control gates, with Success Criteria expressed as MOE→MOP→TPM, a Brassboard/shadow stage for
+any control that acts, and RIDM promotions that are data-gated on measured
+TPMs.<span class="cite"> (R4)</span></p>
+
+<div class="quiz">
+  <p><strong>1.</strong> Run Q1 on Control-Gated Slices. What does it hold still?</p>
+  <input class="opt" type="radio" name="q1" id="q1a"><label for="q1a">Fixes time and scope; quality floats — a slice ships whatever the gate lets through</label>
+  <input class="opt ok" type="radio" name="q1" id="q1b"><label for="q1b">Fixes scope and quality; time floats — a slice advances only once its TPMs clear</label>
+  <input class="opt" type="radio" name="q1" id="q1c"><label for="q1c">Fixes time alone; scope floats — a slice ships whatever is done when the window shuts</label>
+  <input class="opt" type="radio" name="q1" id="q1d"><label for="q1d">Fixes nothing explicitly; all three float according to whatever the operator attends</label>
+  <div class="explain"><strong>Scope and quality are fixed; time floats.</strong> Success
+  Criteria are measured TPMs, and a slice advances when they clear — however long that takes.
+  Which makes the two methods <em>duals</em>: same unit of work, opposite fixed variable. That
+  matters practically, because importing "appetite" onto a slice while keeping TPM-gated
+  promotion produces work that is time-boxed <em>and</em> quality-gated with no rule for which
+  one yields.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>2.</strong> Run Q3. A slice has been open far longer than anyone expected. What
+  does the method say happens by default?</p>
+  <input class="opt" type="radio" name="q2" id="q2a"><label for="q2a">It drops back to Brassboard and re-samples until the failing TPMs finally clear</label>
+  <input class="opt" type="radio" name="q2" id="q2b"><label for="q2b">The gate re-issues entrance criteria and the slice restarts from its first control gate</label>
+  <input class="opt ok" type="radio" name="q2" id="q2c"><label for="q2c">Elapsed time is not a gate condition, so the slice stays open until its criteria are met</label>
+  <input class="opt" type="radio" name="q2" id="q2d"><label for="q2d">A RIDM returns no-go and the slice is retired from the roadmap for that whole cycle</label>
+  <div class="explain"><strong>Nothing fires — elapsed time isn't a gate condition.</strong>
+  Option A is the trap, and it is a real rule: on TPM <em>breach</em> a control stays in
+  Brassboard, gets corrective action, and re-samples.<span class="cite"> (R4)</span> But that is
+  a stopping rule for <em>failing a measurement</em>, not for <em>running long</em>. Conflating
+  the two is the difference between an imagined gap and a real one — and it is why "the fleet
+  has no circuit breaker" is precise rather than sloppy: it has one for breach, none for
+  time.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>3.</strong> When is importing the circuit breaker here an absorption rather than a
+  cargo cult?</p>
+  <input class="opt ok" type="radio" name="q3" id="q3a"><label for="q3a">When work here already overruns and nothing in the system currently makes it stop</label>
+  <input class="opt" type="radio" name="q3" id="q3b"><label for="q3b">When the source reports the mechanism measurably improved its own shipping record</label>
+  <input class="opt" type="radio" name="q3" id="q3c"><label for="q3c">When the team already shares the vocabulary and can name the mechanism precisely</label>
+  <input class="opt" type="radio" name="q3" id="q3d"><label for="q3d">When the cycle length has been calibrated against the team's demonstrated throughput</label>
+  <div class="explain"><strong>The local problem has to exist first.</strong> B is the cargo-cult
+  answer in its most respectable dress — evidence about <em>their</em> system is not evidence
+  about yours. Here the local evidence happens to be abundant and independent: slices flipped
+  <code>ready</code> that stay open, 28 open hooks, TD-006's closure gap. Note also that this
+  fleet already wrote the rule at a different altitude — <em>"a harness that is never invoked is
+  theatre with a log file, and retiring it is the loop working"</em><span class="cite"> (R5)</span>
+  — which turns the question from "should we adopt this?" into "why does it only apply to
+  harnesses?"</div>
+</div>
+
+<h2>Go deeper — one source</h2>
+
+<p><strong>Shape Up §3.5, "Decide When to Stop"</strong> —
+<a href="https://basecamp.com/shapeup/3.5-chapter-14">basecamp.com/shapeup/3.5-chapter-14</a>,
+archived at <code>raw/shape-up-ryan-singer.md</code> SECTION 16. It is the chapter where the
+method stops asserting and starts specifying: compare-down-to-baseline, scope hammering, and the
+two conditions for extending. If you read one chapter of this book properly, this is the one.</p>
+
+<p class="cite">One thing this lesson cannot tell you: whether any of it transfers outside
+Basecamp. The book is n=1 by its own account, appendix §4.1 is unread, and no field evidence has
+been gathered. Treat "it works" as unsourced in both directions.</p>
+
+<hr>
+
+<p><strong>Questions are the point.</strong> Push back on any of this — especially the claim that
+the two methods are duals, which is the load-bearing assertion and the one most worth attacking.
+Tell me which answers you got wrong and <em>why you picked what you picked</em>; the wrong-answer
+shape is what places the next lesson.</p>

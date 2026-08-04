@@ -1,0 +1,247 @@
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz — DELIBERATELY ZERO JAVASCRIPT.
+ *
+ * #386 measured a lesson in a browser and concluded "presentation is the fragile part, not
+ * interactivity — the inline quiz JS survives." That is true in a browser and INVERTED in the
+ * side panel, which renders a lesson as a static snapshot: the inlined CSS survives and the
+ * script never runs, so a JS quiz is dead exactly where the map's Destination wants lessons to
+ * live ("rendering in the side panel as routinely as SVG diagrams do today"). Measured
+ * 2026-08-04 on lesson 0001, whose buttons did nothing for the operator.
+ *
+ * So interactivity rides radio inputs + :checked selectors. It works in the side panel, in a
+ * browser, in an Obsidian attachment, and it degrades to plain readable prose in anything that
+ * strips CSS too. Nothing here may imply an answer: options are length-matched by the author,
+ * and every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+/* Visually hidden, still focusable — keyboard and screen-reader reachable. */
+.quiz .opt {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.quiz label {
+  display: block;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz label:hover {
+  border-color: var(--accent);
+}
+.quiz .opt:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The option the reader chose. */
+.quiz .opt:checked + label {
+  font-weight: 500;
+}
+.quiz .opt.ok:checked + label {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.quiz .opt:not(.ok):checked + label {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+/* Once anything is chosen, mark the correct option wherever it sits in the list. */
+.quiz:has(.opt:checked) .opt.ok + label {
+  border-color: var(--accent);
+}
+/* Explanation appears only after an answer — effort before answers. */
+.quiz .explain {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .opt:checked ~ .explain {
+  display: block;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz label {
+    border-color: #999;
+  }
+  .quiz .explain {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
