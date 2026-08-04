@@ -72,10 +72,21 @@ export function nextOrdinal(existing) {
 }
 
 /**
- * Classify what a workspace holds. Lessons are `*.html`, records are
- * `learning-records/*.md`, references are `reference/*.html`. Everything else is authoring
- * scratch and stays in the worktree — the branch is pushed-never-merged (R3), so scratch is
- * recoverable without polluting the corpus. PURE over a supplied listing.
+ * Classify what a workspace holds. Lessons are `*.html`, records are `learning-records/*.md`,
+ * references are `reference/*.md` OR `reference/*.html`. Everything else is authoring scratch
+ * and stays in the worktree — the branch is pushed-never-merged (R3), so scratch is recoverable
+ * without polluting the corpus. PURE over a supplied listing.
+ *
+ * WHY REFERENCES TAKE MARKDOWN, against D24's `reference/*.html`.
+ * D24 is right that lessons are read once and references get revisited — which is exactly why
+ * the format has to flip here. A reference is the artifact most likely to be reopened in the
+ * vault, and Obsidian will not render a standalone `.html` as a page (the R5 finding that put
+ * `teach/index.md` in markdown). An HTML reference deposited to the corpus is an attachment you
+ * must bounce out to a browser to read — the worst possible handling for the desk copy.
+ * Markdown renders natively, so it stays browsable where it is kept. HTML is still accepted:
+ * a print-quality cheat-sheet is a legitimate reference and D24's instinct holds for that one.
+ * Deliberate divergence, same class as D25. Found by the second `/teach` invocation, whose
+ * markdown reference silently failed to deposit.
  *
  * @param {{lessons?:string[], records?:string[], references?:string[]}} listing
  * @returns {{lessons:string[], records:string[], references:string[], total:number}}
@@ -83,7 +94,9 @@ export function nextOrdinal(existing) {
 export function classifyArtifacts(listing) {
   const lessons = (listing.lessons ?? []).filter((f) => f.endsWith('.html')).sort();
   const records = (listing.records ?? []).filter((f) => f.endsWith('.md')).sort();
-  const references = (listing.references ?? []).filter((f) => f.endsWith('.html')).sort();
+  const references = (listing.references ?? [])
+    .filter((f) => f.endsWith('.md') || f.endsWith('.html'))
+    .sort();
   return { lessons, records, references, total: lessons.length + records.length + references.length };
 }
 

@@ -63,6 +63,16 @@ describe('classifyArtifacts', () => {
   it('tolerates missing classes', () => {
     expect(classifyArtifacts({}).total).toBe(0);
   });
+
+  it('takes markdown references — the desk copy must render in the vault, not bounce to a browser', () => {
+    const r = classifyArtifacts({ references: ['dynamic-workflows.md', 'cheatsheet.html', 'draft.txt'] });
+    expect(r.references).toEqual(['cheatsheet.html', 'dynamic-workflows.md']);
+    expect(r.total).toBe(2);
+  });
+
+  it('still refuses non-document scratch in reference/', () => {
+    expect(classifyArtifacts({ references: ['notes.txt', 'diagram.png'] }).references).toEqual([]);
+  });
 });
 
 describe('buildLedgerRow — a deposit that does not emit did not happen (R2)', () => {
