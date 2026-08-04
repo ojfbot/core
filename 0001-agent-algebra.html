@@ -1,0 +1,388 @@
+<meta charset="utf-8">
+<title>An algebra for agents</title>
+<style>
+/* inlined from assets/lesson.css — #386: shipped lessons are self-contained */
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz — DELIBERATELY ZERO JAVASCRIPT.
+ *
+ * #386 measured a lesson in a browser and concluded "presentation is the fragile part, not
+ * interactivity — the inline quiz JS survives." That is true in a browser and INVERTED in the
+ * side panel, which renders a lesson as a static snapshot: the inlined CSS survives and the
+ * script never runs, so a JS quiz is dead exactly where the map's Destination wants lessons to
+ * live ("rendering in the side panel as routinely as SVG diagrams do today"). Measured
+ * 2026-08-04 on lesson 0001, whose buttons did nothing for the operator.
+ *
+ * So interactivity rides radio inputs + :checked selectors. It works in the side panel, in a
+ * browser, in an Obsidian attachment, and it degrades to plain readable prose in anything that
+ * strips CSS too. Nothing here may imply an answer: options are length-matched by the author,
+ * and every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+/* Visually hidden, still focusable — keyboard and screen-reader reachable. */
+.quiz .opt {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.quiz label {
+  display: block;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz label:hover {
+  border-color: var(--accent);
+}
+.quiz .opt:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The option the reader chose. */
+.quiz .opt:checked + label {
+  font-weight: 500;
+}
+.quiz .opt.ok:checked + label {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.quiz .opt:not(.ok):checked + label {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+/* Once anything is chosen, mark the correct option wherever it sits in the list. */
+.quiz:has(.opt:checked) .opt.ok + label {
+  border-color: var(--accent);
+}
+/* Explanation appears only after an answer — effort before answers. */
+.quiz .explain {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .opt:checked ~ .explain {
+  display: block;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz label {
+    border-color: #999;
+  }
+  .quiz .explain {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
+</style>
+<h1>An algebra for agents</h1>
+
+<p><em>Lesson 0001 · agent-algebra-dynamic-workflows · for choosing operators, not describing features</em></p>
+
+<p>Boris Cherny says three things in a row that are more connected than they look: that dynamic
+workflows haven't really been written about much, that his background is functional programming, and
+that the design is <em>essentially an algebra for agents</em>.<span class="cite"> (transcript)</span>
+The third is a consequence of the second, and the first is why you have to work it out yourself.</p>
+
+<p>An algebra is a set of things plus <strong>operations that combine them and give you back the same
+kind of thing</strong>. Numbers with <code>+</code>. Here: agents, with <em>sequence</em> and
+<em>parallel</em>. The payoff of calling it an algebra is composition — a combination of agents is
+itself an agent-shaped thing, so it can be combined again. That is what lets one prompt become a
+staged fan-out: agents do a first pass, another set verifies or summarises, a third stage fans out
+again.<span class="cite"> (transcript)</span></p>
+
+<h2>The operator the transcript doesn't settle</h2>
+
+<p>Boris names both operators and doesn't say which to reach for. The runtime does, and it is
+emphatic: <strong>default to the sequential-composition operator</strong>. To see why, you have to
+notice something the word "sequence" hides.</p>
+
+<table>
+  <tr><th>Operator</th><th>Behaviour</th><th>Wall-clock</th></tr>
+  <tr><td><code>parallel(...)</code></td><td>a <strong>barrier</strong> — awaits every branch before returning</td><td>the slowest branch, per stage</td></tr>
+  <tr><td><code>pipeline(items, s1, s2)</code></td><td><strong>no barrier</strong> — each item flows through all stages independently</td><td>the slowest single item's whole chain</td></tr>
+</table>
+
+<p>So <code>pipeline</code> is not "the slow one." Item A can be in stage 3 while item B is still in
+stage 1. A barrier, by contrast, makes every fast branch sit and wait for the slowest one
+<em>at every stage</em>. If five finders run and the slowest takes three times the fastest, a barrier
+throws away two thirds of the fast finders' time — and it does that again at each stage boundary.</p>
+
+<p class="sidenote">This is the same reason a build system prefers a dependency graph over phases.
+Phases are easier to reason about and they idle everything that could have run ahead.</p>
+
+<p>Which makes the real question sharp: <strong>a barrier is correct only when stage N needs
+cross-item context from all of stage N−1.</strong> Deduplicating across a full result set before
+expensive downstream work. Early-exit when the total count is zero. A prompt that says "compare
+against the other findings." Those genuinely need everyone to arrive.</p>
+
+<p>And the tempting wrong reason, worth naming because it feels like a reason: <em>"I need to flatten
+or filter the results first."</em> That is not a barrier — a transform with no cross-item dependency
+belongs inside a stage. If you find yourself writing collect → transform → collect, and the middle
+step never looks across items, the barrier bought you nothing and cost you the idle time.</p>
+
+<h2>Why the runtime forbids the clock</h2>
+
+<p>Here is where "my background is functional programming" stops being biography.</p>
+
+<p>In the workflow runtime, <code>Date.now()</code>, <code>Math.random()</code>, and an argless
+<code>new Date()</code> <strong>throw</strong>. Not deprecated, not discouraged — they raise. A first
+reading says sandbox limitation. That reading is wrong, and the right one is the whole design.</p>
+
+<p>A workflow run is journalled. When you resume it, the longest unchanged prefix of agent calls
+returns cached results instantly, and only the first edited call onward re-runs. Same script, same
+arguments, and every prior result is reused.</p>
+
+<p>That guarantee only holds if the script is a <strong>pure function of its inputs</strong> — if
+running it twice with the same arguments describes the same work. A clock read breaks that. So does a
+random draw. One <code>Date.now()</code> in a branch condition and the replayed run may take a
+different path than the journal recorded, and the cache is quietly wrong rather than loudly broken.</p>
+
+<p>So the prohibition <em>is</em> the feature. Referential transparency isn't decoration borrowed
+from an FP background; it is the precondition for cheap resume, and the runtime enforces it by
+refusing the impure calls outright. Timestamps come in through arguments or get stamped after the
+run — pushed to the edges, exactly as an FP practitioner would push effects to the edges.</p>
+
+<div class="quiz">
+  <p><strong>1.</strong> You fan out five reviewers, then verify each finding. Reviewers finish at
+  very different speeds. Which composition, and why?</p>
+  <input class="opt" type="radio" name="q1" id="q1a"><label for="q1a">Barrier, so that verification always sees a complete and stable finding set</label>
+  <input class="opt ok" type="radio" name="q1" id="q1b"><label for="q1b">Pipeline, so each review verifies as soon as it lands rather than waiting</label>
+  <input class="opt" type="radio" name="q1" id="q1c"><label for="q1c">Barrier, because the two stages are conceptually separate and read more clearly</label>
+  <input class="opt" type="radio" name="q1" id="q1d"><label for="q1d">Pipeline, because it always uses fewer tokens than a barrier would use</label>
+  <div class="explain"><strong>Pipeline — verification doesn't need the other reviews.</strong>
+  Verifying finding X requires X, not the full set, so there is no cross-item dependency and the
+  barrier only buys idle time. "Conceptually separate" is the trap: separate stages are exactly what
+  a pipeline models, and separate ≠ synchronised. Token count is unchanged either way — the same
+  agents run; only wall-clock differs.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>2.</strong> Now the second stage must drop duplicate findings across all reviewers
+  before any expensive verification runs. What changes?</p>
+  <input class="opt" type="radio" name="q2" id="q2a"><label for="q2a">Nothing changes — deduplication is a transform and belongs inside a stage</label>
+  <input class="opt ok" type="radio" name="q2" id="q2b"><label for="q2b">A barrier is now correct, since dedup genuinely needs every result at once</label>
+  <input class="opt" type="radio" name="q2" id="q2c"><label for="q2c">Split it into two separate workflows so each one keeps a single clean stage</label>
+  <input class="opt" type="radio" name="q2" id="q2d"><label for="q2d">Keep the pipeline and let each verifier check the others before it starts</label>
+  <div class="explain"><strong>This is the case a barrier is for.</strong> Deduplicating across the
+  full set is a real cross-item dependency — you cannot know X is a duplicate until you have seen
+  everything. Note how narrow that made it: the operator changed because the <em>data dependency</em>
+  changed, not because the pipeline felt untidy. That is the whole decision rule.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>3.</strong> Why does the runtime raise on <code>Date.now()</code> instead of simply
+  allowing it?</p>
+  <input class="opt" type="radio" name="q3" id="q3a"><label for="q3a">The sandbox has no reliable system clock available to expose to the script</label>
+  <input class="opt" type="radio" name="q3" id="q3b"><label for="q3b">Timestamps would leak into agent prompts and quietly spoil the token cache</label>
+  <input class="opt ok" type="radio" name="q3" id="q3c"><label for="q3c">Replay needs the script to be a pure function, or resumed results go stale</label>
+  <input class="opt" type="radio" name="q3" id="q3d"><label for="q3d">Clock reads are slow enough that they would bottleneck a large agent fan-out</label>
+  <div class="explain"><strong>Resume depends on purity.</strong> A resumed run reuses the longest
+  unchanged prefix of agent calls, which is only sound if the same script and arguments describe the
+  same work. An impure read can send the replay down a different path than the journal recorded — and
+  the failure is silent, which is why it is refused at the call rather than warned about. Effects get
+  pushed to the edges: pass timestamps in as arguments, or stamp results after the run returns.</div>
+</div>
+
+<h2>The other half: loops and routines</h2>
+
+<p>Dynamic workflows are one task decomposed. Loops and routines are the opposite shape — one
+<em>repetitive</em> task that doesn't share context between runs, though it may share memory. A loop
+runs locally; a routine runs in the cloud, so the laptop can close.<span class="cite"> (transcript)</span></p>
+
+<p>The example worth sitting with is that Anthropic points these at their own codebases: dead-code
+removal, shipping fully-rolled-out experiments, writing missing tests, deleting useless ones, and an
+"abstraction police" that finds near-duplicate abstractions and unifies them. Boris notes the
+dead-code routine is a single sentence and that they never prompted the static-and-dynamic-analysis
+approach — it worked that out.<span class="cite"> (transcript)</span></p>
+
+<p>Two claims are doing different work there, and it is worth keeping them apart: <em>the mechanism
+is simple</em> is demonstrated, while <em>it does the work of dozens or hundreds of engineers</em> is
+an unmeasured estimate — the transcript hedges its own agent counts a few lines earlier.</p>
+
+<h2>Going deeper</h2>
+
+<p>One source: <strong>the transcript itself</strong>. Not the write-ups — Boris is right that this
+hasn't been written about much, and the secondary coverage is thinner than his own account.</p>
+
+<p><strong>Worth asking next:</strong> your <code>decisions/loops/loops.md</code> already runs
+<code>launchd</code> jobs — local loops in his vocabulary, with no cloud-routine equivalent. What
+would you have to trust before a routine could open a PR against your fleet unattended? Note the
+prerequisite hiding in the abstraction-police example: it only works because a duplicated abstraction
+is <em>cheap to verify and safe to be wrong about</em>. Which of your maintenance chores are actually
+like that?</p>
