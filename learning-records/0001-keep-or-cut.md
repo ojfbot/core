@@ -28,11 +28,40 @@ time. Having been told once that the sourcing was thin, they went after the prim
 but it is the discriminator behaviour from the previous topic showing up in the wild rather than in a
 quiz.
 
-**No quiz evidence.** Neither lesson has been taken. Nothing here reflects what landed.
+**QUIZ EVIDENCE — 0 of 3, reported by the operator 2026-08-04.** The first real comprehension data
+this corpus has held.
+
+*Scope caveat:* they said "i missed all 3" directly after this lesson was delivered, so it is read as
+this lesson's quiz. Not disambiguated against the other two lessons delivered the same session. If a
+later session finds otherwise, supersede this record rather than editing it.
+
+**Read this as a placement failure, not a comprehension one.** Reviewing the three questions against
+the lesson body:
+
+- **Q1** (which line is the best deletion candidate) required *applying* the
+  deficiency-patch/house-rule taxonomy two paragraphs after it was introduced, with **no worked
+  example in between**. The lesson asserted the distinction and immediately tested transfer.
+- **Q3** (what is the real obstacle) required connecting "ablation step 3 needs evals" to "the
+  comprehension heatmap has zero cells" — a fact that appears **once, in a subordinate clause**, and
+  which is fleet trivia rather than anything the lesson taught.
+- **Q2** (what follows from one clean run) turned on the word *repeatedly* in the restoration bar —
+  a single adverb carrying the whole distinction, never drawn out.
+
+Three questions, three different unearned leaps. The lesson also opened with a striking measurement
+(~7,350 tokens) that pulls attention toward the *number*, then quizzed on the *taxonomy* — attention
+and assessment aimed at different things.
 
 ## Corrected misconception
 
-**None recorded by evidence.** One anticipated, stated for a later record to confirm or refute:
+**Confirmed, and it was mine.** The anticipated misconception below was about the operator; the
+evidence says the defect was in the teaching. Recorded as a correction to the author's model:
+
+> The lesson assumed a distinction stated clearly is a distinction usable. It is not. Knowledge
+> before skill (D23) was violated: the concept arrived and the application was demanded in the same
+> breath, with no modelled instance of the sort being performed. The fix is not a gentler quiz — it
+> is a worked example between the two, and probably splitting this into two lessons.
+
+The original anticipation, left for a later record to confirm or refute:
 
 > Anticipated, unconfirmed: that the 80% headline implies their own instruction set is bloated and
 > should shrink toward Anthropic's ~2.5k. The lesson argues the comparison is category-invalid —
