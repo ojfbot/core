@@ -43,7 +43,33 @@ browser. There is no `assets/` directory at the other end.
 
 ### The quiz
 
-Interactive, inline JS, no network. It exists to create retrieval effort, not to score.
+**Zero JavaScript. Radio inputs and `:checked` selectors, never a click handler.**
+
+This is not a style preference, it is a delivery constraint measured on 2026-08-04. #386 tested a
+lesson in a browser and concluded "presentation is the fragile part, not interactivity — the inline
+quiz JS survives." In the **side panel** that is exactly inverted: a lesson renders as a static
+snapshot, so the inlined CSS applies and the script never runs. Lesson 0001 shipped with JS buttons
+and the operator reported they did nothing. Since the map's Destination is lessons "rendering in the
+side panel as routinely as SVG diagrams do today," a JS quiz is broken in the surface that matters
+most.
+
+The CSS-only pattern works in the side panel, in a browser, in an Obsidian attachment, and in print:
+
+```html
+<div class="quiz">
+  <p><strong>1.</strong> Question text?</p>
+  <input class="opt ok" type="radio" name="q1" id="q1a"><label for="q1a">The correct option</label>
+  <input class="opt"    type="radio" name="q1" id="q1b"><label for="q1b">A distractor option</label>
+  <div class="explain"><strong>Answer.</strong> Why, and the mechanism.</div>
+</div>
+```
+
+Rules the markup must hold: `class="ok"` marks the correct input; every input in one question shares
+a `name`; each `<label for>` immediately follows its input (the `+` selectors depend on it); and the
+`.explain` div comes last so `:checked ~ .explain` can reveal it. The explanation is hidden until an
+answer is given — effort before answers — and print shows it unconditionally.
+
+It exists to create retrieval effort, not to score.
 
 **Answers must be length-matched.** This is the rule that is hardest to hold by hand and the one
 #386 flagged as wanting a checker. If the correct option is the longest, the most hedged, or the

@@ -51,3 +51,20 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   non-D4-fail D8 offenders instead (deepen 1332→770, diagram-intake 1005→709) to reach sprawl=15
   without touching gate-skill contracts, and left the two skills as the ≤3 allowed D4 fails.
   Territory lesson: a Gotchas-heavy gate skill has a sprawl floor the threshold doesn't model.
+- /teach first real invocation (2026-08-04): plan assumed #386's finding held — "inline quiz JS
+  survives; presentation is the fragile part." Territory: that was measured in a **browser**. The
+  side panel renders a lesson as a static snapshot, so the inlined CSS applies and the script never
+  runs; the operator reported lesson 0001's quiz buttons doing nothing. In the surface the map's
+  Destination actually names ("rendering in the side panel as routinely as SVG diagrams"), the
+  finding is inverted. Took the conservative option: rebuilt the quiz on radio inputs + `:checked`
+  (zero JS, works in side panel / browser / Obsidian attachment / print) and recorded the
+  measurement in `lesson-format.md` rather than leaving #386's conclusion to be re-applied by the
+  next lesson. #386's *stylesheet* conclusion is untouched and still correct.
+- /teach first real invocation (2026-08-04): plan had one deposit per lesson. Territory: correcting
+  a deposited lesson has no path — re-running `deposit.mjs` appends a second
+  `harness:lesson-deposited` row and a second `teach/index.md` line for the same topic, so the index
+  now double-lists one lesson. Took the conservative option: re-deposited anyway (silently mutating
+  a deposited artifact is worse than a noisy index, and two writes did happen), and logged the gap
+  rather than hand-editing the corpus. Suggests the deposit needs a supersession path — same
+  question D21 already answers for *records* (supersede, never delete) and which the corpus
+  architecture did not carry over to lessons.
