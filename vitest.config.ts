@@ -8,6 +8,7 @@ export default defineConfig({
       "scripts/hooks/**/__tests__/**/*.test.mjs",
       "scripts/claude-md/__tests__/**/*.test.mjs",
       "scripts/lib/__tests__/**/*.test.mjs",
+      ".claude/skills/*/scripts/__tests__/**/*.test.mjs",
     ],
     environment: "node",
     coverage: {
