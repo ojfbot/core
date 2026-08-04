@@ -1,0 +1,387 @@
+<meta charset="utf-8">
+<title>Keep or cut: sorting your loaded instructions</title>
+<style>
+/* inlined from assets/lesson.css — #386: shipped lessons are self-contained */
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz — DELIBERATELY ZERO JAVASCRIPT.
+ *
+ * #386 measured a lesson in a browser and concluded "presentation is the fragile part, not
+ * interactivity — the inline quiz JS survives." That is true in a browser and INVERTED in the
+ * side panel, which renders a lesson as a static snapshot: the inlined CSS survives and the
+ * script never runs, so a JS quiz is dead exactly where the map's Destination wants lessons to
+ * live ("rendering in the side panel as routinely as SVG diagrams do today"). Measured
+ * 2026-08-04 on lesson 0001, whose buttons did nothing for the operator.
+ *
+ * So interactivity rides radio inputs + :checked selectors. It works in the side panel, in a
+ * browser, in an Obsidian attachment, and it degrades to plain readable prose in anything that
+ * strips CSS too. Nothing here may imply an answer: options are length-matched by the author,
+ * and every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+/* Visually hidden, still focusable — keyboard and screen-reader reachable. */
+.quiz .opt {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.quiz label {
+  display: block;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz label:hover {
+  border-color: var(--accent);
+}
+.quiz .opt:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The option the reader chose. */
+.quiz .opt:checked + label {
+  font-weight: 500;
+}
+.quiz .opt.ok:checked + label {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.quiz .opt:not(.ok):checked + label {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+/* Once anything is chosen, mark the correct option wherever it sits in the list. */
+.quiz:has(.opt:checked) .opt.ok + label {
+  border-color: var(--accent);
+}
+/* Explanation appears only after an answer — effort before answers. */
+.quiz .explain {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .opt:checked ~ .explain {
+  display: block;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz label {
+    border-color: #999;
+  }
+  .quiz .explain {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
+</style>
+<h1>Keep or cut</h1>
+
+<p><em>Lesson 0001 · prompt-ablation · for sorting instructions you wrote yourself</em></p>
+
+<p>Every write-up of Boris Cherny's talk reports the same headline: 80% of Claude Code's system
+prompt deleted, and the model came out <em>more intelligent</em> without it. It's a good headline and
+it points the wrong way, because it invites one question — <em>is my prompt too long?</em> — when
+there are two, and only one of them is settled by deleting things.</p>
+
+<p>Here is your baseline, measured before any of this was written:</p>
+
+<table>
+  <tr><th>Loaded every session, before you type anything</th><th>~tokens</th></tr>
+  <tr><td><code>core/CLAUDE.md</code></td><td>5,034</td></tr>
+  <tr><td><code>~/.claude/CLAUDE.md</code></td><td>1,370</td></tr>
+  <tr><td>19 user-scope skill descriptions</td><td>949</td></tr>
+  <tr><td><strong>Total</strong></td><td><strong>~7,350</strong></td></tr>
+</table>
+
+<p>Anthropic's team file is around 2.5k. Yours is roughly triple that in aggregate. Hold the alarm,
+though — that comparison is the trap this lesson is about.</p>
+
+<h2>The qualifier the coverage dropped</h2>
+
+<p>The primary source carries something the summaries cut. Yes, the model tests a little more
+intelligent without the prompts — <em>and</em> some prompts are kept anyway, because they help with
+product usability and the behavior you actually want when people use the
+thing.<span class="cite"> (transcript)</span></p>
+
+<p>That splits every instruction you have ever written into two piles:</p>
+
+<ol>
+  <li><strong>Deficiency patches.</strong> Written because a model got something wrong. "Always check
+    whether the file exists first." "Don't invent APIs." These are compensation, and a model upgrade
+    turns them into dead weight — worse, into noise competing with the instructions that still
+    matter. <em>This is what the 80% was.</em></li>
+  <li><strong>House rules.</strong> What <em>you</em> want, which no model upgrade will ever supply
+    on its own. <code>pnpm</code> and never <code>npm</code>. Grill before non-trivial work. Log
+    deviations as you hit them. Never write northstar <code>current:</code> from a slice session.
+    No amount of model intelligence produces these, because they aren't facts about competence —
+    they're facts about your house.</li>
+</ol>
+
+<p class="sidenote">The test that separates them: <em>would a smarter model make this line
+unnecessary?</em> If yes, it's a patch. If a smarter model would still need to be told, it's a rule.</p>
+
+<p>Now look at your 7,350 tokens again. The pnpm rule, the grill posture, the deviation ledger, the
+movement-contract discipline — those are category two, nearly all of it. Boris's argument does not
+touch them. What it does target is anything you wrote to compensate for a model that no longer needs
+compensating, and you genuinely do not know how much of that you have, because nobody audits for it.</p>
+
+<h2>The method, when sorting isn't obvious</h2>
+
+<p>For the ambiguous lines, he doesn't argue — he ablates. The loop, from his own
+account:<span class="cite"> (transcript)</span></p>
+
+<ol>
+  <li>Delete the <em>entire</em> system prompt</li>
+  <li>Bring it back line by line, to find each line's individual impact</li>
+  <li>Use evals to assess what each restored piece contributes</li>
+  <li>Restore only what the model <strong>repeatedly stumbles</strong> on</li>
+</ol>
+
+<p>Run every time a new model ships, across prompts, tools, and the harness code itself. Two knobs
+exist for it: a <code>--system-prompt</code> override, and <code>CLAUDE_CODE_SIMPLE=1</code>, which
+strips all system prompts including the ones buried inside tools.</p>
+
+<p>Notice step 4's bar. Not "the model did fine without it" — <em>repeatedly stumbles</em>. Ablation
+is biased toward deletion by construction, and one good run is not evidence a line was useless.</p>
+
+<p>And notice step 3, which is where copying this gets expensive. Anthropic has evals. Without them,
+"the model seemed fine" is a sample of one against a task you chose after forming an opinion. Your
+merge-quiz heatmap is the closest instrument you own, and it has zero cells. So the honest version
+here is: ablation sorts the <em>ambiguous</em> lines, and it needs something to measure against
+before its verdicts mean much.</p>
+
+<div class="quiz">
+  <p><strong>1.</strong> Which line in a <code>CLAUDE.md</code> is the best deletion candidate?</p>
+  <input class="opt" type="radio" name="q1" id="q1a"><label for="q1a">"Use pnpm, never npm — the lockfile is the decisive signal here"</label>
+  <input class="opt ok" type="radio" name="q1" id="q1b"><label for="q1b">"Read the file before editing it, don't guess at the contents"</label>
+  <input class="opt" type="radio" name="q1" id="q1c"><label for="q1c">"Log deviations in implementation-notes.md as you encounter them"</label>
+  <input class="opt" type="radio" name="q1" id="q1d"><label for="q1d">"Never write northstar current: from inside a slice session"</label>
+  <div class="explain"><strong>The read-before-edit line.</strong> It's a deficiency patch — written
+  because some model guessed at file contents, and a model that no longer does makes it dead weight.
+  The other three are house rules: no upgrade tells a model you prefer pnpm, or that your ledger
+  lives in that file, or what your movement contract is. Ask the diagnostic — <em>would a smarter
+  model make this unnecessary?</em> — and only one of the four says yes.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>2.</strong> Your ablation removes a line and the next run goes fine. What follows?</p>
+  <input class="opt" type="radio" name="q2" id="q2a"><label for="q2a">The line was dead weight and can be deleted from the file for good</label>
+  <input class="opt ok" type="radio" name="q2" id="q2b"><label for="q2b">Very little — the restoration bar is repeated stumbling, not one run</label>
+  <input class="opt" type="radio" name="q2" id="q2c"><label for="q2c">The line should go back, since any doubt at all argues for keeping it</label>
+  <input class="opt" type="radio" name="q2" id="q2d"><label for="q2d">The model has improved enough that the whole section can now be cut</label>
+  <div class="explain"><strong>Almost nothing follows.</strong> Restoration is triggered by
+  <em>repeated</em> stumbling, which means a single clean run is exactly the evidence the method
+  expects to see even for lines worth keeping. The method leans toward deletion on purpose; that bias
+  is only safe when something measures the downside. Option C is the opposite failure — "any doubt
+  keeps it" is how 7,350 tokens accumulate in the first place.</div>
+</div>
+
+<div class="quiz">
+  <p><strong>3.</strong> What is the real obstacle to running this on your fleet tomorrow?</p>
+  <input class="opt" type="radio" name="q3" id="q3a"><label for="q3a">No way to override the system prompt without patching the harness</label>
+  <input class="opt" type="radio" name="q3" id="q3b"><label for="q3b">The files are too large to ablate a line at a time by hand</label>
+  <input class="opt ok" type="radio" name="q3" id="q3c"><label for="q3c">No eval to measure against, so every verdict is a sample of one</label>
+  <input class="opt" type="radio" name="q3" id="q3d"><label for="q3d">Instructions are split across two files and nineteen skill entries</label>
+  <div class="explain"><strong>The missing measurement.</strong> Step 3 of the loop is "use evals,"
+  and that is the step you cannot currently perform — the comprehension heatmap has zero cells and
+  nothing else scores instruction quality. The override knobs exist (<code>--system-prompt</code>,
+  <code>CLAUDE_CODE_SIMPLE=1</code>), file size is a nuisance rather than a blocker, and the split
+  across files is bookkeeping. Without a ruler, ablation still sorts the obvious lines — it just
+  can't settle the ambiguous ones, which are the only reason you'd run it.</div>
+</div>
+
+<h2>What this actually licenses</h2>
+
+<p>Not a cut. A sort — and a sharper question than the one the headline hands you.</p>
+
+<p>You are not carrying 7,350 tokens of bloat. You are carrying an unknown mixture of house rules
+that should stay and deficiency patches nobody has audited since the models that motivated them.
+The mixture is the finding. Anyone who reads "80% cut" and reaches for their own file is answering a
+question about length when the real one is about <em>kind</em>.</p>
+
+<h2>Going deeper</h2>
+
+<p>One source: <strong>the transcript</strong> — specifically the qualifier about keeping prompts for
+product behavior, which every secondary write-up drops. That single clause is the difference between
+this being a sorting rule and a license to delete.</p>
+
+<p><strong>Worth asking next:</strong> which of your instructions were written against a model you no
+longer run? The pnpm rule has a date and a reason. Do the others? And a harder one — if step 3 needs
+an eval you don't have, is building that ruler the actual prerequisite here, ahead of the skill
+hardening already in flight?</p>
