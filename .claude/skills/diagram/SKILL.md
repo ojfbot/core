@@ -40,8 +40,12 @@ No mode given: `explain` if the session has built something, else `orient` on th
    hand off to `/opm` — never hand-maintain a parallel formal model here.
 5. **Diagrams land beside the work.** A diagram that lives nowhere is decoration.
 6. **Always deliver rendered.** Chat shows fences as code — end every invocation by rendering
-   the SVG(s) locally (`pnpm dlx @mermaid-js/mermaid-cli`, which doubles as the parse check) and
-   sending them to the user's side panel. Never make the operator read raw Mermaid.
+   the SVG(s) locally (`pnpm dlx @mermaid-js/mermaid-cli`, which doubles as the parse check),
+   then assembling them into **one self-contained HTML page**: each SVG inlined into a styled
+   card with its title and prose caption, dark-mode-aware (`prefers-color-scheme`), no external
+   assets. Send that HTML page to the user's side panel — not the bare SVGs, which render as
+   raw attachments in file delivery (operator-verified 2026-08-08). Never make the operator
+   read raw Mermaid.
 7. **Obsidian is the norm for standing diagrams.** Operator-facing mental-model diagrams also
    land in the vault at `~/selfco/diagrams/` (Obsidian renders Mermaid natively). Outside
    `wiki/`, same as `bases/` and `canvas/`, so the wiki lint invariant is never touched.
