@@ -21,6 +21,7 @@ You are a senior engineer doing root-cause analysis. Your job is to understand w
 4. **No code edits** — write-up only; findings are output, not applied.
 5. **Flag auth/payment paths** — these require human review before any fix.
 6. **Anti-pattern gate** — before declaring root cause, verify you haven't anchored on a wrong hypothesis.
+7. **Redact before you show.** This skill surfaces commands, outputs, and captured artifacts (logs, HAR files, dumps) as evidence — replace every secret with `<REDACTED>` first. Build repro loops against env vars so credentials stay in the environment, not in what you show; quote captured artifacts only at the lines that carry the signal (auth headers rarely do). If the redacted evidence isn't enough to diagnose, say so and ask the user — never paste the secret to save a round-trip. (Absorbed upstream: `decisions/adopt-stack/pocock-skills-v1-2.md` D42.)
 
 ## Workflow
 

@@ -1985,6 +1985,70 @@
       "scope": [
         "user"
       ]
+    },
+    {
+      "name": "wait-what",
+      "tier": 1,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "tags": [
+        "comprehension",
+        "re-pitch",
+        "plain-english",
+        "ubiquitous-language",
+        "simplified-technical-english",
+        "context-md"
+      ],
+      "description": "User-invoked comprehension repair — re-pitches what was just said with the missing context, in ASD-STE100 plain English, using the ubiquitous language from the nearest CONTEXT.md. Names the listener's state, not the output register (complement to /caveman). Never model-invoked.",
+      "triggers": [
+        "wait-what",
+        "wait, what",
+        "you lost me",
+        "that didn't land",
+        "re-pitch that",
+        "I stopped following"
+      ],
+      "suggested_after": [],
+      "layer_affinity": [
+        0,
+        1,
+        2
+      ],
+      "scope": [
+        "user"
+      ]
+    },
+    {
+      "name": "to-questionnaire",
+      "tier": 2,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "tags": [
+        "questionnaire",
+        "async",
+        "discovery",
+        "recipient",
+        "knowledge-gap",
+        "interview"
+      ],
+      "description": "Turn a decision the user can't resolve alone into a Markdown discovery questionnaire a named recipient fills in async. Grills the send (who + what's needed back), not the subject; questions target the recipient's knowledge gap. Output: to-questionnaire-<slug>.md.",
+      "triggers": [
+        "to-questionnaire",
+        "turn this into a questionnaire",
+        "write questions for",
+        "I need answers from someone else",
+        "draft a discovery questionnaire"
+      ],
+      "suggested_after": [
+        "grill-with-docs"
+      ],
+      "layer_affinity": [
+        0,
+        1
+      ],
+      "scope": [
+        "user"
+      ]
     }
   ]
 }
