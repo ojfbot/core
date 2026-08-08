@@ -1,6 +1,6 @@
 {
-  "version": "1.22",
-  "updated": "2026-08-03",
+  "version": "1.23",
+  "updated": "2026-08-08",
   "skills": [
     {
       "name": "diagram",
@@ -1981,6 +1981,37 @@
       ],
       "layer_affinity": [
         0
+      ],
+      "scope": [
+        "user"
+      ]
+    },
+    {
+      "name": "wizard",
+      "tier": 2,
+      "phase": "any",
+      "category": "infrastructure-ops",
+      "tags": [
+        "wizard",
+        "setup",
+        "credentials",
+        "ci-secrets",
+        "env",
+        "manual-procedure",
+        "human-in-the-loop",
+        "migration"
+      ],
+      "description": "Author a stage-based interactive bash wizard that walks a human through a manual-only procedure (credentials, CI secrets, third-party dashboards, one-off migrations) from a fixed local stage library — per-stage screen clears with progress, hidden secret entry, idempotent .env upserts, gh secret/variable writes, closing summary. Agent scopes and authors stages; never runs it end-to-end. Ephemeral by default. D39, ADR-0083.",
+      "triggers": [
+        "wizard",
+        "make a setup wizard",
+        "walk me through setting up",
+        "author a wizard",
+        "interactive setup script",
+        "guide me through the dashboard"
+      ],
+      "suggested_after": [
+        "/setup-ci-cd"
       ],
       "scope": [
         "user"
