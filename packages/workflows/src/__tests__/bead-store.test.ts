@@ -39,10 +39,6 @@ describe('FilesystemBeadStore', () => {
   });
 
   afterEach(async () => {
-    // Drain in-flight event-log writes before removing the temp dir, otherwise
-    // a fire-and-forget appendEventLog() call can re-create files inside
-    // `<tmpDir>/events` mid-rm and trigger `ENOTEMPTY: rmdir '.../events'`.
-    await store.drainPendingWrites();
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -92,6 +88,50 @@ describe('FilesystemBeadStore', () => {
       const closed = await store.get('core-adr-0001');
       expect(closed!.status).toBe('closed');
       expect(closed!.closed_at).toBeDefined();
+    });
+  });
+
+  describe('event log durability', () => {
+    // Guards the invariant that mutations await their event-log write instead
+    // of firing it and forgetting. A fire-and-forget write outlives the call
+    // that triggered it, loses events on early process exit, and races a
+    // recursive `fs.rm(root)` — it re-creates `events/<date>.jsonl` between
+    // rm's unlink and its rmdir, which surfaced as the intermittent
+    // `ENOTEMPTY: rmdir '.../events'` on PR #103 and again on PR #392.
+    const logPath = () =>
+      path.join(tmpDir, 'events', `${new Date().toISOString().slice(0, 10)}.jsonl`);
+
+    async function logLines(): Promise<string[]> {
+      const raw = await fs.readFile(logPath(), 'utf-8').catch(() => '');
+      return raw.split('\n').filter(Boolean);
+    }
+
+    it('has written the event to disk by the time create() resolves', async () => {
+      await store.create(makeADRBead());
+      const lines = await logLines();
+      expect(lines).toHaveLength(1);
+      expect(JSON.parse(lines[0]!)).toMatchObject({
+        type: 'bead:created',
+        bead_id: 'core-adr-0001',
+      });
+    });
+
+    it('has written the event to disk by the time update() resolves', async () => {
+      await store.create(makeADRBead());
+      await store.update('core-adr-0001', { title: 'Renamed' });
+      const types = (await logLines()).map((l) => JSON.parse(l).type);
+      expect(types).toEqual(['bead:created', 'bead:updated']);
+    });
+
+    it('leaves no write in flight, so the root can be removed immediately', async () => {
+      await Promise.all(
+        Array.from({ length: 25 }, (_, i) =>
+          store.create(makeADRBead({ id: `core-adr-${String(i).padStart(4, '0')}` })),
+        ),
+      );
+      // No drain, no delay: an unawaited event-log write would race this rm.
+      await expect(fs.rm(tmpDir, { recursive: true, force: true })).resolves.toBeUndefined();
+      await fs.mkdir(tmpDir, { recursive: true }); // restore for afterEach
     });
   });
 

@@ -49,10 +49,6 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  // Drain in-flight event-log writes before removing the temp dir, otherwise
-  // a fire-and-forget appendEventLog() call can re-create files inside
-  // `<tmpDir>/events` mid-rm and trigger `ENOTEMPTY: rmdir '.../events'`.
-  await store.drainPendingWrites();
   await fs.rm(tmpDir, { recursive: true, force: true });
 });
 
