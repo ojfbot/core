@@ -77,16 +77,13 @@ pnpm typecheck                  # tsc --noEmit
 pnpm --filter @core/workflows build   # build one package
 pnpm vitest run packages/workflows/src/__tests__/parseCommand.test.ts
 
-# CLI (after build)
-node packages/cli/dist/index.js --help
-node packages/cli/dist/index.js "/plan-feature add user auth"
 ```
 
 ---
 
 ## Available slash commands
 
-The primary interface is `.claude/skills/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/` backs the same commands for CLI/CI use via `core-workflow`.
+The primary interface is `.claude/skills/`. Each file is a `/command` in Claude Code. The TypeScript engine in `packages/workflows` backs the same commands for programmatic/CI use via `runWorkflow`.
 
 ### Development lifecycle
 
@@ -217,15 +214,13 @@ Boundary rule: open question is *what/whether* → `/wayfinder`; *how to ship sa
 **Two layers:**
 
 ### 1. `.claude/skills/*.md` — Claude Code slash commands (primary)
-Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a new command by creating a new `.md` file. Updating the `.md` file automatically updates both Claude Code and the `core-workflow` CLI (the TypeScript engine reads it at runtime).
+Pure prompt files. `$ARGUMENTS` is replaced by user input. No build step. Add a new command by creating a new `.md` file. Updating the `.md` file automatically updates both Claude Code and the `@core/workflows` engine (which reads it at runtime).
 
 ### 2. `packages/` — TypeScript engine (supporting)
 
 | Package | Role |
 |---------|------|
 | `@core/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
-| `@core/cli` | `core-workflow` binary — joins argv, calls `runWorkflow`, prints output |
-| `vscode-extension` | VS Code extension — `core.runSlashCommand` command, output channel |
 
 **Key files in `@core/workflows`:**
 
@@ -324,12 +319,16 @@ Persistent file-based memory at project scope (`.claude/projects/`) tracks user 
 
 Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.
 
-## Personal knowledge
+## Personal knowledge — moved out of this repo
 
-`personal-knowledge/` contains Jim Green's career and application context. **Not installed into sibling repos** (core only). Read when generating career artifacts, tailoring applications, or mapping Frame OS features to job requirements.
+Operator career and application context (job targets, resume, profile, cover letters,
+gap analyses) lives in **`~/selfco/career/`**, gitignored there. It was moved out of
+`core/personal-knowledge/` on 2026-08-08 by decomposition S2, and `install-agents.sh`
+no longer distributes any job doc to sibling repos.
 
-- `tbcony-job-target.md` — TBCoNY Design Engineer listing, requirements mapping, gap analysis, application strategy
-- `jim-green-profile.md` — career profile, skills inventory, Concur tenure (stub — to be filled in), cv-builder agent instructions
+Read it only when generating career artifacts. Never copy it into a repo, and never
+let job-target framing back into `domain-knowledge/` — that corpus is symlinked
+fleet-wide. See `adr:employer-evidence-boundary`.
 
 ## The `.agents/` system (cv-builder complement)
 
@@ -342,11 +341,11 @@ cv-builder has a separate `.agents/registry.json` that defines programmatic agen
 
 **Claude Code only:** Create `.claude/skills/mycommand/SKILL.md` (canonical body; ADR-0084). Done — available immediately as `/mycommand` and as `Skill(mycommand)`. Add `knowledge/` subdirectory for reference material and `scripts/` for deterministic utilities.
 
-**Also in CLI/TypeScript:** The file-backed factory picks it up automatically once registered in `src/registry.ts`:
+**Also in TypeScript:** The file-backed factory picks it up automatically once registered in `src/registry.ts`:
 ```typescript
 mycommand: fileBackedWorkflow("mycommand", "short description"),
 ```
 
 ## `/techdebt` path allowlist
 
-`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`, `skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`. Full allowlist documented in `.claude/skills/techdebt/knowledge/allowed-paths.md`.
+`mode=apply` only patches `packages/workflows/**`, `domain-knowledge/**`, `decisions/**`, `.claude/skills/**`. Enforced in `src/workflows/techdebt.ts:isAllowedPath()`. Full allowlist documented in `.claude/skills/techdebt/knowledge/allowed-paths.md`.

@@ -39,8 +39,7 @@ This symlinks `.claude/skills/` and `domain-knowledge/` into the target repo. Th
 
 ```bash
 cp .env.example .env    # add ANTHROPIC_API_KEY
-node packages/cli/dist/index.js --help
-node packages/cli/dist/index.js "/summarize packages/workflows/src/types.ts"
+node -e "import('@core/workflows').then(m => m.runWorkflow('/summarize packages/workflows/src/types.ts', {}).then(console.log))"
 ```
 
 ## Run the development workbench

@@ -22,7 +22,7 @@ receives the minimum context needed to do its specific job.
 **Receives:**
 - `domain-knowledge/frame-os-context.md` — full roadmap and repo inventory
 - All `domain-knowledge/<repo>-architecture.md` files (for audit)
-- `personal-knowledge/` — job targets, deadlines (for priority ranking)
+- `~/selfco/career/` — job targets, deadlines (for priority ranking; read-only)
 - Daily-logger structured API data (actions, decisions, tags)
 - Per-app standup extensions (`.claude/standup.md`)
 - Diagram intake output (if provided)
@@ -46,7 +46,7 @@ context file pointers.
 
 **Does NOT receive:**
 - Other apps' architecture docs or context
-- `personal-knowledge/` (deadlines already factored into priorities)
+- `~/selfco/career/` (deadlines already factored into priorities)
 - `frame-os-context.md` (roadmap already used at Layer 0 for ranking)
 - Daily-logger raw data (already consumed at Layer 0)
 - Source code (Layer 1 plans — it reads architecture docs, not code)

@@ -102,7 +102,7 @@ These are hard rules. `/validate` blocks on them.
 
 - Run `pnpm install` at repo root — never `npm install` or `yarn`.
 - Build a single package: `pnpm --filter @core/workflows build`.
-- Add a dependency: `pnpm --filter @core/cli add <package>`.
+- Add a dependency: `pnpm --filter @core/workflows add <package>`.
 - Never edit `pnpm-lock.yaml` by hand.
 - Node version: v24.11.1 (`.nvmrc`). Run `fnm use` after cloning.
 

@@ -19,8 +19,7 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 
 - **40+ slash commands** — plan, scaffold, validate, deploy, investigate, harden, sweep, suggest-skills, vault, fleet-onboard, wayfinder, opm, and more
 - **Skill-directory architecture** — each command is a self-contained directory with orchestration prompt, knowledge files, and scripts
-- **TypeScript CLI** — `core-workflow` binary for CI/CD and terminal use
-- **VS Code extension** — run any slash command from the editor
+- **TypeScript engine** — `@core/workflows` backs the same commands for CI and programmatic use
 - **Cross-repo installation** — `install-agents.sh` and `session-init.sh` symlinks skills + domain knowledge into sibling repos (symlinks tracked in git to survive clone and branch-switch)
 - **Self-improvement loop** — `/techdebt` records patterns and proposes patches to the framework itself
 - **Architecture Decision Records** — 100+ ADRs documenting every significant decision across the ecosystem
@@ -29,8 +28,6 @@ Every repo in the Frame OS ecosystem needs the same development workflows — pl
 | Layer | Technology |
 |-------|-----------|
 | Engine | TypeScript, Anthropic SDK |
-| CLI | `@core/cli` (`core-workflow` binary) |
-| Editor | VS Code extension (`core.runSlashCommand`) |
 | Testing | Vitest |
 | Build | pnpm workspaces, TypeScript compiler (`tsc --noEmit` CI gate) |
 
@@ -92,21 +89,20 @@ Install into a sibling repo:
 .claude/skills/     slash commands (skill directories with knowledge/ and scripts/; catalog includes suggested_after and layer_affinity fields)
 packages/
   workflows/          @core/workflows — TypeScript workflow engine
-  cli/                core-workflow binary
-  vscode-extension/   VS Code extension
+  read-model-contract/  shared read-model types
 domain-knowledge/     Machine context corpus (loaded by commands at runtime)
 decisions/
   adr/                Architecture Decision Records (ADR-0001 through ADR-0102+, including ADR-0037 JSONL truncation, ADR-0043 AgentBead bridge, ADR-0085/0070 vault reachability, ADR-0098 two-track telemetry, ADR-0102 OPM inspectability)
   okr/                Objectives and Key Results
 docs/                 Human-readable documentation
-personal-knowledge/   Career context (not tracked publicly)
+docs/audits/          Dated audit + survey series (attic)
 ```
 
 ---
 
 ## The self-improvement loop
 
-`/techdebt` is the meta-command. Other workflows trigger it when they encounter patterns worth recording. It proposes patches to `packages/workflows/**`, `domain-knowledge/**`, or `skills/**` — never production code.
+`/techdebt` is the meta-command. Other workflows trigger it when they encounter patterns worth recording. It proposes patches to `packages/workflows/**`, `domain-knowledge/**`, or `.claude/skills/**` — never production code.
 
 When a mistake is caught, write it in 3 places:
 1. Update or add the ADR in `decisions/adr/`

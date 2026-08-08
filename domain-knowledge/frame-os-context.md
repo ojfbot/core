@@ -6,12 +6,14 @@
 
 ## Who this is for
 
-Jim Green, a software engineer targeting a Design Engineer role at The Browser Company (building Dia, the AI-native browser). This codebase is both a professional portfolio and a live product. Every decision is made through two lenses simultaneously: does this make Frame better, and does this demonstrate engineering excellence to a hiring panel.
+Any agent working in an ojfbot repo. This file is symlinked into every repo in the
+fleet, so it carries only context that is true for all of them: what Frame OS is, how
+the repos fit together, and the constraints that hold across the cluster.
 
-**The one-sentence pitch:**
-"I'm not an engineer who uses AI tools. I'm an engineer who builds them — and I've been building the application layer of what you're building at the browser layer."
-
-**The structural analogy:** Frame shell : Dia :: application layer : browser layer
+Frame is a live product built to a high engineering bar — the standard is that the work
+holds up under outside review. Operator-personal context (career positioning, job
+targets, application material) is **not** part of this brief; it lives in
+`~/selfco/career/` and never ships into a code repo. See `adr:employer-evidence-boundary`.
 
 ---
 
@@ -45,11 +47,11 @@ The shell is NOT an aggregator of iframes. It is a compositor — Module Federat
 
 ---
 
-## The two demo tracks — critical framing
+## The two tracks — critical framing
 
 Every piece of work maps to one or both tracks. Never conflate them.
 
-### Track A — Pitching Frame (the product)
+### Track A — The product
 
 AI experience design, not AI integration:
 
@@ -61,7 +63,10 @@ AI experience design, not AI integration:
 
 What we are NOT doing: theme switching, CSS brand skins, visual design demos. That's "any LLM can do it" territory. We design delightful AI experiences.
 
-### Track B — Pitching the engineer
+### Track B — The engineering practice
+
+The machinery that keeps Track A honest — automated proof that the work is sustained
+and regression-checked, rather than asserted:
 
 - **Visual regression CI** — every UI change runs screenshot diffs against baseline. PRs block on regression. cv-builder has this live and passing.
 - **MrPlug + /techdebt loop** — Chrome extension runs AI UI/UX analysis on live UIs → structured `/techdebt` payload → core `/techdebt propose` generates patches → `/techdebt apply` ships improvements.

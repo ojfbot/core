@@ -6,18 +6,18 @@
 
 ```
 packages/workflows/**
-packages/cli/**
 domain-knowledge/**
 .claude/skills/**
-scripts/**
 decisions/**
 ```
+
+This list mirrors `ALLOWED_ROOTS` in `packages/workflows/src/workflows/techdebt.ts`. Keep them in sync.
 
 ## Blocked paths (never auto-patched)
 
 ```
-packages/vscode-extension/**   # VSCode extension — UI, requires manual review
 src/**                         # App source in individual projects (cv-builder, etc.)
+scripts/**                     # Fleet scripts — high blast radius, manual review
 *.test.*                       # Test files — changes must be reviewed
 *.spec.*
 pnpm-lock.yaml                 # Lock files — never auto-modified
@@ -42,10 +42,8 @@ To add a new path, update `src/workflows/techdebt.ts:isAllowedPath()`:
 function isAllowedPath(filePath: string): boolean {
   const allowed = [
     /^packages\/workflows\//,
-    /^packages\/cli\//,
     /^domain-knowledge\//,
-    /^\.claude\/commands\//,
-    /^scripts\//,
+    /^\.claude\/skills\//,
     /^decisions\//,
   ]
   return allowed.some(re => re.test(filePath))

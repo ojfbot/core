@@ -17,9 +17,12 @@
 #   3. Optionally links the repo-specific architecture file (auto-detected by name)
 #   4. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
 #      Adds decisions/core/ → core/decisions/ symlink for cluster-wide access
-#   5. Symlinks personal-knowledge/tbcony-job-target.md if present (local file, gitignored)
-#   6. Symlinks scripts/hooks/ and merges hook config into .claude/settings.json
+#   5. Symlinks scripts/hooks/ and merges hook config into .claude/settings.json
 #      Also installs user-level suggest-skill hook (once) into ~/.claude/settings.json
+#
+# NOTE: an earlier phase symlinked personal-knowledge/tbcony-job-target.md into every
+# target repo. Dropped in core decomposition S2 (2026-08-08) — operator career context
+# now lives in ~/selfco/career/ and is never distributed to code repos.
 #
 # Symlinks are relative so they survive path changes. All ojfbot repos are assumed
 # to be siblings under the same parent directory.
@@ -525,16 +528,7 @@ if [[ -d "$DECISIONS_DIR" && ! -L "$DECISIONS_DIR" ]]; then
 fi
 echo ""
 
-# ── 5. Personal context ───────────────────────────────────────────────────────
-PERSONAL_SRC="$CORE_DIR/personal-knowledge/tbcony-job-target.md"
-if [[ -f "$PERSONAL_SRC" ]]; then
-  echo "── Personal context (tbcony-job-target.md)"
-  mkdir -p "$TARGET/personal-knowledge"
-  link_file "$TARGET/personal-knowledge/tbcony-job-target.md" "$PERSONAL_SRC"
-  echo ""
-fi
-
-# ── 6. Hooks (scripts/hooks/) ────────────────────────────────────────────────
+# ── 5. Hooks (scripts/hooks/) ────────────────────────────────────────────────
 echo "── Hooks (scripts/hooks/)"
 if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
   mkdir -p "$TARGET/scripts/hooks"
@@ -672,7 +666,7 @@ if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
   fi
 fi
 
-# ── 6b. GitHub Actions workflow (claude-skill-audit.yml) ─────────────────────
+# ── 5b. GitHub Actions workflow (claude-skill-audit.yml) ─────────────────────
 AUDIT_WORKFLOW="$CORE_DIR/.github/workflows/claude-skill-audit.yml"
 if [[ -f "$AUDIT_WORKFLOW" ]]; then
   echo "── GitHub Actions workflow"
