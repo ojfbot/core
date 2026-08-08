@@ -1,4 +1,3 @@
-{"ts":"2026-08-05T18:30:28Z","event":"session:start","session_id":"f8c961ee-614a-4db5-97e8-53ce6178a06b","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-08-06T14:30:59Z","event":"session:start","session_id":"65f754be-79a4-48bd-b995-bcf42640bc26","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-06T14:30:59Z","event":"session:start","session_id":"8523c681-41dd-4b2d-bbb1-59dd4d524844","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-06T14:30:59Z","event":"session:start","session_id":"70e008c8-44bd-48f8-8b2b-bc78e8804c8a","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
