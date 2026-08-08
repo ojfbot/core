@@ -8,6 +8,59 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- Shape Up vault ingest, sitting 1 (2026-08-03): plan cited `templates/article-ingest.md` at
+  `core/.claude/skills/vault/templates/`. Territory: it exists **only** in the vault at
+  `~/selfco/templates/article-ingest.md` — the core skill's `templates/` ships
+  source/entity/concept/synthesis but not the article variant, so a fresh `/vault init` on another
+  machine would scaffold a vault whose schema names a template it cannot produce. Took the
+  conservative option: used the in-vault copy, changed nothing in core. Suggests the article
+  variant should be added to the skill's templates and seeded by `init-vault.py`.
+- Shape Up vault ingest (2026-08-03): plan had `scripts/ingest.py` land the raw file and stub the
+  source page. Territory: `ingest.py`'s generic URL path curls a single URL and writes the **raw
+  HTML** verbatim — for a 23-section book that is 23 unreadable blobs, and there is no
+  HTML→markdown converter on this machine (no pandoc/lynx/html2text/bs4). Took the conservative
+  option: a scratchpad-only assembler that extracts `<div class="content">`→`<nav>` per section
+  and writes ONE archival markdown file, then landed it by hand and hand-authored the source page.
+  Nothing was added to the vault or to core. Suggests `ingest.py` needs an HTML→text step for
+  article ingests generally, not just this one.
+- Shape Up vault ingest (2026-08-03): plan's verification said `lint.py --gate` exits 0. Territory:
+  it exits 1, on **two pre-existing** unfiled `raw/inbox/` drops landed by the selfco-box transport
+  (commits `ff9c94a`, `0c27088`) that have no `wiki/sources/` page. Not caused by this ingest — my
+  raw file is filed and adds 0 broken links, 0 orphans, 0 schema findings. Took the conservative
+  option: reported it and left the inbox items alone rather than filing someone else's drops to
+  make a number green. Note the gate is on selfco-box's own push path, so its pushes are currently
+  gated too.
+- Shape Up vault ingest (2026-08-03): `/vault`'s documented commit step is `git add -A && git
+  commit`. Territory: the vault tree had four unrelated uncommitted files, so `add -A` swept them
+  into the ingest commit `2a4ea7c` under a message that doesn't describe them. Inspection showed
+  they were **finished work, not stray WIP** — the 2-line `CLAUDE.md` edit is the `diagrams/` +
+  `teach/` schema rows that `adr:teach-corpus-deposit-architecture` R7 calls for, and the
+  `.handoff/` file is a completed Cowork handoff — so reverting them would have been wrong; only
+  the message was defective. Resolved at operator instruction: pushed
+  `backup/pre-split-2a4ea7c` first, soft-reset, rebuilt as four accurately-messaged commits
+  (`5fc4497` schema rows · `877e93f` diagrams · `a5df9ae` handoff bead · `02515a1` ingest),
+  verified the tree byte-identical to `2a4ea7c`, then force-pushed with
+  `--force-with-lease` pinned to the exact expected SHA. Safe because the commit was still the
+  tip of `origin/main` with zero divergence; other clones (selfco-box poll timer) may need
+  `git reset --hard origin/main` on their next pull.
+  **Standing side effect, unaffected by the split:** the two `diagrams/` files are exactly the
+  ones `draft-teach-corpus-deposit-architecture.md` cites as evidence — "2 files, untracked,
+  0 ledger rows" — for why prose-only deposit fails. They are now tracked, so that measurement no
+  longer reproduces as written; the ruling's *argument* stands (0 ledger rows is still true) but
+  its cited numbers are stale.
+  Root cause unfixed: `/vault`'s commit step should stage explicit paths, not `-A`.
+- teach-in-the-loop #380 work session (2026-08-03): plan had `gh pr merge --rebase --delete-branch`
+  finishing cleanly from the session worktree. Territory: `main` is checked out by ANOTHER
+  session's worktree (`…/50e6dcf3…/scratchpad/core-main`), so gh's post-merge local checkout of
+  main failed (`fatal: 'main' is already used by worktree`) — the remote merge itself had already
+  succeeded (PR #388, `31623ea`). Took the conservative option: verified merge state via the API,
+  removed my worktree, touched nothing of the other session's. Rule of thumb: with concurrent
+  core sessions, treat gh's local post-merge steps as best-effort and verify remotely.
+- teach-in-the-loop charting (2026-08-03): plan assumed branching from local `main` = branching from origin/main. Territory: local main carried 3 unpushed bead commits from a concurrent session, so PR #387 silently dragged ~850 lines of another agent's beads and all three merge methods failed (repo allows rebase-merge only; branch unrebaseable). Took the conservative option: `rebase --onto origin/main` to isolate my 2 commits, force-with-lease on my own branch, merged clean. The other session's commits remain untouched on local main (its worktree owns them). Rule of thumb this suggests: branch wayfinder/decision work from `origin/main`, not local main.
+- skill-hardening (2026-08-03): plan assumed suggester frozen-holdout κ baseline 0.700
+  (memory value, at-freeze); fresh suggester-eval.mjs run against the 68-skill catalog
+  reads holdout κ=0.603 (overall 0.658). Took the measured value as the Wave-2 eval gate
+  and recorded the correction in decisions/skill-hardening-roadmap.md.
 - Plan specified registering the harnesses in `decisions/loops/loops.md` with `trigger: harness-routine`, on the basis that the value already existed. Territory: `loops-lint.mjs` defines `TRIGGERS = ['launchd','gh-actions','hook','watchpath','manual']` — `harness-routine` appears only in the aspirational deliverable prose of `rm:rm-l2-ojfbot#S29` and was never implemented, so authoring against it would have ERRORed. Took the conservative option: `trigger: hook`, which is both valid and more accurate since these are literally hooks. No schema change needed.
 - Plan hypothesised that `acted ≈ 0` was caused by `log-skill.sh` being registered only at project scope, and pre-authorised registering it at user scope. Territory: `suggest-skill.sh:228` already injects the complete `skill-acted-emit.mjs` command with the live `suggestion_id` into every single suggestion — the agent is told every time and does not comply. The gap is agent compliance, not wiring. Took the conservative option: did not register the hook, recorded the finding in the ADR instead, since registering it would have implied a fix that wasn't one.
 - Plan offered "relax Step 5 so grill-with-docs may write CONTEXT.md under confirmation" as a candidate resolution. Territory: in every sibling repo `domain-knowledge/CONTEXT.md` is a *symlink into core*, so any repo-local session writing it mutates fleet-shared state. Took the conservative option: gave the skill a new repo-local artifact it owns (`decisions/open-unknowns.md`) rather than loosening a constraint that exists for a good reason.
@@ -51,6 +104,25 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   non-D4-fail D8 offenders instead (deepen 1332→770, diagram-intake 1005→709) to reach sprawl=15
   without touching gate-skill contracts, and left the two skills as the ≤3 allowed D4 fails.
   Territory lesson: a Gotchas-heavy gate skill has a sprawl floor the threshold doesn't model.
+
+## Deviations — frame-standup ledger closure 2026-07-25 / 2026-07-31
+
+- Plan said "accept `adr:consume-dive-briefing-retriever` (Stage 2d) to unblock f1-doctrine S2". Territory: that ADR decides S2's wrap-vs-re-port question and is half of S2's own entrance criterion — accepting it is an architectural decision, not standup bookkeeping. Took the conservative option: accepted only the three ADRs whose code had already merged (0001–0003), left this one `Proposed`, and queued the decision as `hq-task-b71519d5`. S2 stays `queued`.
+- Plan said "flip `rm-l1-silicon-empires#S7` `queued → ready`, entrance is met". Territory: entrance *is* met, but roadmap-lint immediately reported `moves_from 5 drifts from ns:l1-silicon-empires#P4 live current 42%` — S7–S18 are one continuous P4 ladder 5→95 authored when P4 was 5, and the backfill this same session moved P4 to 42. A +37 rebase terminates the ladder at 132, so it is a replan, not arithmetic. Took the conservative option: reverted S7 to `queued` and queued the replan, because dispatching would have proposed a false "P4 5→12" into the ledger the session existed to correct. Flagged the stale `sili-task-c94cf64f` projection from the brief `ready` window.
+- Plan assumed `record-movement` without `--apply` was a dry run (its docstring: "Default prints the exact edits instead"). Territory: `--apply` gates only the *file patches*; the `status.jsonl` append happens either way, so the "preview" wrote a real ledger line. Took the conservative option: reverted the file and re-ran once with `--apply`, and filed the docstring/behaviour mismatch under TD-008 rather than leaving a duplicate.
+- Plan predicted the roadmap-lint warning count would drop as the 13 silicon-empires file-status drifts resolved. Territory: it went 60 → 63, because Stage 0 also made two previously-unreachable roadmaps resolve (11/179 slices → 13/195). The prediction was not falsified, it was unmeasurable as stated. Verified the specific drifts cleared by grepping per-roadmap instead of trusting the total.
+- Plan filed the two techdebt entries as TD-006/TD-007. Territory: six days elapsed between authoring and merge, and a concurrent session landed its own **TD-006** (bead-ledger closure loop, core#290) in the meantime. Took the conservative option: renumbered to TD-007/TD-008 at rebase, keeping their TD-006 and leaving no gap. Sequential IDs in a shared file are a collision waiting to happen whenever a PR sits.
+
+## Deviations — wayfinder #320 FDE re-audit (second cycle) 2026-08-01
+
+- Plan said "file findings to `decisions/research/2026-08-01-fde-deliverables-audit.md` (via PR), post a resolution comment on #320, close it, append a gist to the map." Territory: a concurrent session worked the same ticket and got there first — PR #332 merged that exact path to `origin/main` at 19:39Z (mid-cycle, ~22 min into this session's sweep), closed #320, and appended its own gist. Three of the four instructed steps were already done by someone else. Took the conservative option: did **not** overwrite the merged file, did **not** reopen or re-close #320, did **not** re-edit `## Decisions so far`. Filed the independent cycle as a companion at `…-cycle-2.md` via its own PR (human-gated, so the operator decides whether it lands or gets reconciled into one file — §9 Q1), and commented on the closed ticket instead of reopening it. Two concurrent sessions on one wayfinder ticket is the failure mode "claim = assignment" exists to prevent; assignment was set here before any work, so the guard did not hold — the other session assigned the same bot account.
+- Plan assumed the audit was purely read-only against the fleet. Territory: it was, but the *reading* surfaced a live disclosure exposure — employer + internal-system names on public `origin/main` in 9 files, while the ticket that governs exactly that (#321) is still OPEN, and the merge that added two of those files landed 39 minutes after #321 was opened. Took the conservative option: verified the grep myself rather than trusting the sub-agent, reported it as the top finding, and did **not** edit the strings out — #321 is a grilling ticket and the ruling is the operator's, not an agent's. Flagged the untracked `core-library/public/graph/selfco.json` as an adjacent one-`git add -A`-away hazard.
+- Plan treated the sub-agent fleet sweeps as the evidence base. Territory: the completeness critic caught three verifiable errors in this cycle's own grading pass (profile README "GitHub Pages" claim false; "40 ADRs" is 34 against an actual 111; 3 public forks is 4). Took the conservative option: re-verified each against disk myself, published the corrections in §6.2 of the findings rather than quietly fixing the prose, and marked the unverified article counts as unverified instead of dropping them.
+- (#345 session, 2026-08-01) Plan said `gh pr merge --rebase --delete-branch` then verify. Territory: the remote rebase-merge succeeded (PR #357 → `c63de2b`), but gh's local post-merge step (checkout main + pull) failed on another agent's unstaged working-tree changes and left the checkout on a stale main. Took the conservative option: verified the merge against `origin/main` directly, left local main and the foreign unstaged edits untouched (concurrent-agent git safety), and proceeded with ticket ops. Also: plan pre-wrote the sanitization ticket as "#353" into the map before creation; actual number came back #356 — issue numbers aren't reservable, so create-then-reference is the right order (fixed pre-commit, no harm).
+- 2026-08-02 fde-skills-audit session: plan assumed the audit artifact would go up as a branch+PR; personal-knowledge/ turned out to be gitignored (denylist source side of adr:employer-evidence-boundary), so fde-job-target.md is local-only and the tracked record is the report bead. Took the conservative option (no force-tracking).
+- 2026-08-02 fde-skills-audit session: plan assumed the #321 denylist lint exists and would gate the artifact; no lint script exists on disk or any branch. Fell back to manual grep of outputs (clean). Lint implementation is an unclaimed prerequisite, flagged in the report bead.
+- 2026-08-03 vantage-gap execution session (brief 20260803-1200): plan step D said "the 11" untracked beads; territory at Step-0 verification was 12 — a diagram-first-output session dropped `20260803-1209-brief-diagram-first-output-work-the-frontier.md` nine minutes after the brief was committed. Took the conservative option: kept it in the D triage table flagged post-brief, touched nothing.
+- 2026-08-03 vantage-gap execution session: plan said all C repairs go up in the PR; two tracked repair targets (`20260803-1130-report-newline-sitting6`, `20260803-0140-report-newline-u14-u12-u17`) exist only in unpushed local-main commits, so a branch off origin/main cannot carry them and a branch off local main would publish the operator's 9 unpushed commits ("do not push"). Took the conservative option: deferred those two fixes (status done→closed on 1130; responding_to wiring on both), flagged in PR #378 and the report bead.
 - /teach first real invocation (2026-08-04): plan assumed #386's finding held — "inline quiz JS
   survives; presentation is the fragile part." Territory: that was measured in a **browser**. The
   side panel renders a lesson as a static snapshot, so the inlined CSS applies and the script never
@@ -79,3 +151,33 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   deliberate divergence (same class as D25) rather than a bug fix. Note the silent-drop shape is the
   same failure the deposit architecture exists to prevent — an artifact vanishing with nothing
   emitted; the reconciler would not have caught it because the lesson still deposited.
+
+## Deviations — /wayfinder neistat-ai-bulletin 2026-08-08
+
+- **Plan assumed** full-mode charting ends at Step 4 by projecting tickets as GitHub child issues
+  into `ojfbot/core`. **Territory:** `ojfbot/core` is public (`isPrivate:false`), and the vault's
+  own `concepts/camera-program.md:65` carries an *unruled* open question about whether the Camera
+  Program / Bulletin lineage should be publicly visible at all (gaps G-02/G-05/G-06). Projecting
+  would have answered that question as a side effect, and would have published the operator's
+  ruling that paid Patreon material is being archived. **Took the conservative option:** wrote the
+  map file only (uncommitted), projected nothing, and charted the disclosure question as the
+  map's first frontier ticket. Two sibling maps (`cockpit-northstar-conversation`,
+  `teach-persistence`) are likewise untracked, so an uncommitted map is not a novel state.
+- **Plan assumed** a full-mode map carries a `northstar:` anchor. **Territory:** no
+  `camera-program` northstar exists (the program has no repo — gap G-03) and none of `l1-core`'s
+  P1–P5 skill-loop properties fit a practice-and-vault initiative. **Took the conservative
+  option:** omitted the anchor per resolve-or-fail and said so in the Destination, rather than
+  forcing a bad fit to satisfy the schema.
+- **Plan assumed** one wayfinder ticket per work session. **Territory:** the operator asked to be
+  worked through the next steps, and both frontier tickets (#423 disclosure seam, #426 scheduler)
+  were HITL rulings needing them present anyway — deferring the second would have stalled on a
+  question already answerable. **Took the conservative option:** worked both, but resolved each
+  fully and separately (claim → evidence → operator ruling → resolution comment → map tended)
+  rather than batching them into one blended decision.
+- **Plan (the chart) assumed** the Pi's single-scheduler posture blocked adding a scheduled
+  authoring run. **Territory:** verification showed the posture is scoped to selfco-box
+  (`com.ojfbot.selfco-box.*.plist.disabled`) while four unrelated fleet plists stay enabled, and
+  that the Pi's timer is an *LLM-free* transport pass (`transport --once`, Notion inbox →
+  `raw/inbox/`), which is why it holds no Anthropic key. The chart-time constraint was overstated.
+  **Logged rather than silently corrected**, and the map's Notes now record the verified state —
+  memory-sourced constraints in a chart need verifying before they shape a ruling.
