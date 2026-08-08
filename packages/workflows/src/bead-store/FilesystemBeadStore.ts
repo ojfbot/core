@@ -46,13 +46,6 @@ function matchesFilter(bead: FrameBead, filter: BeadFilter): boolean {
 
 export class FilesystemBeadStore implements BeadStore {
   private readonly root: string;
-  /**
-   * Tracks in-flight appendEventLog writes so callers (notably tests) can
-   * await them before deleting the beads root. Without this drain, an
-   * unawaited fire-and-forget event-log write can race with a recursive
-   * `fs.rm(root)` and surface as `ENOTEMPTY: rmdir '.../events'`.
-   */
-  private readonly pendingWrites = new Set<Promise<void>>();
 
   constructor(beadsRoot: string = DEFAULT_BEADS_ROOT) {
     this.root = beadsRoot;
@@ -86,7 +79,7 @@ export class FilesystemBeadStore implements BeadStore {
     await fs.writeFile(this.beadPath(bead.id), JSON.stringify(bead, null, 2));
     const created_evt = makeEvent('bead:created', bead.actor, `created ${bead.type} "${bead.title}"`, { bead_id: bead.id });
     eventBus.emit(created_evt);
-    this.trackWrite(this.appendEventLog(created_evt));
+    await this.appendEventLog(created_evt);
   }
 
   async update(id: string, patch: Partial<FrameBead>): Promise<void> {
@@ -104,7 +97,7 @@ export class FilesystemBeadStore implements BeadStore {
     await fs.writeFile(this.beadPath(id), JSON.stringify(updated, null, 2));
     const updated_evt = makeEvent('bead:updated', updated.actor, `updated ${updated.type} "${updated.title}"`, { bead_id: id });
     eventBus.emit(updated_evt);
-    this.trackWrite(this.appendEventLog(updated_evt));
+    await this.appendEventLog(updated_evt);
   }
 
   async close(id: string): Promise<void> {
@@ -120,7 +113,7 @@ export class FilesystemBeadStore implements BeadStore {
     if (closed) {
       const closed_evt = makeEvent('bead:closed', closed.actor, `closed ${closed.type} "${closed.title}"`, { bead_id: id });
       eventBus.emit(closed_evt);
-      this.trackWrite(this.appendEventLog(closed_evt));
+      await this.appendEventLog(closed_evt);
     }
   }
 
@@ -174,27 +167,15 @@ export class FilesystemBeadStore implements BeadStore {
   }
 
   /**
-   * Wait for every in-flight event-log write to settle. Call before deleting
-   * the beads root (typically in test `afterEach`) to prevent a race with
-   * recursive `fs.rm` that surfaces as `ENOTEMPTY: rmdir '.../events'`.
+   * Append one event to `<root>/events/<date>.jsonl`.
    *
-   * Re-runs until the queue is empty because handlers triggered by emitted
-   * events may enqueue further writes during draining.
+   * Awaited by create/update/close rather than fired-and-forgotten. An
+   * unawaited write outlives the call that triggered it, which (a) loses
+   * events if the process exits first and (b) races a recursive `fs.rm(root)`
+   * — the write re-creates `<root>/events/<date>.jsonl` between rm's `unlink`
+   * and its `rmdir`, surfacing as `ENOTEMPTY: rmdir '.../events'`. Awaiting
+   * means no store write is ever in flight once a mutation has resolved.
    */
-  async drainPendingWrites(): Promise<void> {
-    while (this.pendingWrites.size > 0) {
-      const inFlight = Array.from(this.pendingWrites);
-      await Promise.allSettled(inFlight);
-    }
-  }
-
-  private trackWrite(p: Promise<void>): void {
-    this.pendingWrites.add(p);
-    p.finally(() => {
-      this.pendingWrites.delete(p);
-    }).catch(() => { /* swallow — appendEventLog never throws, but be defensive */ });
-  }
-
   private async appendEventLog(event: FrameEvent): Promise<void> {
     try {
       const eventsDir = path.join(this.root, 'events');
