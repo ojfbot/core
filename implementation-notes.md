@@ -9,6 +9,59 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 ## Deviations
 
 - D39 (`decisions/adopt-stack/pocock-skills-v1-2.md`, branch feat/pocock-v1-2-absorb) marked the /wizard build deferred but, unlike its D37/D40 siblings, never specified the skill's scope. Territory: both first use cases named in the record (buddy-check `aws sso login`, selfco Pi deploy keys) live outside core, so a core-only skill could not fire where it is needed. Took the consistent-with-siblings option: `scope:["user"]` in the catalog, matching wait-what and to-questionnaire; needs `install-agents.sh --user-scope` after merge to sync the symlink.
+- Shape Up vault ingest, sitting 1 (2026-08-03): plan cited `templates/article-ingest.md` at
+  `core/.claude/skills/vault/templates/`. Territory: it exists **only** in the vault at
+  `~/selfco/templates/article-ingest.md` — the core skill's `templates/` ships
+  source/entity/concept/synthesis but not the article variant, so a fresh `/vault init` on another
+  machine would scaffold a vault whose schema names a template it cannot produce. Took the
+  conservative option: used the in-vault copy, changed nothing in core. Suggests the article
+  variant should be added to the skill's templates and seeded by `init-vault.py`.
+- Shape Up vault ingest (2026-08-03): plan had `scripts/ingest.py` land the raw file and stub the
+  source page. Territory: `ingest.py`'s generic URL path curls a single URL and writes the **raw
+  HTML** verbatim — for a 23-section book that is 23 unreadable blobs, and there is no
+  HTML→markdown converter on this machine (no pandoc/lynx/html2text/bs4). Took the conservative
+  option: a scratchpad-only assembler that extracts `<div class="content">`→`<nav>` per section
+  and writes ONE archival markdown file, then landed it by hand and hand-authored the source page.
+  Nothing was added to the vault or to core. Suggests `ingest.py` needs an HTML→text step for
+  article ingests generally, not just this one.
+- Shape Up vault ingest (2026-08-03): plan's verification said `lint.py --gate` exits 0. Territory:
+  it exits 1, on **two pre-existing** unfiled `raw/inbox/` drops landed by the selfco-box transport
+  (commits `ff9c94a`, `0c27088`) that have no `wiki/sources/` page. Not caused by this ingest — my
+  raw file is filed and adds 0 broken links, 0 orphans, 0 schema findings. Took the conservative
+  option: reported it and left the inbox items alone rather than filing someone else's drops to
+  make a number green. Note the gate is on selfco-box's own push path, so its pushes are currently
+  gated too.
+- Shape Up vault ingest (2026-08-03): `/vault`'s documented commit step is `git add -A && git
+  commit`. Territory: the vault tree had four unrelated uncommitted files, so `add -A` swept them
+  into the ingest commit `2a4ea7c` under a message that doesn't describe them. Inspection showed
+  they were **finished work, not stray WIP** — the 2-line `CLAUDE.md` edit is the `diagrams/` +
+  `teach/` schema rows that `adr:teach-corpus-deposit-architecture` R7 calls for, and the
+  `.handoff/` file is a completed Cowork handoff — so reverting them would have been wrong; only
+  the message was defective. Resolved at operator instruction: pushed
+  `backup/pre-split-2a4ea7c` first, soft-reset, rebuilt as four accurately-messaged commits
+  (`5fc4497` schema rows · `877e93f` diagrams · `a5df9ae` handoff bead · `02515a1` ingest),
+  verified the tree byte-identical to `2a4ea7c`, then force-pushed with
+  `--force-with-lease` pinned to the exact expected SHA. Safe because the commit was still the
+  tip of `origin/main` with zero divergence; other clones (selfco-box poll timer) may need
+  `git reset --hard origin/main` on their next pull.
+  **Standing side effect, unaffected by the split:** the two `diagrams/` files are exactly the
+  ones `draft-teach-corpus-deposit-architecture.md` cites as evidence — "2 files, untracked,
+  0 ledger rows" — for why prose-only deposit fails. They are now tracked, so that measurement no
+  longer reproduces as written; the ruling's *argument* stands (0 ledger rows is still true) but
+  its cited numbers are stale.
+  Root cause unfixed: `/vault`'s commit step should stage explicit paths, not `-A`.
+- teach-in-the-loop #380 work session (2026-08-03): plan had `gh pr merge --rebase --delete-branch`
+  finishing cleanly from the session worktree. Territory: `main` is checked out by ANOTHER
+  session's worktree (`…/50e6dcf3…/scratchpad/core-main`), so gh's post-merge local checkout of
+  main failed (`fatal: 'main' is already used by worktree`) — the remote merge itself had already
+  succeeded (PR #388, `31623ea`). Took the conservative option: verified merge state via the API,
+  removed my worktree, touched nothing of the other session's. Rule of thumb: with concurrent
+  core sessions, treat gh's local post-merge steps as best-effort and verify remotely.
+- teach-in-the-loop charting (2026-08-03): plan assumed branching from local `main` = branching from origin/main. Territory: local main carried 3 unpushed bead commits from a concurrent session, so PR #387 silently dragged ~850 lines of another agent's beads and all three merge methods failed (repo allows rebase-merge only; branch unrebaseable). Took the conservative option: `rebase --onto origin/main` to isolate my 2 commits, force-with-lease on my own branch, merged clean. The other session's commits remain untouched on local main (its worktree owns them). Rule of thumb this suggests: branch wayfinder/decision work from `origin/main`, not local main.
+- skill-hardening (2026-08-03): plan assumed suggester frozen-holdout κ baseline 0.700
+  (memory value, at-freeze); fresh suggester-eval.mjs run against the 68-skill catalog
+  reads holdout κ=0.603 (overall 0.658). Took the measured value as the Wave-2 eval gate
+  and recorded the correction in decisions/skill-hardening-roadmap.md.
 - Plan specified registering the harnesses in `decisions/loops/loops.md` with `trigger: harness-routine`, on the basis that the value already existed. Territory: `loops-lint.mjs` defines `TRIGGERS = ['launchd','gh-actions','hook','watchpath','manual']` — `harness-routine` appears only in the aspirational deliverable prose of `rm:rm-l2-ojfbot#S29` and was never implemented, so authoring against it would have ERRORed. Took the conservative option: `trigger: hook`, which is both valid and more accurate since these are literally hooks. No schema change needed.
 - Plan hypothesised that `acted ≈ 0` was caused by `log-skill.sh` being registered only at project scope, and pre-authorised registering it at user scope. Territory: `suggest-skill.sh:228` already injects the complete `skill-acted-emit.mjs` command with the live `suggestion_id` into every single suggestion — the agent is told every time and does not comply. The gap is agent compliance, not wiring. Took the conservative option: did not register the hook, recorded the finding in the ADR instead, since registering it would have implied a fix that wasn't one.
 - Plan offered "relax Step 5 so grill-with-docs may write CONTEXT.md under confirmation" as a candidate resolution. Territory: in every sibling repo `domain-knowledge/CONTEXT.md` is a *symlink into core*, so any repo-local session writing it mutates fleet-shared state. Took the conservative option: gave the skill a new repo-local artifact it owns (`decisions/open-unknowns.md`) rather than loosening a constraint that exists for a good reason.
@@ -111,3 +164,33 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   the same tests pass in the installed checkout. Vantage assumption in those tests, not S1 breakage —
   S1 adds files only and none are imported by the failing tests. Logged rather than fixed here to
   keep the slice single-purpose.
+
+## Deviations — /wayfinder neistat-ai-bulletin 2026-08-08
+
+- **Plan assumed** full-mode charting ends at Step 4 by projecting tickets as GitHub child issues
+  into `ojfbot/core`. **Territory:** `ojfbot/core` is public (`isPrivate:false`), and the vault's
+  own `concepts/camera-program.md:65` carries an *unruled* open question about whether the Camera
+  Program / Bulletin lineage should be publicly visible at all (gaps G-02/G-05/G-06). Projecting
+  would have answered that question as a side effect, and would have published the operator's
+  ruling that paid Patreon material is being archived. **Took the conservative option:** wrote the
+  map file only (uncommitted), projected nothing, and charted the disclosure question as the
+  map's first frontier ticket. Two sibling maps (`cockpit-northstar-conversation`,
+  `teach-persistence`) are likewise untracked, so an uncommitted map is not a novel state.
+- **Plan assumed** a full-mode map carries a `northstar:` anchor. **Territory:** no
+  `camera-program` northstar exists (the program has no repo — gap G-03) and none of `l1-core`'s
+  P1–P5 skill-loop properties fit a practice-and-vault initiative. **Took the conservative
+  option:** omitted the anchor per resolve-or-fail and said so in the Destination, rather than
+  forcing a bad fit to satisfy the schema.
+- **Plan assumed** one wayfinder ticket per work session. **Territory:** the operator asked to be
+  worked through the next steps, and both frontier tickets (#423 disclosure seam, #426 scheduler)
+  were HITL rulings needing them present anyway — deferring the second would have stalled on a
+  question already answerable. **Took the conservative option:** worked both, but resolved each
+  fully and separately (claim → evidence → operator ruling → resolution comment → map tended)
+  rather than batching them into one blended decision.
+- **Plan (the chart) assumed** the Pi's single-scheduler posture blocked adding a scheduled
+  authoring run. **Territory:** verification showed the posture is scoped to selfco-box
+  (`com.ojfbot.selfco-box.*.plist.disabled`) while four unrelated fleet plists stay enabled, and
+  that the Pi's timer is an *LLM-free* transport pass (`transport --once`, Notion inbox →
+  `raw/inbox/`), which is why it holds no Anthropic key. The chart-time constraint was overstated.
+  **Logged rather than silently corrected**, and the map's Notes now record the verified state —
+  memory-sourced constraints in a chart need verifying before they shape a ruling.
