@@ -1,0 +1,35 @@
+# Fleet reconciler — SHADOW mode (decomposition S1, TD-007).
+# Report-only: the job never fails on drift. Promotion to blocking (--check) is a
+# RIDM decision gated on a clean shadow period (ADR-0086), made in S6 — not here.
+# Sibling-repo surfaces show as UNREACHABLE from this vantage (core-only checkout);
+# the full-fidelity run is local, where the siblings exist.
+name: fleet-reconcile
+on:
+  pull_request:
+    paths:
+      - 'decisions/northstar/README.md'
+      - 'CLAUDE.md'
+      - 'scripts/install-agents.sh'
+      - 'scripts/fleet-manifest.mjs'
+      - '.claude/skills/frame-standup/scripts/*.js'
+      - 'scripts/launcher/registrations/**'
+  schedule:
+    - cron: '17 6 * * 1' # weekly, Monday 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Reconcile fleet surfaces (report-only)
+        run: node scripts/fleet-manifest.mjs
+      - name: Emit generated manifest as artifact
+        run: node scripts/fleet-manifest.mjs --out fleet.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fleet-manifest
+          path: fleet.json

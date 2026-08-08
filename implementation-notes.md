@@ -99,3 +99,15 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - 2026-08-02 fde-skills-audit session: plan assumed the #321 denylist lint exists and would gate the artifact; no lint script exists on disk or any branch. Fell back to manual grep of outputs (clean). Lint implementation is an unclaimed prerequisite, flagged in the report bead.
 - 2026-08-03 vantage-gap execution session (brief 20260803-1200): plan step D said "the 11" untracked beads; territory at Step-0 verification was 12 — a diagram-first-output session dropped `20260803-1209-brief-diagram-first-output-work-the-frontier.md` nine minutes after the brief was committed. Took the conservative option: kept it in the D triage table flagged post-brief, touched nothing.
 - 2026-08-03 vantage-gap execution session: plan said all C repairs go up in the PR; two tracked repair targets (`20260803-1130-report-newline-sitting6`, `20260803-0140-report-newline-u14-u12-u17`) exist only in unpushed local-main commits, so a branch off origin/main cannot carry them and a branch off local main would publish the operator's 9 unpushed commits ("do not push"). Took the conservative option: deferred those two fixes (status done→closed on 1130; responding_to wiring on both), flagged in PR #378 and the report bead.
+
+## Deviations — core decomposition S1 2026-08-08
+
+- 2026-08-08 (decomposition S1, fleet reconciler): the plan assumed building from the local core
+  checkout; territory showed local main diverged (16 ahead / 1 behind origin) with concurrent agent
+  worktrees active. Took the conservative option: built on a fresh worktree cut from origin/main,
+  leaving local main untouched.
+- 2026-08-08 (decomposition S1): full vitest suite shows 3 pre-existing failures
+  (skill-acted-emit ×3, reconcile-skill-acted) when run from an isolated worktree outside ~/ojfbot;
+  the same tests pass in the installed checkout. Vantage assumption in those tests, not S1 breakage —
+  S1 adds files only and none are imported by the failing tests. Logged rather than fixed here to
+  keep the slice single-purpose.
