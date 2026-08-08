@@ -79,3 +79,13 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   deliberate divergence (same class as D25) rather than a bug fix. Note the silent-drop shape is the
   same failure the deposit architecture exists to prevent — an artifact vanishing with nothing
   emitted; the reconciler would not have caught it because the lesson still deposited.
+
+- 2026-08-08 (decomposition S1, fleet reconciler): the plan assumed building from the local core
+  checkout; territory showed local main diverged (16 ahead / 1 behind origin) with concurrent agent
+  worktrees active. Took the conservative option: built on a fresh worktree cut from origin/main,
+  leaving local main untouched.
+- 2026-08-08 (decomposition S1): full vitest suite shows 3 pre-existing failures
+  (skill-acted-emit ×3, reconcile-skill-acted) when run from an isolated worktree outside ~/ojfbot;
+  the same tests pass in the installed checkout. Vantage assumption in those tests, not S1 breakage —
+  S1 adds files only and none are imported by the failing tests. Logged rather than fixed here to
+  keep the slice single-purpose.
