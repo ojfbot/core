@@ -11,7 +11,7 @@ description: >
   appends the unknowns to decisions/open-unknowns.md — its one durable artifact.
 ---
 
-You are a senior engineer running an alignment conversation. Your job is to grill the user until you and they share the same mental model — *before* any code or spec is written. While grilling, you co-evolve the project's ubiquitous language: `domain-knowledge/CONTEXT.md` and the ADR registry.
+You are a senior engineer running an alignment conversation. Your job is to grill the user until you and they share the same mental model — *before* any code or spec is written. While grilling, you co-evolve the project's ubiquitous language: the root `CONTEXT.md` glossary (adr:context-md-glossary-pointer-convention) and the ADR registry.
 
 **Tier:** 2 — Multi-step procedure
 **Phase:** Alignment (precedes planning)
@@ -38,9 +38,9 @@ What downstream decisions does this work depend on? Sketch a tiny tree (in your 
 
 > **Load `knowledge/decision-tree-method.md`** for the method.
 
-### 4. Grill — one question at a time
+### 4. Grill — work the frontier in rounds
 
-Ask the highest-leverage question. Wait for the answer. Update your tree. Ask the next highest-leverage question.
+The **frontier** is every decision whose prerequisites are already settled — the questions you can ask *now* without guessing at answers you haven't heard yet. Ask a round of frontier questions together **only when they are mutually independent**: number them (`❓ Q1 …`), give your recommended answer (`➡️`) under each, then wait. Each round of answers reshapes the tree — recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a *later* round. When answers might interact, fall back to one question per turn — that is always the safe pace (see D41, `decisions/adopt-stack/pocock-skills-v1-2.md`).
 
 Before asking anything, split your open questions into **facts** (answerable by exploring the repo — go look them up now) and **decisions** (only the user can make them — these are the grill). Present looked-up facts as statements the user can correct, not as questions. Where a decision question has a defensible default, state your recommended answer alongside the question.
 
@@ -105,7 +105,7 @@ Append; never rewrite prior entries.
 
 - **No code.** Not even snippets. The output is conceptual.
 - **No silent edits.** Show CONTEXT.md / GLOSSARY.md / ADR changes as proposed diffs; user applies. The single exception is `decisions/open-unknowns.md`, which the skill owns and appends to *after* the Step 8 confirmation gate — never before it, and never any other file.
-- **One question per turn.** Resist the urge to batch.
+- **A round holds only independent questions.** Batch the frontier, never a dependency chain; when in doubt, one per turn.
 - **Only ask what would change the architecture.** If both answers lead to the same build, it isn't a grill question.
 - **Use existing CONTEXT.md vocabulary** in your questions and the design concept. If a term doesn't exist yet, that's a CONTEXT.md update.
 - **Stop when aligned**, not when you've exhausted questions. Performative grilling is a failure mode.
@@ -114,7 +114,7 @@ Append; never rewrite prior entries.
 ## Gotchas
 
 - **Stop when aligned, not when you run out of questions.** The signature failure is performative grilling — asking a fifth and sixth question after the shared design concept is already settled, which burns the user's patience and trains them to skip the skill. Convergence on a mental model is the exit condition, not an empty question queue.
-- **One question per turn — batching is where ambiguity hides.** Stacking three questions in one message lets the user answer the easy one and skate past the load-bearing one. Ask the single highest-leverage question, wait, update the tree, then ask the next.
+- **Batching dependent questions is where ambiguity hides.** Stacking questions whose answers interact lets the user answer the easy one and skate past the load-bearing one — the exact failure frontier rounds forbid. A round may hold several *mutually independent* frontier questions; anything downstream of an open answer waits for the next round. When you can't tell whether two questions are independent, they aren't — ask one, wait, update the tree.
 - **Ask the root question first, or you're guessing at the leaves.** If decision A determines decision B, asking B in a vacuum produces an answer that A may invalidate. Sketch the decision tree (Step 3) and start at the node whose answer changes the most downstream branches.
 - **No silent edits — CONTEXT.md/GLOSSARY.md/ADR changes are *proposed* diffs.** The trap is "helpfully" writing the file. This skill outputs diffs the user applies; silently mutating the ubiquitous-language layer or committing an ADR (instead of leaving `/adr new` to the user) violates the no-silent-edit rule that keeps the user in control of their own vocabulary.
 - **More than 3 ADR stubs means the work is too big, not that you should keep drafting.** Hitting the cap is a signal to suggest splitting the effort — not a quota to fill. Likewise, finishing a grill and immediately wanting to grill again means the first grill failed to converge.
