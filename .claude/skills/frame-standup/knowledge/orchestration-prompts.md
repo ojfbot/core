@@ -162,7 +162,7 @@ worktree, runs tests, and opens a PR.
 
 | Layer | What it receives | What it does NOT receive |
 |-------|-----------------|------------------------|
-| L1 | Architecture doc, CLAUDE.md, standup.md, priorities, skill suggestions (phase/tag-matched) | Other apps, personal-knowledge, full roadmap |
+| L1 | Architecture doc, CLAUDE.md, standup.md, priorities, skill suggestions (phase/tag-matched) | Other apps, career context (`~/selfco/career/`), full roadmap |
 | L2 | Specific source files, ADR/spec, parallel implementation, skill suggestions (chained via `--after`) | Architecture overview, standup, roadmap |
 | L3 | Exact files to change, expected behavior, test command, failure-path skill suggestions | Architecture docs, other tasks, roadmap |
 

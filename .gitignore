@@ -3,14 +3,18 @@ dist/
 *.js.map
 *.d.ts.map
 .env
+
+# Workflow run outputs — created at runtime by writeRun() in
+# packages/workflows/src/utils/runs.ts (called from runner.ts). Never committed.
 runs/
 
 # Claude Code local session settings (machine-specific permission allows)
 .claude/settings.local.json
 .claude/settings.json
 
-# Personal knowledge — career context, job targets, personal OKRs
-# Not for public repos. Technical ADRs and OKRs live in decisions/ (public-safe).
+# Personal knowledge — career context moved to ~/selfco/career/ by decomposition S2
+# (2026-08-08). The directory now holds only a local pointer README. Kept ignored so
+# career material can never be re-tracked here by accident.
 personal-knowledge/
 
 # Claude Code worktree storage (git worktrees created under .claude/)

@@ -1,6 +1,6 @@
 # Commands
 
-All commands are available in Claude Code as `/command-name`. The TypeScript engine (`core-workflow` CLI) runs the same commands outside Claude Code.
+All commands are available in Claude Code as `/command-name`. The TypeScript engine (`@core/workflows`) runs the same commands programmatically outside Claude Code.
 
 ## Recommended lifecycle order
 

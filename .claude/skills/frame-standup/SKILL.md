@@ -33,7 +33,7 @@ area (e.g. "focus:shell" to prioritize shell work in the output)
 2. **Options first, prompts on demand** — present action choices as
    interactive buttons; only expand to a full prompt when the user selects
    an option. Generating all prompts upfront is waste.
-3. **Priority is derived from active deadlines** — check `personal-knowledge/`
+3. **Priority is derived from active deadlines** — check `~/selfco/career/`
    for job targets and milestones to rank actions. Urgency is not guesswork.
 4. **One claim per finding** — audit findings are concrete: "daily-logger
    says X; actual state is Y." Not vague summaries.
@@ -183,8 +183,9 @@ corrections).
 
 Read `domain-knowledge/frame-os-context.md` (roadmap phases + repo inventory).
 
-Check for active deadline context in `personal-knowledge/` — if a job target
-or milestone file exists, extract the deadline and remaining days.
+Check for active deadline context in `~/selfco/career/` — if a job target
+or milestone file exists, extract the deadline and remaining days. Read only;
+never copy career material into a repo.
 
 **When API is available**, also incorporate:
 - `openActions` — the full open action backlog across all articles. Group by repo.

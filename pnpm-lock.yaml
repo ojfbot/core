@@ -34,19 +34,6 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.15)
 
-  packages/cli:
-    dependencies:
-      '@core/workflows':
-        specifier: workspace:*
-        version: link:../workflows
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.15
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
   packages/read-model-contract:
     dependencies:
       graphql:
@@ -56,22 +43,6 @@ importers:
       '@types/node':
         specifier: ^22.0.0
         version: 22.19.15
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-
-  packages/vscode-extension:
-    dependencies:
-      '@core/workflows':
-        specifier: workspace:*
-        version: link:../workflows
-    devDependencies:
-      '@types/node':
-        specifier: ^22.0.0
-        version: 22.19.15
-      '@types/vscode':
-        specifier: ^1.90.0
-        version: 1.110.0
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -449,9 +420,6 @@ packages:
 
   '@types/node@22.19.15':
     resolution: {integrity: sha512-F0R/h2+dsy5wJAUe3tAU6oqa2qbWY5TpNfL/RGmo1y38hiyO1w3x2jPtt76wmuaJI4DQnOBu21cNXQ2STIUUWg==}
-
-  '@types/vscode@1.110.0':
-    resolution: {integrity: sha512-AGuxUEpU4F4mfuQjxPPaQVyuOMhs+VT/xRok1jiHVBubHK7lBRvCuOMZG0LKUwxncrPorJ5qq/uil3IdZBd5lA==}
 
   '@typescript-eslint/eslint-plugin@8.58.0':
     resolution: {integrity: sha512-RLkVSiNuUP1C2ROIWfqX+YcUfLaSnxGE/8M+Y57lopVwg9VTYYfhuz15Yf1IzCKgZj6/rIbYTmJCUSqr76r0Wg==}
@@ -1487,8 +1455,6 @@ snapshots:
   '@types/node@22.19.15':
     dependencies:
       undici-types: 6.21.0
-
-  '@types/vscode@1.110.0': {}
 
   '@typescript-eslint/eslint-plugin@8.58.0(@typescript-eslint/parser@8.58.0(eslint@9.39.4)(typescript@5.9.3))(eslint@9.39.4)(typescript@5.9.3)':
     dependencies:

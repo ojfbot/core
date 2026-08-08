@@ -430,9 +430,9 @@ const CHECKS = [
 // ---- program freshness: has anything moved lately? ----
 function programFreshness() {
   const tracked = [
-    "MULTIAGENT-SDLC-AUDIT-2026-07-04.md",
-    "AGENTIC-INTEGRATION-PLAN-2026-07-04.md",
-    "FLEET-COORDINATION-EXTENSIONS-2026-07-04.md",
+    "docs/audits/MULTIAGENT-SDLC-AUDIT-2026-07-04.md",
+    "docs/audits/AGENTIC-INTEGRATION-PLAN-2026-07-04.md",
+    "docs/audits/FLEET-COORDINATION-EXTENSIONS-2026-07-04.md",
     "decisions/northstar/roadmap-l2-ojfbot.md",
     "decisions/northstar/status.jsonl",
     "scripts/audit-delivery-check.mjs",

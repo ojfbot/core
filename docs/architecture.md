@@ -83,8 +83,6 @@ See [ADR-0003](../decisions/adr/0003-skill-directories-over-flat-files.md) for w
 | Package | Role |
 |---------|------|
 | `@core/workflows` | Core library: types, parser, registry, LLM wrapper, file-backed workflow factory |
-| `@core/cli` | `core-workflow` binary — joins argv, calls `runWorkflow`, prints output |
-| `vscode-extension` | VS Code extension — `core.runSlashCommand` command, output channel |
 
 The TypeScript engine reads the same `.claude/skills/<name>/SKILL.md` files at runtime. Updating a command file updates both Claude Code and the CLI simultaneously.
 

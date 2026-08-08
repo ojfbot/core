@@ -9,7 +9,6 @@ import type { TechDebtIncident, TechDebtProposal } from "./techdebt/schema.js";
 const ALLOWED_ROOTS = [
   "packages/workflows/",
   "domain-knowledge/",
-  "skills/",
   "decisions/",
   ".claude/skills/",
 ];
@@ -25,8 +24,8 @@ Your job is to analyze incidents that occurred during workflow execution and pro
 
 Rules:
 - You MUST output ONLY valid JSON — no markdown, no explanation, no code fences.
-- You MUST NOT propose changes to production business code (src/**, app/**, or any path outside: packages/workflows/**, domain-knowledge/**, skills/**).
-- All filePatches paths must be inside allowed roots: packages/workflows/**, domain-knowledge/**, skills/**.
+- You MUST NOT propose changes to production business code (src/**, app/**, or any path outside: packages/workflows/**, domain-knowledge/**, decisions/**, .claude/skills/**).
+- All filePatches paths must be inside allowed roots: packages/workflows/**, domain-knowledge/**, decisions/**, .claude/skills/**.
 - Each proposal item should include filePatches whenever a concrete code or content change is warranted.
 - Output must conform exactly to the TechDebtProposal TypeScript type.
 
@@ -171,7 +170,7 @@ export const techDebtWorkflow: WorkflowSpec = {
     "Apply mode:",
     "  /techdebt --mode=apply --proposal='{...json...}' [--dryRun] [--select=0]",
     "",
-    "Allowed patch targets: packages/workflows/**, domain-knowledge/**, skills/**",
+    "Allowed patch targets: packages/workflows/**, domain-knowledge/**, decisions/**, .claude/skills/**",
   ].join("\n"),
 
   async handler({ args, ctx }) {

@@ -194,3 +194,45 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
   `raw/inbox/`), which is why it holds no Anthropic key. The chart-time constraint was overstated.
   **Logged rather than silently corrected**, and the map's Notes now record the verified state —
   memory-sourced constraints in a chart need verifying before they shape a ruling.
+## Deviations — core decomposition S2 2026-08-08
+
+- 2026-08-08 (decomposition S2, personal exile): the brief stated the destination
+  `~/selfco/career/` was already gitignored. Territory: `~/selfco` is a *tracked* git repo
+  (private, `ojfbot/selfco`) and `career/` was not ignored, so the move as specified would have
+  taken career material that was gitignored in core and put it somewhere git-visible — inverting
+  the disclosure seam the slice exists to protect. Took the conservative option: added `career/`
+  to `~/selfco/.gitignore` **before** moving, so the destination matches the brief's stated
+  property. That is a second-repo write; it is committed locally in selfco and left unpushed for
+  the operator.
+- 2026-08-08 (decomposition S2, fleet symlink cleanup): the plan assumed removing the now-dead
+  `personal-knowledge/tbcony-job-target.md` symlink from every sibling repo. Territory: 6 of the
+  29 repos (frame-ui-components, hailstone, lean-canvas, mirrorworld, seh-study, workstation-yuri)
+  have that symlink **git-tracked**, so deleting it there needs a commit in each repo — outside
+  this slice's one-PR rule. Took the conservative option: left all 6 untouched and reported them
+  as follow-up work rather than dirtying 6 sibling working trees.
+- 2026-08-08 (decomposition S2, fleet symlink cleanup): removal of the 23 *untracked* sibling
+  `personal-knowledge/` dirs was blocked by the harness permission classifier (bulk cross-repo
+  deletion). Not worked around. The dead symlinks remain on disk pending operator approval of a
+  single explicit command; the installer no longer recreates them, so this is a one-time sweep.
+- 2026-08-08 (decomposition S2, attic): two `check:` expressions in
+  `decisions/northstar/roadmap-l2-ojfbot.md` (S27, S28) `test -f` the audit docs at their old
+  repo-root paths and now point at nothing. Both slices are already `merged`, so these are post-hoc
+  checks on delivered work, not live gates. Took the conservative option: left
+  `decisions/northstar/` untouched per the hard rule and recorded the stale paths in
+  `docs/audits/README.md` plus the PR body.
+- 2026-08-08 (decomposition S2, dead structure): `.claude/worktrees/brave-lumiere-f43c8c` was to be
+  removed. Territory: its branch `claude/gifted-lamarr-05695a` holds 12 commits not contained in any
+  remote branch **and** 4 uncommitted modified files (`FilesystemBeadStore.ts`, 2 test files,
+  `implementation-notes.md`). Per the brief, reported rather than forced — worktree left in place.
+- 2026-08-08 (decomposition S2, install-agents §5): the brief offered retarget-or-drop for the
+  job-doc distribution phase. Dropped it. Evidence: §5 distributed exactly one file
+  (`tbcony-job-target.md`, last edited 2026-02-27 and superseded by `fde-job-target.md`) into 30
+  repos, no skill or script ever read it at that path, and the resulting sibling
+  `personal-knowledge/` dirs contained nothing else. Retargeting would have re-exported career
+  material to 30 code repos for no consumer.
+- 2026-08-08 (decomposition S2, dead structure): the brief classed `runs/` as a dead empty dir to
+  delete along with its gitignore entry. Territory: `runs/` is a **live runtime output directory** —
+  `writeRun()` in `packages/workflows/src/utils/runs.ts` is called by `runner.ts` on every workflow
+  dispatch and creates `runs/<workflow>/<timestamp>/`. The empty dir was just an unused checkout,
+  not dead structure. Took the conservative option: deleted the empty dir but **kept** `runs/` in
+  `.gitignore` (with a comment naming the writer), so run outputs can never be committed.

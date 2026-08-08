@@ -13,7 +13,7 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 ## Rules
 
 1. **type**: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `ci`, `perf`, `style`
-2. **scope**: package name (`workflows`, `cli`, `vscode-extension`) or area (`skills`, `domain-knowledge`, `adr`)
+2. **scope**: package name (`workflows`, `read-model-contract`) or area (`skills`, `domain-knowledge`, `adr`)
 3. **subject**: imperative mood, lowercase, no period, under 50 characters
 4. **body**: explain *why* not *what* — the diff already shows what changed. 1–3 sentences max.
 5. If the change is trivial (typo, import sort), skip the body

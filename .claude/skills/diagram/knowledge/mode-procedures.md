@@ -30,7 +30,7 @@ Full per-mode procedure for `explain`, `orient <target>`, and `fleet` — load a
 2. Draw altitude views: clusters → northstars → what's active/missing; wayfinder frontiers as
    the "how to get there" layer. Respect the registry's own tier language (L1/L2/L3).
 3. **Placement rule:** fleet views that carry career/strategy lenses (job targets, revenue
-   framing, client work) go to `core/personal-knowledge/` (gitignored) — never public git.
+   framing, client work) go to `~/selfco/career/` (gitignored there) — never public git.
    Pure-structure fleet views may be committed if asked.
 4. Never write northstar files, roadmap files, or `status.jsonl` — this mode reads the delivery
    ledger, it does not touch it.

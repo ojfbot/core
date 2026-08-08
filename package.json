@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "version": "0.1.0",
-  "description": "Unified slash-command workflow framework for CLI and VS Code",
+  "description": "Unified slash-command workflow framework",
   "scripts": {
     "build": "pnpm -r build",
     "test": "vitest run",
