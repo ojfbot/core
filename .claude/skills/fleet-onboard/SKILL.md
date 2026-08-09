@@ -25,7 +25,7 @@ diffs each surface against it (plus `gh repo list ojfbot` for repos with no nort
 
 ## The surface matrix
 
-> **Load `knowledge/surface-matrix.md`** before walking (`onboard`) or diffing (`reconcile`) any surface — the 14-surface table (file, mechanism, action per surface; audit of 2026-07-22 — re-verify paths before editing; they move).
+> **Load `knowledge/surface-matrix.md`** before walking (`onboard`) or diffing (`reconcile`) any surface — the 15-surface table (file, mechanism, action per surface; audit of 2026-07-22, row 15 added 2026-08-08 — re-verify paths before editing; they move).
 
 ## onboard <repo> steps
 
@@ -48,7 +48,13 @@ diffs each surface against it (plus `gh repo list ojfbot` for repos with no nort
    `ls ~/ojfbot/*/.git`.
 2. For each explicit surface (2–8): extract its list, diff against canonical, classify
    (missing-from-surface / surface-has-unknown / archived).
-3. Output the drift table. Do NOT auto-fix — additions are per-repo judgment (a repo can be
+3. **Check the generated surfaces are still generated** (14 AUTO, 15 REGISTRY-GENERATED). These
+   have no list to diff, so the drift they can suffer is different in kind: a generated surface
+   degrades by acquiring a hand-maintained list. For surface 15, grep the cockpit's fleet-structure
+   adapter for a literal array of repo/cluster names and confirm membership is joined to the
+   registry — not to `REPO_META` (surface 5). Report a hand list as drift even though nothing is
+   missing; that is the TD-007 failure mode, and it is invisible to a name diff.
+4. Output the drift table. Do NOT auto-fix — additions are per-repo judgment (a repo can be
    deliberately excluded, e.g. the selfco vault repo is intentionally not swept). Offer to
    onboard specific repos.
 

@@ -56,6 +56,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **ClosureSignal** — Evidence that a `StandupSuggestion` was correctly resolved. Two kinds: `bead-status` (linked bead lifecycle reached closed) and `audit-disappeared` (priority absent from next standup). Combined: bead-status when `bead_id` linked; audit-disappeared otherwise. See CONTEXT.md §5 and ADR-0054.
 
+**Command token (cockpit chat)** — A chip above the cockpit chat composer that inserts a structured command the **UI executes deterministically** — the model writes prose, the UI does verbs. Never a model-callable tool; unknown tokens fall through as plain text. Phase-1 vocabulary (registered 2026-08-08): `/explain` `/ladder` `/gap` `/open` `/draft-handoff` — read-only plus one pre-existing gated write. Core verbs (queue-claim, dispatch) are deliberately NOT tokens; exposing them is a new operator decision. (`chat-token-vocabulary.md`)
+
 **Composition tier** — How an app participates in the operating surface: Tier A in-process (MF), Tier B process federation (any stack), Tier C operational spine. (adr:operating-surface-tiered-composition)
 
 **Control Gate** — *NASA SEH term* (a.k.a. **Key Decision Point / KDP**). A defined point in a slice's life cycle where the decision authority evaluates progress and determines next actions. In Control-Gated Slices each checkpoint is a Control Gate with explicit **Entrance Criteria** (minimum to start) and **Success Criteria** (what must be demonstrated to pass, expressed as TPMs). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)

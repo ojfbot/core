@@ -276,3 +276,27 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   Retargeted that surface to `domain-knowledge/manifest.json` (`parseInstallCaseSwitch` →
   `parseDomainKnowledgeManifest`) and updated its fixture and tests, rather than leaving a surface
   that silently reads nothing.
+
+## Deviations — canon D5 generator + cockpit-v2 closeouts 2026-08-08
+
+- **Plan assumed** the D5 generator could group registry entries by cluster. **Territory:** the
+  registry has no cluster field and the cluster *tier* is designed-not-built (RFQ-004, blocking
+  wayfinder #341), so clustering is [judgment] with nowhere schema-shaped to live. **Took the
+  conservative option:** kept the grouping as a `PRESENTATION_CLUSTERS` constant *inside the
+  generator* — explicitly presentation-only, no schema, no ladder semantics — rather than creating a
+  cluster data file, which would have become fleet enumeration surface #16 and a fresh TD-007
+  casualty. Any registered L1 not in a cluster lands in a visible `Unclustered` node and a warning,
+  so the fallback is loud. The constant is deleted when the cluster tier lands.
+- **Plan assumed** `decisions/northstar/README.md` parses cleanly. **Territory:** the `buddy-check`
+  entry carried trailing `#` comments on its `slug` and `tier` lines, and `northstar-fm.mjs` cannot
+  strip trailing comments (values legitimately contain `#`, e.g. `ns:l2-ojfbot#P2`), so both values
+  parsed with the comment glued on — `tier` was not `"L1"` for any consumer comparing it.
+  `northstar-lint.mjs` never caught it because it counts entries rather than comparing tiers.
+  **Took the conservative option:** fixed the *data* (moved the comments to their own lines) rather
+  than loosening the parser, and made the generator *report* a `#`-bearing slug as a warning instead
+  of sanitizing it, so the next occurrence surfaces instead of being papered over.
+- **Plan assumed** `ADR-0005` / `ADR-0012` in the design package resolved unambiguously.
+  **Territory:** ADR serials are per-repo — those are morning-cockpit ADRs, while core's ADR-0005 is
+  Carbon Design System and ADR-0012 is Module Federation. A core-side doc citing them bare would
+  point at the wrong documents. **Took the conservative option:** qualified every cross-repo citation
+  with its repo and recorded the collision explicitly in `chat-token-vocabulary.md`.

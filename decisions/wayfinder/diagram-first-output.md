@@ -47,6 +47,22 @@ overwhelmed by LLM output and cannot see what is being built.
 - tldraw SDK licensing/watermark terms flagged for the research ticket.
 - **Process note (2026-08-03):** #367 and #370 were both resolved in one session, operator present and
   deciding in-loop — a deliberate fast-track of the one-ticket-per-session cadence, not a drift.
+- **Prototype evidence, 2026-08-08 — a hand-rolled SVG viewer carried 66 nodes (#368/#372).**
+  `~/selfco/diagrams/fleet-navigator.html`, built beside the D5–D8 constellation refresh, is
+  **~200 lines of vanilla JS building SVG DOM** with zero dependencies: static layout constants
+  (cluster-box grid flow for tiers, polar layout for the constellation), `viewBox` pan/zoom, native
+  SVG event delegation, and an invisible 16px twin line so thin edges are clickable. It carries ~66
+  nodes and ~66 edges across two modes with node/edge popovers, a query bar (`cluster:`, `status:`,
+  `kind:`, `tier:`, free text) that dims non-matches rather than removing them, and a chat hook.
+  Integration cost into the cockpit is "one React component that renders SVG" (RFI response A8;
+  audit §4). **What this is evidence for:** for a *viewer* over the Mermaid canon — the only thing
+  `diagram-conventions.md` asks a canvas to be — no library was needed, and the no-new-deps posture
+  held at 66 nodes. **What it is not evidence for:** editing. Nothing in the prototype creates,
+  moves, or persists a shape, which is the entire reason tldraw was a candidate. So the honest
+  scoping is: **tldraw remains a live research candidate for EDITABLE canvases only**, and #372's
+  spike question narrows from "do we need a canvas library" to "what does an *authoring* surface
+  need that hand-rolled SVG cannot give". Recorded as evidence — the operator rules on the
+  re-scope.
 
 ## Decisions so far
 
@@ -56,16 +72,29 @@ overwhelmed by LLM output and cannot see what is being built.
 - Tier-1 user-scoped `/diagram` skill; modes explain/orient/fleet; two-track boundary with /opm
   kept — /diagram skill design (#370, PR #375)
 
+**Proposed, not yet ratified** (2026-08-08, from the prototype evidence above):
+
+- **D3 (proposed) — the canvas library question splits in two.** Viewing is settled by evidence:
+  hand-rolled SVG, no dependency. Editing is still open, and it is the only question #368/#372
+  should still be spending an AFK research cycle on. Re-scope #368 to "tldraw (or React-authored
+  diagrams) for an *editable* fleet canvas — licensing, watermark, agent ecosystem" and #372 to a
+  spike that authors and round-trips a diagram, not one that renders one.
+- **D4 (proposed) — the fleet's first canvas ships as a viewer.** The cockpit's Fleet section
+  renders the registry-generated D5 and its siblings; the Mermaid in `~/selfco/diagrams/fleet-map.md`
+  stays the canon, per `diagram-conventions.md` ("canvas surfaces are viewers over the canon, never
+  the store"). Consistent with the standing ruling that canon diagrams live in the vault and the
+  cockpit links rather than hosts.
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What is the fleet diagram convention? (#367) | grilling | — | closed |
-| tldraw agent ecosystem deep-research (#368) | research | — | open |
+| tldraw agent ecosystem deep-research (#368) | research | — | open — re-scope proposed (D3) |
 | Where do diagrams live and when are they required? (#369) | grilling | — | open |
 | /diagram skill design (#370) | grilling | — | closed |
 | Automation design — diagrams without asking (#371) | grilling | — | open |
-| Canvas playground spike (#372) | prototype | tldraw agent ecosystem deep-research | open |
+| Canvas playground spike (#372) | prototype | tldraw agent ecosystem deep-research | open — re-scope proposed (D3) |
 | Does an Adobe Express publish endpoint belong? (#373) | grilling | — | open |
 
 ## Not yet specified
