@@ -246,3 +246,33 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 - 2026-08-03 maintenance-patrol flake fix: plan proposed "use recursive removal (`fs.rm(dir, {recursive: true, force: true})`)" as a candidate fix. Territory: every affected `afterEach` already used recursive+force — `force` does not help, because `ENOTEMPTY` is a live write landing between rm's `unlink` of `events/<date>.jsonl` and its `rmdir` of `events/`, not a leftover file. The real gap was `FilesystemBeadStore.appendEventLog()` being fire-and-forget, whose fix (`drainPendingWrites()`, commit 4ca3aae, 2026-05-04) was applied to only 2 of 10 test files that mkdtemp+rm a beads root. Took the conservative option: extended the existing convention to the 8 files missing it rather than changing production I/O semantics (awaiting `appendEventLog` inside create/update/close would remove the per-file discipline entirely, but widens blast radius beyond a test-flake fix). Recurrence signal: the same defect re-entered the codebase 8 times because the fix lives in per-file teardown that new tests must remember — candidate for a shared temp-store test helper.
 - 2026-08-03 maintenance-patrol flake fix (supersedes the entry above): operator elected the store-side fix on review. `FilesystemBeadStore.create/update/close` now `await this.appendEventLog(...)` instead of fire-and-forget; the `pendingWrites`/`trackWrite`/`drainPendingWrites()` machinery and all test-side drain calls are deleted, so the race is gone by construction rather than by per-file teardown discipline. Confirmed no consumer of `drainPendingWrites()` outside the package before removing it. Locked in with three `event log durability` tests in bead-store.test.ts, negative-control verified (reverting to `void this.appendEventLog(...)` fails 2 of them). Cost of awaiting measured as nil: full suite 3.59s vs 3.67s baseline.
 - 2026-08-08 (salvage): the superseded entry above says "all 10 test-side drain calls are deleted". Territory on `origin/main`: only **2** test files ever carried a drain call (`bead-store.test.ts`, `prime-node.test.ts`) — the 8 added by that session's first approach were never committed. The salvaged diff removes exactly those 2, which is consistent with main. Logged so the "10" is not read as missing work.
+
+## Deviations — core decomposition S3 2026-08-08
+
+- 2026-08-08 (decomposition S3): the plan was to move all 26 domain-knowledge files into
+  `universal/` + `apps/` and rewrite the ~77 core files that reference them. Territory: skills are
+  symlinked into all 30 sibling repos and read `domain-knowledge/<file>.md` **flat** — that is the
+  contract in every consuming repo, and core is itself a consumer. Rewriting skill references to
+  subdirectory paths would have broken every skill in every sibling repo; leaving them flat would
+  have broken them in core. Took the conservative option: sources moved into the subdirectories,
+  and core keeps the flat view via 26 tracked symlinks into `universal/`/`apps/` — the same flat
+  layout the installer creates everywhere else. No reference rewrite was needed, so the diff is the
+  move plus the manifest rather than an 80-file path churn.
+- 2026-08-08 (decomposition S3): the plan treated the manifest as pure refactoring. Territory: it
+  surfaced a live bug — `coding-standards.md`, `diagram-conventions.md`, and `opm-modeling.md` are
+  read by fleet-distributed skills (`/tdd`, `/pr-review`, `/diagram`, `/doc-refactor`,
+  `/skill-loader`, `/vault`, `/opm`) but were **never in the installer's UNIVERSAL list**, so all
+  30 sibling repos pointed at missing files; `coding-standards.md` even declares itself "read... in
+  any ojfbot repo" in its own first line. Verified empirically in blogengine before fixing. Added
+  all three to `universal`, which widens what ships fleet-wide — logged because that is a
+  distribution change, not just a move.
+- 2026-08-08 (decomposition S3): four files were in `domain-knowledge/` mapped to nobody —
+  `corereader-ux-research.md`, `shell-mayor-spec.md`, `shell-mf-integration.md`,
+  `daily-cleaner-staleness-spec.md`. Attributed them from their own headers (core-reader, shell ×2,
+  daily-logger) and mapped them in the manifest, so `core-reader` and `shell` now receive app docs
+  they never got. Flagged rather than silently dropped.
+- 2026-08-08 (decomposition S3): deleting the `case "$REPO_NAME"` switch made the S1 reconciler
+  report its `install-agents-archdocs` surface as UNPARSED — the reconciler working as designed.
+  Retargeted that surface to `domain-knowledge/manifest.json` (`parseInstallCaseSwitch` →
+  `parseDomainKnowledgeManifest`) and updated its fixture and tests, rather than leaving a surface
+  that silently reads nothing.

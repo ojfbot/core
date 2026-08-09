@@ -1,0 +1,37 @@
+{
+  "$comment": "Single source of truth for what install-agents.sh distributes. Replaces the UNIVERSAL=() array and the REPO_NAME case-switch that used to live in the script (core decomposition S3). Source files live in universal/ and apps/; targets always receive a FLAT domain-knowledge/<basename> so sibling repos and every existing reference keep working.",
+  "version": 1,
+  "universal": [
+    "CONTEXT.md",
+    "GLOSSARY.md",
+    "agent-defaults.md",
+    "app-templates.md",
+    "coding-standards.md",
+    "diagram-conventions.md",
+    "frame-os-context.md",
+    "langgraph-patterns.md",
+    "opm-modeling.md",
+    "selfco-vault.md",
+    "shared-stack.md",
+    "tbcony-dia-context.md",
+    "workbench-architecture.md"
+  ],
+  "apps": {
+    "asset-foundry": ["asset-foundry-architecture.md"],
+    "beaverGame": ["beavergame-architecture.md"],
+    "blogengine": ["blogengine-architecture.md"],
+    "core-reader": ["corereader-ux-research.md"],
+    "cv-builder": ["cv-builder-architecture.md"],
+    "daily-logger": ["daily-logger-architecture.md", "daily-cleaner-staleness-spec.md"],
+    "lean-canvas": ["lean-canvas-architecture.md"],
+    "mrplug": ["mrplug-architecture.md"],
+    "purefoy": ["purefoy-architecture.md"],
+    "shell": ["shell-mayor-spec.md", "shell-mf-integration.md"],
+    "TripPlanner": ["tripplanner-architecture.md"]
+  },
+  "aliases": {
+    "tripplanner": "TripPlanner",
+    "MrPlug": "mrplug",
+    "beaver-game": "beaverGame"
+  }
+}

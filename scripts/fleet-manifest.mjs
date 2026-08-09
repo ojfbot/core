@@ -107,15 +107,21 @@ export function parseRepoMeta(text) {
 }
 
 /** Case labels of the per-repo architecture-doc switch in install-agents.sh. */
-export function parseInstallCaseSwitch(text) {
-  const m = /case\s+"\$REPO_NAME"\s+in\n([\s\S]*?)\nesac/.exec(text);
-  if (!m) return [];
-  const names = [];
-  for (const line of m[1].split('\n')) {
-    const c = /^\s*([\w][\w.-]*)\)/.exec(line);
-    if (c && c[1] !== '*') names.push(c[1]);
+/**
+ * Repos that have app-specific domain-knowledge mapped to them.
+ *
+ * Reads domain-knowledge/manifest.json (the S3 single source of truth). This
+ * replaced the `case "$REPO_NAME"` switch that install-agents.sh used to carry;
+ * that switch no longer exists, so parsing the script would report UNPARSED.
+ */
+export function parseDomainKnowledgeManifest(text) {
+  let m;
+  try {
+    m = JSON.parse(text);
+  } catch {
+    return [];
   }
-  return names;
+  return Object.keys(m.apps ?? {});
 }
 
 /**
@@ -127,7 +133,7 @@ export function parseInstallCaseSwitch(text) {
  */
 export const SURFACES = [
   { id: 'core-claude-md', label: 'core CLAUDE.md ecosystem table', file: 'CLAUDE.md', repo: '.', expectation: 'complete', extract: (t) => parseEcosystemTable(t) },
-  { id: 'install-agents-archdocs', label: 'install-agents.sh arch-doc case-switch', file: 'scripts/install-agents.sh', repo: '.', expectation: 'subset', extract: (t) => parseInstallCaseSwitch(t) },
+  { id: 'domain-knowledge-manifest', label: 'domain-knowledge/manifest.json apps', file: 'domain-knowledge/manifest.json', repo: '.', expectation: 'subset', extract: (t) => parseDomainKnowledgeManifest(t) },
   { id: 'frame-standup-sync', label: 'frame-standup sync-repos.js REPOS', file: '.claude/skills/frame-standup/scripts/sync-repos.js', repo: '.', expectation: 'complete', extract: (t) => parseJsArray(t, 'REPOS') },
   { id: 'frame-standup-extensions', label: 'frame-standup read-app-standup.js REPOS', file: '.claude/skills/frame-standup/scripts/read-app-standup.js', repo: '.', expectation: 'subset', extract: (t) => parseJsArray(t, 'REPOS') },
   { id: 'launcher-registrations', label: 'launcher registrations/', file: 'scripts/launcher/registrations', repo: '.', expectation: 'subset', extract: null },

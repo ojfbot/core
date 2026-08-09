@@ -298,7 +298,23 @@ Persistent file-based memory at project scope (`.claude/projects/`) tracks user 
 
 ## Domain knowledge
 
-`domain-knowledge/` contains reference files read by commands when context is needed:
+`domain-knowledge/` contains reference files read by commands when context is needed.
+
+**Layout (decomposition S3).** `domain-knowledge/manifest.json` is the single source of truth
+for what `install-agents.sh` distributes. Sources live in two subdirectories:
+
+- `universal/` — shipped to **every** repo in the fleet
+- `apps/` — shipped only to the repo the manifest maps them to
+
+The flat `domain-knowledge/<file>.md` paths still resolve in core (they are symlinks into
+`universal/`/`apps/`), and sibling repos always receive a **flat** `domain-knowledge/<file>.md`.
+So every reference in this repo and across the fleet keeps working — **always reference the flat
+path**, never `universal/` or `apps/`, or the reference will break in sibling repos.
+
+To change what a repo receives, edit `manifest.json` and re-run the installer. Do not add file
+lists to the script.
+
+The files:
 
 - `CONTEXT.md` — **ubiquitous language layer (ADR-0044)**: 6 bounded contexts (Shell+Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components), aggregates inside each, cross-context workflows, universal invariants, naming disambiguation
 - `GLOSSARY.md` — A→Z one-liners for every non-obvious term, with source ADR/file cross-references
