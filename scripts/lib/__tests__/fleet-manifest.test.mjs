@@ -8,7 +8,7 @@ import {
   parseJsArray,
   parseJsSet,
   parseRepoMeta,
-  parseInstallCaseSwitch,
+  parseDomainKnowledgeManifest,
   registryFleet,
   reconcile,
   buildManifest,
@@ -43,18 +43,20 @@ describe('extractors', () => {
     expect(parseRepoMeta(ts)).toEqual(['shell', 'core']);
   });
 
-  it('parseInstallCaseSwitch reads case labels, skipping the default arm', () => {
-    const sh = [
-      'case "$REPO_NAME" in',
-      '  cv-builder)',
-      '    ARCH="cv-builder-architecture.md" ;;',
-      '  daily-logger)',
-      '    ARCH="daily-logger-architecture.md" ;;',
-      '  *)',
-      '    ARCH="" ;;',
-      'esac',
-    ].join('\n');
-    expect(parseInstallCaseSwitch(sh)).toEqual(['cv-builder', 'daily-logger']);
+  it('parseDomainKnowledgeManifest reads the repos that have app files mapped', () => {
+    const json = JSON.stringify({
+      universal: ['CONTEXT.md'],
+      apps: {
+        'cv-builder': ['cv-builder-architecture.md'],
+        'daily-logger': ['daily-logger-architecture.md', 'daily-cleaner-staleness-spec.md'],
+      },
+    });
+    expect(parseDomainKnowledgeManifest(json)).toEqual(['cv-builder', 'daily-logger']);
+  });
+
+  it('parseDomainKnowledgeManifest returns [] on unparseable or app-less input', () => {
+    expect(parseDomainKnowledgeManifest('not json')).toEqual([]);
+    expect(parseDomainKnowledgeManifest('{"universal":[]}')).toEqual([]);
   });
 
   it('normName lowercases for cross-surface comparison', () => {
@@ -87,7 +89,11 @@ describe('reconcile against a fixture fleet', () => {
       ['## Ecosystem', '', '| Repo | Port(s) |', '|------|---------|',
         '| shell | 4000 |', '| gcgcca | — |', '', '## Skills'].join('\n'),
     );
-    writeFileSync(path.join(coreRoot, 'scripts', 'install-agents.sh'), 'case "$REPO_NAME" in\n  shell)\n    : ;;\nesac\n');
+    mkdirSync(path.join(coreRoot, 'domain-knowledge'), { recursive: true });
+    writeFileSync(
+      path.join(coreRoot, 'domain-knowledge', 'manifest.json'),
+      JSON.stringify({ universal: ['CONTEXT.md'], apps: { shell: ['shell-mf-integration.md'] } }),
+    );
     writeFileSync(
       path.join(coreRoot, '.claude', 'skills', 'frame-standup', 'scripts', 'sync-repos.js'),
       `const REPOS = ['shell'];`,
@@ -134,9 +140,9 @@ describe('reconcile against a fixture fleet', () => {
 
   it('subset surfaces report extras but never absences', () => {
     const { results } = reconcile(coreRoot);
-    const archdocs = results.find((r) => r.id === 'install-agents-archdocs');
-    expect(archdocs.absent).toEqual([]);
-    expect(archdocs.status).toBe('ok');
+    const dkManifest = results.find((r) => r.id === 'domain-knowledge-manifest');
+    expect(dkManifest.absent).toEqual([]);
+    expect(dkManifest.status).toBe('ok');
   });
 
   it('sibling-repo surfaces degrade to unreachable, manual/auto stay labeled', () => {

@@ -13,11 +13,11 @@
 #      Each skill is a directory: .claude/skills/<name>/ with SKILL.md + knowledge/ + scripts/
 #      Symlinking the directory gives the target repo the full skill tree automatically.
 #      Also creates .claude/commands → skills/ backward-compat symlink.
-#   2. Creates domain-knowledge/ with symlinks to the universal context files
-#   3. Optionally links the repo-specific architecture file (auto-detected by name)
-#   4. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
+#   2. Creates domain-knowledge/ from domain-knowledge/manifest.json — every universal
+#      file plus any app-specific files mapped to this repo. Targets stay flat.
+#   3. Creates decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
 #      Adds decisions/core/ → core/decisions/ symlink for cluster-wide access
-#   5. Symlinks scripts/hooks/ and merges hook config into .claude/settings.json
+#   4. Symlinks scripts/hooks/ and merges hook config into .claude/settings.json
 #      Also installs user-level suggest-skill hook (once) into ~/.claude/settings.json
 #
 # NOTE: an earlier phase symlinked personal-knowledge/tbcony-job-target.md into every
@@ -444,59 +444,38 @@ elif [[ ! -e "$COMMANDS_LINK" ]]; then
 fi
 echo ""
 
-# ── 2. Universal domain-knowledge files ──────────────────────────────────────
-echo "── Universal domain-knowledge files"
+# ── 2. Domain-knowledge (driven by domain-knowledge/manifest.json) ───────────
+# The manifest is the single source of truth for what ships where. Sources live in
+# domain-knowledge/universal/ and domain-knowledge/apps/; targets always receive a
+# FLAT domain-knowledge/<basename> so existing references keep resolving.
+echo "── Domain-knowledge (manifest-driven)"
 mkdir -p "$TARGET/domain-knowledge"
 
-UNIVERSAL=(
-  frame-os-context.md
-  app-templates.md
-  shared-stack.md
-  langgraph-patterns.md
-  workbench-architecture.md
-  tbcony-dia-context.md
-  selfco-vault.md
-  CONTEXT.md
-  GLOSSARY.md
-  agent-defaults.md
-)
+MANIFEST="$CORE_DIR/domain-knowledge/manifest.json"
+if [[ ! -f "$MANIFEST" ]]; then
+  echo "  ERROR: manifest not found: $MANIFEST" >&2
+  exit 1
+fi
 
-for f in "${UNIVERSAL[@]}"; do
-  src="$CORE_DIR/domain-knowledge/$f"
+# Emit "<subdir> <basename>" lines for every file this target should receive:
+# all universal files, plus any app files mapped to this repo (aliases resolved).
+while read -r subdir fname; do
+  [[ -n "$fname" ]] || continue
+  src="$CORE_DIR/domain-knowledge/$subdir/$fname"
   if [[ ! -f "$src" ]]; then
-    echo "  warn: source not found, skipping: $f"
+    echo "  warn: manifest lists a file that does not exist, skipping: $subdir/$fname"
     WARNED=$((WARNED + 1))
     continue
   fi
-  link_file "$TARGET/domain-knowledge/$f" "$src"
-done
+  link_file "$TARGET/domain-knowledge/$fname" "$src"
+done < <(jq -r --arg repo "$REPO_NAME" '
+  (.aliases[$repo] // $repo) as $canon
+  | (.universal[] | "universal \(.)"),
+    ((.apps[$canon] // [])[] | "apps \(.)")
+' "$MANIFEST")
 echo ""
 
-# ── 3. Repo-specific architecture file (auto-detected) ───────────────────────
-ARCH_FILE=""
-case "$REPO_NAME" in
-  cv-builder)   ARCH_FILE="cv-builder-architecture.md" ;;
-  blogengine)   ARCH_FILE="blogengine-architecture.md" ;;
-  TripPlanner|tripplanner) ARCH_FILE="tripplanner-architecture.md" ;;
-  mrplug|MrPlug) ARCH_FILE="mrplug-architecture.md" ;;
-  purefoy)      ARCH_FILE="purefoy-architecture.md" ;;
-  daily-logger) ARCH_FILE="daily-logger-architecture.md" ;;
-  lean-canvas)  ARCH_FILE="lean-canvas-architecture.md" ;;
-  beaverGame|beaver-game) ARCH_FILE="beavergame-architecture.md" ;;
-  asset-foundry) ARCH_FILE="asset-foundry-architecture.md" ;;
-  shell)        ARCH_FILE="" ;;  # frame-os-context covers the shell
-esac
-
-if [[ -n "$ARCH_FILE" ]]; then
-  src="$CORE_DIR/domain-knowledge/$ARCH_FILE"
-  if [[ -f "$src" ]]; then
-    echo "── Repo-specific architecture file"
-    link_file "$TARGET/domain-knowledge/$ARCH_FILE" "$src"
-    echo ""
-  fi
-fi
-
-# ── 4. Decisions ─────────────────────────────────────────────────────────────
+# ── 3. Decisions ─────────────────────────────────────────────────────────────
 # Structure: decisions/adr/ + decisions/okr/ for repo-local decisions (domain isolation)
 #            decisions/core/ → symlink to core/decisions/ for cluster-wide ADRs + OKRs
 #
@@ -528,7 +507,7 @@ if [[ -d "$DECISIONS_DIR" && ! -L "$DECISIONS_DIR" ]]; then
 fi
 echo ""
 
-# ── 5. Hooks (scripts/hooks/) ────────────────────────────────────────────────
+# ── 4. Hooks (scripts/hooks/) ────────────────────────────────────────────────
 echo "── Hooks (scripts/hooks/)"
 if [[ -d "$CORE_DIR/scripts/hooks" ]]; then
   mkdir -p "$TARGET/scripts/hooks"
@@ -666,7 +645,7 @@ if [[ -f "$SUGGEST_HOOK" && -f "$USER_SETTINGS" ]]; then
   fi
 fi
 
-# ── 5b. GitHub Actions workflow (claude-skill-audit.yml) ─────────────────────
+# ── 4b. GitHub Actions workflow (claude-skill-audit.yml) ─────────────────────
 AUDIT_WORKFLOW="$CORE_DIR/.github/workflows/claude-skill-audit.yml"
 if [[ -f "$AUDIT_WORKFLOW" ]]; then
   echo "── GitHub Actions workflow"
@@ -687,7 +666,7 @@ if [[ -f "$AUDIT_WORKFLOW" ]]; then
   echo ""
 fi
 
-# ── 7. Standup extension template ─────────────────────────────────────────────
+# ── 5. Standup extension template ─────────────────────────────────────────────
 # Creates a template .claude/standup.md if one does not exist.
 # Never overwrites an existing standup.md — each repo owns its own.
 STANDUP_FILE="$TARGET/.claude/standup.md"
@@ -717,7 +696,7 @@ else
   echo ""
 fi
 
-# ── 8. Summary ────────────────────────────────────────────────────────────────
+# ── 6. Summary ────────────────────────────────────────────────────────────────
 echo "Done."
 echo "  Created: $CREATED"
 echo "  Updated (drift refreshed): $UPDATED"
