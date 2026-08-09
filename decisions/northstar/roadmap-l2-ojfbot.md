@@ -414,7 +414,7 @@ slices:
     deliverable: "DIA-CROSSCHECK-2026-07-08.md appended to the audit series (cycle 4): (1) what the operator's external DIA SOTA survey confirms of AGENTIC-INTEGRATION-PLAN + FLEET-COORDINATION-EXTENSIONS (expected: most of it); (2) the 4 genuine deltas, each with an explicit VERDICT: ACCEPT/DEFER/REJECT line + rationale consistent with the 'nothing here needs weights' stance and the OPAV S5 firebreak — (a) SIA harness+weights co-evolution, (b) test-time-compute allocation policy, (c) consensus voting for high-impact actions, (d) CLHF continuously-retrained evaluators; (3) a line stating whether any verdict reorders tranche 3+."
     entrance: "Cycles 2-3 committed (verified); operator supplied the DIA survey material 2026-07-08; S20 referenced as the standing judge posture the CLHF verdict must reconcile with."
     success: "Doc committed with exactly 4 grep-able 'VERDICT:' lines, cross-references from the cycle-2/3 headers, and the ordering-impact line; verdicts carry operator sign-off at PR merge."
-    check: "test -f DIA-CROSSCHECK-2026-07-08.md && [ $(grep -c '^VERDICT' DIA-CROSSCHECK-2026-07-08.md) -eq 4 ]"
+    check: "test -f docs/audits/DIA-CROSSCHECK-2026-07-08.md && [ $(grep -c '^VERDICT' docs/audits/DIA-CROSSCHECK-2026-07-08.md) -eq 4 ]"
     autonomy: gate-0
     claimable_by: either
     kind: m
@@ -429,7 +429,7 @@ slices:
     deliverable: "LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md appended to the audit series (cycle 5): (1) the convergent bulk — loop-engineering building blocks (Cherny/Osmani/Greyling/Masood) mapped onto live/programmed machinery; (2) five deltas each with a grep-able VERDICT line — (a) harness-native loop primitives vs the bespoke layer (PARTIAL-ABSORB policy, trigger layer only), (b) the Advisor tool (paper adjudication, DEFER behind T8; corrects the 'Advisor-Executor' misnomer against the primary source), (c) loops registry (BUILD -> S29), (d) loop liveness (BUILD -> S30), (e) loop closure (CONVERGENT with OPAV S3/S5); (3) ordering-impact line. Verdicts stay consistent with the S20 static-judge posture and the OPAV S5 firebreak."
     entrance: "Cycles 1-4 committed (verified); operator supplied the Dia loop-engineering thread 2026-07-09; Advisor-tool facts verified against platform.claude.com primary docs, not the thread."
     success: "Doc committed with exactly 5 grep-able 'VERDICT:' lines, cross-references to the cycle-1..4 headers, and the ordering-impact line; verdicts carry operator sign-off at PR merge."
-    check: "test -f LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md && [ $(grep -c '^VERDICT' LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md) -eq 5 ]"
+    check: "test -f docs/audits/LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md && [ $(grep -c '^VERDICT' docs/audits/LOOP-ENGINEERING-CROSSCHECK-2026-07-09.md) -eq 5 ]"
     autonomy: gate-0
     claimable_by: either
     kind: m
