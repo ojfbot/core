@@ -22,6 +22,9 @@ phases:
   - id: PH6
     name: "Audit cycle 5 (2026-07-09) — loop-engineering cross-check: loop legibility + liveness"
     goal: "The loop-engineering / Advisor-tool cross-check is filed as audit cycle 5 with explicit verdicts, every loop in the cluster is declared in one lintable registry (trigger, state spine, verifier, stop rule), and dead loops become detectable from the registry instead of by operator absence-noticing."
+  - id: PH7
+    name: "Core decomposition (2026-08-08) — one repo, three legible personas"
+    goal: "core stops blurring harness / fleet-ledger / personal-corpus. Fleet membership has one reconciler instead of four hand-maintained inventories (TD-007), operator-personal material lives outside the repo, dead structure is gone, and every distribution list is derived from a manifest rather than asserted in a script."
 slices:
   - id: S1
     phase: PH1
@@ -513,6 +516,101 @@ slices:
     repo: core
     status: ready
     depends_on: "rm:rm-l2-ojfbot#S32"
+  - id: S34
+    phase: PH7
+    title: "Fleet reconciler in shadow — one derived view of fleet membership across every enumeration surface"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 47
+    moves_to: 48
+    deliverable: "scripts/fleet-manifest.mjs reconciles the northstar registry against all 13 enumeration surfaces (core CLAUDE.md table, frame-standup lists, daily-logger collect/api, cockpit REPO_META, launcher registrations, domain-knowledge manifest, …) and reports DRIFT/OK/MANUAL/AUTO per surface; shadow mode, exit 0 always; a reconcile CI job runs it on every PR."
+    entrance: "TD-007 filed with four hand-maintained inventories named and evidence that registered repos are invisible on some of them."
+    success: "The reconciler runs green in CI, names real drift (f1-learning-studio stale on the CLAUDE.md table, gcgcca stale in daily-logger build-api.ts, fieldwork-1 registered-but-on-no-surface), and never gates a PR."
+    check: "test -f scripts/fleet-manifest.mjs && node scripts/fleet-manifest.mjs > /dev/null"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: merged
+  - id: S35
+    phase: PH7
+    title: "Personal exile + attic + dead-structure delete — core carries no operator-personal material"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 48
+    moves_to: 49
+    deliverable: "personal-knowledge/ moved to ~/selfco/career/ (gitignored both ends); install-agents.sh's job-doc distribution phase deleted rather than retargeted; career framing stripped from the fleet-symlinked frame-os-context.md; 9 dated audits + SURVEY.md moved to docs/audits/ with an index; empty skills/, packages/cli and packages/vscode-extension deleted with every README/docs claim about them corrected."
+    entrance: "S34 merged — the reconciler catches any reference this slice misses."
+    success: "Installer re-run is idempotent fleet-wide with zero dead symlinks and creates no personal-knowledge/; no live reference to a deleted path; reconciler drift unchanged or reduced."
+    check: "test ! -d skills && test ! -d packages/cli && test ! -d packages/vscode-extension && test -d docs/audits && ! grep -q 'PERSONAL_SRC' scripts/install-agents.sh"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: merged
+    depends_on: "rm:rm-l2-ojfbot#S34"
+  - id: S36
+    phase: PH7
+    title: "Manifest-driven domain-knowledge — universal/ + apps/ replace two hardcoded lists in the installer"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 49
+    moves_to: 50
+    deliverable: "domain-knowledge/manifest.json as the single source of truth for what install-agents.sh distributes; sources split into universal/ (13, every repo) and apps/ (13, mapped repos only); the UNIVERSAL=() array and the case \"$REPO_NAME\" switch deleted; targets keep a flat domain-knowledge/<file>; the reconciler's arch-doc surface retargeted to the manifest."
+    entrance: "S35 merged; the flat target contract confirmed as what all 30 sibling repos consume."
+    success: "Installer links the manifest's universal set plus mapped app files, resolves repo aliases, stays idempotent with zero dead symlinks; fleet-manifest shows no new drift; full suite green. Fixes the verified gap where coding-standards.md, diagram-conventions.md and opm-modeling.md were read by fleet-distributed skills but shipped to nobody."
+    check: "test -f domain-knowledge/manifest.json && node -e \"const m=require('./domain-knowledge/manifest.json');process.exit(m.universal?.length&&Object.keys(m.apps||{}).length?0:1)\" && ! grep -q 'UNIVERSAL=(' scripts/install-agents.sh"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: merged
+    depends_on: "rm:rm-l2-ojfbot#S35"
+  - id: S37
+    phase: PH7
+    title: "Decisions hygiene — engagements/ split and governs: tags, selfco ADRs tagged not moved"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 50
+    moves_to: 51
+    deliverable: "decisions/ re-layered so client-engagement records live under engagements/ and every ADR carries a governs: tag naming what it binds; selfco-scoped ADRs are tagged in place, never relocated (the x33 decisions/ symlink makes moves fleet-visible)."
+    entrance: "S36 merged; the disclosure-seam ruling for engagement records confirmed with the operator."
+    success: "Every ADR resolves a governs: tag; no decisions/ path referenced by a sibling repo changes; adr-provenance CI stays green."
+    check: "node scripts/adr-provenance.mjs --check || node scripts/northstar-lint.mjs --check"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S36"
+  - id: S38
+    phase: PH7
+    title: "Honest caches — generated skill-catalog and a fleet.json the CLAUDE.md table points at"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 51
+    moves_to: 52
+    deliverable: "skill-catalog.json generated from the skill directories rather than hand-maintained, and core's CLAUDE.md ecosystem table replaced by a pointer to a derived fleet.json — so the two largest hand-copied caches in the repo stop being independently editable assertions."
+    entrance: "S37 merged; the reconciler has run long enough in shadow to show which surfaces drift most."
+    success: "Both caches are regenerated by a script with a CI check that fails on staleness; the reconciler reports the CLAUDE.md-table surface as AUTO rather than DRIFT."
+    check: "node scripts/fleet-manifest.mjs --check"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S37"
+  - id: S39
+    phase: PH7
+    title: "Promote the reconciler from shadow to blocking — RIDM on observed drift"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 52
+    moves_to: 53
+    deliverable: "fleet-manifest --check wired as a blocking CI gate, promoted only on evidence: a shadow-period record showing the reconciler's findings were real and actionable, with the remaining MANUAL surfaces either machine-diffable or explicitly exempted."
+    entrance: "S38 merged; a shadow-period record exists showing zero false-positive DRIFT reports, and every surface is AUTO, OK, or an explicit documented exemption."
+    success: "A PR that removes a repo from one surface fails CI; the promotion decision is recorded as a data-gated RIDM citing the shadow record."
+    check: "node scripts/fleet-manifest.mjs --check"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S38"
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
