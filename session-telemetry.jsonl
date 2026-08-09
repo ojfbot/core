@@ -101,3 +101,8 @@
 {"ts":"2026-08-09T03:47:33Z","event":"session:start","session_id":"8fd0043f-7ef8-4922-855e-f3b326ce0f9e","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-09T03:47:33Z","event":"session:start","session_id":"9e178cbb-76d0-4dfb-ac32-e824f5b8780b","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-08-09T03:47:34Z","event":"session:start","session_id":"c837e3b9-1f5c-40fa-84e3-abd8aab9abf0","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-08-09T17:28:26Z","event":"session:start","session_id":"0abc3a03-53da-4d14-a012-a274d80f3d03","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-09T17:28:26Z","event":"session:start","session_id":"d4387833-7fb5-4d81-a177-c938ee0378cb","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-08-09T17:28:26Z","event":"session:start","session_id":"c837e3b9-1f5c-40fa-84e3-abd8aab9abf0","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-08-09T17:28:27Z","event":"session:start","session_id":"01af4ca5-cd6f-46b6-aefb-2e3dd72c7273","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-09T17:29:02Z","event":"session:start","session_id":"1fd63128-4735-4ad4-af72-bae433561c6a","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
