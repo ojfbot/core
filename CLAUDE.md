@@ -331,6 +331,7 @@ The files:
 - `tbcony-dia-context.md` — TBCoNY/Dia AI-native product philosophy (Samir Mody talk): assistant-centricity, model behavior discipline, eval/hill-climbing, prompt injection as UX, "internet computer" framing
 - `daily-logger-architecture.md` — daily-logger pipeline (collect → draft → council → synthesize), persona format, council-of-experts pattern, CI orchestration, invariants
 - `selfco-vault.md` — the `selfco` LLM Wiki (`~/selfco`, Karpathy pattern: `raw/` + `wiki/`) and the `/vault` skill: layers, page schemas, the in-vault `CLAUDE.md` schema, modes (ingest/research/query/lint `--gate`/sync/cultivate/…), graph-UI config, opt-in `vault-session.sh` hook, semantic-suggest.py embeddings channel. ADR-0085, ADR-0088–0091
+- `chat-token-vocabulary.md` — the cockpit chat's UI-executed command tokens (`/explain` `/ladder` `/gap` `/open` `/draft-handoff`): capability class per token, the invariants that keep them out of the model's tool surface, and the standing rule that core verbs as tokens is a NEW operator decision — flag it, never infer it
 - `coding-standards.md` — TypeScript rules, forbidden patterns, naming conventions, skill file structure, PR standards, ADR quality guide
 
 Always read `frame-os-context.md` first for cross-repo work. Commands that audit or debug project code should also read the relevant architecture file(s). The shared-stack file covers patterns common to cv-builder, TripPlanner, and BlogEngine. `/scaffold-app` reads `app-templates.md` directly. `/daily-logger` reads `daily-logger-architecture.md`.

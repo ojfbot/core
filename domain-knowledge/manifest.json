@@ -24,6 +24,7 @@
     "cv-builder": ["cv-builder-architecture.md"],
     "daily-logger": ["daily-logger-architecture.md", "daily-cleaner-staleness-spec.md"],
     "lean-canvas": ["lean-canvas-architecture.md"],
+    "morning-cockpit": ["chat-token-vocabulary.md"],
     "mrplug": ["mrplug-architecture.md"],
     "purefoy": ["purefoy-architecture.md"],
     "shell": ["shell-mayor-spec.md", "shell-mf-integration.md"],

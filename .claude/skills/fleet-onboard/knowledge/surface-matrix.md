@@ -1,6 +1,12 @@
 # The surface matrix (audit of 2026-07-22 — re-verify paths before editing; they move)
 
-The 14 fleet enumeration surfaces: file, mechanism, and per-surface action.
+The 15 fleet enumeration surfaces: file, mechanism, and per-surface action.
+
+**Mechanism is the thing to read first.** `explicit` surfaces need a hand edit at onboard time and
+drift silently between edits — they are the TD-007 population. `AUTO` and `REGISTRY-GENERATED`
+surfaces need no onboard action; for those, the job is to *keep* them generated. A surface that
+starts registry-generated and acquires "just one" hand-maintained list has quietly become the next
+row in the explicit half of this table.
 
 | # | Surface | File | Mechanism | Action |
 |---|---------|------|-----------|--------|
@@ -18,3 +24,4 @@ The 14 fleet enumeration surfaces: file, mechanism, and per-surface action.
 | 12 | Vault repo entity | `~/selfco/wiki/entities/<repo>.md` | AUTO — `/vault sync` creates stubs for every `~/ojfbot/*/.git` | no action; note that next sync heals |
 | 13 | Cockpit read-model | `listKnownRepos()` readdir + Dolt/`.handoff` adapters | AUTO | no action |
 | 14 | day-runner / bead-emit | parametric on repo label; needs dir + `.git` | AUTO | no action |
+| 15 | Cockpit fleet-structure pane | `morning-cockpit` fleet-structure adapter → `/api/fleet-structure`, rendered by the Fleet section's Tiers/Constellation modes | **REGISTRY-GENERATED** — reads `core/decisions/northstar/README.md` + roadmap `status:` tallies + `decisions/wayfinder/*` frontmatter; census side is a `~/ojfbot/*/.git` readdir | no onboard action. **Verify it is still generated**: membership must be joined to the registry on both sides and disagreement *rendered* (unregistered = dashed), never joined to `REPO_META` (surface 5) and never a hand-kept node list — that is exactly how it would become surface #16 (TD-007) |

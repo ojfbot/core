@@ -61,6 +61,26 @@ parallel truth).
   enforcing "no cloud cascade." Unifying chat under the selector re-opens ADR-0006 at the root.
 - Selfco reference layer consulted: `wiki/concepts/three-tier-northstar.md`,
   `wiki/sources/prompt-cockpit-northstar-clarification.md`. Design-time read only.
+- **Prototype evidence, 2026-08-08 (cockpit v2 design pass).** A full interactive design prototype
+  (`morning-cockpit/research/design-handoff-cockpit-v2/`, branch `prototype/fleet-navigator`) ran
+  against two of this map's open tickets. Its findings are recorded as **evidence below, not as
+  closures** — a prototype answers a question; the operator rules on it.
+  - **#338 — the canvas does not survive 372px.** Measured in the prototype (RFI response E30):
+    a fleet canvas is comfortable at ≥ ~700px and workable at ~560px; the 400px node popover and
+    tier-card text are the binding constraints, and neither fits the 372px `.chat-sidebar`. The
+    canvas therefore moved to a main-column Fleet section. **What does fit the rail is the pattern
+    the v2 design adopts there instead: inspector (context breadcrumb → node payload) above
+    threaded chat**, on a `minmax(60px,1fr) minmax(120px,46%)` grid so neither pane overlaps the
+    other. This is a verdict on the *canvas* in the rail; the one-thread-grill cadence question the
+    ticket was originally written to answer is what remains, and it is what a re-scope would keep.
+  - **#340 — the recommended answer is keyed threads plus an explicit scope toggle.** Implemented
+    cockpit-side in the prototype (option S-c): threads keyed `{global | repo}`, a `GLOBAL · LEO`
+    tab plus per-repo tabs opened via "Ask Leo ↓", each scoped thread carrying a
+    `context → Global: ON/OFF` share toggle. **Clicking a different tile mid-grill pins the thread
+    to its scope** — selection changes the INSPECTOR, not the conversation. That is the map's third
+    option ("pin the conversation and decouple it from focus") chosen deliberately, which does
+    change what "focus-scoped" means: the *thread* is scope-keyed at creation, the *rail* is
+    focus-following. See the proposed ruling in Decisions (unratified).
 
 ## Decisions so far
 
@@ -100,6 +120,21 @@ Operator rulings, 2026-08-01 charting session (recorded as pre-map decisions, no
   `agent_eligible` and lets the day-runner claim it.** The exact field list is the evidence-line
   ticket's remaining work (D5).
 
+**Proposed, not yet ratified** — recorded 2026-08-08 from the cockpit v2 design pass so the
+recommendation sits on the map rather than only in a design package. Neither line is a ruling
+until the operator says so:
+
+- **D7 (proposed) — threads are keyed `{global | repo}`, and focus changes do not move a thread.**
+  Per-scope threads with a per-thread `share-to-global` toggle; clicking a different tile mid-grill
+  repoints the inspector and leaves the conversation pinned to the scope it was opened in. Answers
+  #340's key and its focus-change rule; the *retention* rule the ticket also asks for (how many
+  threads per repo survive, and for how long) stays open. Evidence: prototype, in Notes.
+- **D8 (proposed) — the fleet canvas is a main-column surface; the 372px rail holds inspector +
+  threaded chat.** Answers #338's canvas question with a measurement (≥560px workable, ≥700px
+  comfortable) rather than a preference. Closing #338 on this evidence means accepting that the
+  *cadence* question — does one-question-at-a-time read as interrogation in a narrow rail — is
+  answered separately or re-scoped into #339, which #338 currently blocks.
+
 ## Tickets
 
 | Ticket (refer by name) | Type | Blocked by | Status |
@@ -107,14 +142,16 @@ Operator rulings, 2026-08-01 charting session (recorded as pre-map decisions, no
 | where the evidence line falls when the chat has facts (#334) | grilling | — | open |
 | one thread or two ledgers — authoring vs decomposition (#335) | grilling | where the evidence line falls | open |
 | the cockpit-wide switchboard seam and its failure behavior (#336) | grilling | — | open |
-| does a one-thread grill survive a 372px rail (#338) | prototype | — | open |
+| does a one-thread grill survive a 372px rail (#338) | prototype | — | answered — awaiting ratification (D8) |
 | push-to-talk viability at the desk (#339) | prototype | does a one-thread grill survive a 372px rail | open |
-| thread keying and focus changes mid-conversation (#340) | grilling | — | open |
+| thread keying and focus changes mid-conversation (#340) | grilling | — | answered — awaiting ratification (D7) |
 | what focusing a cluster means in the cockpit (#341) | grilling | *core: cluster-tier schema build (RFQ-004)* | blocked |
 
-**Frontier** (open + unblocked + unclaimed): the evidence line (#334), the switchboard seam (#336),
-the 372px rail (#338), thread keying (#340). Blocking edges live in each issue's `## Blocked by`
-section — this GitHub instance exposes no native dependency field, matching the convention already
+**Frontier** (open + unblocked + unclaimed): the evidence line (#334), the switchboard seam (#336).
+`answered — awaiting ratification` means a prototype produced the evidence and a recommendation is
+on the map, but the ticket is not closed and does not clear its blocking edge until the operator
+rules: **#339 stays blocked** behind #338 until D8 is ratified. Blocking edges live in each issue's
+`## Blocked by` section — this GitHub instance exposes no native dependency field, matching the convention already
 used by `operating-surface-bonded-pair`.
 
 ### Ticket bodies
@@ -161,6 +198,13 @@ The cadence was authored for voice in a car, where one-question-at-a-time is the
 freeform chat with a ladder nudge / stepped wizard with a progress rail / hybrid — run a real
 northstar through each, record the verdict, delete the losers.
 
+*Verdict recorded 2026-08-08 (see Notes, D8-proposed).* The prototype answered the **surface** half:
+a canvas needs ≥560px and the rail gets inspector + threaded chat instead. It did **not** run three
+cadence variants with a real northstar, which is what this ticket originally asked for. Two honest
+closures are available and the operator picks: **close** — the surface answer is what was needed,
+cadence folds into #335's mode question; or **re-scope** to "does the ladder cadence survive a chat
+rail" and keep it, in which case #339 stays blocked behind the re-scoped ticket.
+
 **push-to-talk viability at the desk** (#339) · *prototype*
 Web Speech API in the cockpit's browser: push-to-talk vs continuous, TTS for the agent's turn,
 barge-in, reduced-motion and a11y. Blocked on the cadence prototype because voice pushes hard
@@ -171,6 +215,12 @@ toward one-question-at-a-time and would prejudge it.
 tab or unit key. Per-unit Northstar threads need a key, a retention rule, and a ruling on what
 happens when a different tile is clicked mid-grill: switch threads, warn, or pin the conversation
 and decouple it from focus. The third option changes what "focus-scoped" means.
+
+*Recommended answer recorded 2026-08-08 (D7-proposed): key `{global | repo}`, per-thread
+share-to-global toggle, and the third option — pin the thread, repoint the inspector.* Ratifying it
+still leaves two things this ticket asked for: the **retention rule**, and the **store shape** —
+`chat-store.ts` holds one global thread in `.data/chat-history.json` with no key at all, so keying
+is a migration, not a field addition.
 
 **what focusing a cluster means in the cockpit** (#341) · *grilling, blocked*
 Per D2. `ns:cluster-<name>@<semver>#P<n>` is `[SCHEMA ITERATION 6] — DESIGNED` in

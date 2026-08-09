@@ -37,8 +37,12 @@ registry:
     app: f1-substrate
     path: ../f1-substrate/.claude/northstar.md
     ladders_up_to: l2-ojfbot
-  - slug: buddy-check                         # NB: shipped with a bare slug (no l1- prefix); slug is
-    tier: L1                                   # immutable identity (ADR-0087), so it is registered as-is.
+  # NB: buddy-check shipped with a bare slug (no l1- prefix); slug is immutable identity
+  # (ADR-0087), so it is registered as-is. Comments must be full-line: the frontmatter parser
+  # cannot strip trailing ones (values legitimately contain `#`, e.g. `ns:l2-ojfbot#P2`), so a
+  # trailing comment is parsed as part of the value.
+  - slug: buddy-check
+    tier: L1
     app: buddy-check
     path: ../buddy-check/.claude/northstar.md
     ladders_up_to: l2-ojfbot

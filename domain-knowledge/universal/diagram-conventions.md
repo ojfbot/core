@@ -46,6 +46,15 @@ ticket *What is the fleet diagram convention?* (map `decisions/wayfinder/diagram
 ## Update discipline
 
 - Standing diagram files **append** new diagrams; corrections edit in place with a dated note.
+- **A diagram whose content is a projection of a registry should be generated, not authored.** The
+  first one is D5 of `~/selfco/diagrams/fleet-map.md` — `core/scripts/fleet-map-d5.mjs` reads the
+  northstar registry and appends a dated section (`--append`); its golden-file test is
+  `scripts/lib/__tests__/fleet-map-d5.test.mjs`. Generated fences say so in their preamble and are
+  re-run rather than hand-edited. Diagrams that model process or relationships (D6–D8) stay
+  authored — there is no registry to project.
+- **Render dark-native for dark surfaces.** A generated fence carries `config: theme: dark` in its
+  frontmatter so every renderer draws it dark. Shipping a light-theme render into a dark surface was
+  a named defect of the fleet-navigator prototype (vol.3).
 - Verification today is the preview-harness pattern (`personal-knowledge/mermaid-preview.html`:
   `mermaid.parse()` + render per fence, pass/fail badges). A fleet staleness/render lint is
   charted fog on the wayfinder map — do not assume it exists.
