@@ -44,7 +44,7 @@ The first slice ships drag-and-drop photo upload. Mobile camera capture and voic
 | Step | Where it runs | What it does |
 | --- | --- | --- |
 | Preprocess | browser-app | Auto-rotate, deskew, crop, split into one image per card. |
-| Parse | api → core skill | `POST /api/intake/parse-card` calls `/diagram-intake` via `core-workflow` CLI. Returns the skill's existing JSON shape (one entry per recognized rig, mapped to canonical `BEAD_PREFIX_MAP` ids). |
+| Parse | api → core skill | `POST /api/intake/parse-card` calls `/diagram-intake` via `runWorkflow` from `@core/workflows`. Returns the skill's existing JSON shape (one entry per recognized rig, mapped to canonical `BEAD_PREFIX_MAP` ids). |
 | Expand | api → core skill | Each bullet's raw text expands using the rig's recent context: last seven days of beads, current open PRs, the daily-logger digest. Output: `expanded_title`, `expanded_description`, `why`, `candidate_decompositions[]`. |
 | Align | browser-app | Two-column view. Original card photo on the left. Expanded title, why, and candidate decompositions on the right. The developer accepts, edits inline, or rejects each entry. |
 | Confirm | browser-app | The aligned set renders as a proposed bead graph. |
@@ -57,7 +57,7 @@ The browser-app (`packages/browser-app`) gains an `IntakeTab` route under `gasto
 - `POST /api/intake/parse-card` — multipart upload, body returns the `/diagram-intake` JSON.
 - `POST /api/intake/confirm` — body is the aligned set, the handler invokes `BeadStore.create()` per parent.
 
-Both endpoints route through React Query mutations on the client (per ADR-0028). The parser endpoint shells out to `node packages/cli/dist/index.js "/diagram-intake $arg"` against the core checkout, or invokes `runWorkflow` from `@core/workflows` directly when running co-located. The choice is an implementation detail; the contract is the JSON shape.
+Both endpoints route through React Query mutations on the client (per ADR-0028). The parser endpoint invokes `runWorkflow` from `@core/workflows` against a co-located core checkout. The contract is the JSON shape, not the invocation mechanism.
 
 A new `IntakeAdapter` joins the existing data adapters under `packages/api/src/adapters/`. Per `gastown-pilot/CLAUDE.md`, all current adapters are scaffold-stubbed; the `IntakeAdapter` ships first as a non-stub, wired to the local API endpoint.
 
@@ -110,7 +110,7 @@ Per `gastown-pilot/CLAUDE.md:67`, the surface uses `worker` (not polecat), `witn
 
 - A seventh tab on a layout that was scoped to six.
 - A multipart endpoint and image storage path on the API. The first slice writes uploaded photos to a local directory referenced by `card_image_uri`; durable storage is a follow-up.
-- Server-side dependency on a co-located core checkout (or a published `core-workflow` binary) so the API can invoke `/diagram-intake`.
+- Server-side dependency on a co-located core checkout so the API can invoke `/diagram-intake` through `@core/workflows`.
 - The Intake tab introduces a vision LLM call into the morning hot path; latency and cost land on every card.
 
 ### Risks
@@ -152,3 +152,13 @@ Per `gastown-pilot/CLAUDE.md:67`, the surface uses `worker` (not polecat), `witn
 | Frame route at which Intake mounts | `gastown-pilot/intake` |
 | Originally drafted as | ADR-006 (handoff message, 2026-04-30) |
 | Master | [ADR-0056](0056-developer-day-orchestration-master.md) |
+
+## Revisions
+
+- **2026-08-08** — mechanism references corrected. This ADR was written when a
+  `core-workflow` CLI binary (`packages/cli`) existed; core decomposition S2
+  (ojfbot/core#438) deleted that package as a dormant shell frozen since 2026-02-28.
+  The ADR already named `runWorkflow` from `@core/workflows` as the co-located
+  alternative and stated the contract is the JSON shape, so **the decision is
+  unchanged** — only the now-impossible invocation path is removed. Status stays
+  `Proposed`.
