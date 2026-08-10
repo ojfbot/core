@@ -106,3 +106,8 @@
 {"ts":"2026-08-09T17:28:26Z","event":"session:start","session_id":"c837e3b9-1f5c-40fa-84e3-abd8aab9abf0","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-08-09T17:28:27Z","event":"session:start","session_id":"01af4ca5-cd6f-46b6-aefb-2e3dd72c7273","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-09T17:29:02Z","event":"session:start","session_id":"1fd63128-4735-4ad4-af72-bae433561c6a","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-08-09T17:30:42Z","event":"session:start","session_id":"f68beded-c13a-495e-a5b7-9c672cff7e39","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-09T17:30:43Z","event":"session:start","session_id":"d2bede0a-8404-447f-8572-de4794b3b336","source":"startup","model":"","repo":"core","branch":"feat/canon-d5-wayfinder-closeouts-token-vocab","cwd":"/Users/yuri/ojfbot/core"}
+{"ts":"2026-08-09T17:30:44Z","event":"session:start","session_id":"74a9ee24-3553-45d7-b490-7621d1fcf833","source":"resume","model":"","repo":"core","branch":"feat/canon-d5-wayfinder-closeouts-token-vocab","cwd":"/Users/yuri/ojfbot/core"}
+{"ts":"2026-08-09T17:41:05Z","event":"session:start","session_id":"48d71a92-bacc-4506-b378-9cc04bf9adac","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-09T19:41:36Z","event":"session:start","session_id":"2dae587a-f227-4417-bf5b-f53c66b1cdb2","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
