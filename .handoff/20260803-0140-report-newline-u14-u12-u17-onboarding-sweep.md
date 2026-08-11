@@ -4,6 +4,7 @@ type: report
 title: "Newline curriculum sitting 5: vault backfill, U14 modules 4–7, U12 closed, U17/U1–U3/U7-U8-U10 swept — ingestion frontier now zero unmapped courses"
 actor: code-claude
 session_id: newline-curriculum-ingestion-2026-08-03b
+responding_to: 20260803-0020-brief-newline-u14-content-and-remaining-units
 refs:
   - bead:20260803-0020-brief-newline-u14-content-and-remaining-units
   - bead:20260803-0015-report-newline-vault-backfill-u14mp-u6-u11
