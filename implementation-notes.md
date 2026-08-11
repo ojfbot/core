@@ -300,3 +300,15 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   Carbon Design System and ADR-0012 is Module Federation. A core-side doc citing them bare would
   point at the wrong documents. **Took the conservative option:** qualified every cross-repo citation
   with its repo and recorded the collision explicitly in `chat-token-vocabulary.md`.
+- /diagram delivery amendment + techdebt filing (2026-08-08): plan was "ship a small PR on a branch".
+  **Territory:** the session worktree was branched off a *local* `main` sitting 19 commits ahead of
+  `origin/main`, so the one-line SKILL.md PR silently carried 18 unrelated bead/handoff commits (19
+  files, +1528 lines) — the PR body described a one-file change that GitHub did not agree with. It
+  surfaced only because `core` allows *rebase merges only*: squash and merge-commit were rejected by
+  repo policy, and rebase was rejected because the inherited history held 7 merge commits.
+  **Took the conservative option:** reset the topic branch to `origin/main`, cherry-picked the single
+  intended commit, force-pushed with `--force-with-lease`, re-verified CI, then rebase-merged
+  (afd6cfa); left local `main` and its 18 pending commits untouched. The same trap hit PR #435 in a
+  parallel session the same day and was *not* caught there — 9 inherited commits the ledger marks
+  "do not push" (this file, 2026-08-03 entry) are now on public `origin/main`. Filed as TD-009
+  rather than fixed here, since the fix is a harness/policy change, not a diagram change.
