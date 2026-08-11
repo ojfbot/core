@@ -1,11 +1,24 @@
-# Brief — pick up: canon regeneration, wayfinder closeouts, token vocabulary
-
-date: 2026-08-08 (evening sitting)
-actor: claude-design-session
-repo: core
+---
+id: 20260808-2150-brief-canon-wayfinder-closeouts-and-token-vocabulary
 type: brief
-relates: decisions/wayfinder/cockpit-northstar-conversation.md (#338, #340), decisions/wayfinder/diagram-first-output.md (#368, #372), TD-007, ~/selfco/diagrams/fleet-map.md
-design_package: design_handoff_cockpit_v2/ (in the morning-cockpit handoff; shared)
+title: "Canon regeneration, wayfinder closeouts, and the chat token vocabulary (core side of cockpit v2)"
+actor: claude-design-session
+to: code-claude
+session_id: 2026-08-08T21:50:00Z
+refs:
+  - file:decisions/wayfinder/cockpit-northstar-conversation.md
+  - file:decisions/wayfinder/diagram-first-output.md
+  - file:.claude/skills/fleet-onboard/knowledge/surface-matrix.md
+  - path:~/selfco/diagrams/fleet-map.md
+status: closed
+created_at: 2026-08-08T21:50:00Z
+labels:
+  - canon
+  - wayfinder
+  - cockpit-v2
+---
+
+# Brief — pick up: canon regeneration, wayfinder closeouts, token vocabulary
 
 ## Context
 

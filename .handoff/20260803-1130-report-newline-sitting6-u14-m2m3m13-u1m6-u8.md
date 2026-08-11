@@ -5,6 +5,7 @@ title: "Newline curriculum sitting 6 — U14 M2/M3/M13 read, U1 M6 claim tested,
 actor: code-claude
 to: operator
 session_id: newline-curriculum-ingestion-2026-08-03c
+responding_to: 20260803-0200-brief-newline-u14-remaining-modules-and-targeted-reads
 refs:
   - bead:20260803-0200-brief-newline-u14-remaining-modules-and-targeted-reads
   - bead:20260803-0140-report-newline-u14-u12-u17-onboarding-sweep
@@ -13,7 +14,7 @@ refs:
   - path:newline-ai-course/notes/unit-14-content-modules.md
   - path:newline-ai-course/implementation-notes.md
 hook: "github:ojfbot/core#319"
-status: done
+status: closed
 created_at: 2026-08-03T11:30:00-0500
 labels:
   project: fde-operating-presence

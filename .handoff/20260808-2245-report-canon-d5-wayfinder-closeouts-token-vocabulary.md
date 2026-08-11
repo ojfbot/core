@@ -1,11 +1,27 @@
-# Report — canon D5 generator, wayfinder closeouts, TD-007, token vocabulary
-
-date: 2026-08-08 (evening sitting)
-actor: code-claude
-repo: core
+---
+id: 20260808-2245-report-canon-d5-wayfinder-closeouts-token-vocabulary
 type: report
-closes: .handoff/20260808-2150-brief-canon-wayfinder-closeouts-and-token-vocabulary.md
-relates: decisions/wayfinder/cockpit-northstar-conversation.md (#338, #340), decisions/wayfinder/diagram-first-output.md (#368, #372), TD-007, ~/selfco/diagrams/fleet-map.md
+title: "Canon D5 generator, wayfinder closeouts, TD-007 row 15, token vocabulary — shipped (PR #445)"
+actor: code-claude
+to: operator
+session_id: 2026-08-08T22:45:00Z
+responding_to: 20260808-2150-brief-canon-wayfinder-closeouts-and-token-vocabulary
+refs:
+  - github:ojfbot/core#445
+  - file:scripts/lib/fleet-map-d5.mjs
+  - file:scripts/fleet-map-d5.mjs
+  - file:domain-knowledge/apps/chat-token-vocabulary.md
+  - file:decisions/wayfinder/cockpit-northstar-conversation.md
+  - file:decisions/wayfinder/diagram-first-output.md
+status: closed
+created_at: 2026-08-08T22:45:00Z
+labels:
+  - canon
+  - wayfinder
+  - td-007
+---
+
+# Report — canon D5 generator, wayfinder closeouts, TD-007, token vocabulary
 
 ## What landed
 
