@@ -111,7 +111,7 @@ The primary interface is `.claude/skills/`. Each file is a `/command` in Claude 
 | `/test-expand` | 1/2 | After milestones | Identify untested branches, propose new tests only |
 | `/sweep` | 1/2 | Daily/weekly | Stale TODOs, unused imports, debug logs, config duplication |
 | `/deepen` | 2 | Architecture | Find shallow modules, propose Ousterhout-style deepening refactors. No edits. ADR-0047 |
-| `/triage` | 2 | Backlog | Apply severity/effort/domain rubric to issues. Output: ordered backlog. ADR-0048 |
+| `/triage` | 2 | Backlog | Apply severity/effort/domain rubric to inbound issues, route each through the state machine (`ready-for-agent` / `ready-for-human` / `needs-info` / `wontfix`) with agent briefs + `decisions/out-of-scope/` KB checks. Output: label set + routes + ordered backlog. ADR-0048 Rev A |
 | `/techdebt` | 3 | Continuous | Scan for debt → TECHDEBT.md; or propose/apply framework patches |
 
 ### Environment

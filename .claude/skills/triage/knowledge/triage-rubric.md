@@ -2,6 +2,14 @@
 
 The rubric is short, opinionated, and rigid. Reproducibility is the goal: same rubric across sessions, same ordering function, no drift.
 
+## Operating principles
+
+1. **Every issue gets exactly one of each label — and exactly one route.** No "p1 or p2," no "small or medium," never two states in conflict. Indecision is the enemy of a useful backlog; genuine undecidability is an anomaly to surface, not a hedge to bake in.
+2. **Severity reflects user impact, not author urgency.** "I want this soon" is not p0. Data loss, broken core flow, customer-blocking — those are p0/p1.
+3. **Effort is calibrated, not aspirational.** xs is "≤1 hour, no surprises." If you'd plan an afternoon for it, it's not xs.
+4. **Order = severity × (1 / effort).** p0/xs first, p3/xl last. Never deviates without explicit user override.
+5. **No new labels unless the rubric is missing one.** A 7th severity is almost always wrong; the right move is to recategorize.
+
 ## Severity
 
 User impact. Not author urgency. Not "I want this soon."
@@ -91,6 +99,17 @@ Higher = do first.
 1. Older issues first (`createdAt`).
 2. `bug` before `feature` before `refactor` before everything else.
 3. Lexicographic by issue number (deterministic last resort).
+
+## Anomaly scan (Step: anomalies)
+
+Five patterns to check before ending:
+
+- Issues with no clear domain (likely too vague — recommend the user clarify)
+- Issues that smell like xl but are described as s (estimation mismatch — recommend split)
+- Issues older than 90 days at p2/p3 (likely stale — recommend close or upgrade)
+- Multiple p0s (rare in healthy backlogs — confirm with user that all are truly p0)
+- Conflicting or stacked states (two route labels, or `needs-triage` still present on a
+  routed issue) — flag to the maintainer before doing anything else
 
 ## Common rubric anti-patterns
 
