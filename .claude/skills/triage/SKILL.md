@@ -3,18 +3,16 @@ name: triage
 description: >
   MANDATORY: Load this skill IMMEDIATELY when user asks to "triage", "triage
   these issues", "label this backlog", "prioritize the issues", "apply triage
-  labels". Severity/effort/domain rubric. Output: label set + ordered backlog.
-  Optional --apply writes labels via gh.
+  labels", "route these issues", "what's ready for agents". Severity/effort/
+  domain rubric + state-machine routing (ready-for-agent / ready-for-human /
+  needs-info / wontfix) with agent briefs. Output: label set + routes + ordered
+  backlog. Optional --apply writes labels and posts briefs via gh.
 ---
 
-You are a backlog triage operator. Your job is to apply a consistent rubric to issues — severity, effort, domain, type — and produce an ordered backlog the user can act on. Reproducible outputs across sessions: same rubric, same ordering function, no per-issue judgment leakage.
+You are a backlog triage operator: apply a consistent rubric to inbound issues — severity, effort, domain, type — route each through the triage state machine, and produce an ordered backlog plus agent-ready briefs. Reproducible across sessions: same rubric, same ordering function, no judgment leakage. Triage is for work that *arrived* (reports, requests, external PRs); issues originated via `/orchestrate` or `/plan-feature` enter only to be routed out of `needs-triage`.
 
 **Tier:** 2 — Multi-step procedure
 **Phase:** Planning / Backlog management
-
-## Core principles
-
-> **Load `knowledge/core-principles.md`** before classifying anything — the five operating principles.
 
 ## Steps
 
@@ -24,70 +22,61 @@ You are a backlog triage operator. Your job is to apply a consistent rubric to i
 gh issue list --json number,title,body,labels,createdAt,updatedAt --limit 100
 ```
 
-> **Load `knowledge/modes-and-flags.md`** when parsing invocation flags — flag handling and all modes.
+> **Load `knowledge/operations.md`** when parsing invocation flags — all modes, including the `--prs` external-PR surface (a PR is an issue with attached code).
 
-### 2. Classify each issue per the rubric
+### 2. Context checks — redundancy and prior rejection
 
-> **Load `knowledge/triage-rubric.md`** for the full rubric — severity definitions, effort calibration, domain taxonomy, type taxonomy, and tie-break rules.
+> **Load `knowledge/out-of-scope-kb.md`** before classifying — the already-implemented search (by domain concept, not the reporter's wording) and the `decisions/out-of-scope/` prior-rejection check. Both are cheap; both route `wontfix` when they hit.
 
-For each issue, output the proposed labels in a table:
+### 3. Classify each issue per the rubric
 
-> **Load `knowledge/proposal-table.md`** before writing the table — column format, worked examples, and the reason-column bar.
+> **Load `knowledge/triage-rubric.md`** for the operating principles, full rubric, and tie-break rules. Proposal-table format is in `knowledge/operations.md`.
 
-### 2b. Route each issue — ready-for-agent vs ready-for-human
+### 4. Verify the claim
 
-> **Load `knowledge/routing-rubric.md`** before assigning routes — the `ready-for-agent` / `ready-for-human` / `needs-info` criteria and the Route-column rule.
+> **Load `knowledge/routing-rubric.md`** — reproduce the bug / check out the PR before routing. Three outcomes: confirmed (with code path), failed, insufficient detail (→ needs-info). Deliberately shallow; deeper chase is `/investigate`.
 
-### 3. Order the backlog
+### 5. Route each issue
 
-Compute the priority score: `severity_weight / effort_weight`.
+Exactly one route: `ready-for-agent` / `ready-for-human` / `needs-info` / `wontfix`. Routing clears the `needs-triage` entry state. Criteria, the wontfix three-way split, and the needs-info Triage Notes template are in `knowledge/routing-rubric.md`.
 
-> **Load `knowledge/ordering-weights.md`** before scoring — the weight values and tie-break order.
+### 6. Write agent briefs
 
-Output the ordered backlog as a numbered list with priority scores visible.
+> **Load `knowledge/agent-brief.md`** for every `ready-for-agent` (and `ready-for-human`) item — durable behavioral briefs: types and contracts, no file paths or line numbers, acceptance criteria, mandatory out-of-scope. The brief is the contract; the report is context.
 
-### 4. Surface anomalies
+### 7. Order the backlog
 
-Before ending, scan for issues that don't fit the rubric cleanly:
+Compute `severity_weight / effort_weight` (weights and tie-breaks in `knowledge/triage-rubric.md`). Output the ordered backlog with scores and routes visible.
 
-> **Load `knowledge/anomaly-scan.md`** before this scan — the four anomaly patterns to check.
+### 8. Surface anomalies
 
-### 5. Apply labels (only with --apply)
+Scan the five anomaly patterns in `knowledge/triage-rubric.md` — including conflicting or stacked states.
 
-In default mode, output the proposed labels and stop. The user reviews.
+### 9. Apply (only with --apply)
 
-With `--apply`, run `gh issue edit <num> --add-label <severity>,<effort>,<domain>,<type>` for each issue. Skip issues where the existing labels already match. Report which issues were updated.
-
-> **Load `knowledge/label-setup.md`** before applying — the required label scheme and the missing-labels rule.
-
-## Modes
-
-> **Load `knowledge/modes-and-flags.md`** when any flag is passed — all modes and their behavior.
+Default mode outputs proposals and stops. With `--apply`: write labels via `gh issue edit` (skip already-matching), post briefs / Triage Notes / closing comments, remove `needs-triage` from routed issues, close `wontfix` per the three-way split. **Every posted comment opens with the AI-disclaimer line** (`knowledge/operations.md`). Label scheme + missing-labels rule also there.
 
 ## Output format
 
-> **Load `knowledge/output-format.md`** before writing the final output — the exact output block format.
+> **Load `knowledge/operations.md`** before writing the final output — the exact output block, including the briefs section.
 
 ## Constraints
 
-- **One label per axis per issue.** No multi-labels for severity.
-- **One route per issue; `ready-for-agent` requires a stated machine check** (rationale in `knowledge/routing-rubric.md`).
-- **Reasons must cite specifics** (bar and examples in `knowledge/proposal-table.md`).
-- **No new labels invented during triage.** If the rubric is genuinely missing a category, surface it as an anomaly; don't quietly add a label.
-- **--apply only after user reviews proposals.** Never bulk-relabel without confirmation.
-- **gh CLI required** (no-gh fallback in `knowledge/label-setup.md`).
-
-## Composition
-
-> **Load `knowledge/composition.md`** when sequencing triage with other skills — upstream/downstream pairings and cross-references.
+- **One label per axis, one route per issue.** Conflicts are anomalies, not hedges.
+- **Never route an unverified claim to `ready-for-agent`** — and never without a stated one-line `check:` command (rationale in `knowledge/routing-rubric.md`).
+- **Reasons must cite specifics** (bar and examples in `knowledge/operations.md`).
+- **No new labels invented during triage.** Rubric gaps are anomalies; rubric changes need an ADR.
+- **--apply only after the user reviews proposals.** Never bulk-relabel or bulk-post without confirmation.
+- **gh CLI required** (no-gh fallback in `knowledge/operations.md`).
 
 ## Gotchas
 
 - **Author urgency masquerading as severity is the failure that quietly corrupts the whole order.** "I want this soon" and a thread full of +1s read as p0, but the rubric scores *user impact* — data loss, broken core flow, customer-blocking. Severity drives the ordering function, so one inflated p0 sinks every genuine p1 below it. Reason from the exposure, not the author's tone.
 - **The ordering function is `severity_weight / effort_weight` and it is not yours to override.** The temptation is to hand-promote an issue that "feels important" above its computed score. Don't — reproducibility across sessions is the skill's contract. If the order looks wrong, the fix is re-scoring severity or effort with a cited reason, never resorting the list by gut.
-- **Refusing to pick one label per axis is the default-mode failure.** "p1 or p2," "s or m" feels honest but produces an unsortable backlog. One of each, always; if you genuinely can't decide, that ambiguity is an *anomaly* to surface in Step 4, not a hedge to bake into the labels.
-- **`--apply` edits live GitHub state and skips silently — confirm the table first, every time.** Bulk `gh issue edit` is irreversible-ish and noisy (notifications, audit log). Never run apply before the user has seen and approved the proposal table, and skip issues whose labels already match rather than re-writing identical labels.
-- **Missing labels are a repo-config problem, not a triage problem — never auto-create them.** When `severity/*` or `effort/*` labels don't exist, output the `gh label create` commands and stop. The label scheme is repo-level governance; inventing a 7th severity or a new domain mid-triage (Core Principle 5) is almost always recategorization avoidance.
+- **Refusing to pick one label per axis is the default-mode failure.** "p1 or p2," "s or m" feels honest but produces an unsortable backlog. One of each, always; genuine undecidability is an *anomaly* to surface, not a hedge.
+- **`--apply` now posts comments as well as labels — confirm the table first, every time.** Bulk `gh` writes are irreversible-ish and noisy (notifications, audit log). Never run apply before the user has approved the proposal table *and* the brief texts; skip issues whose labels already match.
+- **An already-implemented `wontfix` must never enter `decisions/out-of-scope/`.** That KB records *rejected* concepts; filing a built feature there poisons the dedup check into re-closing legitimate requests. Point at where the feature lives instead — the redundancy check runs before the KB check for exactly this reason.
+- **Missing labels are a repo-config problem, not a triage problem — never auto-create them.** Output the `gh label create` commands and stop. Inventing a 7th severity or a new domain mid-triage is almost always recategorization avoidance.
 
 ---
 

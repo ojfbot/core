@@ -84,3 +84,43 @@ Postflight: anomaly detection — issues with no clear domain, xl items mislabel
 - No heuristic rule yet — `/triage` is invoked deliberately, not auto-suggested. (Could add a Tier 3 rule later: PR closes >2 unlabeled issues → suggest /triage.)
 - The label scheme bootstrap is per-repo. Recommended sequence: run `/triage` against core first (small backlog); use the output to confirm the rubric works for our domain shapes; then propagate to siblings.
 - Ordering function is deterministic by design. If we ever want to deprioritize old p1s (decay), that's a deliberate rubric change with an ADR — not a per-session knob.
+
+## Revision A (2026-08-11) — absorb the upstream state machine around the rubric; keep the rubric
+
+Verdict rows D44–D53 in `decisions/adopt-stack/pocock-triage-refresh.md`; upstream pinned
+at `84fdeff` (same pin as the v1-2 pass, which never assessed triage). Closes the triage
+half of F7 (`FLEET-COORDINATION-EXTENSIONS-2026-07-04.md`).
+
+Upstream's triage evolved from the rubric-adjacent skill this ADR adopted into a
+label-based state machine whose terminal artifact is a durable agent brief. The local
+skill had already absorbed the routing vocabulary partially (`knowledge/routing-rubric.md`,
+S15); this revision completes the absorption.
+
+**Absorbed** (re-expressed, zero upstream files):
+- **Full 5-state vocabulary + exactly-one invariant** (D50): routes are now
+  `ready-for-agent` / `ready-for-human` / `needs-info` / `wontfix`, with `needs-triage` as
+  the entry state the skill clears on routing (previously applied by `/orchestrate --emit`
+  and `/plan-feature` with nothing consuming it). Conflicting states are a fifth anomaly
+  pattern. Upstream categories map onto the existing type axis; no second label set.
+- **Verify before you brief** (D46): reproduce / check out and run, before any state; three
+  outcomes (confirmed-with-code-path, failed, insufficient-detail → `needs-info`).
+  Deliberately shallow; deeper chase hands off to `/investigate`.
+- **Agent-brief emission** (D45): `ready-for-agent` now carries a durable behavioral brief
+  (`knowledge/agent-brief.md`) — types/contracts, no file paths or line numbers, acceptance
+  criteria, mandatory out-of-scope. Boundary with the vertical-slice issue template's
+  deliberate "Affected paths" divergence recorded in D45.
+- **Out-of-scope KB + redundancy/prior-rejection checks** (D44, D47): fleet-level
+  `decisions/out-of-scope/` (see `adr:out-of-scope-knowledge-base`), checked during
+  context-gathering alongside a concept-level already-implemented search.
+- **Needs-info discipline** (D48), **PR surface, opt-in** (D49), **AI disclaimer on posted
+  comments** (D51).
+
+**Not imported — reverse-delta** (D53): upstream's missing `blocked`/`deferred`/
+`implemented` states. The fleet already covers these via GitHub-native blocked-by edges +
+the frontier, roadmap slice `status`, and merge-gated movement records.
+
+**Kept — the deliberate divergence:** the severity/effort/domain/type rubric and the
+non-overridable ordering function, this ADR's founding contract. Upstream has no
+prioritization layer; the refresh wraps the state machine around the rubric (classify →
+route → order). Future upstream syncs must not re-litigate this without new evidence; the
+Protected-local-deviation section of the adopt-stack record is the recorded reason.

@@ -1179,15 +1179,19 @@
         "backlog",
         "prioritize",
         "severity",
-        "effort"
+        "effort",
+        "routing",
+        "ready-for-agent"
       ],
-      "description": "Apply consistent severity/effort/domain labels and prioritize backlog. Output: label set + ordered backlog. Optional --apply writes labels via gh.",
+      "description": "Apply consistent severity/effort/domain labels, route each issue through the triage state machine (ready-for-agent / ready-for-human / needs-info / wontfix) with agent briefs, and prioritize the backlog. Output: label set + routes + ordered backlog. Optional --apply writes labels and posts briefs via gh.",
       "triggers": [
         "triage",
         "triage these issues",
         "label this backlog",
         "prioritize the issues",
-        "apply triage labels"
+        "apply triage labels",
+        "route these issues",
+        "what's ready for agents"
       ],
       "suggested_after": [
         "/roadmap",
