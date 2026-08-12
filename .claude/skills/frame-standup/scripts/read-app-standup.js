@@ -36,6 +36,7 @@ const REPOS = [
   'landing',
   'capture-agent', // renamed from gcgcca 2026-07-30
   'fairway',
+  'cca-prep', // Claude-cert prep engine (fleet-onboard 2026-08-11)
   'beaverGame',
   'asset-foundry',
   'github-actions',
