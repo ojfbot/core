@@ -151,6 +151,18 @@ registry:
     path: ../fieldwork-1/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # cca-prep: multi-exam Claude-cert prep engine (CCAR-F/CCDV-F/CCAR-P) — generation-over-content
+  # thesis (static banks decay on contact with the operator). Landed 2026-08-11 from the approved
+  # /plan-feature spec (core/.handoff/20260811-1900-spec-cca-prep-repo.md); slice 1 = engine
+  # migration from the vault CCA-F sandbox (ojfbot/cca-prep#1). Personal telemetry stays in the
+  # selfco vault; verbatim exam-guide PDFs keep the repo private until its publication checklist
+  # clears. NUMERIC CURRENTS are evidence-derived at registration.
+  - slug: l1-cca-prep
+    tier: L1
+    app: cca-prep
+    path: ../cca-prep/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
