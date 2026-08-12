@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Search by what you know — built-in tool sequencing (CCAR-F task 2.5)</title>
+<style>
+/* inlined from assets/lesson.css — #386: shipped lessons are self-contained */
+/* lesson.css — the AUTHORING stylesheet for /teach lessons.
+ *
+ * Shipped lessons carry these rules inlined (scripts/inline-css.mjs). #386 measured why:
+ * strip this file from a lesson opened standalone and it renders as Times at an 8px body
+ * margin — every opinion below is lost, while the inline quiz JS survives. Presentation is
+ * the fragile part.
+ *
+ * Tufte-leaning: a real measure, sidenotes over footnotes, printable without argument. */
+
+:root {
+  --ink: #111;
+  --paper: #fffff8;
+  --muted: #6b6b60;
+  --rule: #d8d8cc;
+  --accent: #7a2618;
+  --measure: 34em;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8e8e0;
+    --paper: #15150f;
+    --muted: #9a9a8c;
+    --rule: #34342a;
+    --accent: #d98b6a;
+  }
+}
+
+html {
+  font-size: 15px;
+}
+
+body {
+  margin: 0 auto;
+  padding: 4rem 2rem 8rem;
+  max-width: calc(var(--measure) + 14em);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: et-book, Palatino, "Palatino Linotype", Georgia, serif;
+  line-height: 1.6;
+  counter-reset: sidenote;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 400;
+  line-height: 1.15;
+  margin: 2.5rem 0 1rem;
+}
+h1 {
+  font-size: 2.6rem;
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.7rem;
+  font-style: italic;
+}
+h3 {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--muted);
+}
+
+p,
+ol,
+ul,
+blockquote {
+  max-width: var(--measure);
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+blockquote {
+  margin: 1.6rem 0 1.6rem 1.4rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--rule);
+  font-style: italic;
+  color: var(--muted);
+}
+
+code,
+pre {
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+}
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.9rem 1.1rem;
+  background: color-mix(in srgb, var(--ink) 5%, transparent);
+  border-radius: 3px;
+  line-height: 1.45;
+}
+
+/* Sidenotes — numbered, in the margin at width, inline when there is no margin. */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 11em;
+  margin-right: -13em;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  color: var(--accent);
+}
+
+/* Citations back to RESOURCES.md entries, at the claim. */
+.cite {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+table {
+  border-collapse: collapse;
+  margin: 1.6rem 0;
+  font-size: 0.92rem;
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+}
+th,
+td {
+  padding: 0.4rem 0.9rem 0.4rem 0;
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+}
+th {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--muted);
+}
+
+/* Quiz — DELIBERATELY ZERO JAVASCRIPT.
+ *
+ * #386 measured a lesson in a browser and concluded "presentation is the fragile part, not
+ * interactivity — the inline quiz JS survives." That is true in a browser and INVERTED in the
+ * side panel, which renders a lesson as a static snapshot: the inlined CSS survives and the
+ * script never runs, so a JS quiz is dead exactly where the map's Destination wants lessons to
+ * live ("rendering in the side panel as routinely as SVG diagrams do today"). Measured
+ * 2026-08-04 on lesson 0001, whose buttons did nothing for the operator.
+ *
+ * So interactivity rides radio inputs + :checked selectors. It works in the side panel, in a
+ * browser, in an Obsidian attachment, and it degrades to plain readable prose in anything that
+ * strips CSS too. Nothing here may imply an answer: options are length-matched by the author,
+ * and every option shares one box, one weight, one measure. */
+.quiz {
+  margin: 2.5rem 0;
+  padding: 1.4rem 1.6rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  max-width: var(--measure);
+}
+.quiz h3 {
+  margin-top: 0;
+  color: var(--ink);
+  font-style: normal;
+}
+/* Visually hidden, still focusable — keyboard and screen-reader reachable. */
+.quiz .opt {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.quiz label {
+  display: block;
+  margin: 0.45rem 0;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.quiz label:hover {
+  border-color: var(--accent);
+}
+.quiz .opt:focus-visible + label {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* The option the reader chose. */
+.quiz .opt:checked + label {
+  font-weight: 500;
+}
+.quiz .opt.ok:checked + label {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.quiz .opt:not(.ok):checked + label {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+/* Once anything is chosen, mark the correct option wherever it sits in the list. */
+.quiz:has(.opt:checked) .opt.ok + label {
+  border-color: var(--accent);
+}
+/* Explanation appears only after an answer — effort before answers. */
+.quiz .explain {
+  display: none;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.92rem;
+}
+.quiz .opt:checked ~ .explain {
+  display: block;
+}
+
+@media print {
+  body {
+    padding: 0;
+    background: #fff;
+    color: #000;
+  }
+  .quiz label {
+    border-color: #999;
+  }
+  .quiz .explain {
+    display: block;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+  }
+  body {
+    padding: 2rem 1.2rem 4rem;
+  }
+}
+</style>
+</head>
+<body>
+
+<h1>Search by what you know</h1>
+<h3>Built-in tool sequencing for CCAR-F task 2.5 · Lesson 0002 · 2026-08-12</h3>
+
+<p>You already know what every built-in tool <em>does</em>. Your three task-2.5 misses were
+never about identity — they were about <strong>order</strong>: which move goes first, and what
+follows it.<span class="sidenote">Record 0002, misconception cluster&nbsp;2: “tool identity is
+fine; the misses are on ordering and enumeration.”</span> This lesson is one idea and two
+doctrines. The idea:</p>
+
+<blockquote><p><strong>Search by what you know, then follow the graph. Never bulk-read.</strong></p></blockquote>
+
+<p>Every canon answer on this task starts from the <em>most specific thing the scenario already
+gives you</em> — a string, a naming pattern, a file — spends the cheapest tool that can use it,
+and then follows what that step reveals. Every trap answer skips the identifying step and
+reaches for bulk: read everything, glob everything, batch everything.</p>
+
+<h2>Selection: match the tool to what you hold</h2>
+
+<table>
+<tr><th>You hold…</th><th>Canon tool</th><th>Example</th></tr>
+<tr><td>a string that appears <em>in</em> files</td><td>Grep</td><td>function name, error message, import statement <span class="cite">(guide p.11)</span></td></tr>
+<tr><td>a shape of file <em>names</em></td><td>Glob</td><td><code>**/*.test.tsx</code> <span class="cite">(guide p.12)</span></td></tr>
+<tr><td>a known file to understand</td><td>Read</td><td>load it fully, follow its imports</td></tr>
+<tr><td>a unique text anchor to change</td><td>Edit</td><td>targeted modification by unique match</td></tr>
+<tr><td>a <em>non-unique</em> anchor (Edit fails)</td><td>Read&nbsp;+&nbsp;Write</td><td>the documented fallback <span class="cite">(guide p.12)</span></td></tr>
+<tr><td>a job no file tool does</td><td>Bash</td><td>run tests, git, scripts — execution, not search</td></tr>
+</table>
+
+<p>The Bash row is a boundary, not a shortcut: when a built-in fits, the built-in is the canon
+answer — it is structured and permission-scoped, where shelling out to <code>grep</code> or
+<code>cat</code> is neither. Bash earns its place only when the job is <em>execution</em>.</p>
+
+<h2>Doctrine one: incremental exploration</h2>
+
+<p>Scenario shape: <em>“understand how X works in this unfamiliar codebase.”</em></p>
+
+<p>Canon sequence: <strong>Grep to find the entry points, then Read to follow imports and trace
+flows</strong> — building understanding incrementally, “rather than reading all files
+upfront.”<span class="sidenote">Guide p.12, Skills&nbsp;in, fourth bullet — quoted almost
+verbatim. This bullet alone answers most 2.5 exploration stems.</span></p>
+
+<p>Your H45 hand went to Glob-plus-batch-read: collect the files, read them in bulk, assemble
+the picture. That feels thorough and it is the flagged anti-pattern — it spends context on
+files the trace would never have visited, and it produces coverage, not understanding. The
+canon move always <em>earns</em> the next Read from the previous result.</p>
+
+<h2>Doctrine two: wrapper tracing</h2>
+
+<p>Scenario shape: <em>“find how the helpers behind this wrapper/barrel module are used across
+the codebase.”</em></p>
+
+<p>Canon sequence: <strong>first identify all exported names, then search for each name across
+the codebase.</strong><span class="sidenote">Guide p.12, Skills&nbsp;in, fifth bullet — the
+enumerate-<em>then</em>-search order is the whole point.</span> Read the wrapper once to
+enumerate; Grep once per name.</p>
+
+<p>Your H44 hand grepped the wrapper’s file path. That finds the files that <em>import the
+module</em> — and misses every call site, because consumers use the <em>names</em>, and names
+travel through re-exports and aliases the path search never sees. Enumeration first is not
+ceremony; it is what makes the search find usage instead of plumbing.</p>
+
+<h2>The pressure tell</h2>
+
+<p>Both misses share a signature: under closest-plausible distractors, the hand picks the
+<em>direct bulk move</em> where canon wants the <em>enumerated incremental one</em>. When two
+options both sound workable, ask: <strong>which one starts from something I already hold, and
+lets each step choose the next?</strong> If an option reads all/most files before it knows
+which matter, it is the trap — however efficient it sounds.</p>
+
+<div class="quiz">
+<h3>Retrieval — five scenarios</h3>
+
+<p><strong>1.</strong> You are dropped into an unfamiliar 200-file service and asked how
+request authentication works. The canon first sequence?</p>
+<input class="opt" type="radio" name="q1" id="q1a"><label for="q1a">Glob the source tree for likely modules, then batch-Read the auth-adjacent files to build the full picture</label>
+<input class="opt ok" type="radio" name="q1" id="q1b"><label for="q1b">Grep for entry-point strings like authenticate or login, then Read the hits and follow their imports</label>
+<input class="opt" type="radio" name="q1" id="q1c"><label for="q1c">Read the main entry file and continue Reading each file in the directory until the flow is clear</label>
+<input class="opt" type="radio" name="q1" id="q1d"><label for="q1d">Bash a recursive find piped through cat so the whole relevant surface arrives in a single pass</label>
+<div class="explain"><strong>Answer: Grep entry points, then Read to follow imports.</strong>
+The guide's incremental-exploration bullet verbatim: start with Grep to find entry points,
+then use Read to follow imports and trace flows, “rather than reading all files upfront.”
+Options 1, 3, and 4 are three costumes on the same bulk-read trap — Glob-batch was your H45
+pick. Each Read must be earned by the previous result.</div>
+</div>
+
+<div class="quiz">
+<p><strong>2.</strong> A barrel module <code>utils/index.ts</code> re-exports fourteen
+helpers. You need every place those helpers are actually used. First move?</p>
+<input class="opt" type="radio" name="q2" id="q2a"><label for="q2a">Grep for the string utils/index across the codebase and Read each importing file that it returns</label>
+<input class="opt" type="radio" name="q2" id="q2b"><label for="q2b">Glob for files likely to consume utilities, then Read them watching for calls into the barrel</label>
+<input class="opt" type="radio" name="q2" id="q2c"><label for="q2c">Grep for the single most-used helper first and generalize the usage pattern to the others</label>
+<input class="opt ok" type="radio" name="q2" id="q2d"><label for="q2d">Read the barrel once to enumerate its exported names, then Grep for each name codebase-wide</label>
+<div class="explain"><strong>Answer: enumerate the exports, then search each name.</strong>
+The guide's wrapper-tracing bullet: identify all exported names first, then search for each
+across the codebase. Option 1 was your H44 pick — path search finds importers of the module,
+not call sites of the names, and misses usage through re-exports and aliases entirely.</div>
+</div>
+
+<div class="quiz">
+<p><strong>3.</strong> Edit keeps failing on a change because the anchor text appears in four
+places in the file. Canon fallback?</p>
+<input class="opt ok" type="radio" name="q3" id="q3a"><label for="q3a">Read the full file, then Write it back whole with the modification applied in the new content</label>
+<input class="opt" type="radio" name="q3" id="q3b"><label for="q3b">Bash a sed one-liner scoped to the right line number so the ambiguity never enters into it</label>
+<input class="opt" type="radio" name="q3" id="q3c"><label for="q3c">Grep the file for surrounding context and retry Edit with each longer anchor until one match wins</label>
+<input class="opt" type="radio" name="q3" id="q3d"><label for="q3d">Split the change into four smaller Edits so that every anchor becomes unique within its region</label>
+<div class="explain"><strong>Answer: Read + Write.</strong> The guide names this exact
+fallback: “when Edit fails due to non-unique text matches, using Read + Write as a fallback
+for reliable file modifications.” Extending the anchor (option 3) often works in practice,
+but the stem asks for canon — and sed-via-Bash trades a structured, reviewable edit for an
+unscoped shell mutation.</div>
+</div>
+
+<div class="quiz">
+<p><strong>4.</strong> Two jobs: (a) list every file matching <code>**/*.test.tsx</code>;
+(b) find which tests reference <code>createSession</code>. Canon pairing?</p>
+<input class="opt" type="radio" name="q4" id="q4a"><label for="q4a">Grep for both jobs — the test-file extension is itself a searchable pattern inside the tree</label>
+<input class="opt" type="radio" name="q4" id="q4b"><label for="q4b">Glob for both jobs — collect the matching test files, then scan their contents as you Read</label>
+<input class="opt ok" type="radio" name="q4" id="q4c"><label for="q4c">Glob for the file-name pattern in (a); Grep for the createSession content search in (b)</label>
+<input class="opt" type="radio" name="q4" id="q4d"><label for="q4d">Bash an ls with a filter for (a) and pipe results into a shell grep invocation for (b)</label>
+<div class="explain"><strong>Answer: Glob for names, Grep for contents.</strong> The cleanest
+selection split in the guide: Glob matches file <em>paths</em> (<code>**/*.test.tsx</code> is
+its own example); Grep matches file <em>contents</em> (function names are its example). One
+tool per kind of knowledge you hold — and neither job is execution, so Bash never enters.</div>
+</div>
+
+<div class="quiz">
+<p><strong>5.</strong> You must find every file importing a deprecated module, migrate each
+import, and confirm the suite still passes. Canon tool sequence?</p>
+<input class="opt" type="radio" name="q5" id="q5a"><label for="q5a">Bash grep for the imports, Edit each file the shell surfaced, then Bash the test suite at the end</label>
+<input class="opt ok" type="radio" name="q5" id="q5b"><label for="q5b">Grep for the import statement, Edit each importing file, then Bash to run the test suite once</label>
+<input class="opt" type="radio" name="q5" id="q5c"><label for="q5c">Glob the tree for source files, Read each to spot the import, Edit hits, Bash the tests after</label>
+<input class="opt" type="radio" name="q5" id="q5d"><label for="q5d">Grep for the import statement, Bash sed across the hits for speed, then Bash the suite once</label>
+<div class="explain"><strong>Answer: Grep → Edit → Bash.</strong> Each tool where it is
+strongest: Grep because an import statement is a content string (the guide’s own Grep
+example); Edit for targeted modification; Bash only for the one genuine execution step. The
+distractors each smuggle Bash into a job a built-in owns (search in 1, mutation in 4) or
+bulk-read their way to the hits (3) — the same pressure tell as always.</div>
+</div>
+
+<h2>Going deeper</h2>
+
+<p>One primary source: <strong>Exam Guide v1.0, Task Statement 2.5 (pp. 11–12)</strong> —
+five knowledge bullets, five skill bullets, ten minutes. The two sequencing bullets you just
+drilled are the fourth and fifth under “Skills in.” Everything in this lesson traces to that
+page.</p>
+
+<p><em>What did this leave unclear? Where do you disagree with canon from fleet practice?
+Bring the questions back — the lesson is a turn in a conversation, not a broadcast.</em></p>
+
+</body>
+</html>
