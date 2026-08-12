@@ -78,3 +78,13 @@
 {"ts":"2026-08-12T04:10:23Z","event":"session:start","session_id":"f89d492d-65a8-4319-b7e7-9a71791cd9ef","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-12T04:27:49Z","event":"session:start","session_id":"d52284dd-86bd-4586-9dc6-24f88766e431","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-12T04:42:01Z","event":"session:start","session_id":"e15e762c-07d1-4273-a162-74ca4b239b5f","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T18:36:59Z","event":"session:start","session_id":"b17c6ea7-530e-4bed-9413-44c6356581d4","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T18:37:46Z","event":"session:start","session_id":"ba2fe0ad-d8b4-4a43-bed9-1361ceae214a","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T20:55:14Z","event":"session:start","session_id":"ebdfd5ea-ab8d-42a4-b5fc-d5299e400049","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T20:55:55Z","event":"session:start","session_id":"347706c1-596c-4505-9fa8-ff468ea0ef88","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T21:13:05Z","event":"session:start","session_id":"bae60902-847b-44f7-a9cb-214fa0bc7a79","source":"startup","model":"","repo":"core","branch":"feat/pocock-triage-sandcastle-cycle","cwd":"/Users/yuri/ojfbot/core"}
+{"ts":"2026-08-12T21:13:05Z","event":"session:start","session_id":"f2543199-0895-4e65-9533-92622eec3569","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T21:13:05Z","event":"session:start","session_id":"1b35377f-fd17-4835-89f0-21b80ef6f761","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-12T21:13:29Z","event":"session:start","session_id":"ee6d7bf8-5efe-44fb-abaf-34940c13cac1","source":"startup","model":"","repo":"cca-prep","branch":"main","cwd":"/Users/yuri/ojfbot/cca-prep"}
+{"ts":"2026-08-12T21:13:53Z","event":"session:start","session_id":"cf34b2b6-06dc-4ccc-9c90-7c4e2a084a2b","source":"startup","model":"","repo":"cca-prep","branch":"main","cwd":"/Users/yuri/ojfbot/cca-prep"}
+{"ts":"2026-08-12T21:14:02Z","event":"session:start","session_id":"8953e5b0-5e05-4740-afad-df391c9efaf7","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
