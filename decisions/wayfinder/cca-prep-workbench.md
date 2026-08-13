@@ -81,6 +81,18 @@ Pre-map rulings (operator, 2026-08-12, charting session — recorded here, not c
 - Projection to core with cca-prep#13 left open as the repo-side signpost; per-repo wayfinder
   composition captured as a separate fleet-level decision item — Yuri, 2026-08-12
 
+Closed tickets:
+
+- Five lab-surface mechanisms surveyed on evidence; **no winner named** — that is #459's call.
+  The cycle killed one premise outright (the Batches API is CORS-blocked from every origin
+  tested, so no in-browser mechanism can teach it against the live API) and established that
+  both official SDKs honour a `base_url` override, putting key-free offline labs within reach of
+  the stack cca-prep already has. It also surfaced two host costs the charting brief did not
+  carry: `engine/server.mjs` has no generic static-file handler, and **nothing in CI enforces
+  the zero-dependency rule** — it is prose in CLAUDE.md, which reshapes what #456 is even
+  ruling on — Executable-lab surface survey (#457) →
+  `decisions/research/2026-08-13-executable-lab-surface-survey.md`
+
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
@@ -88,14 +100,18 @@ Pre-map rulings (operator, 2026-08-12, charting session — recorded here, not c
 | Smallest de-freezing slice for Lab 1 (#454) | grilling | — | open |
 | Workbench home: cca-prep vs newline-ai-course vs fleet-level (#455) | grilling | — | open |
 | Zero-dependency rule: sidecar vs revise (#456) | grilling | — | open |
-| Executable-lab surface survey (#457) | research | — | open |
+| Executable-lab surface survey (#457) | research | — | closed |
 | Template-pack provenance (durable): fleet scaffolding vs repo-local (#458) | grilling | Workbench home | open |
 | Lab-surface selection (#459) | grilling | Zero-dependency rule; Executable-lab surface survey | open |
 | Canvas consumption seam (cca-prep × Diagram Playground) (#460) | grilling | Canvas playground spike (#372, diagram-first-output map) | open |
 | Lab artifact & telemetry boundary (#461) | grilling | Workbench home | open |
 
-Frontier at charting close: #454, #455, #456, #457. Suggested first work session: Smallest
-de-freezing slice for Lab 1 (ASAP direction).
+Frontier at charting close: #454, #455, #456, #457.
+**Frontier now (2026-08-13, after #457 closed): #454, #455, #456.** #459 stays blocked on the
+zero-dependency ruling (#456) alone — its research half is satisfied. #457's survey produced 11
+open questions sized as direct inputs to the #456 and #459 grills; question 4 ("does zero
+dependencies mean no package manager, or no third-party bytes?") should be put to the operator
+in #456, because the survey found nothing in CI enforcing either reading.
 
 ## Not yet specified
 
