@@ -16,3 +16,12 @@
 {"ts":"2026-08-12T02:30:05Z","event":"skill:invoked","skill":"teach","args":"CCA-F campaign — tonight's closing session: task 2.5 targeted treatment (built-in tool selection/sequencing, worst task at 0/3) with browser support on the drill app","tool_name":"Skill","repo":"core","cwd":"/Users/yuri/ojfbot/core","session_id":"21f1d7ae-a723-4205-8caa-ce7042e548b9","source":"interactive"}
 {"ts":"2026-08-12T02:30:05Z","event":"skill:suggestion-followed","skill":"teach","suggested_at":"2026-08-12T02:29:54Z","repo":"core","session_id":"21f1d7ae-a723-4205-8caa-ce7042e548b9","suggestion_id":"5C06B042-D279-4523-99C8-97148B607405"}
 {"ts":"2026-08-12T03:39:02Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"21f1d7ae-a723-4205-8caa-ce7042e548b9"}
+{"ts":"2026-08-12T21:20:01Z","event":"skill:invoked","skill":"claude-api","args":"","tool_name":"Skill","repo":"core","cwd":"/Users/yuri/ojfbot/core","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5","source":"interactive"}
+{"ts":"2026-08-12T21:27:55Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5"}
+{"ts":"2026-08-12T21:31:05Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5"}
+{"ts":"2026-08-12T21:36:24Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5"}
+{"ts":"2026-08-12T21:37:25Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5"}
+{"ts":"2026-08-12T22:00:15Z","event":"skill:pr-commented","repo":"core","pr":"448","session_id":"768f8fa6-72b5-45af-a182-d609a8e800a5"}
+{"ts":"2026-08-12T22:02:33Z","event":"skill:pr-commented","repo":"cca-prep","pr":"20","session_id":"cf34b2b6-06dc-4ccc-9c90-7c4e2a084a2b"}
+{"ts":"2026-08-12T22:20:30Z","event":"skill:pr-commented","repo":"cca-prep","pr":"20","session_id":"cf34b2b6-06dc-4ccc-9c90-7c4e2a084a2b"}
+{"ts":"2026-08-12T22:54:11Z","event":"skill:invoked","skill":"bead","args":"brief — spawn the next wayfinder work sessions on the cca-prep workbench map (core#453): executable code-writing/completion learning environments (pydantic/jupyter/tldraw-style) inside the cca-prep learning UI. Must instruct the receiving session to check and close entrance gates first.","tool_name":"Skill","repo":"cca-prep","cwd":"/Users/yuri/ojfbot/cca-prep","session_id":"cf34b2b6-06dc-4ccc-9c90-7c4e2a084a2b","source":"interactive"}
