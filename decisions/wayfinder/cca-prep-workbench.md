@@ -21,8 +21,11 @@ recall, and FDE work is template-plus-judgment. Arrived = Lab-class exercises ar
 template-anchored end-to-end and every open workbench question below is decided. Serves
 `ns:l1-cca-prep#P2` (operator certified across the Claude ladder — the workbench is study
 leverage) and `ns:l1-cca-prep#P1` (template packs double as generation-pipeline authoring
-leverage); both ladder to `ns:l2-ojfbot#P1`. Untouchable from this initiative: the drill
-engine's zero-dep core, calibration decks, mock instruments, and the drill flow.
+leverage); both ladder to `ns:l2-ojfbot#P1`. Untouchable from this initiative: calibration decks,
+mock instruments, and the drill flow. **Amended 2026-08-14 by the zero-dependency ruling (#456):**
+"the drill engine's zero-dep core" was listed here as untouchable and no longer is — the rule it
+named has been retired. The decks, the mocks, and the drill flow stay untouchable; the engine's
+dependency posture does not.
 
 ## Notes
 
@@ -92,6 +95,20 @@ Closed tickets:
   the zero-dependency rule** — it is prose in CLAUDE.md, which reshapes what #456 is even
   ruling on — Executable-lab surface survey (#457) →
   `decisions/research/2026-08-13-executable-lab-surface-survey.md`
+- **The zero-dependency rule is retired**; cca-prep adopts the standard fleet app stack (pnpm
+  workspace, committed lockfile, dependency audit on, TypeScript, React + Vite permitted),
+  mirroring Morning Cockpit's `packages/renderer`. **Carbon stays rejected — that was always the
+  objection, never React** — so spec lines 43–47 stand with their "no React/Carbon runtime" clause
+  narrowed to "no Carbon", and the GroupThink design language is unchanged. Two sequenced halves:
+  managed dependencies first and alone (it is what opens #459), TypeScript and React/Vite after.
+  The argument that carried it was not size but scanning: `security-scan.yml` sets
+  `skip-dependency-audit: true` *because* no lockfile exists, so the old rule bought the absence
+  of auditing rather than the absence of risk. Two grill-time corrections are load-bearing for
+  anyone re-reading the survey: cca-prep **already had a tracked dependency-free `package.json`**
+  (so survey finding 50 mis-located the cost), and the migration surface is **10 files / 1,183 LOC**
+  (the 12 `scripts/hooks/*.mjs` are git-mode-120000 symlinks into core, not cca-prep's to migrate).
+  Spec line 59 is amended on both halves; `scripts/ui-gate.sh` must be rewritten Carbon-only or it
+  fails CI on the first React file — Zero-dependency rule: sidecar vs revise (#456)
 
 ## Tickets
 
@@ -99,7 +116,7 @@ Closed tickets:
 |-------------------------------|------|------------|--------|
 | Smallest de-freezing slice for Lab 1 (#454) | grilling | — | open |
 | Workbench home: cca-prep vs newline-ai-course vs fleet-level (#455) | grilling | — | open |
-| Zero-dependency rule: sidecar vs revise (#456) | grilling | — | open |
+| Zero-dependency rule: sidecar vs revise (#456) | grilling | — | closed |
 | Executable-lab surface survey (#457) | research | — | closed |
 | Template-pack provenance (durable): fleet scaffolding vs repo-local (#458) | grilling | Workbench home | open |
 | Lab-surface selection (#459) | grilling | Zero-dependency rule; Executable-lab surface survey | open |
@@ -107,14 +124,27 @@ Closed tickets:
 | Lab artifact & telemetry boundary (#461) | grilling | Workbench home | open |
 
 Frontier at charting close: #454, #455, #456, #457.
-**Frontier now (2026-08-13, after #457 closed): #454, #455, #456.** #459 stays blocked on the
-zero-dependency ruling (#456) alone — its research half is satisfied. #457's survey produced 11
-open questions sized as direct inputs to the #456 and #459 grills; question 4 ("does zero
-dependencies mean no package manager, or no third-party bytes?") should be put to the operator
-in #456, because the survey found nothing in CI enforcing either reading.
+
+**Frontier now (2026-08-14, after the zero-dependency ruling landed): #454, #455, #459.**
+Lab-surface selection is
+unblocked — both its blockers are closed. Survey questions 4 and 13 were consumed by the
+zero-dependency ruling and carry into #459 as settled constraints, not open inputs; the survey's
+"survives the zero-dep rule?" column is now moot, while its weight, offline-story, and
+language-coverage columns stand. Questions 1, 3, 7, 8, 9, 11, 12 and 15 remain live #459 inputs.
+
+**Tickets the ruling reshapes** (flagged, not re-opened): Workbench home (#455) — a pnpm-workspace
+cca-prep changes what "lives in cca-prep" costs relative to newline-ai-course or fleet-level;
+Template-pack provenance (#458) — `langgraph-app`'s React + Carbon stack no longer collides with
+cca-prep on React, only on Carbon, so the reuse-vs-copy-vs-new-template weighing shifts.
 
 ## Not yet specified
 
+- **Whether the drill client retains an exam-eve runtime guarantee once it is a Vite build
+  artifact** — and if so, whether built output is committed or built on demand. New fog created by
+  the zero-dependency ruling (#456), which permitted React and therefore reinstated a client build
+  step. The question is statable but was not #456's to answer: #456 ruled dependency *policy*, and
+  this is drill-client *architecture*. Graduates to a ticket if the client migration is sequenced
+  before the sitting; stays fog if it lands after.
 - CCAR-P case-study item format and what it implies for the lab surface (schema TBD after the
   Professional guide ingest — S1 spec open question 2 owns the guide side; the workbench side
   can't state its question until the item format is known).
