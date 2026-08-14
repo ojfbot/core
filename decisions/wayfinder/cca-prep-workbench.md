@@ -109,6 +109,21 @@ Closed tickets:
   (the 12 `scripts/hooks/*.mjs` are git-mode-120000 symlinks into core, not cca-prep's to migrate).
   Spec line 59 is amended on both halves; `scripts/ui-gate.sh` must be rewritten Carbon-only or it
   fails CI on the first React file — Zero-dependency rule: sidecar vs revise (#456)
+- **Labs execute terminal-side, against a local mock by default, TypeScript first.** Not in-page.
+  Decided on *fidelity*, not cost — the dependency ruling had just made the in-page CodeMirror strip
+  cheap, and it still lost: in-browser Python cannot run idiomatic SDK code (a stock client raises
+  `APIConnectionError`; a real response needs the `dangerous-direct-browser-access` header the exam
+  never mentions), and Batches is CORS-blocked from every browser origin. Both dissolve in a
+  terminal — no browser, no CORS, stock SDK, all six topics reachable. Grading follows Exercism's
+  file contract (slug + input/output dirs, `results.json`, exit 0 regardless of pass/fail,
+  per-assertion `tests[]`), which is what can later name *which* judgment gap was missed; scaffolds
+  are Python-Koans-shaped. Execution defaults to a `base_url` mock for deterministic grading — the
+  MCP error-taxonomy fixtures must be hand-authored regardless, the OpenAPI spec having zero
+  `errorCategory`/`isRetryable` fields — with the live API one unset env var away. Slice one emits
+  `results.json` but the app does **not** ingest it: the local-web-UI hop has no prior art in any
+  surveyed runner and is the survey's least-confident estimate, so the producer ships and the
+  consumer waits. The ruling's real gift from #456 was not a mechanism but mocking infrastructure
+  (`msw`, `prism`, `@stdy`), which serves the terminal path just as well — Lab-surface selection (#459)
 
 ## Tickets
 
@@ -119,23 +134,30 @@ Closed tickets:
 | Zero-dependency rule: sidecar vs revise (#456) | grilling | — | closed |
 | Executable-lab surface survey (#457) | research | — | closed |
 | Template-pack provenance (durable): fleet scaffolding vs repo-local (#458) | grilling | Workbench home | open |
-| Lab-surface selection (#459) | grilling | Zero-dependency rule; Executable-lab surface survey | open |
+| Lab-surface selection (#459) | grilling | Zero-dependency rule; Executable-lab surface survey | closed |
 | Canvas consumption seam (cca-prep × Diagram Playground) (#460) | grilling | Canvas playground spike (#372, diagram-first-output map) | open |
 | Lab artifact & telemetry boundary (#461) | grilling | Workbench home | open |
 
 Frontier at charting close: #454, #455, #456, #457.
 
-**Frontier now (2026-08-14, after the zero-dependency ruling landed): #454, #455, #459.**
-Lab-surface selection is
-unblocked — both its blockers are closed. Survey questions 4 and 13 were consumed by the
-zero-dependency ruling and carry into #459 as settled constraints, not open inputs; the survey's
-"survives the zero-dep rule?" column is now moot, while its weight, offline-story, and
-language-coverage columns stand. Questions 1, 3, 7, 8, 9, 11, 12 and 15 remain live #459 inputs.
+**Frontier now (2026-08-14, after the zero-dependency and lab-surface rulings landed): #454, #455.**
+Both paired lab-surface questions are answered. The survey (#457) is fully consumed: its
+"survives the zero-dep rule?" column is moot, questions 4 and 13 were settled by the
+zero-dependency ruling, and 1, 3, 7, 8, 9, 11, 12 and 15 were settled by the lab-surface ruling —
+its weight, offline-story and language-coverage columns remain the standing reference.
 
-**Tickets the ruling reshapes** (flagged, not re-opened): Workbench home (#455) — a pnpm-workspace
-cca-prep changes what "lives in cca-prep" costs relative to newline-ai-course or fleet-level;
-Template-pack provenance (#458) — `langgraph-app`'s React + Carbon stack no longer collides with
-cca-prep on React, only on Carbon, so the reuse-vs-copy-vs-new-template weighing shifts.
+**Tickets the two rulings reshape** (flagged, not re-opened):
+- Workbench home (#455) — a pnpm-workspace cca-prep changes what "lives in cca-prep" costs relative
+  to newline-ai-course or fleet-level; and a terminal-side lab needs a *directory* far more than it
+  needs a host application, which is a different question than the one charted.
+- Template-pack provenance (#458) — `langgraph-app`'s React + Carbon stack no longer collides with
+  cca-prep on React, only on Carbon, so the reuse-vs-copy-vs-new-template weighing shifts. The
+  lab-surface ruling also means template packs are now *runnable scaffolds with judgment gaps*
+  under an Exercism-shaped contract, not just starting files.
+- Lab artifact & telemetry boundary (#461) — sharpened rather than reshaped: the lab surface now
+  has a concrete artifact (`results.json`, per-assertion) and CLAUDE.md rule 3 sends personal
+  telemetry to the vault, never the repo, with `scripts/boundary-check.mjs` gating CI. Where the
+  runner writes is that ticket's to rule, and slice one must not write into a repo path first.
 
 ## Not yet specified
 
@@ -145,6 +167,14 @@ cca-prep on React, only on Carbon, so the reuse-vs-copy-vs-new-template weighing
   step. The question is statable but was not #456's to answer: #456 ruled dependency *policy*, and
   this is drill-client *architecture*. Graduates to a ticket if the client migration is sequenced
   before the sitting; stays fog if it lands after.
+- **Who authors lab scaffolds — by hand, via cca-prep's existing generation pipeline, or seeded
+  from exam-guide task statements?** Surfaced by the lab-surface ruling (#459): the survey put
+  exercise-authoring cost entirely outside its scope, and it is plausibly larger than the mechanism
+  cost the ruling optimised. **This question is statable, so by the placement litmus it is a ticket
+  rather than fog** — it is parked here because this was a work session, not a charting one, and
+  projecting new tickets mid-work would exceed its remit. Next charting pass should project it.
+  Adjacent but distinct from Template-pack provenance (#458), which rules where templates come from
+  structurally, not who writes exercise content.
 - CCAR-P case-study item format and what it implies for the lab surface (schema TBD after the
   Professional guide ingest — S1 spec open question 2 owns the guide side; the workbench side
   can't state its question until the item format is known).

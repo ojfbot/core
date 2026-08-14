@@ -368,3 +368,39 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   Carbon Design System and ADR-0012 is Module Federation. A core-side doc citing them bare would
   point at the wrong documents. **Took the conservative option:** qualified every cross-repo citation
   with its repo and recorded the collision explicitly in `chat-token-vocabulary.md`.
+- **Plan assumed** the zero-dependency grill (#456) would rule *within* the rule — which of three
+  readings ("no package manager" / "no third-party bytes" / "engine-local only") it meant, plus
+  scope and enforcement. **Territory:** the operator jumped past all three to a fourth branch the
+  plan's decision tree did not contain — retire the rule outright and adopt the standard fleet app
+  stack — then corrected a second premise the ticket body itself carried, that "revise" meant
+  React. React was never the objection; Carbon was. **Took the conservative option:** recorded the
+  operator's ruling rather than re-litigating it, built nothing, and pushed every build consequence
+  out as a roadmap slice; charted the question the ruling *created* (does the drill client keep an
+  exam-eve runtime guarantee once it is a Vite build artifact) as new fog under `## Not yet
+  specified` rather than answering it inside a ticket that did not own it.
+- **Plan assumed** a TypeScript migration of cca-prep was a multi-week absorber risk, sized at "188
+  tracked files". **Territory:** 188 is the whole tree — decks, docs, and 75 skill symlinks. The
+  real source is 10 files / 1,183 LOC (git mode 100644); the 12 `scripts/hooks/*.mjs` entries are
+  mode 120000, symlinks into core. The absorber objection had been sized against the wrong number
+  by an order of magnitude and was withdrawn mid-grill. **Took the conservative option:** stated
+  the correction to the operator before they ruled, rather than letting a wrong number silently
+  shape the decision — and used `git ls-files -s` file modes rather than a `find` count, since the
+  symlink/real-file distinction is what the whole estimate turned on.
+- **Plan assumed** the #459 grill would consume the survey's option table roughly as written.
+  **Territory:** the zero-dependency ruling landed 40 minutes earlier and rewrote the table's
+  economics unevenly — it transformed the in-page CodeMirror option (pnpm + Vite dissolves the
+  entire vendoring problem the survey spent its longest section on), left JupyterLite essentially
+  untouched (the new build step is a JS one; `jupyterlite-core` is still a Python CLI), and made
+  Sandpack viable while the survey had explicitly never evaluated it. **Took the conservative
+  option:** decided on *fidelity* rather than the newly-cheapened cost — terminal-side wins because
+  in-browser Python cannot run stock SDK code and Batches is CORS-blocked, neither of which any
+  dependency freedom touches — and recorded Sandpack as "newly viable, unevaluated" rather than
+  recommending an option no evidence covered.
+- **Plan assumed** the #459 tending pass would only flip rows and rewrite the frontier line.
+  **Territory:** the ruling surfaced a question the survey had explicitly scoped out — who authors
+  lab scaffolds (hand / generation pipeline / exam-guide task statements) — which is *statable*, and
+  by the placement litmus a statable question is a ticket, not fog. **Took the conservative
+  option:** parked it under `## Not yet specified` with an explicit note that it is ticket-shaped
+  and why it was not projected — a work session projecting new tickets would be charting, which is
+  a different mode with a different remit. Flagged for the next charting pass rather than silently
+  creating an issue or silently dropping it.
