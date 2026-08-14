@@ -172,3 +172,28 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
 - Key handling for the live escape hatch — no `.env` or key-hygiene story was decided.
 - Toolchain drift on the operator's machine. uv 0.10.7 / Node 24.11.1 / pytest 9.0.2 are one-machine facts, and the runner assumes them.
 - Telemetry-boundary interaction: `results.json` is arguably personal telemetry, which CLAUDE.md rule 3 sends to the vault and `scripts/boundary-check.mjs` gates in CI. Where the runner writes is therefore not a free choice — Lab artifact & telemetry boundary (#461) owns it.
+
+## 2026-08-14 — workbench home for the executable-lab surface (wayfinder, cca-prep-workbench map)
+
+Ruling: the lab surface lives in cca-prep at top-level `labs/`, workspace member #1 under the
+managed-dependencies pnpm workspace; engine not restructured; decks/mocks/drill flow untouched.
+Frame-style LangGraph coupling declined for the execution surface. Resolution on the ticket
+titled "Workbench home: cca-prep vs newline-ai-course vs fleet-level"; ADR stub `cca-prep-lab-home`
+drafted inline there.
+
+**Deferred decisions**
+- Whether the deferred results-consumer revives the Frame ui/agent-graph pattern — unblocked by:
+  the artifact-and-telemetry-boundary ruling naming where `results.json` lives. Carried as fog on
+  the map, not a ticket.
+- What becomes of newline-ai-course's citizenship (no remote, no CI, no fleet registration) —
+  surfaced as the reason it lost, not chartered anywhere. Unblocked by: anyone deciding it matters.
+
+**Unvalidated assumptions**
+- That `labs/` can be workspace member #1 without restructuring `engine/` — reasoned from the
+  managed-deps-first sequencing in the zero-dependency ruling, not yet proven by a migration PR.
+- That cca-prep's generation pipeline is a plausible scaffold author — load-bearing for the
+  co-location argument, but the authorship question itself is unprojected fog on the map.
+
+**Standard considerations not covered**
+- Python labs' home-shape inside a pnpm workspace (the lab-surface ruling is TypeScript *first*,
+  not TypeScript *only*; nothing here rules how a Python lab package coexists).

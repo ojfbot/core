@@ -124,13 +124,25 @@ Closed tickets:
   surveyed runner and is the survey's least-confident estimate, so the producer ships and the
   consumer waits. The ruling's real gift from #456 was not a mechanism but mocking infrastructure
   (`msw`, `prism`, `@stdy`), which serves the terminal path just as well — Lab-surface selection (#459)
+- **The lab surface lives in cca-prep, at top-level `labs/` — workspace member #1** under the
+  managed-dependencies pnpm workspace; `engine/` is not restructured; decks/mocks/drill flow
+  untouched. Only candidate already satisfying branch+PR+CI; the zero-dependency ruling handed it
+  the exact stack labs need. Own repo rejected on fleet-onboard + cross-repo-hop cost (newly
+  plausible though — the lab-surface ruling reduced the need from host app to directory);
+  fleet-level-core rejected because core has template *docs* but no runnable template artifact
+  class; newline-ai-course rejected as not a fleet repo (no remote, no CI, no CLAUDE.md —
+  branch+PR+CI unsatisfiable; `labs/cca/` never existed). A Frame-style ui/agent-graph LangGraph
+  coupling was raised in-session and declined on fidelity, the deferred-consumer rule, and the
+  absorber guard — parked as fog below. `plan.html`'s Lab-1 pointer is now definitively stale:
+  repo-side techdebt, not map material — Workbench home: cca-prep vs newline-ai-course vs
+  fleet-level (#455)
 
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | Smallest de-freezing slice for Lab 1 (#454) | grilling | — | open |
-| Workbench home: cca-prep vs newline-ai-course vs fleet-level (#455) | grilling | — | open |
+| Workbench home: cca-prep vs newline-ai-course vs fleet-level (#455) | grilling | — | closed |
 | Zero-dependency rule: sidecar vs revise (#456) | grilling | — | closed |
 | Executable-lab surface survey (#457) | research | — | closed |
 | Template-pack provenance (durable): fleet scaffolding vs repo-local (#458) | grilling | Workbench home | open |
@@ -140,16 +152,14 @@ Closed tickets:
 
 Frontier at charting close: #454, #455, #456, #457.
 
-**Frontier now (2026-08-14, after the zero-dependency and lab-surface rulings landed): #454, #455.**
-Both paired lab-surface questions are answered. The survey (#457) is fully consumed: its
-"survives the zero-dep rule?" column is moot, questions 4 and 13 were settled by the
-zero-dependency ruling, and 1, 3, 7, 8, 9, 11, 12 and 15 were settled by the lab-surface ruling —
-its weight, offline-story and language-coverage columns remain the standing reference.
+**Frontier now (2026-08-14, after the workbench-home ruling): #454, #458, #461.** The
+workbench-home ruling consumed the reshaping flagged for it in the previous pass and unblocked
+both tickets that waited on it. The survey (#457) remains fully consumed: its "survives the
+zero-dep rule?" column is moot, questions 4 and 13 were settled by the zero-dependency ruling,
+and 1, 3, 7, 8, 9, 11, 12 and 15 were settled by the lab-surface ruling — its weight,
+offline-story and language-coverage columns remain the standing reference.
 
-**Tickets the two rulings reshape** (flagged, not re-opened):
-- Workbench home (#455) — a pnpm-workspace cca-prep changes what "lives in cca-prep" costs relative
-  to newline-ai-course or fleet-level; and a terminal-side lab needs a *directory* far more than it
-  needs a host application, which is a different question than the one charted.
+**Tickets the rulings reshape** (flagged, not re-opened):
 - Template-pack provenance (#458) — `langgraph-app`'s React + Carbon stack no longer collides with
   cca-prep on React, only on Carbon, so the reuse-vs-copy-vs-new-template weighing shifts. The
   lab-surface ruling also means template packs are now *runnable scaffolds with judgment gaps*
@@ -175,6 +185,12 @@ its weight, offline-story and language-coverage columns remain the standing refe
   projecting new tickets mid-work would exceed its remit. Next charting pass should project it.
   Adjacent but distinct from Template-pack provenance (#458), which rules where templates come from
   structurally, not who writes exercise content.
+- **Whether the deferred results-consumer revives the Frame ui/agent-graph pattern** (a
+  LangGraph service + UI over lab telemetry). Raised by the operator 2026-08-14 during the
+  workbench-home grill; declined for the lab *execution* surface on fidelity and absorber
+  grounds — the lab-surface ruling's producer-ships-consumer-waits rule is exactly the seam.
+  Statable as a ticket only after Lab artifact & telemetry boundary rules where `results.json`
+  lives; until then, fog.
 - CCAR-P case-study item format and what it implies for the lab surface (schema TBD after the
   Professional guide ingest — S1 spec open question 2 owns the guide side; the workbench side
   can't state its question until the item format is known).
