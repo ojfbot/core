@@ -126,3 +126,26 @@ surfaces; refusal narrows, never erases. See `adr:engagement-disclosure-seam` (s
 - The corpus is empty by construction and will stay so until three artifacts ship (deposit step, reconciler, ledger schema). This ruling constrains a mechanism that does not run; it must not be read as capability — the same caution `adr:comprehension-heatmap-zpd-role` records about the heatmap.
 - No access or privacy boundary is stated for the corpus. Lessons cite diffs from private repos and land in a vault that has had a public-disclosure seam ruled on elsewhere (texas-rr engagement, #347); nothing here says what a lesson may quote.
 - Nothing routes the reconciler's report to a human. TD-006's 96-day gap was not caused by missing data — `bead-lint` existed — but by nobody reading it.
+
+## 2026-08-14 — cca-prep adopts the standard fleet app stack; Carbon rejected, React permitted (wayfinder #456)
+
+**Deferred decisions**
+- Whether the drill client, once a Vite build artifact, retains any exam-eve runtime guarantee — and if so whether built output is committed or built on demand; unblocked by: the client-migration slice. New fog created by this ruling; charted on the map rather than decided here.
+- Which dependencies get adopted first; unblocked by: Lab-surface selection (#459).
+- TypeScript and React/Vite phase timing relative to the sitting; unblocked by: operator, at roadmap-slicing — the absorber guard ("no build slice eats pre-sit study evenings") still stands until the sitting itself.
+- Whether cca-prep becomes a pnpm workspace with `packages/` (as morning-cockpit) or stays a single package; unblocked by: the migration slice.
+- Whether the six `.test.mjs` files stay on `node --test` or move to Vitest, as morning-cockpit did.
+- Whether lab Python (if #459 selects it) uses `uv` + PEP 723 depositing nothing, or a managed `pyproject.toml` — the ruling covers repo source, and a Python lab surface would be a second dependency ecosystem it does not speak to.
+
+**Unvalidated assumptions**
+- That `pnpm install --frozen-lockfile` keeps CI fast enough not to erode the current bare-checkout feedback loop. Never measured; CI today does zero install (`ci.yml` comments "Zero-dependency repo: no install step").
+- That flipping `skip-dependency-audit: false` produces actionable output rather than noise on a repo with few direct dependencies. Not tried.
+- That the ten real source files (1,183 LOC, git mode 100644) migrate cleanly to `.ts` — they were counted, not audited for type-hostile patterns. `node:sqlite` typings in particular were not checked.
+- That the GroupThink tokens are recorded somewhere retrievable. Spec line 45 points at a *memory* (`project_landing_groupthink_brief`), not a file in any repo; that the memory still resolves was not verified.
+- That morning-cockpit's stack (React 18 + Vite 6 + TS 5.6 + Vitest, `tsc --noEmit && vite build`) transfers to a repo whose server is a bare `node:http` process with no bundler today.
+
+**Standard considerations not covered**
+- Supply-chain policy the flip makes newly relevant: pinning strategy, `pnpm audit` failure thresholds, Renovate/Dependabot, provenance checks. The grill established that auditing turns on; it did not decide the policy behind it.
+- Publication-checklist interaction. `publication-checklist.md` documents an unresolved operator-only git-history purge blocking the public flip, and GitHub retains PR head refs server-side; a lockfile and build output are new artifacts that purge must now account for. Not examined.
+- Rollback cost — what reverting to a zero-dependency posture would cost once a lockfile is in history.
+- No measurement of what the zero-dependency rule was actually buying. It was argued about on properties (no install step, no lockfile drift), never instrumented, so the flip's cost is reasoned rather than observed.
