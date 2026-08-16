@@ -59,6 +59,19 @@ work end-to-end).
 - Ingestion automation must respect the sequential-research rule (one deep-research cycle at a
   time; 2026-06-05 saturation failure) and shadow-first discipline (observe-only sweeps before
   unattended vault writes — ADR-0089 idiom).
+- **2026-08-16 — Anthropic certs are Claude Partner Network-only; targeting refinement, not a
+  new destination.** Evidence: vault `wiki/synthesis/certification-ladder-fde.md` (2026-08-16
+  revision) + `wiki/sources/cca-availability-watch-2026-08.md`; repo side cca-prep PR #28 +
+  `research/availability-watch.md`. Consequences for this map: (a) the cert ladder's calendar is
+  void — cca-prep runs readiness-on-demand, and the ladder never re-enters here as a gating
+  dependency (the Destination's "public artifacts a stranger can verify" ruler is unchanged;
+  offers — and now certs — are lagging indicators); (b) a **targeting filter** for any venue/
+  positioning work: CPN *services* partners (self-announced, valantic-style) are a distinct
+  employer segment where readiness-on-demand is a measurable pitch (partner tiers are keyed to
+  certified headcount), while product partners embedding Claude (SAP/Joule) confer no exam
+  eligibility and get no such pitch; at Anthropic itself the G1–G6 evidence is the whole
+  argument. Touches #328 (positioning narrative + venue map) as an input; no new ticket — the
+  segment lens rides the existing one.
 
 ## Decisions so far
 
