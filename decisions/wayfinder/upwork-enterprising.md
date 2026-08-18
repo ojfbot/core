@@ -83,6 +83,7 @@ Closed tickets: none yet.
 | Opportunity radar capture seam (#479) | prototype | — | open |
 | Proposal factory seam (#480) | prototype | Rate & scoping doctrine | open |
 | Marketing loop wiring (#481) | grilling | Client-work disclosure seam | open |
+| Pipeline tracking surface (#483) | grilling | Opportunity radar capture seam | open |
 
 Frontier at charting: Profile publish + finishing pass (user-performed), Anchor + registration
 scheme, Job selection + targeting doctrine, Rate & scoping doctrine, Engagement arc + evidence
@@ -93,8 +94,10 @@ contract, Client-work disclosure seam, Opportunity radar capture seam.
 - **Productized repeatable services / Project Catalog listings** — the "identify loops for
   repeatable/scalable jobs" ambition; statable after 2–3 engagements reveal which deliveries repeat.
 - **Business entity + tax posture** (LLC/S-corp, 1099 handling) — statable after first revenue.
-- **Headless pipeline registration** — loops.md entry (verifier/stop_rule/evidence_ref) + cockpit
-  lane for the radar loop; statable once the Opportunity radar capture seam verdict lands.
+- **Headless pipeline registration** — loops.md entry (verifier/stop_rule/evidence_ref) for the
+  radar loop; statable once the Opportunity radar capture seam verdict lands. ~~Cockpit lane~~ —
+  the tracking-UI half **graduated to a ticket 2026-08-18** (operator stated the requirement):
+  now "Pipeline tracking surface" (#483).
 - **Subcontracting / agency scaling** — far fog; statable only after sustained solo throughput.
 
 ## Out of scope
