@@ -59,6 +59,7 @@ const REPOS = [
   'virtualLight',
   'mirrorworld',
   'f1-doctrine',
+  'jim-camera',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');

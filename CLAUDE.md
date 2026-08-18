@@ -55,6 +55,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + course intelligence; producer feeding fairway, which was decomposed out 2026-07-30; Bilawal Sidhu mentor corpus) | 0 | active |
 | f1-doctrine | — | RAQG question layer for the F1 stack — bound question registry (33 nl-query-corpus entries migrated, PR #1; S1 merged), tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 | cca-prep | 8631 | Multi-exam Claude-cert prep engine (CCAR-F/CCDV-F/CCAR-P) — generation-over-content drill server, per-exam deck registry + scope walls; telemetry stays in selfco vault | 0 | active |
+| jim-camera | 4310 | jim.camera portfolio + Lightroom pipeline — manifest-fed Next.js gallery + darkroom CLI (LR Cloud API adapter) | 0 | active |
 
 ## Skills
 
