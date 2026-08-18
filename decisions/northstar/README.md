@@ -163,6 +163,14 @@ registry:
     path: ../cca-prep/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # jim-camera: jim.camera portfolio + Lightroom-cloud pipeline (2026-08-18). Site is
+  # manifest-fed only; darkroom CLI is the sole Adobe surface (LR Cloud API spine ruling).
+  - slug: l1-jim-camera
+    tier: L1
+    app: jim-camera
+    path: ../jim-camera/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -222,6 +230,10 @@ roadmaps:
   - slug: rm-l1-fairway
     northstar: l1-fairway
     path: ../fairway/.claude/roadmap.md
+  # jim-camera (2026-08-18): S1 merged at registration; S2 auth+pull is the frontier.
+  - slug: rm-l1-jim-camera
+    northstar: l1-jim-camera
+    path: ../jim-camera/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
