@@ -106,3 +106,7 @@
 {"ts":"2026-08-19T04:50:19Z","event":"session:start","session_id":"fd8e41a9-ca39-41a6-aaa4-f29aaece7501","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
 {"ts":"2026-08-19T04:51:20Z","event":"session:start","session_id":"8a525ddf-8e80-4d64-a4bb-52d17b2d625f","source":"startup","model":"","repo":"cv-builder","branch":"main","cwd":"/Users/yuri/ojfbot/cv-builder"}
 {"ts":"2026-08-19T04:51:48Z","event":"session:start","session_id":"fc2a820f-f0a4-4aea-8068-5662db163629","source":"startup","model":"","repo":"cv-builder","branch":"main","cwd":"/Users/yuri/ojfbot/cv-builder"}
+{"ts":"2026-08-19T18:00:10Z","event":"session:start","session_id":"46f6c713-d8bb-4102-b843-ba819cc3aeb6","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-19T18:00:13Z","event":"session:start","session_id":"c24c8b00-e9cd-49c2-b68b-b8d7036fce5b","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-08-19T18:00:13Z","event":"session:start","session_id":"ccc881c5-60f2-402c-84f9-ceecce7c1e20","source":"startup","model":"","repo":"cv-builder","branch":"main","cwd":"/Users/yuri/ojfbot/cv-builder"}
+{"ts":"2026-08-19T18:00:27Z","event":"session:start","session_id":"6cc52eaa-9abb-4e5f-ac57-74911674becc","source":"startup","model":"","repo":"cv-builder","branch":"main","cwd":"/Users/yuri/ojfbot/cv-builder"}
