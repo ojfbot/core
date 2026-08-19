@@ -68,7 +68,13 @@ Pre-map rulings (grilled at charting, recorded here — not closed tickets):
 - Profile-session rulings: employer named "SAP" on the public profile (operator override of the
   de-identify recommendation); rate ladder $110 → $140 — Yuri, 2026-08-18
 
-Closed tickets: none yet.
+Closed tickets:
+
+- Tracking surface = a dedicated app, **dealdesk** (langgraph-app template minus Carbon; cockpit
+  visual language + personal design-language seed; private repo; build forked to its own session)
+  — Pipeline tracking surface (#483), ruled by Yuri 2026-08-18. Corollary: the #479 blocking edge
+  inverts — the radar prototype now decides the *capture ergonomics feeding dealdesk's store*,
+  not the surface.
 
 ## Tickets
 
@@ -83,7 +89,7 @@ Closed tickets: none yet.
 | Opportunity radar capture seam (#479) | prototype | — | open |
 | Proposal factory seam (#480) | prototype | Rate & scoping doctrine | open |
 | Marketing loop wiring (#481) | grilling | Client-work disclosure seam | open |
-| Pipeline tracking surface (#483) | grilling | Opportunity radar capture seam | open |
+| Pipeline tracking surface (#483) | grilling | — (edge inverted at close) | **closed** |
 
 Frontier at charting: Profile publish + finishing pass (user-performed), Anchor + registration
 scheme, Job selection + targeting doctrine, Rate & scoping doctrine, Engagement arc + evidence
