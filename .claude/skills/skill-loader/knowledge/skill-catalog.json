@@ -1,6 +1,6 @@
 {
-  "version": "1.24",
-  "updated": "2026-08-11",
+  "version": "1.25",
+  "updated": "2026-08-18",
   "skills": [
     {
       "name": "diagram",
@@ -1454,6 +1454,84 @@
       "layer_affinity": [
         0,
         1
+      ]
+    },
+    {
+      "name": "pitch-craft",
+      "tier": 3,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "scope": [
+        "user"
+      ],
+      "tags": [
+        "pitch",
+        "proposal",
+        "buyer-awareness",
+        "communication",
+        "sales",
+        "umbrella"
+      ],
+      "description": "Umbrella for pitch/proposal work: classifies the buyer's awareness stage (solution-aware buyers get build-shaping questions anchored to their brief, never pain-excavation), routes the argument's support through /mece and the structure through /minto, and closes with an explicit ask. Output: buyer classification + finished pitch with pyramid outline. Routes to sub-skills rather than duplicating them.",
+      "triggers": [
+        "pitch-craft",
+        "craft this pitch",
+        "structure this proposal",
+        "shape this pitch",
+        "draft the proposal for this brief",
+        "prep this bid"
+      ]
+    },
+    {
+      "name": "minto",
+      "tier": 1,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "scope": [
+        "user"
+      ],
+      "tags": [
+        "minto",
+        "pyramid",
+        "scqa",
+        "communication",
+        "structuring",
+        "writing"
+      ],
+      "description": "Restructures ONE artifact (memo, pitch, proposal, README section, PR description) via the Minto Pyramid Principle -- extracts the governing thought, builds a MECE key line, writes an SCQA intro. Output: pyramid outline + restructured artifact. Structure-only, never invents claims; canonical concept pages live in the selfco vault.",
+      "triggers": [
+        "minto",
+        "pyramid this",
+        "restructure this argument",
+        "put the answer first",
+        "extract the governing thought",
+        "give this a pyramid structure"
+      ]
+    },
+    {
+      "name": "mece",
+      "tier": 1,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "scope": [
+        "user"
+      ],
+      "tags": [
+        "mece",
+        "decomposition",
+        "grouping",
+        "overlap",
+        "gap",
+        "structuring"
+      ],
+      "description": "Tests and repairs ONE decomposition (reasons, roadmap slices, triage buckets) for mutual exclusivity and collective exhaustiveness, then proposes the cleanest cut family. Output: per-bucket verdict table (overlapping | gap | clean) + regrouped list. Judges structure only, never the truth of the items.",
+      "triggers": [
+        "mece",
+        "is this MECE",
+        "check this breakdown for overlaps",
+        "find the gaps in this list",
+        "test this decomposition",
+        "clean up these buckets"
       ]
     },
     {
