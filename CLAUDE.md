@@ -167,6 +167,7 @@ Three templates available: `langgraph-app` (Express + LangGraph + Carbon + SQLit
 | `/adr` | Create, list, search, or update Architecture Decision Records in `decisions/adr/` |
 | `/observe` | Triage logs/metrics/alerts (Sentry, Prometheus, LangGraph-aware) |
 | `/caveman` | Ultra-compressed communication mode — drops filler, keeps technical accuracy. Stays on until "normal mode". ADR-0083 |
+| `/eli` | Dual-register explainer — one fact base rendered as an intern-level walkthrough AND an executive brief (elii/elie select one register). Read-only, chat output only |
 
 ### Skill management
 

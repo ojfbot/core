@@ -38,6 +38,33 @@
       ]
     },
     {
+      "name": "eli",
+      "tier": 1,
+      "phase": "continuous",
+      "category": "methodology-meta",
+      "scope": [
+        "user"
+      ],
+      "tags": [
+        "explainer",
+        "register",
+        "audience",
+        "communication",
+        "intern",
+        "executive"
+      ],
+      "description": "Dual-register explainer: renders one subject at two altitudes from a single shared fact base -- intern (stepwise mechanics, defined terms, checkable done-states) and executive (answer-first, <=3 reasons, risk table, <=120 words). Default emits both; elii/--intern or elie/--exec selects one. Read-only, chat output only.",
+      "triggers": [
+        "eli",
+        "elii",
+        "elie",
+        "explain like I'm an intern",
+        "explain like I'm an executive",
+        "explain this at both levels",
+        "intern and exec versions"
+      ]
+    },
+    {
       "name": "opm",
       "tier": 2,
       "phase": "orientation",
