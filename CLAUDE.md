@@ -191,6 +191,16 @@ A three-step article pipeline (ADR-0083). Lives in `core` and is synced to sibli
 /writing-fragments → /writing-beats → /writing-shape → /council-review → publish
 ```
 
+### Business communication
+
+A decomposable pitch/argument suite: the umbrella routes; the two Tier-1s stay independently callable. Canonical understanding lives in the selfco vault (`wiki/concepts/minto-pyramid-principle.md`, `mece.md`, `scqa.md`).
+
+| Command | Tier | Purpose |
+|---------|------|---------|
+| `/pitch-craft` | 3 | Umbrella for pitch/proposal work: classify buyer awareness stage → `/mece` the support → `/minto` the structure → explicit ask. Output: buyer classification + finished pitch with pyramid outline. |
+| `/minto` | 1 | Restructure ONE artifact via the Minto pyramid — governing thought, MECE key line, SCQA intro. Output: pyramid outline + restructured artifact. Structure-only, never invents claims. |
+| `/mece` | 1 | Test/repair a decomposition — overlaps, gaps, cleanest cut family. Output: verdict table (overlapping \| gap \| clean) + regrouped list. |
+
 ### Recommended lifecycle order
 
 ```
