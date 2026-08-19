@@ -104,10 +104,10 @@ create accounts or handle credentials); Handle availability survey is survey-onl
   recorded; statable after Flywheel first loop fixes the loop.
 - **Voice consolidation** — whether f1-press-room and daily-logger output fold into the new FDE
   publication or stay separate voices; statable after Positioning narrative + venue map.
-- **Product/revenue pipeline beyond content** — the original ask included "scalable product
-  pipeline"; the Destination ruling (presence, not business) leaves the commercial question
-  unstated, not ruled out. Revisit after the narrative lands; graduating or ruling it out is the
-  operator's call.
+- ~~**Product/revenue pipeline beyond content**~~ — **graduated to its own map 2026-08-18** (Yuri
+  ruled): the Upwork enterprising initiative made the question statable. Now charted as the sibling
+  map `decisions/wayfinder/upwork-enterprising.md` (#472), which owns pipeline/delivery/revenue and
+  consumes this map's identity/venue decisions; boundary noted on both maps.
 - ~~**TeamBot↔personal-stack pattern flow**~~ — **graduated to a ticket 2026-08-01**: the boundary
   ruling (#321) made the question statable. Now "Sanitized pattern-flow loop" (#342).
 
