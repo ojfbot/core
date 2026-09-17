@@ -171,6 +171,24 @@ registry:
     path: ../jim-camera/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # play-well cluster founding 2026-09-17 (HANDOFF-LEGO-PIPE-019 in
+  # lego-village-pipeline/docs/correspondence/): digital twin + build harness for the family
+  # LEGO Christmas village (code repo) and its canonical content library. Cluster tier is
+  # designed-not-built, so both L1s ladder to l2-ojfbot directly (cluster-golf precedent);
+  # the play-well grouping lives in these comments until the cluster tier ships.
+  # NUMERIC CURRENTS/TARGETS ARE PROPOSALS (operator to calibrate).
+  - slug: l1-lego-village-pipeline
+    tier: L1
+    app: lego-village-pipeline
+    path: ../lego-village-pipeline/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
+  - slug: l1-play-well-library
+    tier: L1
+    app: play-well-library
+    path: ../play-well-library/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
