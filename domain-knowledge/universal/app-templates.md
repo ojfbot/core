@@ -177,6 +177,21 @@ Omitting any of these causes a visually broken or inconsistent experience in the
 }
 ```
 
+### `biome.json`
+
+Fleet TypeScript uses single quotes and 2-space indent; Biome defaults to double quotes and tabs, so both must be set or `pnpm lint` fails on format.
+
+```json
+{
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "organizeImports": { "enabled": true },
+  "files": { "ignore": ["**/dist/**", "**/node_modules/**", ".data/**"] },
+  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "formatter": { "enabled": true, "indentStyle": "space", "indentWidth": 2 },
+  "javascript": { "formatter": { "quoteStyle": "single" } }
+}
+```
+
 ### `pnpm-workspace.yaml`
 
 ```yaml
@@ -388,9 +403,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
 ```
+
+`pnpm lint` must run in CI — without it, format drift ships silently (dealdesk shipped with 54 `biome check` errors this way).
 
 ### CLAUDE.md template
 
