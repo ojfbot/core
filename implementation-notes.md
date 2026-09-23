@@ -404,3 +404,15 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   and why it was not projected — a work session projecting new tickets would be charting, which is
   a different mode with a different remit. Flagged for the next charting pass rather than silently
   creating an issue or silently dropping it.
+
+## Deviations — langgraph-app template CI lint 2026-09-23
+
+- **Plan assumed** the new template `biome.json` block only needed `javascript.formatter.quoteStyle: "single"`.
+  **Territory:** Biome defaults to tab indent, but every fleet repo checked (dealdesk, lean-canvas,
+  gastown-pilot, seh-study) sets `indentStyle: "space"` / `indentWidth: 2`. A quote-only block would
+  reproduce the same class of format failures. **Took the conservative option:** mirrored dealdesk's
+  post-audit config (quoteStyle + 2-space indent + dist/node_modules/.data ignores), omitting
+  `lineWidth`, which varies across repos.
+- **Plan assumed** `scaffold-app/` or `setup-ci-cd/knowledge/ga-workflow-template.md` might duplicate the
+  langgraph CI YAML. **Territory:** neither does — scaffold-app defers to `app-templates.md`, and
+  ga-workflow-template is an independent generic workflow that already runs `pnpm lint`. Left both untouched.
