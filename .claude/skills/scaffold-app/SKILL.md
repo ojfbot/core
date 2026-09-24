@@ -69,13 +69,17 @@ git commit -m "chore: initial scaffold"
 
 ### 7. Register in fleet infrastructure
 
-After the project skeleton is created, the new repo must be registered in fleet-wide systems. Output each registration as a concrete action with the exact file and line to edit:
+After the project skeleton is created, the new repo must be registered in fleet-wide systems.
+**End this step by invoking `/fleet-onboard <repo>`** — it is the registrar for all fleet surfaces
+and the reconcile authority; the checklist below is the subset this skill can describe itself.
+Output each registration as a concrete action with the exact file and line to edit:
 
 > **Load `knowledge/fleet-registration.md`** before emitting Step 7/8 output — the full 8-item registration checklist (daily-logger sweep/SYSTEM_PROMPT/KNOWN_REPOS, shell remote, security scan, CI clone, `@carbon/styles`, selfco vault entity) and the incident history behind it.
 
 ### 8. Output next-steps checklist
 
 Include the fleet registration items from Step 7 that require changes in other repos (daily-logger, shell) as explicit checklist items, since the constraint below prevents this skill from writing those files directly.
+The first checklist item is always `/fleet-onboard <repo>`; a registration that is only mentioned never happens (TD-010).
 
 ## Constraints
 

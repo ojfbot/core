@@ -429,3 +429,18 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   parallel session the same day and was *not* caught there — 9 inherited commits the ledger marks
   "do not push" (this file, 2026-08-03 entry) are now on public `origin/main`. Filed as TD-009
   rather than fixed here, since the fix is a harness/policy change, not a diagram change.
+
+- daily-logger silent-sweep RCA → fleet-onboard backport (2026-09-24): the operator's first framing was
+  "fix the repo-creation skills so registration is consistent". **Territory:** none of the four missing
+  repos were created by a skill — a handoff memo's founding acts (surface 1 only), a raw `repo init`, a
+  hand bootstrap — all inside agentic sessions that never surfaced `/scaffold-app` or `/fleet-onboard`.
+  **Went:** the consumer became load-bearing (daily-logger derives its sweep from `gh repo list`, PR
+  #280) and the skills were hardened as the second line (triggers, `suggested_after` chain, docs); the
+  missing deterministic hook is filed as TD-010 rather than improvised here.
+- Same PR: TD-007's proposed fix derives the sweep from the *registry*. **Territory:** the registry only
+  knows repos that already have a northstar (dealdesk, foundry-recipes and seven older repos do not), so
+  it would have missed exactly the founding the incident is about. **Went:** derive from the org list
+  (superset) and let the registry stay the authority for *meaning*; recorded on TD-007.
+- Same PR: surface 9 (`install-agents.sh`) deliberately not run for the four repos — three have live
+  worker agents in their checkouts. Filed TD-012 instead of writing into them from a backport PR.
+

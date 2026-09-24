@@ -129,6 +129,10 @@ status: `unstarted`, per `~/selfco/CLAUDE.md` + the vault's `templates/entity.md
 entry to `wiki/log.md` (commit/push the vault per its git-mirror rule). Equivalently run `/vault sync`
 after the first commit. Skipping this leaves the app invisible to `/vault query`/`orient`/`cultivate`.
 
+Then invoke `/fleet-onboard <slug>` for the remaining fleet surfaces (daily-logger notes + prompt
+bullet, cockpit fleet card, core ecosystem table, frame-standup lists, install-agents). The sweep itself
+is derived from `gh repo list` and needs no edit, but it warns every run until the notes exist.
+
 ### Step 8 — Initialize git + install + build
 
 ```bash

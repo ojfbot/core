@@ -60,6 +60,11 @@ const REPOS = [
   'mirrorworld',
   'f1-doctrine',
   'jim-camera',
+  // Added 2026-09-24 (fleet-onboard backport — found unregistered by the daily-logger silent-sweep RCA).
+  'lego-village-pipeline',
+  'play-well-library',
+  'dealdesk',
+  'foundry-recipes',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');

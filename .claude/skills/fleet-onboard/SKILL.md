@@ -31,7 +31,9 @@ diffs each surface against it (plus `gh repo list ojfbot` for repos with no nort
 
 1. **Verify substrate**: `~/ojfbot/<repo>` exists, has `.git`, a README, and (if it will take
    roadmap slices) `.claude/northstar.md` + `.claude/roadmap.md`.
-2. **Walk surfaces 1–9** in the matrix. Surfaces 2–4 (daily-logger) and 5 (cockpit) are other
+2. **Walk surfaces 1–9** in the matrix. Surface 2 is AUTO since 2026-09-24 (daily-logger derives
+   its sweep from `gh repo list`; it prints `::warning::fleet drift: <repo>` until 3–4 are filled).
+   Surfaces 3–4 (daily-logger) and 5 (cockpit) are other
    repos: make each a small branch + PR, never a direct push. Surfaces 6–8 are one core PR.
    Before editing any list, re-grep for the anchor — line numbers in the matrix WILL rot.
 3. **Concurrent-agent safety**: check `git status`/branch of each target checkout first; if a
@@ -62,8 +64,12 @@ diffs each surface against it (plus `gh repo list ojfbot` for repos with no nort
 
 - **BSD sed has no GNU `0,/re/` address** — it no-ops silently. Use plain replace (verify the
   target string is unique first) or python.
-- **build-api.ts needs BOTH the set and the map** — the 2026-05-05 drift incident came from
-  exactly this asymmetry.
+- **daily-logger surface 3 is one entry now** — `REPO_NOTES` in `daily-logger/src/fleet.ts` feeds
+  `KNOWN_REPOS` and the tag classifier; the 2026-05-05 set/map asymmetry is gone.
+- **Founding is onboarding.** A repo created inside a session — `gh repo create`, a `chore: repo
+  init`, or a handoff memo's "founding acts" — MUST end with this skill. The 2026-09-17 play-well
+  founding memo named only surface 1 (northstar); both repos were invisible to the sweep for a
+  week, and dealdesk (`repo init`, 08-19) and foundry-recipes (04-30) for longer (TD-010).
 - **Never register a northstar entry before the file exists** — lint blocks core PRs on it
   (registered-but-absent is an ERROR when the checkout is reachable).
 - **Deliberate exclusions are policy, not drift** — check `feedback`/ADR notes (e.g.
