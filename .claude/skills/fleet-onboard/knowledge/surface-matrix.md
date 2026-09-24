@@ -11,8 +11,8 @@ row in the explicit half of this table.
 | # | Surface | File | Mechanism | Action |
 |---|---------|------|-----------|--------|
 | 1 | Northstar/roadmap registry | `core/decisions/northstar/README.md` | explicit YAML | register when the repo has `.claude/northstar.md` (lint ERRORs on a registered-but-missing file — never register a stub ahead of the file) |
-| 2 | daily-logger collection | `daily-logger/src/collect-context.ts` `REPOS` | explicit list | append name + one-line comment |
-| 3 | daily-logger API | `daily-logger/src/build-api.ts` `KNOWN_REPOS` + `TAG_TYPE_MAP` | explicit set + map | add to BOTH (set-only = tags silently dropped) |
+| 2 | daily-logger collection | `daily-logger/src/fleet.ts` `discoverRepos()` | **AUTO** since 2026-09-24 — `gh repo list ojfbot` (non-archived, non-fork) minus `EXCLUDED_REPOS`; discovery failure fails the run | no onboard action. A *deliberate* exclusion is an `EXCLUDED_REPOS` entry with a reason, never a missing note |
+| 3 | daily-logger API + notes | `daily-logger/src/fleet.ts` `REPO_NOTES` (→ `KNOWN_REPOS` → build-api tag types) | explicit map | add one entry (name → one-line role); the sweep prints `::warning::fleet drift` for every swept repo without one |
 | 4 | daily-logger prompt | `daily-logger/src/generate-article.ts` "Additional repos" | explicit prose | add a descriptive bullet (Claude mischaracterizes activity without it) |
 | 5 | Cockpit fleet cards | `morning-cockpit/packages/server/src/fleet-config.ts` `REPO_META` | explicit list | add {name, role, phase} (cosmetic; adapters auto-discover) |
 | 6 | Core ecosystem table | `core/CLAUDE.md` | markdown table | add a row (port, description, phase, status) |

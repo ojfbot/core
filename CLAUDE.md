@@ -56,6 +56,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | f1-doctrine | — | RAQG question layer for the F1 stack — bound question registry (33 nl-query-corpus entries migrated, PR #1; S1 merged), tiered doctrine corpus + retriever that suggests strategist questions bound to f1-substrate calls, never computes numbers | 0 | active |
 | cca-prep | 8631 | Multi-exam Claude-cert prep engine (CCAR-F/CCDV-F/CCAR-P) — generation-over-content drill server, per-exam deck registry + scope walls, privacy name gate; telemetry stays in selfco vault | 0 | active |
 | jim-camera | 4310 | jim.camera portfolio + Lightroom pipeline — manifest-fed Next.js gallery + darkroom CLI (LR Cloud API adapter) | 0 | active |
+| lego-village-pipeline | — | play-well cluster — digital twin + build harness for the family LEGO Christmas village (correspondence register, design packages, DT-DESIGN cuts) | 0 | active |
+| play-well-library | — | play-well cluster — canonical LEGO village content library (branch flow play/<user> → staging → main) | 0 | active |
+| dealdesk | — | Control-plane dashboard for client-work bids, proposals, and engagements — local board + AI proposal reviewer | 0 | active |
+| foundry-recipes | — | Blender tutorial extraction pipeline — sped-up reels become structured BlenderRecipe records in Notion, read by asset-foundry | 0 | active |
 
 ## Skills
 

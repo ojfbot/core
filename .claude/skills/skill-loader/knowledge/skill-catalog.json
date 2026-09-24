@@ -1,6 +1,6 @@
 {
   "version": "1.25",
-  "updated": "2026-08-18",
+  "updated": "2026-09-24",
   "skills": [
     {
       "name": "diagram",
@@ -1971,10 +1971,17 @@
         "register the repo everywhere",
         "new repo registration",
         "is this repo registered",
-        "reconcile repo lists"
+        "reconcile repo lists",
+        "founding acts",
+        "gh repo create",
+        "repo init",
+        "bootstrap a new repo",
+        "founded a new repo",
+        "new repo"
       ],
       "suggested_after": [
-        "scaffold-app"
+        "scaffold-app",
+        "scaffold-frame-app"
       ],
       "layer_affinity": [
         0,
