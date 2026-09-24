@@ -252,6 +252,12 @@ roadmaps:
   - slug: rm-l1-jim-camera
     northstar: l1-jim-camera
     path: ../jim-camera/.claude/roadmap.md
+  # cv-builder (2026-09-24): first roadmap under the oldest L1. Slices start from evidence-derived
+  # P1 15 / P2 5 (proposed corrections to the asserted 40 / 20, ojfbot/cv-builder#154); a slice
+  # flipped to ready before that correction is recorded will raise a moves_from drift WARN.
+  - slug: rm-l1-cv-builder
+    northstar: l1-cv-builder
+    path: ../cv-builder/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
