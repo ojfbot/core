@@ -43,20 +43,6 @@ fleet primitives / isolate it behind an adapter / decline it with a recorded rea
 Vendoring is not a verdict.
 → deeper: `decisions/adopt-stack/`
 
-**Judge**:
-A model call whose output is a typed **Verdict** (yes/no probability, a choice with
-probabilities, or a rubric score with confidence) rather than content, behind a swappable
-provider (Haiku/Opus, local Kev, a rule-set). Untrusted until it agrees with a sealed gold
-set in shadow; rules run first; escalation is labeled, never silent.
-_Avoid_: classifier, router, decision model (the first two carry rejected-skill history)
-→ deeper: `decisions/adr/draft-judge-primitive.md`
-
-**Verdict**:
-The typed outcome of a judgement — a Judge's answer (with confidence and provider), an
-`/adopt-stack` call (Absorb/Wrap/Reject), a gate result (PASS/BLOCKED), a loop decision
-(keep/kill/revise). Always records what produced it.
-_Avoid_: result, decision (a verdict is the recorded outcome; the decision is the act)
-
 **Skill**:
 A packaged instruction set under `.claude/skills/<name>/`, catalog-registered, invoked as
 `/<name>`. Git-canonical here; user-scope skills are symlinked to `~/.claude/skills/`.
@@ -68,7 +54,6 @@ _Avoid_: command, plugin (a plugin is a distribution channel, rejected — ADR-0
 - A **Wayfinder map** precedes a roadmap; its **decision tickets** resolve into specs and slices
 - A **Bead** carries context *between* the sessions that build slices
 - An `/adopt-stack` pass produces **Absorb/Wrap/Reject** verdicts; absorbed opinions become or amend **Skills**
-- A **Judge** emits **Verdicts**; a Judge decides nothing until a **Control gate** promotes it out of shadow
 
 ## Flagged ambiguities
 
@@ -76,7 +61,3 @@ _Avoid_: command, plugin (a plugin is a distribution channel, rejected — ADR-0
   runbook docs. Never interchangeable.
 - "ticket" — an implementation unit lives in the tracker as an issue backing a **Slice**;
   a **decision ticket** is a wayfinder question. The qualifier is load-bearing.
-- "judge" — reconciled 2026-09-24: one word, two cost tiers. buddy-check / f1-doctrine /
-  l2 PH4 use it for a rubric grader calibrated against human labels; `adr:judge-primitive`
-  uses it for a cheap typed question over state. Same contract (untrusted until agreement
-  clears a bar); the provider is what differs. Never split the word by cost.
