@@ -611,6 +611,21 @@ slices:
     repo: core
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S38"
+  - id: S40
+    phase: PH4
+    title: "Calibrate judge #2 — cv-builder route: cheap judge provider vs regex floor vs Opus on a sealed gold set (shadow)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 32
+    moves_to: 33
+    deliverable: "The Judge primitive (adr:judge-primitive) lands as a local module in cv-builder packages/agent-graph with three providers — deterministic regex floor (the existing keyword fallback), self-hosted Kev-4B via the System One wire shape (baseURL-swappable SDK pinned exactly, vendor confined to one adapter), and the incumbent Opus router — all computed on every routed turn while Opus still decides. Sealed gold set (the 5 test-graph pairs + ~40 authored prompts covering all six outcomes, state-checkmark variants, an adversarial subset) committed BEFORE the first ledger row (git ancestry is the seal). Ledger: evals/route-shadow.jsonl. Check: pnpm eval:route (agreement, κ, ECE/Brier, latency, cost per arm; --check --baseline= for CI). Loop registered in decisions/loops/loops.md at merge. Verdict keep/kill/revise recorded in decisions/research/ on 2026-10-22: KEEP promotes the cheap arm to route when confidence ≥ τ with routed_by labeled (one app, ADR-0001 shape) and opens the ADR-0033 revision; KILL means the regex floor was enough and the Opus router is replaced by rules. No hosted provider (operator ruling 2026-09-24: local only; Jev is closed to new accounts)."
+    entrance: "rm:rm-l1-cv-builder#S1 merged (orchestrator hygiene: single Opus call per turn, enum-validated route, routingDecision on the SSE state event); adr:judge-primitive draft merged; Kev-4B serving locally on the Mac (MLX)."
+    success: "pnpm eval:route prints the per-arm table from the committed gold set on a cv-builder PR; a turn with Kev stopped still routes via Opus and logs provider: unavailable — no cascade, no blank; the vendor-name grep over packages/ hits only the adapter; the 2026-10-22 verdict is recorded with the numbers."
+    check: "pnpm --filter @resume-builder/agent-graph exec vitest run && pnpm eval:route --check"
+    autonomy: gate-0
+    claimable_by: agent_eligible
+    kind: m
+    repo: cv-builder
+    status: queued
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)

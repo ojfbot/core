@@ -157,6 +157,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 | `harness-loop-instrumentation` | [Loop harnesses ride the OPAV spine; automation is gated on triggers, invocation is not](adr/draft-harness-loop-instrumentation.md) | architecture | Proposed |
 | `headless-components-with-design-language-adapters` | [Headless components with design-language adapters](adr/draft-headless-components-with-design-language-adapters.md) | architecture | Proposed |
 | `installed-harness-is-tracked` | [The installed agent harness is tracked, not gitignored](adr/draft-installed-harness-is-tracked.md) | convention | Proposed |
+| `judge-primitive` | [Judge primitive — typed questions over a state, answered with a calibrated verdict, behind swappable providers](adr/draft-judge-primitive.md) | architecture | Proposed |
 | `operating-surface-tiered-composition` | [Operating surface with tiered composition](adr/draft-operating-surface-tiered-composition.md) | architecture | Proposed |
 | `progressive-autonomy-gates` | [Progressive autonomy gates — branch+PR today, data-gated promotion toward auto-merge](adr/draft-progressive-autonomy-gates.md) | convention | Proposed |
 | `repo-scoped-skill-relevance` | [(draft): Repo-scoped skill relevance — per-repo `applies_to`/`kind` so the repo installer + suggester filter](adr/draft-repo-scoped-skill-relevance.md) | process | Proposed |

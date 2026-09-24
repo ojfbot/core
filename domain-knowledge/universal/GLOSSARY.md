@@ -154,6 +154,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 ## K
 
+**Judge** — A model call whose output is a typed **Verdict** — `noul` (yes/no probability), `choice` (labels → probabilities + confidence) or `score` (ordered rubric + confidence) — behind a swappable **judge provider** (Haiku/Opus, self-hosted Kev via the System One wire shape, a deterministic rule-set), confined to one labeled adapter. Contract: untrusted until it agrees with a sealed gold set in shadow (**Brassboard**); rules first; escalation labeled, never silent; fetched/tool content stripped from `state`; verdicts logged. Same word the fleet already uses for a calibrated rubric grader (buddy-check, f1-doctrine blind judge, l2 PH4 "calibrate judge #1") — one concept, two cost tiers. (adr:judge-primitive; `decisions/adopt-stack/system-one-decision-model.md`)
+
 **Karpathy Loop** — Autonomous propose→measure→keep/discard improvement loop on ONE metric with an immutable evaluator + git-as-state, no human in the moment (from `karpathy/autoresearch`, 2026). A closed-loop control pattern; **shadow mode** (the **Brassboard** stage, ADR-0086) is its safe-rollout form. Distinct from the **LLM Wiki (Karpathy)** — same author, opposite job (metric optimization vs knowledge compilation). First fleet use: a throwaway lint-rig prototype demonstrating Goodhart ("accurate ≠ good"). Destination: per-skill prompt eval. (selfco wiki `concepts/karpathy-loop`; `core/.handoff/2026-06-07-skill-eval-two-step-decision.md`)
 
 **Key Decision Point (KDP)** — *NASA SEH term.* A Control Gate at which the decision authority decides whether to proceed. In Control-Gated Slices, "Control Gate" and "KDP" are used interchangeably for a slice checkpoint with Entrance + Success Criteria. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
@@ -327,6 +329,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **`/vault`** — Skill maintaining the *selfco wiki*; a thin wrapper that reads `~/selfco/CLAUDE.md` (the schema) and runs helper scripts. Modes: `init` (scaffold + write the schema + Obsidian plugins + a repo entity stub per `~/ojfbot/*/.git`), `ingest <path|url>` (land a source in `raw/` → summary page → update entity/concept pages → `index.md` → `log.md`), `research <topic>` (ingest, but the skill fetches the sources), `query <q>` (answer from the wiki w/ citations, file substantive explorations back), `lint [--fix]` (orphans/broken-links/raw-without-source + semantic checks), `sync [--since=7d]` (fold the ojfbot activity feed into repo entity pages), `orient`, `note <title>`. Scripts read/scaffold; the LLM authors pages. (`selfco-vault.md`, ADR-0085)
 
 **Vault** — see *selfco vault / selfco wiki*. (When unqualified in ojfbot docs, "the vault" = the selfco wiki.)
+
+**Verdict** — The typed, recorded outcome of a judgement: a **Judge**'s answer with confidence and provider; an `/adopt-stack` call (Absorb/Wrap/Reject); a gate result (PASS / PASS WITH NOTES / BLOCKED); a loop decision (keep/kill/revise). A verdict always names what produced it (`provider`, `routed_by`, actor). (adr:judge-primitive; `CONTEXT.md`)
 
 **Verification** — *NASA SEH term* (verbatim): proof of compliance with specifications, by test/analysis/demonstration/inspection — *"Did I build the product right?"*. At a Control Gate, distinct from **Validation** (right build vs right thing). (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
