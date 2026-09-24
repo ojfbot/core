@@ -16,7 +16,7 @@ The external report's *mental model* is sound — a cheap typed-decision primiti
 ## Pickup (if resumed)
 
 1. Re-read this note's Parts A–F below; re-verify Part A's external facts (the ecosystem was 9 days old at evaluation; SDK 0.6.0).
-2. Restore the drafted artifacts from `4271b74` (`git show 4271b74:decisions/adopt-stack/system-one-decision-model.md`, `…:decisions/adr/draft-judge-primitive.md`, the S40 hunk in `roadmap-l2-ojfbot.md`, the CONTEXT/GLOSSARY hunks) rather than re-deriving them; re-run `measure-pkg.mjs @typesafe-ai/sdk` so the Gate-0 table is fresh.
+2. Restore the drafted artifacts from `4271b74` — it survives only in PR #494's history once the branch is deleted, so fetch it first with `git fetch origin pull/494/head` — (`git show 4271b74:decisions/adopt-stack/system-one-decision-model.md`, `…:decisions/adr/draft-judge-primitive.md`, the S40 hunk in `roadmap-l2-ojfbot.md`, the CONTEXT/GLOSSARY hunks) rather than re-deriving them; re-run `measure-pkg.mjs @typesafe-ai/sdk` so the Gate-0 table is fresh.
 3. Entrance for any pilot remains `rm:rm-l1-cv-builder#S1` (orchestrator hygiene) — check whether it merged.
 4. Do **not** pick the daily-logger cleaner or the core skill suggester as a pilot; Part C records why.
 
@@ -122,7 +122,7 @@ Existing calibration/judge harness to reuse: **f1-doctrine phase-keying gate** (
 
 ---
 
-## Part E — `/adopt-stack` decision table (to be written to `core/decisions/adopt-stack/system-one-decision-model.md`)
+## Part E — `/adopt-stack` decision table (drafted as `decisions/adopt-stack/system-one-decision-model.md` in `4271b74`; not landed — parked)
 
 | # | Opinion the stack imposes | Call | Evidence → invariant |
 |---|---|---|---|
@@ -131,11 +131,10 @@ Existing calibration/judge harness to reuse: **f1-doctrine phase-keying gate** (
 | 3 | Confidence float + threshold routing | **ABSORB, with ADR-0033 revision gated on measured ECE/Brier** | ADR-0033 rejected float thresholds on calibration grounds; RLCD is the counter-claim; shadow pilot supplies the data |
 | 4 | "Fallback to an LLM below threshold" | **ABSORB as *labeled escalation*, REJECT as silent cascade** | ADR-0003 / switchboard ADR-0001; pit-wall "never escalate rule-rejected" |
 | 5 | LangChain integration package (`@langchain/typesafe`, `langchain-typesafe`) | **REJECT for now** | 0.0.1 / experimental middleware; the direct SDK is 0 deps and the routing function is a plain TS function. Revisit if `ModelRouterMiddleware` matures |
-| 6 | LangSmith Gateway as provider registration point | **REJECT** | Fleet has switchboard; SemIf free window ends Sept 28 and is US-org-plan-gated. Use SemIf only as a short-lived second shadow arm |
+| 6 | LangSmith Gateway as provider registration point | **REJECT** | Fleet has switchboard; SemIf free window ends Sept 28 and is US-org-plan-gated. No SemIf arm either (operator ruling 2: local Kev only) |
 | 7 | Log probabilities into graph state / stream | **ABSORB** | cv-builder `RoutingDecision{confidence}` already designed; extend SSE `state` event |
 | 8 | Vendor-named types in domain code | **REJECT** | name-by-purpose rule; confinement check `grep -r typesafe packages/` → adapter only |
 | 9 | Self-hosted Kev (MLX) as local provider | **WRAP at a process boundary** | Kev is a Python server (`kev.serve`), Apache-2.0, fits a 32 GB Mac; run out-of-process like Ollama, speak the same `/v1/systemone` shape. The Pi is out (4B model). Conforms to local-first |
-
 | 10 | Suggester/router use case (the vendor's headline demo: "route the request") | **REJECT for the harness now** | Pocock D15 router rejected; S15 gated LAST on logged lexical misses; ADR-0068 shows follow-through, not matching, is the gap |
 
 **Integration shape (one line):** absorb "typed question + calibrated confidence + logged verdict" as the fleet **Judge** primitive behind one provider interface; wrap self-hosted Kev (local, default; Jev is closed to new accounts) as the first cheap judge provider via the `@typesafe-ai/sdk` wire shape; run every adoption in shadow, three-armed against a deterministic floor and the incumbent, on a sealed gold set, before it moves any control flow.
