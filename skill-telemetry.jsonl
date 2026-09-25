@@ -2,3 +2,5 @@
 {"ts":"2026-09-24T22:34:00Z","event":"skill:invoked","skill":"bead","args":"orient","tool_name":"Skill","repo":"cv-builder","cwd":"/Users/yuri/ojfbot/cv-builder","session_id":"d9fbed56-8719-4fd2-94b2-92f0d87e646b","source":"interactive"}
 {"ts":"2026-09-24T22:44:00Z","event":"skill:pr-commented","repo":"cv-builder","pr":"155","session_id":"d9fbed56-8719-4fd2-94b2-92f0d87e646b"}
 {"ts":"2026-09-24T22:44:28Z","event":"skill:pr-commented","repo":"core","pr":"492","session_id":"d9fbed56-8719-4fd2-94b2-92f0d87e646b"}
+{"ts":"2026-09-25T01:12:11Z","event":"skill:invoked","skill":"pr-review","args":"https://github.com/ojfbot/core/pull/495 — focus on readiness to merge and on stability/accuracy of infrastructure wiring-links","tool_name":"Skill","repo":"core","cwd":"/Users/yuri/ojfbot/core","session_id":"2c61520b-42b5-4ed6-b666-69d7f45c3c07","source":"interactive"}
+{"ts":"2026-09-25T01:12:11Z","event":"skill:suggestion-followed","skill":"pr-review","suggested_at":"2026-09-25T01:12:05Z","repo":"core","session_id":"2c61520b-42b5-4ed6-b666-69d7f45c3c07","suggestion_id":"893D1D93-0B0E-48E4-82E9-CB0D13FB4185"}
