@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Use pnpm, never npm.** Every install/run/test/exec invocation in this repo and across the ojfbot ecosystem uses pnpm — in CI workflows, scripts, READMEs, ADRs, commit messages, and any one-off bash. Add new sub-packages to `pnpm-workspace.yaml` and invoke them via `pnpm --filter <name> <script>`; do not shell out to `npm install` in a subdirectory. Use `pnpm dlx` instead of `npx`. CI uses `pnpm install --frozen-lockfile`. The presence of `pnpm-workspace.yaml` or `pnpm-lock.yaml` is the decisive signal. If a tool genuinely requires npm, surface it explicitly and ask before shipping the change.
 
-> **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the user layer. Add `--with-selfco` to also install the `/vault` skill at user scope, scaffold the `~/selfco` knowledge vault, register new repos as vault entities at spawn (ADR-0088), and add the opt-in `vault-session.sh` SessionEnd hook (see ADR-0085). See ADR-0055.
+> **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the user layer. Add `--with-selfco` to also install the `/vault` skill at user scope, scaffold the `~/selfco` knowledge vault, register new repos as vault entities at spawn (ADR-0088), and add the opt-in `vault-session.sh` SessionEnd hook (see ADR-0085). See ADR-0055. **Default model: claude-opus-5 with 16 k max output** for all agents unless overridden per-skill.
 
 ## Ecosystem
 
@@ -33,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | beaverGame | 5173 | Cozy 3D beaver simulator (Babylon.js migration) — consumes asset-foundry .glbs | 0 | active |
 | asset-foundry | 3035 | AI-driven Blender asset pipeline (LangGraph + bpy) — Frame MF remote | 0 | active |
 | github-actions | — | Shared GitHub Actions + reusable workflows for fleet CI (ADR-0067) | — | active |
-| f1-learning-studio | — | F1 learning studio — /wayfinder decision map (ADR-0101 dogfood) | 0 | scaffold |
+| f1-learning-studio | — | F1 learning studio — /wayfinder decision map (ADR-0101 dogfood) | 0 | active |
 | workstation-yuri | — | macOS workstation automation: Focus modes, wallpapers, iTerm2, Hammerspoon, future Swift app. Reads `core/scripts/launcher/registrations/`. Supersedes core ADR-0064. | 0 | scaffold |
 | dive-briefing | 8610 | Public dive-Q&A RAG service — hybrid retrieval + per-claim citation verification over tiered corpus packs (buddy-check's public sibling) | 0 | active |
 | switchboard | 8600 | Fleet LLM gateway (Python/FastAPI) — provider adapters, per-app budgets, opt-in labeled failover, OTel/Prometheus | 0 | active |
@@ -59,6 +59,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | lego-village-pipeline | — | play-well cluster — digital twin + build harness for the family LEGO Christmas village (correspondence register, design packages, DT-DESIGN cuts) | 0 | active |
 | play-well-library | — | play-well cluster — canonical LEGO village content library (branch flow play/<user> → staging → main) | 0 | active |
 | dealdesk | — | Control-plane dashboard for client-work bids, proposals, and engagements — local board + AI proposal reviewer | 0 | active |
+| app-templates | — | Canonical app templates (langgraph-app, browser-extension, python-scraper) + shared CI scaffolds for the fleet | — | active |
 | foundry-recipes | — | Blender tutorial extraction pipeline — sped-up reels become structured BlenderRecipe records in Notion, read by asset-foundry | 0 | active |
 
 ## Skills
