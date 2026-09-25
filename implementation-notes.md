@@ -8,6 +8,14 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- correspondence-speech-act-tiers ADR draft (2026-09-24): plan was "draft the ADR on a clean
+  worktree and file a tracking issue in lego-village-pipeline". Territory: a tracking issue
+  needs a stable link target, and a pushed branch alone is not one (branches get deleted at
+  merge; lvp's own debriefs record six reviewed SHAs lost that way). Took the conservative
+  option: opened core PR #495 as a **draft** so the issue (lvp #30) points at a durable object;
+  no review requested, no merge. Second gap: `gh` runs as `ojfbot`, so the issue's transmitting
+  account is the operator's own account; recorded in the issue header per the
+  `lego-pipe-file-issue` quadruple rather than treated as a blocker.
 - Pocock triage+sandcastle cycle (2026-08-11): plan expected sandcastle's Gate-0 to read
   application-shaped (Docker orchestration footprint). Territory: `measure-pkg.mjs` scored
   `@ai-hero/sandcastle` **0/6 application signals** (1 dep, no telemetry) — package shape is
