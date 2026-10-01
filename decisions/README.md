@@ -136,6 +136,7 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0096 | [Skill architecture taxonomy and recurring audit](adr/0096-skill-architecture-taxonomy.md) | convention | Accepted |
 | 0097 | [Wrap, absorb, or reject — integrating a mature external harness into an opinionated stack](adr/0097-wrap-absorb-reject.md) | process | Accepted |
 | 0106 | [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) | policy | Accepted |
+| 0108 | [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) | architecture | Accepted |
 
 ### Other domains
 | Serial | Title | Type | Status |
@@ -264,6 +265,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0104 — [Behavioral misreports get their own ledger, and only an independent sweep may close one](adr/0104-defect-ledger-and-closure-loop.md) · Accepted
 - 0105 — [The vault schema is one machine-readable file; prose documents cite it, never restate it](adr/0105-vault-schema-as-data.md) · Accepted
 - 0106 — [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) · Accepted
+- 0108 — [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) · Accepted
 
 </details>
 
@@ -306,4 +308,3 @@ When a mistake or pattern is caught and a decision is updated:
 3. Update `memory/MEMORY.md` with the summary
 
 This is the full write-back loop. Stopping at step 1 means the next session won't have the context loaded.
-

@@ -9,6 +9,11 @@ Convention: `adr:context-md-glossary-pointer-convention` (draft) /
 
 ## Language
 
+**Fleet-runner**:
+Core's development-work executor, with its own deployment boundary; owns admitted work
+and attempts under the shared authorization and correspondence contracts.
+→ deeper: `decisions/adr/0108-fleet-runner-in-core.md`
+
 **Bead**:
 A small, dated markdown file in `.handoff/` carrying inter-session context — a brief,
 report, or decision. Self-report, not ground truth: verify against git + tracker before
