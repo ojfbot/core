@@ -1,0 +1,2 @@
+{"ts":"2026-09-30T21:06:42Z","event":"skill:invoked","skill":"daily-logger","args":"","tool_name":"Skill","repo":"daily-logger","cwd":"/Users/yuri/ojfbot/daily-logger","session_id":"a5a3fc6a-1528-4f09-9f11-41a2b9cc102e","source":"interactive"}
+{"ts":"2026-09-30T21:06:42Z","event":"skill:suggestion-followed","skill":"daily-logger","suggested_at":"2026-09-30T21:06:37Z","repo":"daily-logger","session_id":"a5a3fc6a-1528-4f09-9f11-41a2b9cc102e","suggestion_id":"0D2E2AD5-0959-46C1-84FF-2E861775A07C"}
