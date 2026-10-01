@@ -1,6 +1,7 @@
 # ADR-0108: Fleet-runner lives in core with an independent deployment
 slug: fleet-runner-in-core
 serial: 0108
+rev: A
 Date: 2026-10-01
 Date accepted: 2026-10-01
 Status: Accepted
@@ -59,8 +60,9 @@ data belong in the repository. One component does not require one process or one
 
 ### Scope of acceptance
 
-The operator approved repository placement on 2026-10-01. Acceptance applies to this
-boundary only. It does not accept the remaining execution design or authorize scaffolding,
+The operator approved repository placement and explicitly directed fleet-runner to
+supersede the earlier conductor initiative on 2026-10-01. Acceptance applies to these
+boundaries only. It does not accept the remaining execution design or authorize scaffolding,
 deployment, live queue mutation, autonomous merge, private export or cluster migration.
 
 Publication uncertainty/reassignment policy, trusted grants, restoration, exact-state
@@ -87,9 +89,25 @@ a PR with checks/trace evidence. Completing that criterion would not demonstrate
 fleet-runner contract above. Reconcile its scope before dispatching overlapping work;
 this ADR does not change its status, run it or claim it complete.
 
-The [control-plane conductor, core #307](https://github.com/ojfbot/core/issues/307), observes
-and coordinates existing loops. Its stated scope excludes replacing dispatch. Preserve
-that boundary rather than treating it as authority to implement fleet-runner.
+Fleet-runner supersedes the [control-plane conductor initiative, core #307](https://github.com/ojfbot/core/issues/307).
+Reuse that tracker and its open decision tickets. The stable
+[wayfinder map](../wayfinder/control-plane-conductor.md) records the new destination and
+the obligations carried forward: loop census and health, durable run evidence, output
+consumption, overlap/contradiction handling, portable triggers, bounded authority and
+independent supervision. Supersession does not claim any of those capabilities delivered.
+
+The earlier initiative excluded dispatch replacement and was framed around Claude Routines.
+Those initiative boundaries no longer define fleet-runner's destination. Codex and Claude
+execution and the existing day-runner are part of the successor design. This is not a
+blanket reversal of the earlier rejection of a particular dispatch migration: an actual
+cutover still requires its own accepted design, evidence and human authorization.
+
+The earlier requirement that all conductor knowledge be reconstructible from committed
+files must be reconciled with durable execution state before selecting a store. Preserve
+committed contracts, inventory and decisions; explicitly decide evidence export, restore
+and vendor-independent reconstruction in #311/#318 and the recovery design. This ADR
+does not silently convert portability into permission to keep essential history only in
+a provider service.
 
 Cut over existing execution entry points only through reviewed implementation slices
 that preserve work identity and one transition authority. This ADR moves no code and
@@ -131,7 +149,8 @@ does not retire the existing runner.
 - The ADR, index and glossary agree on core ownership and independent deployment.
 - Related ADR slugs resolve and their relationship is recorded in both directions.
 - No package, dependency, service configuration or dispatch state changes in this record.
-- Existing correspondence, estate and conductor venues remain distinct.
+- Correspondence and estate retain their venues; #307 and its unresolved tickets continue
+  under fleet-runner, without a duplicate conductor program or false completion claims.
 
 Runtime correctness remains unverified by this documentation change.
 
@@ -140,8 +159,13 @@ Runtime correctness remains unverified by this documentation change.
 | Field | Value |
 | --- | --- |
 | Zero-point | 2026-10-01 fleet-runner repository-placement review |
-| Decision authority | Operator explicitly approved the core-component and independent-deployment plan on 2026-10-01 |
-| Acceptance scope | Repository and responsibility boundary only; publication/merge state is recorded by Git history |
+| Decision authority | Operator approved the core-component and independent-deployment plan, then explicitly said fleet-runner supersedes the earlier conductor initiative on 2026-10-01 |
+| Acceptance scope | Repository placement, responsibility boundary and initiative succession; publication/merge state is recorded by Git history |
 | Source baseline | core main 5b43c97de28cf251de8921e4ec9b6a7d20b467e9 |
 | Implementation start | Pending a separately reviewed implementation slice |
 | Implementation end | Pending |
+
+## Revision history
+
+- Rev A, 2026-10-01: record the operator's explicit conductor supersession and carry its
+  unresolved obligations into fleet-runner. Runtime design and implementation remain gated.
