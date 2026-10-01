@@ -6,6 +6,7 @@ type: infrastructure
 traces:
   parent: developer-day-orchestration-master
   part-of-series: developer-day
+  relates-to: [fleet-runner-in-core]
 
 Date: 2026-04-30
 Date accepted: 2026-05-04

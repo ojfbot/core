@@ -14,7 +14,7 @@ baseline:
 traces:
   supersedes:
   amends:
-  relates-to: [roadmap-under-northstar, progressive-autonomy-gates, session-provenance-hardening]
+  relates-to: [roadmap-under-northstar, progressive-autonomy-gates, session-provenance-hardening, fleet-runner-in-core]
   parent:
   part-of-series:
 
