@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- Fleet-runner succession (2026-10-01): #307 named a canonical conductor map, but it was absent from main at 5b43c97. Recovered the map from branch commit 887983a and re-charted that stable file for the operator-approved successor, preserving unresolved ticket IDs and historical provenance rather than reconstructing decisions from issue summaries.
+
 - Pocock triage+sandcastle cycle (2026-08-11): plan expected sandcastle's Gate-0 to read
   application-shaped (Docker orchestration footprint). Territory: `measure-pkg.mjs` scored
   `@ai-hero/sandcastle` **0/6 application signals** (1 dep, no telemetry) — package shape is
@@ -443,4 +445,3 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   (superset) and let the registry stay the authority for *meaning*; recorded on TD-007.
 - Same PR: surface 9 (`install-agents.sh`) deliberately not run for the four repos — three have live
   worker agents in their checkouts. Filed TD-012 instead of writing into them from a backport PR.
-

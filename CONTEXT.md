@@ -10,8 +10,9 @@ Convention: `adr:context-md-glossary-pointer-convention` (draft) /
 ## Language
 
 **Fleet-runner**:
-Core's development-work executor, with its own deployment boundary; owns admitted work
-and attempts under the shared authorization and correspondence contracts.
+Core's development-work executor and successor to the control-plane conductor initiative,
+with its own deployment boundary; owns admitted work and attempts under the shared
+authorization and correspondence contracts, and inherits the conductor's loop oversight remit.
 → deeper: `decisions/adr/0108-fleet-runner-in-core.md`
 
 **Bead**:
