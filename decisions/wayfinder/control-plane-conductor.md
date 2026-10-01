@@ -87,7 +87,7 @@ now a standing constraint on every ticket.
 - Doctrine that constrains any answer here: ADR-0086 (shadow-first, RIDM promotion), gate-0
   (humans merge), and the standing rule that a measurement never blocks.
 
-**Staged input (2026-08-01):** `decisions/adr/draft-bead-substrate-stability.md` — audited
+**Staged input (2026-08-01):** [draft-bead-substrate-stability.md at historical commit `887983a`](https://github.com/ojfbot/core/blob/887983af32035fda2e5f774ce3607862850b91a4/decisions/adr/draft-bead-substrate-stability.md), absent from this branch. It recorded audited
 assumptions + gated slices for the bead data layer (durability, loud emissions, committed
 digests, substrate RIDM). Its DS2 feeds #318, DS4/DS5 feed #309. Charted as *input to*
 tickets, resolving none of them.
