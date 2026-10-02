@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- Fleet-runner Q1 continuity (2026-10-01): I initially updated an earlier live report as a mutable coordination record, but `/bead` requires append-only corrections; restored its previous snapshot and appended a superseding report instead.
+
 - Fleet-runner Q1 recording (2026-10-01): the ADR skill named `scripts/adr-slugs.sh`, but the resolver lives under `.claude/skills/adr/scripts/`; used that existing resolver to verify the next serial and unique slug rather than creating another helper.
 
 - Fleet-runner PR #497 review (2026-10-01): the recovered map named a staged ADR as a checkout path, but the ADR is absent from the placement branch; linked its verified historical commit and stated that absence rather than restoring an unapproved plan.
