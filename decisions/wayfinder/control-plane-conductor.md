@@ -35,9 +35,13 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ### Current decision and evidence limits
 
-Repository placement and initiative succession are accepted. The runtime, store, host,
-publication uncertainty policy, trusted grants, recovery, exact-state delivery/review,
-confinement and source revision policies remain open. The correspondence dependency is
+Repository placement, initiative succession and Q1's first-pilot affected-item hold are
+accepted. The hold blocks reassignment and conflicting publication while earlier authorized
+writes remain unknown; unrelated independent work continues. The authorization point,
+reconciliation and reopening authority, runtime, store, host, trusted grants, recovery,
+exact-state delivery/review, confinement and source revision policies remain open.
+See [adr:fleet-runner-publication-hold](../adr/0109-fleet-runner-publication-hold.md).
+The correspondence dependency is
 [core PR #495](https://github.com/ojfbot/core/pull/495); estate ownership remains
 [core #279](https://github.com/ojfbot/core/issues/279).
 
@@ -104,6 +108,10 @@ to make that a decision rather than a discovery.
   succession: fleet-runner supersedes conductor, operator decision 2026-10-01.
   See [adr:fleet-runner-in-core](../adr/0108-fleet-runner-in-core.md).
 - No inherited decision ticket has been resolved by this re-charting.
+- Q1's first-pilot policy: hold reassignment and conflicting publication for the affected
+  item until outstanding effects are reconciled; unrelated independent work continues.
+  Operator decision 2026-10-01, [adr:fleet-runner-publication-hold](../adr/0109-fleet-runner-publication-hold.md).
+  Authorization/reopening mechanics and Q3 recovery remain open; no runtime proof is claimed.
 
 ## Tickets
 

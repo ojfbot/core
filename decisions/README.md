@@ -137,6 +137,7 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0097 | [Wrap, absorb, or reject — integrating a mature external harness into an opinionated stack](adr/0097-wrap-absorb-reject.md) | process | Accepted |
 | 0106 | [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) | policy | Accepted |
 | 0108 (rev A) | [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) | architecture | Accepted |
+| 0109 | [Hold the affected item while publication is uncertain](adr/0109-fleet-runner-publication-hold.md) | policy | Accepted |
 
 ### Other domains
 | Serial | Title | Type | Status |
@@ -266,6 +267,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0105 — [The vault schema is one machine-readable file; prose documents cite it, never restate it](adr/0105-vault-schema-as-data.md) · Accepted
 - 0106 — [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) · Accepted
 - 0108 (rev A) — [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) · Accepted
+- 0109 — [Hold the affected item while publication is uncertain](adr/0109-fleet-runner-publication-hold.md) · Accepted
 
 </details>
 
