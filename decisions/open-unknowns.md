@@ -197,3 +197,24 @@ drafted inline there.
 **Standard considerations not covered**
 - Python labs' home-shape inside a pnpm workspace (the lab-surface ruling is TypeScript *first*,
   not TypeScript *only*; nothing here rules how a Python lab package coexists).
+
+## 2026-10-01 — Fleet-runner holds the affected item during uncertain publication (Q1, #307)
+
+Ruling: [adr:fleet-runner-publication-hold](adr/0109-fleet-runner-publication-hold.md)
+blocks reassignment and conflicting GitHub publication until outstanding effects are
+reconciled for the first pilot. Unrelated independent work continues. No enforcement
+experiment or implementation slice was approved by this ruling.
+
+**Deferred decisions**
+- The authorization point, later scope revision/revocation, trusted grants, reconciliation mechanism and accountable reopening authority; unblocked by: their separate policy decisions and approved proofs.
+- Q3's sole-authority and reopening rule after restoring older state, recovery owner and numerical data-loss/recovery-time targets; #311/#318's reconstruction obligations remain open.
+- Escalation deadlines and budgets. A deadline alone cannot release the Q1 hold.
+- S25 reconciliation and registration of approved delivery slices before overlapping implementation; neither registration nor movement changed here.
+
+**Unvalidated assumptions**
+- That a publisher can retain and reconcile evidence for every outstanding conflicting request, including delayed effects across restart. No mechanism has proved this yet.
+- That the hold can be enforced across admission, reassignment and publication while unrelated independent work continues. The accepted policy is not executed evidence.
+
+**Standard considerations not covered**
+- Evidence retention, loss/corruption and access controls for the eventual publication record.
+- Operator escalation and reopening workflow when remote evidence stays unavailable; the accepted tradeoff permits indefinite blocking, but its operating procedure remains unspecified.

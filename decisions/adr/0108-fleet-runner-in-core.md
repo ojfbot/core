@@ -11,7 +11,7 @@ OKR: ns:l2-ojfbot#P2
 Commands affected: /day-run, future fleet-runner entry points
 Repos affected: core; morning-cockpit and daily-logger as consumers
 traces:
-  relates-to: [launcher-mechanism-core-scripts-launcher, dispatch-queue-and-day-runner]
+  relates-to: [launcher-mechanism-core-scripts-launcher, dispatch-queue-and-day-runner, fleet-runner-publication-hold]
 
 ---
 
@@ -68,6 +68,10 @@ deployment, live queue mutation, autonomous merge, private export or cluster mig
 Publication uncertainty/reassignment policy, trusted grants, restoration, exact-state
 delivery and review continuity, confinement, source revisions, budgets, database, provider
 qualification and hosting remain separate design decisions.
+
+The first-pilot hold for unknown publication outcomes is separately accepted in
+[adr:fleet-runner-publication-hold](0109-fleet-runner-publication-hold.md). Its acceptance
+does not broaden this placement decision or approve runtime enforcement.
 
 The existing correspondence program in [core PR #495](https://github.com/ojfbot/core/pull/495)
 remains the contract dependency for a governed pilot. It does not block this repository
