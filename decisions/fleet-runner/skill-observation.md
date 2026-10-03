@@ -6,7 +6,7 @@ The operator confirmed observation and reconciliation for all Claude and Codex s
 
 [Investigation and measured evidence](../../docs/fleet-runner-skill-telemetry-investigation-2026-10-02.md). [Proposed ADR](../adr/draft-fleet-runner-skill-observation.md).
 
-[Author spec review](skill-observation-review.md): PASS WITH NOTES for the documentation proposal; provider qualification and rollout policies remain open.
+[Verification notes and review links](skill-observation-review.md). Review dispositions belong on PR #501; this specification does not certify its own acceptance.
 
 The operator subsequently required PR and issue comments as reporting outputs and directed application of the structured-correspondence lessons. The [correspondence profile](skill-observation-correspondence.md) is part of this design: typed observations, claims, inferences, assessments, dispositions, and delivery/consumption receipts, with eight falsifiable rule obligations. Detailed contracts remain proposed.
 
@@ -53,7 +53,7 @@ The buffer is a recoverable transport stage, not a second authoritative skill le
 
 The [correspondence profile](skill-observation-correspondence.md) defines admissible writers, a closed relation vocabulary, heuristic versioning, evidence assessments, and the required PR/issue publication contract. It separates authored claims from derived outcomes; no agent can set a verified result or confirmed delivery through an authored status field. Schema validity establishes shape, not truth. Heuristics produce attributable interpretations whose evidence and qualification remain visible.
 
-The profile references draft PR #495 at a fixed revision, preserving its unaccepted status. Informational reporting comments are not operative correspondence transfers, work orders, or human rulings. Any binding act must use the separately accepted correspondence and grant contract.
+This is the normative source for the proposed skill observation scope and implementation entrance. The profile proposes adaptations of #495 D8–D10 and an explicit amendment to D7; their acceptance must be reconciled in #495 before governed use. Informational reports contain observed dispositions and existing decision links only. Requests for action or decisions are separate binding speech acts with a named recipient under the operative correspondence and grant contract.
 
 ### Records and meanings
 
@@ -206,7 +206,9 @@ Existing prior art is the reconcile-skill-acted suite, log-tool-use skill-field 
 
 Native transcripts and tool output are untrusted input and may contain secrets. Parse records as data; never evaluate captured JavaScript, shell, or embedded instructions. Bound record size and parser work, record rejected gaps, and preserve source cursors. Evidence resolution must not follow arbitrary paths outside allowed roots or fetch arbitrary URLs. Authenticate remote producers and authorize their host/session namespaces before accepting remote evidence.
 
-The first qualification uses local evidence and redacted fixtures. Any future remote deployment needs an approved export policy, transport authentication, storage permissions, retention limits, and recovery policy before private observations leave their source host. Default reporting exports aggregate dispositions and opaque references, not raw prompts or tool arguments. This design grants no new publisher or executor authority.
+The first qualification requires a reviewed redaction manifest before a fixture is committed or shared. Remove raw prompts, tool outputs, credentials, personal or third-party content, private paths, native session/call/suggestion identifiers, and identifying timestamps. Use synthetic fixture identifiers and relative timing; keep any source mapping local under the operator's control. Inspect every fixture and generated report for those exclusions. Excluded or unobservable inputs remain visible as coverage gaps. This minimum applies from slice 1; later retention and remote-export policies may tighten it.
+
+All-session scope deliberately includes the operator's non-fleet and projectless Claude/Codex work: restricting it to registered repositories would miss the interactive use the operator asked to measure. That scope is a reporting goal, not blanket permission to collect other people's sessions or export non-fleet content. Each source needs an explicit authorized scope and exclusion policy before collection; participation by others grants no collection authority. Until those controls are accepted, qualification uses explicitly selected operator-owned local inputs only. Remote rollout additionally requires export, authentication, retention, storage, and recovery policies. Public reporting uses aggregate dispositions and opaque references. This design grants no new publisher or executor authority.
 
 ## Revision forecast
 
@@ -227,7 +229,9 @@ The [delivery handoff](skill-observation-delivery.md) defines the first local qu
 
 No changes to suggestion ranking, prompt enforcement, skill installation, live hook configuration, queue transitions, existing publication authority/hold policy, autonomous merge, or numeric adoption targets. Reliable comment publication is specified here as a required reporting behavior, but no live posting or new grant is authorized by this documentation. No universal claim of full telemetry and no reconstruction of intent from missing data.
 
-Before implementing a slice, reconcile existing skill roadmaps, register the bounded work and its owner, pin the intended provider versions, and choose the operational policy required for that slice. The first qualification can use local fixtures and a local receipt without resolving remote hosting. A production rollout additionally requires the deferred privacy, durability, freshness, and independent-supervision decisions. Do not start a second conductor or treat this proposal as closure of the inherited tickets.
+Before any slice implementation or local experiment begins, obtain approved scope and register the bounded work with an assigned owner in the canonical roadmap. This includes supervised slice-1 pickup, not only unattended dispatch. Reconcile overlapping roadmap work, pin provider versions, review the minimum redaction manifest above, and select policies needed for that slice. The handoff's pickup instruction is inert until these conditions are met.
+
+The first qualification uses explicitly selected local inputs and fixture-only receipts; it neither runs the scheduled-agent evidence probe in #310 nor selects #309's hosting. The #310 → #309 blocking edge remains intact. A production rollout additionally requires the deferred privacy, durability, freshness, and independent-supervision decisions. Do not start a second conductor or treat this proposal as closure of inherited tickets.
 
 ## Proposed glossary additions
 

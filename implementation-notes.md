@@ -11,6 +11,7 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - Fleet-runner design publication (2026-10-02): a repeat of the capture suites assumed dependencies in the isolated worktree, but Vitest was absent; retained the earlier 37-test investigation result as historical evidence, reported the unsuccessful rerun, and used dependency-free documentation checks for this docs-only PR.
 
 - Fleet-runner skill observation (2026-10-02): session instructions pointed to core `.Codex/skills`, but that path is absent; read the existing `.agents/skills` bodies and verified their `.claude/skills` counterparts instead of installing or rewriting skill distribution.
+
 - Fleet-runner skill observation (2026-10-02): the ADR workflow again named `scripts/adr-slugs.sh`, but the resolver lives at `.claude/skills/adr/scripts/adr-slugs.sh`; used the existing resolver and kept this change scoped to the proposed design.
 
 - Fleet-runner Q1 continuity (2026-10-01): I initially updated an earlier live report as a mutable coordination record, but `/bead` requires append-only corrections; restored its previous snapshot and appended a superseding report instead.

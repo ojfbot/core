@@ -240,7 +240,7 @@ Ruling: the operator confirmed all Claude and Codex sessions, including sessions
 
 ## 2026-10-02 — Skill reporting uses structured correspondence and PR/issue comments
 
-The operator required reviewable PR and issue comments alongside telemetry storage and directed application of structured-correspondence lessons to heuristic capture and reporting. The [profile](fleet-runner/skill-observation-correspondence.md) records the proposed typed records, closed relations, evidence/authority boundaries, revision rules, required publication, and SC01–SC08 acceptance cases. It cites draft PR #495 at head `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb` without ratifying it.
+Ruling: the operator required reviewable PR and issue comments alongside telemetry storage and directed application of structured-correspondence lessons to heuristic capture and reporting. The [profile](fleet-runner/skill-observation-correspondence.md) records the proposed typed records, closed relations, evidence/authority boundaries, revision rules, required publication, and SC01–SC08 acceptance cases. It cites draft PR #495 at head `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb` without ratifying it.
 
 **Deferred decisions**
 - Operative correspondence grammar and verified human/agent authority when GitHub accounts are shared; unblocked by: existing #495 and fleet-runner grant-policy decisions. Telemetry reports cannot settle them.
