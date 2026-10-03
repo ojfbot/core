@@ -670,6 +670,12 @@ parent number reconciles when `northstar-rollup.mjs` exists.
 
 ## PH5 — Audit tranche 3 (2026-07-08): close the OPAV skill loop, first meta-loop
 
+The [skill observation delivery handoff](../fleet-runner/skill-observation-delivery.md)
+records the proposed all-session extension under #307. Its first local qualification
+does not dispatch work or satisfy S25. Its later consumer cutover must preserve S23's
+OPAV promotion requirements and reconcile S24's existing migration before replacing consumers.
+No status, movement, or unattended-dispatch eligibility changes here.
+
 **2026-10-01 placement and succession decision:** `adr:fleet-runner-in-core` places the persistent executor
 in core with its own deployment and supersedes the conductor initiative, preserving #307
 and its open obligations in `decisions/wayfinder/control-plane-conductor.md`.
