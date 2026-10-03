@@ -49,6 +49,17 @@ beforeEach(() => { ctx = scaffold(); });
 afterEach(() => { rmSync(ctx.tmp, { recursive: true, force: true }); });
 
 describe('loops-liveness', () => {
+  it.each([
+    ['before', NOW - 4 * 3600000, 'OK'],
+    ['equal to', NOW - 3 * 3600000, 'OK'],
+    ['after', NOW - 2 * 3600000, 'MISSED'],
+  ])('compares an overdue scheduled occurrence %s the latest successful receipt', async (_position, next, verdict) => {
+    const { sql, id, entry } = codexFixture(next);
+    sql(`INSERT INTO automation_runs VALUES ('fixture-run', '${id}', 'completed', ${NOW - 3 * 3600000}, ${NOW - 3 * 3600000 + 1000})`);
+    writeRegistry(ctx.core, [entry]);
+    expect((await liveness(ctx.core, ctx.home, NOW)).results[0].verdict).toBe(verdict);
+  });
+
   it('keeps a recorded failure visible when the schedule is overdue', async () => {
     const { sql, id, entry } = codexFixture(NOW - 3 * 3600000);
     sql(`INSERT INTO automation_runs VALUES ('fixture-run', '${id}', 'failed', ${NOW - 3600000}, ${NOW - 3500000})`);
