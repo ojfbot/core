@@ -52,6 +52,14 @@ or creating another initiative. Detailed contracts and implementation slices rem
 proposed. Reconcile existing skill roadmaps before dispatch; the first governed execution
 pilot's acceptance criteria do not expand through this note.
 
+The operator subsequently required PR and issue comments alongside telemetry storage and
+directed application of the structured-correspondence lessons. The
+[correspondence profile](../fleet-runner/skill-observation-correspondence.md) separates
+observations, claims, heuristic interpretations, assessments, dispositions, and publication
+receipts. It requires confirmed remote delivery, correction lineage, and positive/mutation
+tests for each rule. PR #495 remains draft; this extension does not ratify its governance
+contract or equate an informational reporting comment with an operative work order.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are

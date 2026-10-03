@@ -41,3 +41,15 @@ The ADR skill documents the resolver at `scripts/adr-slugs.sh`, but the actual r
 ## Before implementation
 
 Choose the first provider qualification scope and public observation-to-receipt test boundary, reconcile existing roadmap slices, and register the bounded work. Resolve interval closure before negative classification. Resolve deployment-specific privacy and recovery policies before remote rollout. Obtain independent review before runtime acceptance; this author check is not its substitute.
+
+## Follow-up review of the correspondence profile
+
+Scope: author review of the operator-directed extension, including [the new profile](skill-observation-correspondence.md), revised design, and ADR. Verdict remains PASS WITH NOTES for the documentation proposal, not runtime acceptance.
+
+The prior design left issue comments and confirmed comment delivery implicit. The revision now requires both configured PR and issue targets, useful claim-level content, exact report revisions, independent remote readback, correction lineage, and a separate consumption receipt. The source inspection of `bead-session.sh` confirms that the present hook can log a posted event after a failed GitHub command; SC07 explicitly targets that failure.
+
+The typed profile distinguishes observations, agent claims, interpretations, assessments, dispositions, report revisions, publication intents, delivery receipts, and consumption receipts. Human rulings remain governed by the shared authority contract. It separates schema validity from evidential support and distinguishes a shared account's authorship from human authorization. Source-independence checks cannot be satisfied by copying one claim into two records.
+
+PR #495 was verified OPEN and draft at `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb`. The profile uses its authored/derived distinction and verification lessons without claiming the proposal is accepted or replacing its operative-transfer rule with a comment. It retains the accepted publication hold and names uncertain-outcome recovery as unproven. No new runtime schema, inference engine, publisher, or rule tests are claimed to exist.
+
+No additional critical error found in the documentation. Remaining significant integration decisions are the operative correspondence grammar and authority mechanism, shared schema ownership/version compatibility, and qualification of comment recovery and routing. They are explicitly deferred before implementation. SC01–SC08 each has a positive and mutation case specified; the next implementation must prove nonzero executed coverage rather than counting this table as a test pass.

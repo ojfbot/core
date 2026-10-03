@@ -111,3 +111,11 @@ Required before implementation acceptance:
 `/plan-feature` supplied the proposed design and test matrix. `/spec-review` is recorded in the [companion author review](../decisions/fleet-runner/skill-observation-review.md); no independent peer review is claimed. The ADR workflow supplied a uniquely named proposed architecture record. No skill application, accepted architecture, completed slice, or provider coverage is claimed solely because a file was read or this report exists.
 
 The suggested skill-loader action was emitted in shadow mode with this report as evidence and verified present in the existing OPAV ledger. Validation remains indeterminate because its expected-artifact contract is absent. The other skills used here are recorded in this receipt; no suggestion IDs were invented to force them into the suggestion-scoped emitter.
+
+## Follow-up evidence for structured reporting
+
+The operator clarified that PR and issue comments are required reporting surfaces and directed application of structured-correspondence lessons. Inspection of `scripts/hooks/bead-session.sh:228` found a further confirmed publication defect: `gh pr comment` errors are suppressed with `|| true`, after which the hook unconditionally appends `skill:pr-commented`. The recorded event therefore does not establish delivery. This was a source-path inspection, not a deliberately failed live publication experiment.
+
+The new [correspondence profile](../decisions/fleet-runner/skill-observation-correspondence.md) requires separate publication intent, remote readback receipt, and consumption receipt. It draws from core PR #495, still OPEN and draft at `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb`, and the accepted fleet-runner publication hold. No GitHub comment was posted during this design extension.
+
+The skill-create suggestion in this follow-up was explicitly declined as a scope mismatch. This is architecture work, not creation of a skill. The profile preserves that as a proposed decline fixture with the real suggestion ID; no skill-create action or live typed disposition is claimed.

@@ -8,6 +8,8 @@ The operator confirmed observation and reconciliation for all Claude and Codex s
 
 [Author spec review](skill-observation-review.md): PASS WITH NOTES for the documentation proposal; provider qualification and rollout policies remain open.
 
+The operator subsequently required PR and issue comments as reporting outputs and directed application of the structured-correspondence lessons. The [correspondence profile](skill-observation-correspondence.md) is part of this design: typed observations, claims, inferences, assessments, dispositions, and delivery/consumption receipts, with eight falsifiable rule obligations. Detailed contracts remain proposed.
+
 ## Problem and user outcomes
 
 Suggestion delivery is currently observed in a Codex session whose tool activity is absent from the legacy corroboration ledger. That absence becomes an ignored event. Other reports use incompatible populations and timestamps. The extension must let the operator distinguish a skipped workflow from missing observation and inspect the evidence supporting each statement.
@@ -18,7 +20,7 @@ Suggestion delivery is currently observed in a Codex session whose tool activity
 4. As a reviewer, I want successful application tied to independently validated evidence, so an assertion or file read cannot manufacture completion.
 5. As the operator, I want delayed evidence to correct prior interpretations, so an interruption does not permanently label work ignored.
 6. As a skill author, I want definition maintenance reported separately from use, so authoring does not inflate adoption.
-7. As a report consumer, I want the same snapshot contract in cockpit, daily-logger, and PR reports, so numbers agree across surfaces.
+7. As a reviewer, I want required PR and issue comments containing scoped findings, evidence, gaps, and corrections from the same snapshot contract as cockpit and daily-logger, so the work remains reviewable where decisions happen.
 8. As the operator, I want collector and report-consumption failures surfaced independently, so this does not become another unobserved measurement loop.
 
 ## Implementation decisions
@@ -35,13 +37,23 @@ flowchart LR
   E[Independent evidence validation] --> F
   F --> P[Versioned session and skill projections]
   P --> K[Morning cockpit]
-  P --> D[Daily logger and PR reports]
+  P --> D[Daily logger]
+  P --> R[Typed report revisions]
+  R --> U[Authorized publisher and remote readback]
+  U --> G[Required PR and issue comments]
+  U --> F
   W[Independent capture and freshness checks] --> P
 ```
 
-Provider collectors run where sessions run, including on the Mac and in remote workers. Fleet-runner owns ingestion, reconciliation, query contracts, health reporting, and recovery. Core owns shared identities and evidence semantics. Cockpit, daily-logger, and audit scripts consume the same versioned projection. They do not independently redefine skill use.
+Provider collectors run where sessions run, including on the Mac and in remote workers. Fleet-runner owns ingestion, reconciliation, query contracts, health reporting, and recovery. Core owns shared identities and evidence semantics. Cockpit, daily-logger, PR/issue comment renderers, and audit scripts consume the same versioned projection. They do not independently redefine skill use. Publication intents and remote receipts follow the existing fleet-runner authorization and uncertainty policies. A store write alone does not fulfill a configured reporting obligation.
 
 The buffer is a recoverable transport stage, not a second authoritative skill ledger. Accepted observation facts enter the existing tracking contract through reviewed event-family extensions or a compatible adapter. Derived views remain rebuildable. Do not pick a database or imply that the current JSONL writer already provides durable multi-host ingestion.
+
+### Structured correspondence and ontology
+
+The [correspondence profile](skill-observation-correspondence.md) defines admissible writers, a closed relation vocabulary, heuristic versioning, evidence assessments, and the required PR/issue publication contract. It separates authored claims from derived outcomes; no agent can set a verified result or confirmed delivery through an authored status field. Schema validity establishes shape, not truth. Heuristics produce attributable interpretations whose evidence and qualification remain visible.
+
+The profile references draft PR #495 at a fixed revision, preserving its unaccepted status. Informational reporting comments are not operative correspondence transfers, work orders, or human rulings. Any binding act must use the separately accepted correspondence and grant contract.
 
 ### Records and meanings
 
@@ -101,6 +113,8 @@ The read model returns these counts even when rates are unqualified. For each re
 
 When only part of D is observable, publish raw counts and coverage rather than an all-session acceptance or application percentage. A qualified subset may have its own labeled rate, but is never silently substituted for D.
 
+PR and issue comments are required outputs for explicitly associated and authorized work targets. Their bodies contain scoped findings and claim-level evidence, not just a dashboard link. The PR pins the reviewed code revision; the issue carries cumulative work dispositions and linked evidence. Preserve exact report revisions and separate publication intent, remote delivery, and consumption. Unrouted sessions and unresolved delivery remain visible. See the profile for append-only corrections, an optional replaceable summary, conflict handling, and confirmed remote readback.
+
 The operator view should answer: what was suggested; how the agent responded; what loaded; what workflow evidence exists; which sessions are missing; and whether the collector, ingestion, validator, or consumer is stale. A report-delivered receipt and an output-consumed receipt are distinct. Retain consumer identity, referenced report revision, action or disposition, and unresolved findings.
 
 An independent watchdog compares expected capture capability with observed progress. It must detect a dead collector, a dead reconciler, and a report that stopped reaching consumers without relying on those components to declare themselves unhealthy. Canaries must be labeled and excluded from adoption counts. Measurements remain advisory; they grant no execution, publication, or merge authority.
@@ -109,9 +123,9 @@ An independent watchdog compares expected capture capability with observed progr
 
 These are proposed slices, not registered roadmap entries or delivery claims.
 
-1. Qualify one complete Claude path and one complete Codex path. For each, demonstrate a delivered suggestion, a successful instruction load, an evidenced application, and a deliberately invoked skill with no suggestion. Produce a session receipt through a shared read model. Include this conversation's false ignored case as a redacted regression fixture.
+1. Qualify one complete Claude path and one complete Codex path. For each, demonstrate a delivered suggestion, a successful instruction load, an evidenced application, and a deliberately invoked skill with no suggestion. Produce a session receipt and deterministic PR/issue comment bodies through a shared read model using fixture targets. Rendering is not proof of delivery. Include this conversation's false ignored case as a redacted regression fixture.
 2. Demonstrate recovery and correction through that same read model. Kill the collector, disconnect ingestion, replay duplicate and late events, omit session-end, and restart from durable checkpoints. Show unknown coverage and later correction without duplicate runs.
-3. Cut over one operator report, then cockpit, daily-logger, and PR reports to the shared snapshot contract. Demonstrate identical cohort counts and timestamps in each. Retire conflicting calculators only after parity and explicit legacy dispositions are recorded.
+3. Qualify publication to explicitly authorized PR and issue test targets through exact-revision readback, deduplicated replay, correction, and uncertain-outcome reconciliation. Demonstrate both configured sinks before marking delivery complete. Cut over cockpit, daily-logger, and audits to the same snapshot contract; prove parity for identical scopes before retiring conflicting calculators.
 4. Add independent health and consumption checks. Prove that a deliberately disabled collector and a stopped consumer produce distinguishable findings with a named owner and disposition. Then qualify additional providers, versions, hosts, and skill packages.
 
 ### Migration
@@ -130,6 +144,8 @@ The confirmed boundary has a proposed ADR and an append-only unknowns-ledger ent
 
 
 ## State schema changes
+
+The correspondence profile additionally distinguishes observation, agent claim, interpretation, assessment, disposition, report revision, publication intent, delivery receipt, and consumption receipt. It defines field ownership and typed relations for these records. This table specifies observation-domain fields within that shared grammar; it does not create a second competing authored/derived schema.
 
 Logical fields below are proposed contract requirements, not a selected database schema. Existing TrackingEvent changes require the shared contract review already owned by core.
 
@@ -162,11 +178,14 @@ The first two slices are scoped to qualified local Claude and Codex versions. Ad
 11. Given a stopped collector or a stopped consumer, an independent check distinguishes the two and emits a finding with an owner and unresolved disposition. A healthy empty interval is different.
 12. Given unsupported schema, malformed input, evidence outside authorized roots, or a disallowed export, the boundary returns a structured rejection/gap without blocking the interactive session or publishing private source content.
 
+13. Given a report associated with authorized PR and issue targets, each receives its scoped typed report and verified delivery receipt; pending or uncertain delivery remains incomplete. Late corrections retain prior revision evidence.
+14. Given a heuristic interpretation, authored claim, or unverified actor assertion, the system cannot promote it to verified application, confirmed delivery, or human authority without the corresponding assessment or receipt. Rule inventory SC01–SC08 requires executed positive and mutation cases.
+
 ## Testing decisions
 
 Test the public observation-to-session-receipt boundary with provider event fixtures, evidence references, and source coverage as inputs. Assert the receipt, report snapshot, and recoverable state after restart. Keep provider qualification as a live integration check; pure projector tests cannot establish native capture. These are proposed testing decisions for implementation review, not a claim that the operator separately approved a test API or runtime.
 
-Existing prior art is the reconcile-skill-acted suite, log-tool-use skill-field suite, OPAV capture-quality gold set, and suggestion identity tests. The 37 targeted existing tests passed during investigation. They do not cover the full proposed behavior. No new implementation tests were added in this documentation change.
+Existing prior art is the reconcile-skill-acted suite, log-tool-use skill-field suite, OPAV capture-quality gold set, and suggestion identity tests. The 37 targeted existing tests passed during investigation. They do not cover the full proposed behavior. No new implementation tests were added in this documentation change. The correspondence profile adds SC01–SC08 positive/mutation obligations and extends the public test boundary through comment rendering, authorized publication, and independent remote readback. An empty test run cannot qualify an adapter or schema rule.
 
 | Scenarios | Criteria | Test type | Observable assertion |
 | --- | --- | --- | --- |
@@ -180,6 +199,8 @@ Existing prior art is the reconcile-skill-acted suite, log-tool-use skill-field 
 | Date bounds and late reconciliation across all consumers | 10 | Contract integration | Identical snapshot totals and cohort membership |
 | Disable collector, reconciler, or consumer; healthy-empty control | 11 | Operational qualification | Independent finding distinguishes failure from empty activity |
 | Bad schema, untrusted path/URL, redaction/export rejection | 12 | Boundary integration | Reject or mark unknown without unsafe resolution or content export |
+| Required PR and issue reporting; failure, uncertain write, correction, replay | 13, SC06–SC08 | Publication fault integration | Exact revision confirmed at each target; no false delivery, duplicate, or fabricated consumption |
+| Typed heuristic/claim/assessment lineage, authority, and stale dependencies | 14, SC01–SC05 | Positive and mutation qualification | No promotion of a claim by a score or authored field; affected reports become stale after evidence changes |
 
 ## Security considerations
 
@@ -202,7 +223,7 @@ These are subjective forecasts for later calibration, not measurements or accept
 
 ## Out of scope and implementation entrance
 
-No changes to suggestion ranking, prompt enforcement, skill installation, live hook configuration, queue transitions, publication policy, autonomous merge, or numeric adoption targets. No universal claim of full telemetry and no reconstruction of intent from missing data.
+No changes to suggestion ranking, prompt enforcement, skill installation, live hook configuration, queue transitions, existing publication authority/hold policy, autonomous merge, or numeric adoption targets. Reliable comment publication is specified here as a required reporting behavior, but no live posting or new grant is authorized by this documentation. No universal claim of full telemetry and no reconstruction of intent from missing data.
 
 Before implementing a slice, reconcile existing skill roadmaps, register the bounded work and its owner, pin the intended provider versions, and choose the operational policy required for that slice. The first qualification can use local fixtures and a local receipt without resolving remote hosting. A production rollout additionally requires the deferred privacy, durability, freshness, and independent-supervision decisions. Do not start a second conductor or treat this proposal as closure of the inherited tickets.
 
