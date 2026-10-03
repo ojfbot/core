@@ -114,6 +114,8 @@ The suggested skill-loader action was emitted in shadow mode with this report as
 
 ## Follow-up evidence for structured reporting
 
+Publication follow-up: `/gated-slice` supplied the [delivery handoff](../decisions/fleet-runner/skill-observation-delivery.md). `/pr-review` subsequently supplied separate Standards and Spec agent reports, retained at their exact reviewed revision in the [review record](../decisions/fleet-runner/skill-observation-review.md). These are workflow-use claims with linked outputs, not OPAV-validated application receipts or proof that the proposed telemetry runtime exists.
+
 The operator clarified that PR and issue comments are required reporting surfaces and directed application of structured-correspondence lessons. Inspection of `scripts/hooks/bead-session.sh:228` found a further confirmed publication defect: `gh pr comment` errors are suppressed with `|| true`, after which the hook unconditionally appends `skill:pr-commented`. The recorded event therefore does not establish delivery. This was a source-path inspection, not a deliberately failed live publication experiment.
 
 The new [correspondence profile](../decisions/fleet-runner/skill-observation-correspondence.md) requires separate publication intent, remote readback receipt, and consumption receipt. It draws from core PR #495, still OPEN and draft at `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb`, and the accepted fleet-runner publication hold. No GitHub comment was posted during this design extension.
