@@ -1,17 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { inspectCodexAutomation } from '../codex-automation.mjs';
 
 const id = 'selfco-vault-hygiene';
-const thread = '01a0ff70-a911-7ea1-b752-ae9f95a76419';
+const thread = 'fixture-target-thread';
 const rrule = 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0';
 const NOW = Date.parse('2026-10-03T14:00:00Z');
 const loop = {
   slug: id, automation_id: id, trigger_ref: `~/.codex/automations/${id}/automation.toml`,
-  rrule, target_thread_id: thread,
+  rrule, cadence: 'daily',
 };
 let root;
 let home;
@@ -38,6 +38,65 @@ beforeEach(() => {
 afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 describe('Codex automation receipt', () => {
+  it.each(['--home', '--id'])('rejects a missing CLI value for %s before inspection', (flag) => {
+    const script = new URL('../../codex-automation-status.mjs', import.meta.url);
+    const result = spawnSync(process.execPath, [script.pathname, flag], { encoding: 'utf8' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`${flag} requires a value`);
+    expect(result.stderr).not.toMatch(/TypeError|at file:/);
+    expect(result.stdout).toBe('');
+  });
+  it.each(['NULL', `${NOW + 86400000}`])('warns on old empty run history independently of next_run_at: %s', (next) => {
+    install();
+    sql(`UPDATE automations SET created_at = ${NOW - 2 * 86400000}, next_run_at = ${next}`);
+    expect(inspectCodexAutomation(loop, root, home, NOW)).toMatchObject({
+      firing: 'never-fired', warning: expect.stringMatching(/no run history.*cadence/),
+    });
+  });
+
+  it.each(['created_at', 'next_run_at', 'last_run_at'])('rejects malformed schedule timestamp %s', (field) => {
+    install();
+    sql(`UPDATE automations SET ${field} = 'not-a-date'`);
+    expect(inspectCodexAutomation(loop, root, home, NOW)).toMatchObject({
+      configured: 'unverifiable', firing: 'unknown', reason: expect.stringMatching(/timestamp/),
+    });
+  });
+
+  it('does not disclose an absolute home in missing-file reasons', () => {
+    expect(inspectCodexAutomation(loop, root, home, NOW).reason).not.toContain(home);
+    install();
+    rmSync(db);
+    expect(inspectCodexAutomation(loop, root, home, NOW).reason).not.toContain(home);
+  });
+  it('reads literal TOML strings without mistaking prompt content for metadata', () => {
+    install();
+    writeFileSync(toml, readFileSync(toml, 'utf8').replaceAll('"', "'") + '\nprompt = """\nid = "private-prompt-content"\n"""\n');
+    expect(inspectCodexAutomation(loop, root, home, NOW).configured).toBe('configured');
+  });
+
+  it('reports malformed TOML as unverifiable', () => {
+    install();
+    writeFileSync(toml, 'id = "unterminated\n');
+    expect(inspectCodexAutomation(loop, root, home, NOW)).toMatchObject({
+      configured: 'unverifiable', firing: 'unknown', reason: expect.stringMatching(/TOML/),
+    });
+  });
+
+  it('reports a missing database column as unverifiable', () => {
+    install();
+    sql('ALTER TABLE automations DROP COLUMN rrule');
+    expect(inspectCodexAutomation(loop, root, home, NOW)).toMatchObject({
+      configured: 'unverifiable', firing: 'unknown', reason: expect.stringMatching(/schema/),
+    });
+  });
+  it.each(['not-a-date', 1791035940, null])('reports malformed run timestamps as unverifiable: %s', (at) => {
+    install();
+    run('completed');
+    sql(`UPDATE automation_runs SET created_at = ${at === null ? 'NULL' : `'${at}'`}`);
+    expect(inspectCodexAutomation(loop, root, home, NOW)).toMatchObject({
+      configured: 'unverifiable', firing: 'unknown', reason: expect.stringMatching(/timestamp/),
+    });
+  });
   it('distinguishes configured before first fire from a missed occurrence', () => {
     install();
     expect(inspectCodexAutomation(loop, root, home, NOW).firing).toBe('never-fired');

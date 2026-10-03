@@ -28,14 +28,16 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import { loadLoopsRegistry, resolvePath, repoRootOf } from './lib/northstar-fm.mjs';
-import { inspectCodexAutomation } from './lib/codex-automation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
+// codex-automation is a provisional census adapter pending #311/#310.
 const TRIGGERS = new Set(['launchd', 'gh-actions', 'hook', 'watchpath', 'manual', 'codex-automation']);
 const CADENCES = new Set(['always-on', 'daily', 'weekly', 'event', 'manual']);
 const STATUSES = new Set(['live', 'disabled']);
 const REQUIRED = ['slug', 'purpose', 'trigger', 'cadence', 'status', 'repo'];
+const CODEX_FIELDS = new Set([...REQUIRED, 'trigger_ref', 'installed_ref', 'automation_id', 'rrule',
+  'state_spine', 'verifier', 'stop_rule', 'evidence_ref', 'owner']);
 
 function parseFlags(argv) {
   const f = { core: path.resolve(HERE, '..'), home: os.homedir(), format: 'report', check: false };
@@ -171,21 +173,17 @@ export function lint(core, home = os.homedir()) {
       if (existsSync(abs)) continue;
       const root = rootOfRef(ref, core, home);
       if (!existsSync(root)) {
-        warns.push(`vantage: ${where} ${key} '${ref}' unreachable from this checkout (root ${root} absent)`);
+        warns.push(`vantage: ${where} ${key} '${ref}' unreachable from this checkout (root not visible)`);
       } else {
         errors.push(`${where}: ${key} '${ref}' does not exist on disk`);
       }
     }
     if (l.trigger === 'codex-automation') {
-      if (!l.automation_id || !l.rrule || !l.target_thread_id || l.evidence_ref !== `codex-run:${l.automation_id}`) {
-        errors.push(`${where}: codex-automation requires automation_id, rrule, target_thread_id, and codex-run evidence_ref`);
-      } else {
-        const state = inspectCodexAutomation(l, core, home);
-        if (['disabled', 'missing', 'mismatch'].includes(state.configured)) {
-          errors.push(`${where}: Codex automation is ${state.configured} — ${state.reason}`);
-        } else if (state.configured === 'unverifiable') {
-          warns.push(`${where}: Codex automation unverified — ${state.reason}`);
-        }
+      if (!l.automation_id || !l.rrule || l.evidence_ref !== `codex-run:${l.automation_id}`) {
+        errors.push(`${where}: provisional codex-automation requires automation_id, rrule, and matching codex-run evidence_ref`);
+      }
+      for (const key of Object.keys(l)) {
+        if (!CODEX_FIELDS.has(key)) errors.push(`${where}: unknown provisional Codex field '${key}'`);
       }
     }
   }
@@ -195,7 +193,8 @@ export function lint(core, home = os.homedir()) {
   for (const a of discoverArtifacts(core, home)) {
     if (declaredRefs.has(a.abs)) continue;
     undeclared++;
-    warns.push(`undeclared ${a.kind}: ${a.abs} — no registry entry claims it (declare it or park it deliberately)`);
+    const display = a.abs.startsWith(home + path.sep) ? `~/${path.relative(home, a.abs)}` : a.abs;
+    warns.push(`undeclared ${a.kind}: ${display} — no registry entry claims it (declare it or park it deliberately)`);
   }
 
   return { errors, warns, undeclared, counts: { loops: loops.length } };

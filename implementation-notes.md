@@ -14,6 +14,10 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 - Fleet-runner skill observation (2026-10-02): the ADR workflow again named `scripts/adr-slugs.sh`, but the resolver lives at `.claude/skills/adr/scripts/adr-slugs.sh`; used the existing resolver and kept this change scoped to the proposed design.
 
+- PR #502 validation: the first full suite lacked workflows build artifacts; after building, concurrent test workers encountered widespread timeouts under local load, so reran with two workers without weakening test or SQLite timeouts.
+
+- PR #502 review fixes: root scripts needed the TOML parser already locked for workflows; the offline pnpm add found a different configured store, so reused the existing installation store explicitly without changing global pnpm settings.
+
 - Selfco hygiene registration (2026-10-02): the handoff expected four existing loop-lint errors, but the isolated worktree lacks ignored `.claude/settings.json` files and adds five path errors; kept those local-vantage errors separate from the new Codex adapter checks instead of changing unrelated hook declarations.
 
 - Fleet-runner Q1 continuity (2026-10-01): I initially updated an earlier live report as a mutable coordination record, but `/bead` requires append-only corrections; restored its previous snapshot and appended a superseding report instead.

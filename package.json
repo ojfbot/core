@@ -24,6 +24,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
-    "mysql2": "^3.22.0"
+    "mysql2": "^3.22.0",
+    "smol-toml": "^1.6.0"
   }
 }
