@@ -218,3 +218,22 @@ experiment or implementation slice was approved by this ruling.
 **Standard considerations not covered**
 - Evidence retention, loss/corruption and access controls for the eventual publication record.
 - Operator escalation and reopening workflow when remote evidence stays unavailable; the accepted tradeoff permits indefinite blocking, but its operating procedure remains unspecified.
+
+## 2026-10-02 — Fleet-runner observes skill use across all sessions
+
+Ruling: the operator confirmed all Claude and Codex sessions, including sessions not launched by fleet-runner; fleet-runner owns reconciliation and reporting. Preserve OPAV evidence validation, distinguish acceptance, loading, application, decline, ignored, and unknown, and keep telemetry advisory rather than a session gate. The [design](fleet-runner/skill-observation.md) develops this boundary and the [ADR](adr/draft-fleet-runner-skill-observation.md) remains Proposed. No runtime implementation, deployment, or remote evidence export was authorized.
+
+**Deferred decisions**
+- Response-interval closure and the exact evidence needed for an ignored classification; unblocked by: operator policy review informed by provider qualification.
+- Retention, redaction, remote export scope, authenticated producer identity, numeric freshness and recovery targets; unblocked by: the relevant operational/privacy decisions before production rollout.
+- Schema placement, durable ingestion technology, runtime/store/host choice, and independent supervision owner; unblocked by: existing fleet-runner contract and runtime decisions, without reopening accepted placement or Q1.
+- Reconciliation of rm-l1-core and rm-l2-ojfbot skill work before registering bounded implementation slices; unblocked by: roadmap review against the existing #307 umbrella.
+
+**Unvalidated assumptions**
+- Native events and transcripts can provide complete, version-qualified capture for each intended provider and environment. The local Codex trace demonstrates today's gap, not universal adapter feasibility.
+- Sessions not launched by fleet-runner can be discovered with a stated denominator; the inventory may itself be incomplete.
+- Wrapped tool calls and conversational outputs can be attributed without treating arbitrary command text or self-report as proof of application.
+- Offline delivery and restored checkpoints can preserve accepted observations within an explicit recovery policy. No fault-qualified runtime exists yet.
+
+**Standard considerations not covered**
+- Detailed multi-user access rules, capacity/cost limits, deletion requirements, and long-term retention. These need decisions before expanding beyond the local qualification slice.
