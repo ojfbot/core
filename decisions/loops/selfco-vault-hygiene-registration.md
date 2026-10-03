@@ -11,7 +11,7 @@ Under [fleet-runner #307](https://github.com/ojfbot/core/issues/307), this entry
 | Codex database | `~/.codex/sqlite/codex-dev.db`, `automations` and `automation_runs` |
 | Kind and state | `heartbeat`, `ACTIVE` in both TOML and database |
 | Cadence | `FREQ=DAILY;BYHOUR=9;BYMINUTE=0` |
-| Effective next occurrence | 2026-10-03 09:01:22 CDT from `automations.next_run_at` (includes scheduler jitter). The TOML has no time-zone field; this observation does not establish future time-zone behavior. |
+| Effective next occurrence | 2026-10-03 09:01:22 CDT from `automations.next_run_at`. The TOML has no time-zone field; the 1m22s offset and future time-zone behavior are not established by this observation. |
 | Target | Codex chat `01a0ff70-a911-7ea1-b752-ae9f95a76419` on the local host |
 | Host assumption | The operator's Codex desktop and local Selfco checkout must be available; remote fleet-runner cannot infer availability from this local database. |
 | Owner and stop path | Operator; pause or delete the existing automation in the Codex app. Registry changes never stop or reschedule it. |
