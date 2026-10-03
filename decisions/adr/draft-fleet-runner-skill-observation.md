@@ -9,7 +9,6 @@ type: architecture
 OKR: ns:l2-ojfbot#P2
 Commands affected: /skill-metrics; skill reporting and audit consumers; PR and issue reporting
 Repos affected: core; morning-cockpit and daily-logger as consumers
-traces:
 
 ---
 
@@ -34,68 +33,36 @@ capture to runner-launched work would exclude the interactive workflows the oper
 wants measured. Putting independent calculators in each consumer would preserve the
 current competing definitions.
 
-## Decision
-
-Extend fleet-runner with observation ingestion, reconciliation, and reporting for all
-qualified Claude and Codex sessions, including sessions it did not launch. Provider-local
-collectors supply evidence; core owns shared identities and semantics; reporting consumers
-read one versioned projection contract. Telemetry remains advisory and grants no execution
-or publication authority.
-
-The operator confirmed that boundary on October 2, then required PR and issue comments alongside telemetry storage and directed the design to apply structured-correspondence lessons. The following detailed contract is
-proposed for review in the [design](../fleet-runner/skill-observation.md):
-
-- Model sessions, suggestions, and skill runs separately. Runs do not require a suggestion.
-- Distinguish explicit acceptance or decline, instruction loading, workflow evidence,
-  authoring, and observation coverage. Missing evidence remains unknown.
-- Classify ignored only under an explicit interval-closure and capture-completeness rule.
-  An explicit decline and no observed response are different facts.
-- Preserve ADR 0095's independent evidence requirement and ADR 0098's separate authoring
-  track. Neither a self-report nor a file read alone proves completed application.
-- Retain immutable observations and revise derived projections when late evidence arrives.
-  Deduplicate by source identity; preserve event time separately from ingestion time.
-- Qualify collector capabilities by provider/version and install pinned runtime releases
-  independently of mutable working branches. Add independent health and consumption checks.
-- Require every consumer to state cohort, interval, watermarks, projection version, and
-  exclusions. Suppress adoption claims when coverage is insufficient.
-- Make scoped PR and issue comments required outputs for associated authorized targets.
-  Render them from typed report revisions; retain publication intents, confirmed remote
-  delivery, corrections, and consumption as separate records. Storage alone is not delivery.
-- Apply the [correspondence profile](../fleet-runner/skill-observation-correspondence.md):
-  separate authored claims from derived assessments, constrain writers and predicates,
-  version heuristic interpretations, and invalidate dependent reports when evidence changes.
-  Require positive and mutation coverage for every enforced profile rule.
-
-Use compatible extensions to the existing tracking contracts. A local transport buffer is
-not a parallel authoritative ledger. Runtime, database, host, remote export policy, retention,
-and numerical service targets remain separate decisions. No universal capture guarantee is
-claimed for unqualified environments.
+The operator confirmed the all-session advisory boundary, PR/issue reporting requirement,
+and structured-correspondence direction on October 2. The
+[design](../fleet-runner/skill-observation.md) is the normative source for the proposed
+contract, acceptance criteria, and implementation entrance. The
+[profile](../fleet-runner/skill-observation-correspondence.md) proposes adaptations of
+#495 D8–D10 and an explicit amendment to D7; these require reconciliation and acceptance
+in #495 before governed use. This proposal does not settle that draft's authority policy.
 
 ### Relationship to existing work
 
-The structured-correspondence input is draft [PR #495](https://github.com/ojfbot/core/pull/495)
-at `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb`. Its authored/derived distinction,
-verified transfer, and mutation-test discipline inform this profile; the draft is not
-represented as accepted. Reporting comments do not constitute its proposed commit-based
-operative transfer. Binding requests and human rulings retain their own acceptance and
-authority requirements. Shared-account authorship alone does not prove human approval.
-
-
-This proposal extends [adr:fleet-runner-in-core](0108-fleet-runner-in-core.md) within the
-existing [fleet-runner map](../wayfinder/control-plane-conductor.md) and #307 tracker.
-It preserves [adr:fleet-runner-publication-hold](0109-fleet-runner-publication-hold.md).
-Observation does not reopen execution policy or clear implementation.
-
-It develops [adr:skill-action-instrumentation](0095-skill-action-instrumentation.md),
+This extends [adr:fleet-runner-in-core](0108-fleet-runner-in-core.md) under the existing
+[fleet-runner map](../wayfinder/control-plane-conductor.md) and #307, while preserving
+[adr:fleet-runner-publication-hold](0109-fleet-runner-publication-hold.md).
+It builds on [adr:skill-action-instrumentation](0095-skill-action-instrumentation.md),
 [adr:suggestion-identity-and-denominator](0093-suggestion-identity-and-denominator.md),
-and [adr:two-track-skill-telemetry](0098-two-track-skill-telemetry.md). At formal acceptance,
-record reciprocal amendment relationships for changed negative-classification and run
-identity semantics. Those accepted records are not silently rewritten by this draft.
+and [adr:two-track-skill-telemetry](0098-two-track-skill-telemetry.md).
+At formal acceptance, register reciprocal trace relationships for any amended contracts;
+this draft does not modify their accepted semantics.
 
-Reconcile the existing core and fleet roadmaps before registering implementation slices.
-The bounded investigation contributes to the inherited census; it does not complete #315
-or any other open conductor decision. Full skill observation remains a distinct delivery
-obligation, not an unannounced expansion of the first governed execution pilot.
+Before any slice implementation or local experiment begins, obtain approved scope and
+register the bounded work with an assigned owner in the canonical roadmap. Apply the
+[design's implementation entrance](../fleet-runner/skill-observation.md#out-of-scope-and-implementation-entrance),
+including its source-scope and redaction prerequisites. The handoff's pickup instruction
+is inert until those conditions are met. Existing ticket dependencies remain unchanged.
+
+## Decision
+
+Extend fleet-runner with advisory observation ingestion, reconciliation, and reporting
+for all qualified Claude and Codex sessions through the proposed
+[skill observation contract](../fleet-runner/skill-observation.md).
 
 ## Consequences
 
@@ -145,10 +112,11 @@ current behavior only; no new runtime behavior has been implemented or validated
 
 | Field | Value |
 | --- | --- |
-| Zero-point | Operator request to extend fleet-runner after repeated skill telemetry failures, 2026-10-02 |
-| Confirmed boundary | All sessions; fleet-runner reconciles and reports; preserve OPAV evidence validation; distinguish response/loading/application/unknown; no telemetry session gate |
-| Decision authority | Explicit operator answers in Codex conversation `01a0ff67-4f93-7b21-9e03-87fa01116a2f` |
-| Source baseline | core main `e90d0621741e227375c1265d424ba5cf26526aad` |
-| Acceptance scope | All-session advisory boundary, PR/issue reporting requirement, and structured-correspondence direction confirmed; detailed contracts proposed; no ADR serial assigned |
-| Implementation start | Pending registered slice, relevant policy decisions, and provider qualification scope |
+| Zero-point | `e90d0621741e227375c1265d424ba5cf26526aad`, inspected main baseline for this design; no dedicated empty zero-point or runtime slice has begun |
+| Inspection commit | `36594b0`, investigation and initial proposal recorded together |
+| Confirmed boundary | All-session advisory observation, PR/issue reporting, and structured-correspondence direction; detailed contracts remain proposed |
+| Decision authority | Explicit operator answers in the originating private conversation; public record is this proposed ADR in PR #501, not an authorization token |
+| Implementation start | Pending approved scope and canonical roadmap registration with owner under the design's implementation entrance |
 | Implementation end | Not implemented |
+| PR | [#501](https://github.com/ojfbot/core/pull/501) |
+| Convoy id | Not applicable |

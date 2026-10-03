@@ -2,7 +2,7 @@
 
 Date: 2026-10-02. Status: operator-directed design extension; contracts proposed, not implemented. This profile is part of the [skill observation design](skill-observation.md) under fleet-runner #307.
 
-PR and issue comments are required reporting outputs for associated work. The telemetry store retains detailed observations and replay history; comments carry reviewable claims, evidence, gaps, corrections, and requested dispositions where the work is discussed. Storing a report or attempting a comment does not fulfill delivery.
+PR and issue comments are required reporting outputs for associated work. The telemetry store retains detailed observations and replay history; informational comments carry reviewable claims, evidence, gaps, corrections, and observed dispositions where the work is discussed. Storing a report or attempting a comment does not fulfill delivery.
 
 The ontology separates what happened, what someone asserted, what a heuristic inferred, what a verifier established, and what an authorized actor decided. It cannot make an inference true by giving it a type. Its value is that unsupported transitions become rejectable and corrections propagate to the reports that depend on them.
 
@@ -16,9 +16,11 @@ The correspondence source is [core PR #495](https://github.com/ojfbot/core/pull/
 | D1/D2: a report and a binding request are different speech acts | An informational telemetry report creates no work order or ruling. A request to fix, change policy, or accept a finding must name its recipient and route through the operative correspondence/authorization contract. |
 | D3: machine identity replaces hand-assigned counters | Preserve source event and suggestion IDs; mint independent run/report/operation IDs. Store GitHub's actual comment ID after readback. No issue per tool event, manual sequence allocation, or invented remote ID. |
 | D6: possession or preparation does not prove transfer | A rendered comment is prepared; a completed remote verification establishes delivery of that exact revision. Reporting delivery alone is not the commit-based transfer of an operative work order proposed in D6. |
-| D7: verify authority rather than copying its assertion | Preserve authenticated publisher identity separately from claimed logical actor. A shared GitHub account's authorship does not by itself prove that the human authorized a ruling. |
+| Proposed amendment to D7, not its accepted meaning | Preserve authenticated publisher identity separately from claimed logical actor. This profile proposes requiring evidence beyond shared-account authorship to verify a human ruling; #495 must decide whether to accept that amendment. |
 | D9: one strict schema, provider-neutral validation | Shared core contracts define discriminated records and emit exchange schema, typed bindings, and validators. Consumers do not maintain their own ontology or parse status from English prose. |
 | D10: every rule proves it can reject a violation | Every profile rule below requires a positive fixture and a mutation fixture; a zero-case, skipped, or missing-rule run fails qualification. |
+
+D8/D9/D10 and SC01–SC08 below are proposed adaptations, not operative qualification gates for the fleet. An approved local experiment may test them as hypotheses; a failed case is evidence against that experimental contract. Before production enforcement, reconcile and accept the relevant contracts in #495 and the existing fleet-runner policy venues. If D7 is accepted as written with GitHub authorship sufficient, SC04's stronger human-verification clause must be revised or separately accepted as an amendment; this PR cannot override that decision.
 
 The [selfco ontology decision](../adr/0103-selfco-ontology-program.md) contributes a closed, reviewed relation vocabulary, explicit inference provenance, and dependency invalidation. Its vault storage decisions do not select telemetry storage. The [accepted publication hold](../adr/0109-fleet-runner-publication-hold.md) governs uncertain writes belonging to fleet-runner work items. This profile cannot weaken that hold.
 
@@ -38,7 +40,7 @@ All records share machine identity, schema version, issuer identity, source refe
 | Delivery receipt | Publisher after independent remote readback | Publication intent ID, actual remote comment ID/URL, observed body digest/revision, remote publisher identity, and verification time. A local subprocess exit is insufficient. |
 | Consumption receipt | Consumer or attributable responding actor | Exact report revision and what was consumed, acknowledged, or acted on, with a source/response reference. Rendering, page views, and publication alone do not prove consumption. |
 
-A ruling is a reference to a verified authority act under the operative correspondence contract, not another classifier verdict. Claims about human authorization remain unverified until the authority mechanism can distinguish the human from agents using the same account. Telemetry may record that uncertainty but cannot resolve the broader grant policy itself.
+A ruling is a reference to a verified authority act under the operative correspondence contract, not another classifier verdict. Under the proposed D7 amendment, claims about human authorization remain unverified until the mechanism distinguishes the human from agents using the same account. This is a proposed policy change for #495 to decide, not an accepted telemetry requirement that settles the broader grant policy.
 
 Evidence independence is a provenance property. Two files, agents, or reports copying the same self-claim are one source, not independent corroboration. Preserve collection-method and origin links so the verifier can detect that dependency. An independent mechanism can confirm a tool result or artifact revision while the meaning or quality of the work still requires a separate assessment.
 
@@ -84,12 +86,12 @@ Every comment carries a machine-readable marker plus human-readable content from
 | Reporting actor, publisher identity, intended audience/recipient, and report purpose | Distinguish an automated report from a decision request or human ruling |
 | Suggestions, explicit responses, observed loads, assessed applications, and capture gaps | Make the actual result reviewable in the comment, not only behind a dashboard link |
 | Claim-level method and evidence references | Distinguish observation, agent assertion, heuristic interpretation, and verified assessment |
-| Named findings and their current disposition, owner if assigned, and next decision needed | Keep unresolved work visible without inventing authority or assignment |
+| Named findings, observed disposition, previously assigned owner, and links to already issued decisions or requests | Report current evidence without requesting action, setting a deadline, or assigning work |
 | Prior revision/correction link and reason, plus affected PR head where relevant | Preserve continuity when late evidence or new code changes the report |
 
 Use a compact summary and a details section for evidence. Coalesce repeated unchanged inputs; publish on meaningful report revisions, work milestones, or the accepted reporting cadence, not on every tool event. Exact thresholds are operational configuration, not semantic changes. A verified application count should never replace the statement that some sessions are unobservable.
 
-A reporting comment is informational unless a separately identified, authorized binding speech act accompanies it. If a finding requires a work order or ruling, link the issued correspondence record and its designated recipient; do not make an imperative sentence in generated prose the authorization mechanism. An issue/PR comment URL may be evidence for a ruling only when the operative authority checks succeed.
+The informational report schema excludes requested dispositions, next-decision requests, assignments, and imperatives. If a comment asks anyone to act, answer, or decide, classify that content as a separate binding speech act with a named `to:` and apply the operative correspondence/authorization contract; an informational label cannot exempt it from D2. The report may link an already issued request and its recipient as an observed fact. An issue/PR comment URL may be evidence for a ruling only when the operative authority checks succeed.
 
 ## Publication and receipt lifecycle
 
@@ -107,14 +109,14 @@ Store delivery receipts back in telemetry and expose pending, rejected, uncertai
 
 ## Rules and adversarial acceptance cases
 
-These are test obligations, not tests executed by this documentation change. Each rule ID must map to at least one positive and one mutation case in the implementation's rule inventory. Qualification fails if an ID is missing, cases are skipped, or the executed-case count is zero.
+These are proposed test obligations, not executed tests or already accepted fleet policy. For rules included in an approved experimental scope, each claimed rule ID must map to at least one executed positive and one mutation case; missing or skipped cases cannot qualify that experimental contract. SC06–SC08 remain future slice-3 obligations. Governed qualification awaits reconciliation and acceptance in the policy venues above.
 
 | Rule | Positive case | Mutation that must fail or remain explicitly unknown |
 | --- | --- | --- |
 | SC01 Typed truth and writer boundaries | Qualified observation plus applicable assessment supports a load claim | Agent inserts `verified_application` or `delivery_confirmed`; detector score alone is presented as fact |
 | SC02 Closed schema and identity | Known variants, typed references, supported schema, distinct same-name skills | Null required evidence, unknown predicate, extra derived input field, alias collision, or dangling reply target |
 | SC03 Evidence-qualified inference | Matching run/evidence revision supports only its named claim | Old artifact, absent collector, or instruction read used to prove application or intentional ignoring |
-| SC04 Authority and speech-act separation | Attributable decline; separately verified human ruling where required | Same shared GitHub author used as proof of human approval; informational report treated as work order |
+| SC04 Proposed authority amendment and speech-act separation | Attributable decline; independently verified human ruling under the proposed D7 amendment | Shared-account authorship alone satisfies the proposed human-verification check; an action or decision request is mislabeled informational |
 | SC05 Revisions and dependency invalidation | Late evidence creates corrected assessment and marks dependent reports for correction | Old comment stays current after its supporting assessment is superseded; rewrite of issued authority act |
 | SC06 Required routed reporting | Authorized PR and issue targets each receive their scoped report revision | Store-only success, PR-only delivery for two configured targets, arbitrary issue inferred from timing |
 | SC07 Verified publication and recovery | Remote readback confirms exact target/publisher/revision; replay reuses the receipt | CLI failure logged as posted; timeout triggers duplicate creation; deleted/edited comment silently overwritten |
@@ -126,7 +128,7 @@ Add replay permutations and fault cases for concurrent publishers, delayed remot
 
 - The earlier skill-loader suggestion was emitted, its body was successfully retrieved, and the legacy hook recorded ignored without tool-ledger coverage. Retain that ignored row as a legacy classification. The new report must state the contradictory load evidence and coverage gap rather than pretend the old row was a trustworthy behavioral fact.
 - The skill-loader acted emission has real report evidence but its expected-artifact contract is missing. Record the claim and the validator's indeterminate assessment separately; do not call the emission verified application.
-- Suggestion `187EB9B9-3067-45E8-8CE6-850703DA51DF` proposes skill-create for the current request. The assistant explicitly declined it as a scope mismatch because this task extends an existing design. That response is a candidate fixture for attributable decline, not an ignored suggestion or a claim that skill-create was used. The source response is in this conversation; no live typed disposition implementation is claimed.
+- Opaque local evidence reference `skill-create-scope-decline` concerns a skill-create suggestion that the assistant declined because this task extends an existing design. That response is a candidate fixture for attributable decline, not an ignored suggestion or a claim that skill-create was used. The private source mapping remains local; no live typed disposition implementation is claimed.
 
 ## Open integration decisions
 
