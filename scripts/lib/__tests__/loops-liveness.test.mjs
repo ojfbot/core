@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync, readdirSync, statSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { liveness } from '../../loops-liveness.mjs';
 
 function scaffold() {
@@ -105,6 +106,24 @@ describe('loops-liveness', () => {
     await liveness(ctx.core, ctx.home, NOW);
     expect(readdirSync(ctx.tmp, { recursive: true }).sort()).toEqual(before);
     expect(statMtimes(ctx.tmp)).toEqual(mtime);
+  });
+
+  it('projects Codex never-fired, missed, and successful receipts without Selfco output files', async () => {
+    const id = 'selfco-vault-hygiene';
+    const rrule = 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0';
+    const file = path.join(ctx.home, '.codex', 'automations', id, 'automation.toml');
+    const db = path.join(ctx.home, '.codex', 'sqlite', 'codex-dev.db');
+    mkdirSync(path.dirname(file), { recursive: true });
+    mkdirSync(path.dirname(db), { recursive: true });
+    writeFileSync(file, `id = "${id}"\nkind = "heartbeat"\nstatus = "ACTIVE"\nrrule = "${rrule}"\ntarget_thread_id = "thread-1"\n`);
+    execFileSync('sqlite3', [db, `CREATE TABLE automations (id TEXT, kind TEXT, status TEXT, rrule TEXT, target_thread_id TEXT, next_run_at INTEGER, last_run_at INTEGER, created_at INTEGER); CREATE TABLE automation_runs (thread_id TEXT, automation_id TEXT, status TEXT, created_at INTEGER, updated_at INTEGER); INSERT INTO automations VALUES ('${id}', 'heartbeat', 'ACTIVE', '${rrule}', 'thread-1', ${NOW + 60000}, NULL, ${NOW - 3600000});`]);
+    writeRegistry(ctx.core, [loop({ slug: id, trigger: 'codex-automation',
+      trigger_ref: `~/.codex/automations/${id}/automation.toml`, automation_id: id,
+      rrule, target_thread_id: 'thread-1', evidence_ref: `codex-run:${id}` })]);
+    expect((await liveness(ctx.core, ctx.home, NOW)).results[0].verdict).toBe('UNVERIFIABLE');
+    expect((await liveness(ctx.core, ctx.home, NOW + 2 * 3600000)).results[0].verdict).toBe('MISSED');
+    execFileSync('sqlite3', [db, `INSERT INTO automation_runs VALUES ('run-1', '${id}', 'completed', ${NOW - 60000}, ${NOW - 59000});`]);
+    expect((await liveness(ctx.core, ctx.home, NOW)).results[0].verdict).toBe('OK');
   });
 });
 

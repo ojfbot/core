@@ -28,10 +28,11 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import path from 'node:path';
 import { loadLoopsRegistry, resolvePath, repoRootOf } from './lib/northstar-fm.mjs';
+import { inspectCodexAutomation } from './lib/codex-automation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-const TRIGGERS = new Set(['launchd', 'gh-actions', 'hook', 'watchpath', 'manual']);
+const TRIGGERS = new Set(['launchd', 'gh-actions', 'hook', 'watchpath', 'manual', 'codex-automation']);
 const CADENCES = new Set(['always-on', 'daily', 'weekly', 'event', 'manual']);
 const STATUSES = new Set(['live', 'disabled']);
 const REQUIRED = ['slug', 'purpose', 'trigger', 'cadence', 'status', 'repo'];
@@ -127,6 +128,14 @@ function discoverArtifacts(core, home) {
   for (const sf of [path.join(core, '.claude', 'settings.json'), path.join(home, '.claude', 'settings.json')]) {
     for (const abs of hookScriptPaths(sf, core, home)) found.push({ kind: 'hook', abs });
   }
+  // Codex automation TOMLs are installed scheduler artifacts, not manual scripts.
+  const automationDir = path.join(home, '.codex', 'automations');
+  if (existsSync(automationDir)) {
+    for (const id of readdirSync(automationDir)) {
+      const abs = path.join(automationDir, id, 'automation.toml');
+      if (existsSync(abs)) found.push({ kind: 'codex-automation', abs });
+    }
+  }
   return found;
 }
 
@@ -165,6 +174,18 @@ export function lint(core, home = os.homedir()) {
         warns.push(`vantage: ${where} ${key} '${ref}' unreachable from this checkout (root ${root} absent)`);
       } else {
         errors.push(`${where}: ${key} '${ref}' does not exist on disk`);
+      }
+    }
+    if (l.trigger === 'codex-automation') {
+      if (!l.automation_id || !l.rrule || !l.target_thread_id || l.evidence_ref !== `codex-run:${l.automation_id}`) {
+        errors.push(`${where}: codex-automation requires automation_id, rrule, target_thread_id, and codex-run evidence_ref`);
+      } else {
+        const state = inspectCodexAutomation(l, core, home);
+        if (['disabled', 'missing', 'mismatch'].includes(state.configured)) {
+          errors.push(`${where}: Codex automation is ${state.configured} — ${state.reason}`);
+        } else if (state.configured === 'unverifiable') {
+          warns.push(`${where}: Codex automation unverified — ${state.reason}`);
+        }
       }
     }
   }
