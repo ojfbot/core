@@ -96,7 +96,7 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0080 | [Vault staleness scanner — graph-aware signal, surface-only, layered on `/vault lint`](adr/0080-vault-staleness-scanner.md) | tooling | Proposed |
 | 0085 | [The `selfco` LLM Wiki and the `/vault` skill](adr/0085-selfco-vault-and-skill.md) | tooling | Accepted |
 | 0088 (rev B) | [Obsidian Bases as the vault's dynamic browsing layer](adr/0088-obsidian-bases-views.md) | tooling | Accepted |
-| 0089 | [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) | policy | Accepted |
+| 0089 (rev A) | [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) | policy | Accepted |
 | 0090 | [defuddle as a reversible, shadow-mode ingest trial](adr/0090-defuddle-ingest-fetch.md) | tooling | Accepted |
 | 0091 | [Semantic link-suggester for cultivate](adr/0091-semantic-link-suggester.md) | tooling | Accepted |
 | 0102 | [OJF-OPL — a git-native Object-Process Methodology profile as the fleet's inspectability layer](adr/0102-opm-inspectability-layer.md) | architecture | Accepted |
@@ -136,6 +136,8 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0096 | [Skill architecture taxonomy and recurring audit](adr/0096-skill-architecture-taxonomy.md) | convention | Accepted |
 | 0097 | [Wrap, absorb, or reject — integrating a mature external harness into an opinionated stack](adr/0097-wrap-absorb-reject.md) | process | Accepted |
 | 0106 | [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) | policy | Accepted |
+| 0108 (rev A) | [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) | architecture | Accepted |
+| 0109 | [Hold the affected item while publication is uncertain](adr/0109-fleet-runner-publication-hold.md) | policy | Accepted |
 
 ### Other domains
 | Serial | Title | Type | Status |
@@ -151,9 +153,11 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 |------|-------|------|--------|
 | `bonded-pair-division-of-labor` | [Bonded-pair division of labor (ojfbot ⊕ selfco)](adr/draft-bonded-pair-division-of-labor.md) | architecture | Proposed |
 | `catalog-scoped-user-skills` | [Catalog-scoped user skills — `install --user-scope` is data-driven, not a hardcoded list](adr/draft-catalog-scoped-user-skills.md) | tooling | Proposed |
+| `correspondence-speech-act-tiers` | [Bounded correspondence and evidence contract for the core pilot](adr/draft-correspondence-speech-act-tiers.md) | architecture | Proposed |
 | `dispatch-queue-and-day-runner` | [Dispatch queue + day-runner — the cockpit stages intents; a headless runner delivers slices](adr/draft-dispatch-queue-and-day-runner.md) | architecture | Proposed |
 | `duplex-work-item-sync` | [(draft): Duplex work-item sync — beads canonical, GitHub issues mirrored, safe under full-duplex concurrency](adr/draft-duplex-work-item-sync.md) | architecture | Proposed |
 | `envisioned-capability-marker` | [Envisioned-capability marker — distributed marker, maturity ladder, and reference lint](adr/draft-envisioned-capability-marker.md) | convention | Proposed |
+| `fleet-runner-skill-observation` | [Fleet-runner reconciles skill observations across all sessions](adr/draft-fleet-runner-skill-observation.md) | architecture | Proposed |
 | `harness-loop-instrumentation` | [Loop harnesses ride the OPAV spine; automation is gated on triggers, invocation is not](adr/draft-harness-loop-instrumentation.md) | architecture | Proposed |
 | `headless-components-with-design-language-adapters` | [Headless components with design-language adapters](adr/draft-headless-components-with-design-language-adapters.md) | architecture | Proposed |
 | `installed-harness-is-tracked` | [The installed agent harness is tracked, not gitignored](adr/draft-installed-harness-is-tracked.md) | convention | Proposed |
@@ -247,7 +251,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0086 — [Control-Gated Slices — how we decompose and ship large agentic-harness work](adr/0086-control-gated-slices.md) · Accepted
 - 0087 — [Stable-identity + facet-tag ADRs — NASA Configuration Management applied to decision records](adr/0087-stable-identity-and-facet-tags.md) · Accepted
 - 0088 — [Obsidian Bases as the vault's dynamic browsing layer](adr/0088-obsidian-bases-views.md) · Accepted
-- 0089 — [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) · Accepted
+- 0089 (rev A) — [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) · Accepted
 - 0090 — [defuddle as a reversible, shadow-mode ingest trial](adr/0090-defuddle-ingest-fetch.md) · Accepted
 - 0091 — [Semantic link-suggester for cultivate](adr/0091-semantic-link-suggester.md) · Accepted
 - 0093 — [Suggestion identity + denominator repair — the keystone for any skill-loop metric](adr/0093-suggestion-identity-and-denominator.md) · Accepted
@@ -264,6 +268,8 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0104 — [Behavioral misreports get their own ledger, and only an independent sweep may close one](adr/0104-defect-ledger-and-closure-loop.md) · Accepted
 - 0105 — [The vault schema is one machine-readable file; prose documents cite it, never restate it](adr/0105-vault-schema-as-data.md) · Accepted
 - 0106 — [l1-core earns an operator-competence property (P5), teach loop as instrument](adr/0106-l1-core-operator-competence-property.md) · Accepted
+- 0108 (rev A) — [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) · Accepted
+- 0109 — [Hold the affected item while publication is uncertain](adr/0109-fleet-runner-publication-hold.md) · Accepted
 
 </details>
 
@@ -306,4 +312,3 @@ When a mistake or pattern is caught and a decision is updated:
 3. Update `memory/MEMORY.md` with the summary
 
 This is the full write-back loop. Stopping at step 1 means the next session won't have the context loaded.
-

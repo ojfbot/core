@@ -8,14 +8,39 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- PR #495 review integration (2026-10-03): the prepared repair targeted e90d062, while main advanced through #501/#499/#502; preserved every current-main note and the candidate additions while resolving the notes-only conflict in isolation.
+
+- PR #495 isolated repair (2026-10-02): the historical fleet census has no committed manifest/count recipe; omitted its unverified totals as rollout justification, narrowed the draft to pilot prerequisites, and combined its corrected provenance entry with current-main notes rather than choosing either side of the notes conflict.
+
 - correspondence-speech-act-tiers ADR draft (2026-09-24): plan was "draft the ADR on a clean
   worktree and file a tracking issue in lego-village-pipeline". Territory: a tracking issue
   needs a stable link target, and a pushed branch alone is not one (branches get deleted at
-  merge; lvp's own debriefs record six reviewed SHAs lost that way). Took the conservative
+  merge; lvp's corrected debrief records six reviewed commits absent from a fresh clone,
+  still retrievable by hosting-platform PR API/direct lookup, dependent on vendor retention). Took the conservative
   option: opened core PR #495 as a **draft** so the issue (lvp #30) points at a durable object;
   no review requested, no merge. Second gap: `gh` runs as `ojfbot`, so the issue's transmitting
   account is the operator's own account; recorded in the issue header per the
   `lego-pipe-file-issue` quadruple rather than treated as a blocker.
+
+- Fleet-runner design publication (2026-10-02): a repeat of the capture suites assumed dependencies in the isolated worktree, but Vitest was absent; retained the earlier 37-test investigation result as historical evidence, reported the unsuccessful rerun, and used dependency-free documentation checks for this docs-only PR.
+
+- Fleet-runner skill observation (2026-10-02): session instructions pointed to core `.Codex/skills`, but that path is absent; read the existing `.agents/skills` bodies and verified their `.claude/skills` counterparts instead of installing or rewriting skill distribution.
+
+- Fleet-runner skill observation (2026-10-02): the ADR workflow again named `scripts/adr-slugs.sh`, but the resolver lives at `.claude/skills/adr/scripts/adr-slugs.sh`; used the existing resolver and kept this change scoped to the proposed design.
+
+- PR #502 validation: the first full suite lacked workflows build artifacts; after building, concurrent test workers encountered widespread timeouts under local load, so reran with two workers without weakening test or SQLite timeouts.
+
+- PR #502 review fixes: root scripts needed the TOML parser already locked for workflows; the offline pnpm add found a different configured store, so reused the existing installation store explicitly without changing global pnpm settings.
+
+- Selfco hygiene registration (2026-10-02): the handoff expected four existing loop-lint errors, but the isolated worktree lacks ignored `.claude/settings.json` files and adds five path errors; kept those local-vantage errors separate from the new Codex adapter checks instead of changing unrelated hook declarations.
+
+- Fleet-runner Q1 continuity (2026-10-01): I initially updated an earlier live report as a mutable coordination record, but `/bead` requires append-only corrections; restored its previous snapshot and appended a superseding report instead.
+
+- Fleet-runner Q1 recording (2026-10-01): the ADR skill named `scripts/adr-slugs.sh`, but the resolver lives under `.claude/skills/adr/scripts/`; used that existing resolver to verify the next serial and unique slug rather than creating another helper.
+
+- Fleet-runner PR #497 review (2026-10-01): the recovered map named a staged ADR as a checkout path, but the ADR is absent from the placement branch; linked its verified historical commit and stated that absence rather than restoring an unapproved plan.
+- Fleet-runner succession (2026-10-01): #307 named a canonical conductor map, but it was absent from main at 5b43c97. Recovered the map from branch commit 887983a and re-charted that stable file for the operator-approved successor, preserving unresolved ticket IDs and historical provenance rather than reconstructing decisions from issue summaries.
+
 - Pocock triage+sandcastle cycle (2026-08-11): plan expected sandcastle's Gate-0 to read
   application-shaped (Docker orchestration footprint). Territory: `measure-pkg.mjs` scored
   `@ai-hero/sandcastle` **0/6 application signals** (1 dep, no telemetry) — package shape is
@@ -451,4 +476,3 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   (superset) and let the registry stay the authority for *meaning*; recorded on TD-007.
 - Same PR: surface 9 (`install-agents.sh`) deliberately not run for the four repos — three have live
   worker agents in their checkouts. Filed TD-012 instead of writing into them from a backport PR.
-
