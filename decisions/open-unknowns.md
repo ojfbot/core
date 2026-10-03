@@ -237,3 +237,19 @@ Ruling: the operator confirmed all Claude and Codex sessions, including sessions
 
 **Standard considerations not covered**
 - Detailed multi-user access rules, capacity/cost limits, deletion requirements, and long-term retention. These need decisions before expanding beyond the local qualification slice.
+
+## 2026-10-02 — Skill reporting uses structured correspondence and PR/issue comments
+
+The operator required reviewable PR and issue comments alongside telemetry storage and directed application of structured-correspondence lessons to heuristic capture and reporting. The [profile](fleet-runner/skill-observation-correspondence.md) records the proposed typed records, closed relations, evidence/authority boundaries, revision rules, required publication, and SC01–SC08 acceptance cases. It cites draft PR #495 at head `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb` without ratifying it.
+
+**Deferred decisions**
+- Operative correspondence grammar and verified human/agent authority when GitHub accounts are shared; unblocked by: existing #495 and fleet-runner grant-policy decisions. Telemetry reports cannot settle them.
+- Shared schema package/build and compatibility process, live PR/issue test targets, publication grants, coalescing cadence, and receipt retention; unblocked by: bounded implementation-slice and deployment review.
+- Reporting targets for projectless or unassociated sessions; unblocked by: an explicit routing policy. Do not infer issue assignment from repo/time proximity.
+
+**Unvalidated assumptions**
+- A qualified publisher can reconcile delayed or ambiguous remote comment effects and detect later edits without duplicating publication. The accepted affected-item hold remains applicable; no remote uniqueness or compare-and-swap guarantee is assumed.
+- Heuristic and evidence-policy dependency records are sufficient to enumerate all affected reports after a correction. Require replay and mutation evidence before claiming this.
+
+**Standard considerations not covered**
+- Detailed GitHub notification-volume budget, comment-size limits, and retention/deletion policy for archived remote revisions. These belong in publisher qualification before live rollout.

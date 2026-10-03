@@ -7,7 +7,7 @@ Status: Proposed
 domain: observation
 type: architecture
 OKR: ns:l2-ojfbot#P2
-Commands affected: /skill-metrics; skill reporting and audit consumers
+Commands affected: /skill-metrics; skill reporting and audit consumers; PR and issue reporting
 Repos affected: core; morning-cockpit and daily-logger as consumers
 traces:
 
@@ -42,7 +42,7 @@ collectors supply evidence; core owns shared identities and semantics; reporting
 read one versioned projection contract. Telemetry remains advisory and grants no execution
 or publication authority.
 
-The operator confirmed that boundary on October 2. The following detailed contract is
+The operator confirmed that boundary on October 2, then required PR and issue comments alongside telemetry storage and directed the design to apply structured-correspondence lessons. The following detailed contract is
 proposed for review in the [design](../fleet-runner/skill-observation.md):
 
 - Model sessions, suggestions, and skill runs separately. Runs do not require a suggestion.
@@ -58,6 +58,13 @@ proposed for review in the [design](../fleet-runner/skill-observation.md):
   independently of mutable working branches. Add independent health and consumption checks.
 - Require every consumer to state cohort, interval, watermarks, projection version, and
   exclusions. Suppress adoption claims when coverage is insufficient.
+- Make scoped PR and issue comments required outputs for associated authorized targets.
+  Render them from typed report revisions; retain publication intents, confirmed remote
+  delivery, corrections, and consumption as separate records. Storage alone is not delivery.
+- Apply the [correspondence profile](../fleet-runner/skill-observation-correspondence.md):
+  separate authored claims from derived assessments, constrain writers and predicates,
+  version heuristic interpretations, and invalidate dependent reports when evidence changes.
+  Require positive and mutation coverage for every enforced profile rule.
 
 Use compatible extensions to the existing tracking contracts. A local transport buffer is
 not a parallel authoritative ledger. Runtime, database, host, remote export policy, retention,
@@ -65,6 +72,14 @@ and numerical service targets remain separate decisions. No universal capture gu
 claimed for unqualified environments.
 
 ### Relationship to existing work
+
+The structured-correspondence input is draft [PR #495](https://github.com/ojfbot/core/pull/495)
+at `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb`. Its authored/derived distinction,
+verified transfer, and mutation-test discipline inform this profile; the draft is not
+represented as accepted. Reporting comments do not constitute its proposed commit-based
+operative transfer. Binding requests and human rulings retain their own acceptance and
+authority requirements. Shared-account authorship alone does not prove human approval.
+
 
 This proposal extends [adr:fleet-runner-in-core](0108-fleet-runner-in-core.md) within the
 existing [fleet-runner map](../wayfinder/control-plane-conductor.md) and #307 tracker.
@@ -121,7 +136,8 @@ obligation, not an unannounced expansion of the first governed execution pilot.
 
 Demonstrate one suggested and one deliberate skill run in both qualified providers through
 the same session-receipt contract. Then prove gap handling, duplicate and late replay,
-independent evidence rejection, consumer parity, and independent health detection. The
+independent evidence rejection, consumer parity, required PR/issue delivery with remote
+readback, SC01–SC08 mutation coverage, and independent health detection. The
 design contains the acceptance criteria and test matrix. Existing 37-test success verifies
 current behavior only; no new runtime behavior has been implemented or validated.
 
@@ -133,6 +149,6 @@ current behavior only; no new runtime behavior has been implemented or validated
 | Confirmed boundary | All sessions; fleet-runner reconciles and reports; preserve OPAV evidence validation; distinguish response/loading/application/unknown; no telemetry session gate |
 | Decision authority | Explicit operator answers in Codex conversation `01a0ff67-4f93-7b21-9e03-87fa01116a2f` |
 | Source baseline | core main `e90d0621741e227375c1265d424ba5cf26526aad` |
-| Acceptance scope | Design boundary confirmed; detailed contracts proposed; no ADR serial assigned |
+| Acceptance scope | All-session advisory boundary, PR/issue reporting requirement, and structured-correspondence direction confirmed; detailed contracts proposed; no ADR serial assigned |
 | Implementation start | Pending registered slice, relevant policy decisions, and provider qualification scope |
 | Implementation end | Not implemented |
