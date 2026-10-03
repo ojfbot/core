@@ -153,6 +153,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 |------|-------|------|--------|
 | `bonded-pair-division-of-labor` | [Bonded-pair division of labor (ojfbot ⊕ selfco)](adr/draft-bonded-pair-division-of-labor.md) | architecture | Proposed |
 | `catalog-scoped-user-skills` | [Catalog-scoped user skills — `install --user-scope` is data-driven, not a hardcoded list](adr/draft-catalog-scoped-user-skills.md) | tooling | Proposed |
+| `correspondence-speech-act-tiers` | [Bounded correspondence and evidence contract for the core pilot](adr/draft-correspondence-speech-act-tiers.md) | architecture | Proposed |
 | `dispatch-queue-and-day-runner` | [Dispatch queue + day-runner — the cockpit stages intents; a headless runner delivers slices](adr/draft-dispatch-queue-and-day-runner.md) | architecture | Proposed |
 | `duplex-work-item-sync` | [(draft): Duplex work-item sync — beads canonical, GitHub issues mirrored, safe under full-duplex concurrency](adr/draft-duplex-work-item-sync.md) | architecture | Proposed |
 | `envisioned-capability-marker` | [Envisioned-capability marker — distributed marker, maturity ladder, and reference lint](adr/draft-envisioned-capability-marker.md) | convention | Proposed |
