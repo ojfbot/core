@@ -8,6 +8,10 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- Skill telemetry rollout design (2026-10-03): the reported daily-logger failure described an ignored/untracked hook, but both current main and PR #298 track an external symlink whose target is absent in a clean checkout; recorded the executable-target failure and added that counterexample instead of repeating the placeholder's explanation.
+- Skill telemetry rollout inventory (2026-10-03): fleet-manifest was expected to reconcile daily-logger's roster, but its extractors still look for removed arrays while daily-logger now discovers GitHub repositories dynamically; retained `unparsed` and registry omissions as gaps and proposed reuse/repair of the existing discovery mechanism instead of inventing a new authoritative list.
+- Skill telemetry correspondence follow-up (2026-10-03): #501 referenced the original open #495 draft, while current main contains a merged, narrowed Proposed contract with changed D1–D12 meanings; preserved historical pins and added an explicit mapping to current prerequisites without treating either merge as ratification.
+
 - PR #495 review integration (2026-10-03): the prepared repair targeted e90d062, while main advanced through #501/#499/#502; preserved every current-main note and the candidate additions while resolving the notes-only conflict in isolation.
 
 - PR #495 isolated repair (2026-10-02): the historical fleet census has no committed manifest/count recipe; omitted its unverified totals as rollout justification, narrowed the draft to pilot prerequisites, and combined its corrected provenance entry with current-main notes rather than choosing either side of the notes conflict.

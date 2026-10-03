@@ -20,7 +20,34 @@ The correspondence source is [core PR #495](https://github.com/ojfbot/core/pull/
 | D9: one strict schema, provider-neutral validation | Shared core contracts define discriminated records and emit exchange schema, typed bindings, and validators. Consumers do not maintain their own ontology or parse status from English prose. |
 | D10: every rule proves it can reject a violation | Every profile rule below requires a positive fixture and a mutation fixture; a zero-case, skipped, or missing-rule run fails qualification. |
 
-D8/D9/D10 and SC01–SC08 below are proposed adaptations, not operative qualification gates for the fleet. An approved local experiment may test them as hypotheses; a failed case is evidence against that experimental contract. Before production enforcement, reconcile and accept the relevant contracts in #495 and the existing fleet-runner policy venues. If D7 is accepted as written with GitHub authorship sufficient, SC04's stronger human-verification clause must be revised or separately accepted as an amendment; this PR cannot override that decision.
+D8/D9/D10 in that historical source and SC01–SC08 below are proposed adaptations, not operative
+qualification gates for the fleet. An approved local experiment may test them as hypotheses;
+a failed case is evidence against that experimental contract. Before production enforcement,
+reconcile and accept the applicable bounded profile in the existing policy venues. The original
+D7 account-authorship-sufficiency proposal was replaced in the current Proposed source below;
+neither version was made operative by publication of this profile.
+
+### Current-source reconciliation, 2026-10-03
+
+[#495](https://github.com/ojfbot/core/pull/495) merged as
+`bc6d120503416c9d21d627730f27f2d10cfc13f8`; the
+[bounded correspondence ADR](../adr/draft-correspondence-speech-act-tiers.md) remains Proposed.
+The table above is a historical mapping to its pinned original draft, not the current meaning
+of those D labels. This follow-up preserves the following distinctions:
+
+| Current Proposed source | Skill-observation reconciliation |
+| --- | --- |
+| D1–D3 preserve artifacts and leave identity/canonical state open | Typed report references do not replace beads or require issue-per-artifact identity. Resolve mapping before the operative profile |
+| D4–D6 require pinned evidence and distinguish availability, delivery and consumption | Retain immutable report revisions and independent remote readback; publication cannot establish consumption |
+| D7 rejects shared-account authorship as sufficient human proof; mechanism remains open | SC04 now aligns with this proposed prerequisite. It is no longer an amendment to the current D7, and no mechanism is selected or qualified here |
+| D8 distinguishes authored claims, assessments and transmitting identity | Retain writer/provenance separation; logical actor fields confer no authority |
+| D9 defers exchange schemas/tooling; D10 requires positive/counterexample evidence | Record classes and relations below remain a proposed bounded profile, not an approved shared package or mandatory fleet grammar. Local experimental shapes require their own scope |
+| D11–D12 separate acceptance, execution, offline shape and remote evidence | Roadmap registration, source grants and live qualification remain distinct gates; historical #501 merge clears none |
+
+The [rollout extension](skill-observation-rollout.md) applies these limits to release pins,
+consumer cutover and the daily-logger qualification case. It does not revive #495's deferred
+fleet-wide grammar or LEGO/play-well migration. Informational reporting remains the scope;
+requests and human-authority acts require their separate operative contracts.
 
 The [selfco ontology decision](../adr/0103-selfco-ontology-program.md) contributes a closed, reviewed relation vocabulary, explicit inference provenance, and dependency invalidation. Its vault storage decisions do not select telemetry storage. The [accepted publication hold](../adr/0109-fleet-runner-publication-hold.md) governs uncertain writes belonging to fleet-runner work items. This profile cannot weaken that hold.
 
@@ -40,7 +67,11 @@ All records share machine identity, schema version, issuer identity, source refe
 | Delivery receipt | Publisher after independent remote readback | Publication intent ID, actual remote comment ID/URL, observed body digest/revision, remote publisher identity, and verification time. A local subprocess exit is insufficient. |
 | Consumption receipt | Consumer or attributable responding actor | Exact report revision and what was consumed, acknowledged, or acted on, with a source/response reference. Rendering, page views, and publication alone do not prove consumption. |
 
-A ruling is a reference to a verified authority act under the operative correspondence contract, not another classifier verdict. Under the proposed D7 amendment, claims about human authorization remain unverified until the mechanism distinguishes the human from agents using the same account. This is a proposed policy change for #495 to decide, not an accepted telemetry requirement that settles the broader grant policy.
+A ruling is a reference to a verified authority act under the operative correspondence contract,
+not another classifier verdict. Under the current Proposed D7 prerequisite, claims about human
+authorization remain unverified until an approved mechanism distinguishes the human decision
+from agents using the same account and binds its subject, scope and permitted act. This profile
+selects no mechanism and does not settle the broader grant policy.
 
 Evidence independence is a provenance property. Two files, agents, or reports copying the same self-claim are one source, not independent corroboration. Preserve collection-method and origin links so the verifier can detect that dependency. An independent mechanism can confirm a tool result or artifact revision while the meaning or quality of the work still requires a separate assessment.
 
@@ -116,7 +147,7 @@ These are proposed test obligations, not executed tests or already accepted flee
 | SC01 Typed truth and writer boundaries | Qualified observation plus applicable assessment supports a load claim | Agent inserts `verified_application` or `delivery_confirmed`; detector score alone is presented as fact |
 | SC02 Closed schema and identity | Known variants, typed references, supported schema, distinct same-name skills | Null required evidence, unknown predicate, extra derived input field, alias collision, or dangling reply target |
 | SC03 Evidence-qualified inference | Matching run/evidence revision supports only its named claim | Old artifact, absent collector, or instruction read used to prove application or intentional ignoring |
-| SC04 Proposed authority amendment and speech-act separation | Attributable decline; independently verified human ruling under the proposed D7 amendment | Shared-account authorship alone satisfies the proposed human-verification check; an action or decision request is mislabeled informational |
+| SC04 Proposed authority prerequisite and speech-act separation | Attributable decline; independently verified human ruling under the current Proposed D7 prerequisite | Shared-account authorship alone satisfies the proposed human-verification check; an action or decision request is mislabeled informational |
 | SC05 Revisions and dependency invalidation | Late evidence creates corrected assessment and marks dependent reports for correction | Old comment stays current after its supporting assessment is superseded; rewrite of issued authority act |
 | SC06 Required routed reporting | Authorized PR and issue targets each receive their scoped report revision | Store-only success, PR-only delivery for two configured targets, arbitrary issue inferred from timing |
 | SC07 Verified publication and recovery | Remote readback confirms exact target/publisher/revision; replay reuses the receipt | CLI failure logged as posted; timeout triggers duplicate creation; deleted/edited comment silently overwritten |
@@ -132,4 +163,10 @@ Add replay permutations and fault cases for concurrent publishers, delayed remot
 
 ## Open integration decisions
 
-Ratify the shared correspondence grammar and authority mechanism in their existing venue. Confirm the core schema package, export/build choices, and compatibility rules before implementation; do not create a parallel telemetry type system to bypass those decisions. Select the publication grant, test targets, operational cadence, redaction policy, and durable receipt store before live delivery tests. This document authorizes no GitHub write and introduces no runtime.
+Accept the applicable bounded correspondence profile and authority mechanism in their existing
+venues. Establish whether a shared schema package is needed and its ownership/compatibility
+before production integration; current #495 D9 defers that choice. Do not create a parallel
+telemetry type system to bypass it or require the deferred fleet-wide grammar as a hidden
+prerequisite. Select the publication grant, test targets, operational cadence, redaction policy
+and durable receipt store before live delivery tests. This document authorizes no GitHub write
+and introduces no runtime.
