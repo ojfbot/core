@@ -223,6 +223,8 @@ These are subjective forecasts for later calibration, not measurements or accept
 
 ## Out of scope and implementation entrance
 
+The [delivery handoff](skill-observation-delivery.md) defines the first local qualification PR, observable gates, existing-roadmap boundaries, and a pickup instruction.
+
 No changes to suggestion ranking, prompt enforcement, skill installation, live hook configuration, queue transitions, existing publication authority/hold policy, autonomous merge, or numeric adoption targets. Reliable comment publication is specified here as a required reporting behavior, but no live posting or new grant is authorized by this documentation. No universal claim of full telemetry and no reconstruction of intent from missing data.
 
 Before implementing a slice, reconcile existing skill roadmaps, register the bounded work and its owner, pin the intended provider versions, and choose the operational policy required for that slice. The first qualification can use local fixtures and a local receipt without resolving remote hosting. A production rollout additionally requires the deferred privacy, durability, freshness, and independent-supervision decisions. Do not start a second conductor or treat this proposal as closure of the inherited tickets.

@@ -229,6 +229,10 @@ Keep its valid constraints until a reviewed implementation decision explicitly r
 
 ## Next handoff
 
+For skill observation, use the [delivery handoff](../fleet-runner/skill-observation-delivery.md).
+It starts with bounded local provider qualification and leaves the runtime and publication
+decisions below open. It does not register unattended dispatch or change roadmap status.
+
 Keep the inherited questions open and retain their existing blocking edges. Start the census
 and scheduled-agent research as decision work; do not interpret this map as a runtime order.
 Review publication/recovery and authorization policies before accepting execution mechanisms.

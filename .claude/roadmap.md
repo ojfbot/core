@@ -315,6 +315,11 @@ never opens).
 
 ## PH1 — MEASURE
 
+The [fleet-runner skill observation delivery handoff](../decisions/fleet-runner/skill-observation-delivery.md)
+extends this roadmap's capture work to qualified native Claude and Codex paths. It begins
+with a bounded local proof, reuses existing OPAV validation, and creates no second dispatch
+queue. Existing slice statuses and movement remain unchanged.
+
 S1 lands the identity (this file, the northstar, the registry rows, the SOTA record). S2 widens the
 predicate and must prove itself on a scratch replay (≥13 known flips) before touching live files. S3
 scores the installed population and tags every new row with its population so eras never blend. S4
