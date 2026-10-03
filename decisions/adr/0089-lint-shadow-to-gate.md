@@ -69,3 +69,10 @@ documented escape valve for an intentional mid-refactor dangling link is
 | Zero-point | selfco `wiki/synthesis/adr-draft-lint-shadow-to-gate.md` (2026-06-10, vault best-practices audit § Robustness) |
 | Implementation start | 2026-06-10 (core: `lint.py --gate`; selfco-box: gate in `commitAndPush()`) |
 | Implementation end | 2026-06-10 (merged: core PR #145 + selfco-box PR #4) |
+## 2026-10-02 amendment — transport inbox boundary
+
+The shipped LLM-free transport path lands captures in `raw/inbox/` before an interactive
+filing session creates source pages. `lint.py --gate` now reports unfiled inbox items as
+an advisory queue and blocks only unfiled raw items outside that directory. Broken
+wikilinks and unfit canvases retain their blocking behavior. This keeps the gate aligned
+with the transport split while preserving visibility of the filing backlog.
