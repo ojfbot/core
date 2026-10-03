@@ -95,6 +95,22 @@ loops:
     owner: operator
     status: disabled
     repo: selfco
+  - slug: selfco-vault-hygiene
+    purpose: "Daily Codex heartbeat checks Selfco wiki lint and schema, repairs clear wiki errors, and records ambiguous decisions in a structured outbox"
+    trigger: codex-automation
+    trigger_ref: ~/.codex/automations/selfco-vault-hygiene/automation.toml
+    automation_id: selfco-vault-hygiene
+    target_thread_id: 01a0ff70-a911-7ea1-b752-ae9f95a76419
+    rrule: "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"
+    cadence: daily
+    state_spine: "~/selfco/wiki plus ~/selfco/maintenance/hygiene-findings.json"
+    verifier: "Codex automation_runs row, independently keyed by automation_id; output attribution remains unverified until a run receipt and artifact comparison exist"
+    stop_rule: "Pause or delete selfco-vault-hygiene in the Codex app; this registry never schedules or executes it"
+    evidence_ref: "codex-run:selfco-vault-hygiene"
+    output_ref: "~/selfco/wiki/_lint-report.md and ~/selfco/maintenance/hygiene-findings.json"
+    owner: operator
+    status: live
+    repo: selfco
   - slug: selfco-hot-list
     purpose: "Regenerates ~/selfco/wiki/_hot.md — the recently-active orientation router an agent reads before the 120KB index.md"
     trigger: manual

@@ -130,4 +130,20 @@ describe('loops-lint', () => {
     const r = lint(ctx.core, ctx.home);
     expect(r.warns).toEqual([]);
   });
+
+  it('discovers Codex automation TOMLs and rejects a paused declared heartbeat as live', () => {
+    const id = 'selfco-vault-hygiene';
+    const ref = `~/.codex/automations/${id}/automation.toml`;
+    const file = path.join(ctx.home, '.codex', 'automations', id, 'automation.toml');
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `id = "${id}"\nkind = "heartbeat"\nstatus = "PAUSED"\nrrule = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"\ntarget_thread_id = "thread-1"\n`);
+    writeRegistry(ctx.core, [
+      { slug: id, purpose: 'Selfco hygiene', trigger: 'codex-automation', trigger_ref: ref,
+        automation_id: id, rrule: 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0', target_thread_id: 'thread-1',
+        evidence_ref: `codex-run:${id}`, cadence: 'daily', status: 'live', repo: 'selfco' },
+    ]);
+    const r = lint(ctx.core, ctx.home);
+    expect(r.undeclared).toBe(0);
+    expect(r.errors.join()).toMatch(/Codex automation is disabled/);
+  });
 });

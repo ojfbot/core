@@ -20,10 +20,10 @@
  *   git-branch:<name>    — recency = last commit date of origin/<name> (local ref fallback)
  *   gh:<repo>:<workflow> — recency = last workflow run (needs `gh`; UNVERIFIABLE offline)
  *   dolt:<table>         — aliveness probe: TCP connect to 127.0.0.1:3307 (always-on rails)
+ *   codex-run:<id>       — Codex local automation_runs table, keyed by automation id
  *   script:<path>|none   — no reader yet / declared none → UNVERIFIABLE with the reason
  *
- * Verdicts: OK · STALE (evidence older than cadence allows) · DOWN (always-on probe
- * failed) · UNVERIFIABLE (no readable evidence) · EXCLUDED (event/manual/disabled).
+ * Verdicts: OK · STALE · MISSED · FAILED · DOWN · UNVERIFIABLE · EXCLUDED.
  *
  * Exit code: 0 unless the *mechanics* fail (registry missing/empty) — a STALE finding is
  * a report line, not a gate (promotion to gating is a future RIDM, per the slice).
@@ -39,6 +39,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { loadLoopsRegistry } from './lib/northstar-fm.mjs';
+import { inspectCodexAutomation } from './lib/codex-automation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -124,6 +125,27 @@ export async function liveness(core, home = os.homedir(), now = Date.now()) {
   for (const l of loops) {
     const base = { slug: l.slug, cadence: l.cadence, trigger: l.trigger, repo: l.repo };
     if (l.status !== 'live') { results.push({ ...base, verdict: 'EXCLUDED', detail: `status: ${l.status} (deliberate park)` }); continue; }
+    if (l.trigger === 'codex-automation') {
+      const state = inspectCodexAutomation(l, core, home, now);
+      if (state.configured === 'disabled') {
+        results.push({ ...base, verdict: 'EXCLUDED', detail: state.reason });
+      } else if (state.configured !== 'configured') {
+        results.push({ ...base, verdict: 'UNVERIFIABLE', detail: state.reason });
+      } else if (state.firing === 'missed' ||
+          (state.schedule?.nextRunAt && now > Date.parse(state.schedule.nextRunAt) + 90 * 60 * 1000)) {
+        results.push({ ...base, verdict: 'MISSED', detail: `scheduled occurrence overdue; next_run_at ${state.schedule?.nextRunAt || 'unknown'}` });
+      } else if (state.firing === 'failed') {
+        results.push({ ...base, verdict: 'FAILED', detail: `Codex run ${state.receipt.threadId} failed at ${state.receipt.updatedAt}` });
+      } else if (state.firing === 'succeeded') {
+        const age = now - Date.parse(state.receipt.observedAt);
+        results.push(age > MAX_AGE_MS[l.cadence]
+          ? { ...base, verdict: 'STALE', detail: `last Codex run ${state.receipt.threadId} at ${state.receipt.observedAt} is stale` }
+          : { ...base, verdict: 'OK', detail: `Codex run ${state.receipt.threadId} at ${state.receipt.observedAt}; output unverified` });
+      } else {
+        results.push({ ...base, verdict: 'UNVERIFIABLE', detail: state.reason || `Codex firing: ${state.firing}; no completed run receipt` });
+      }
+      continue;
+    }
     // TD-006 fix (rm:rm-l2-ojfbot#S32): event/manual loops used to be excluded wholesale,
     // which is exactly where the lying hook-bead-session entry hid — a loop can be born
     // dead and stay green. Policy chosen (of the slice's two options): event loops must
@@ -182,7 +204,7 @@ async function main() {
   const L = [`# loops-liveness — ${new Date(flags.now).toISOString()}`, ''];
   L.push(Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(' · '));
   L.push('');
-  for (const v of ['DOWN', 'STALE', 'UNVERIFIABLE', 'OK', 'EXCLUDED']) {
+  for (const v of ['DOWN', 'MISSED', 'FAILED', 'STALE', 'UNVERIFIABLE', 'OK', 'EXCLUDED']) {
     const rows = results.filter((r) => r.verdict === v);
     if (!rows.length) continue;
     L.push(`## ${v}`);
