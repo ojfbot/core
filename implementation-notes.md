@@ -8,6 +8,20 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- PR #495 review integration (2026-10-03): the prepared repair targeted e90d062, while main advanced through #501/#499/#502; preserved every current-main note and the candidate additions while resolving the notes-only conflict in isolation.
+
+- PR #495 isolated repair (2026-10-02): the historical fleet census has no committed manifest/count recipe; omitted its unverified totals as rollout justification, narrowed the draft to pilot prerequisites, and combined its corrected provenance entry with current-main notes rather than choosing either side of the notes conflict.
+
+- correspondence-speech-act-tiers ADR draft (2026-09-24): plan was "draft the ADR on a clean
+  worktree and file a tracking issue in lego-village-pipeline". Territory: a tracking issue
+  needs a stable link target, and a pushed branch alone is not one (branches get deleted at
+  merge; lvp's corrected debrief records six reviewed commits absent from a fresh clone,
+  still retrievable by hosting-platform PR API/direct lookup, dependent on vendor retention). Took the conservative
+  option: opened core PR #495 as a **draft** so the issue (lvp #30) points at a durable object;
+  no review requested, no merge. Second gap: `gh` runs as `ojfbot`, so the issue's transmitting
+  account is the operator's own account; recorded in the issue header per the
+  `lego-pipe-file-issue` quadruple rather than treated as a blocker.
+
 - Fleet-runner design publication (2026-10-02): a repeat of the capture suites assumed dependencies in the isolated worktree, but Vitest was absent; retained the earlier 37-test investigation result as historical evidence, reported the unsuccessful rerun, and used dependency-free documentation checks for this docs-only PR.
 
 - Fleet-runner skill observation (2026-10-02): session instructions pointed to core `.Codex/skills`, but that path is absent; read the existing `.agents/skills` bodies and verified their `.claude/skills` counterparts instead of installing or rewriting skill distribution.
