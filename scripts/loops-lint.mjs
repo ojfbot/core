@@ -31,10 +31,13 @@ import { loadLoopsRegistry, resolvePath, repoRootOf } from './lib/northstar-fm.m
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
-const TRIGGERS = new Set(['launchd', 'gh-actions', 'hook', 'watchpath', 'manual']);
+// codex-automation is a provisional census adapter pending #311/#310.
+const TRIGGERS = new Set(['launchd', 'gh-actions', 'hook', 'watchpath', 'manual', 'codex-automation']);
 const CADENCES = new Set(['always-on', 'daily', 'weekly', 'event', 'manual']);
 const STATUSES = new Set(['live', 'disabled']);
 const REQUIRED = ['slug', 'purpose', 'trigger', 'cadence', 'status', 'repo'];
+const CODEX_FIELDS = new Set([...REQUIRED, 'trigger_ref', 'installed_ref', 'automation_id', 'rrule',
+  'state_spine', 'verifier', 'stop_rule', 'evidence_ref', 'owner']);
 
 function parseFlags(argv) {
   const f = { core: path.resolve(HERE, '..'), home: os.homedir(), format: 'report', check: false };
@@ -127,6 +130,14 @@ function discoverArtifacts(core, home) {
   for (const sf of [path.join(core, '.claude', 'settings.json'), path.join(home, '.claude', 'settings.json')]) {
     for (const abs of hookScriptPaths(sf, core, home)) found.push({ kind: 'hook', abs });
   }
+  // Codex automation TOMLs are installed scheduler artifacts, not manual scripts.
+  const automationDir = path.join(home, '.codex', 'automations');
+  if (existsSync(automationDir)) {
+    for (const id of readdirSync(automationDir)) {
+      const abs = path.join(automationDir, id, 'automation.toml');
+      if (existsSync(abs)) found.push({ kind: 'codex-automation', abs });
+    }
+  }
   return found;
 }
 
@@ -162,9 +173,17 @@ export function lint(core, home = os.homedir()) {
       if (existsSync(abs)) continue;
       const root = rootOfRef(ref, core, home);
       if (!existsSync(root)) {
-        warns.push(`vantage: ${where} ${key} '${ref}' unreachable from this checkout (root ${root} absent)`);
+        warns.push(`vantage: ${where} ${key} '${ref}' unreachable from this checkout (root not visible)`);
       } else {
         errors.push(`${where}: ${key} '${ref}' does not exist on disk`);
+      }
+    }
+    if (l.trigger === 'codex-automation') {
+      if (!l.automation_id || !l.rrule || l.evidence_ref !== `codex-run:${l.automation_id}`) {
+        errors.push(`${where}: provisional codex-automation requires automation_id, rrule, and matching codex-run evidence_ref`);
+      }
+      for (const key of Object.keys(l)) {
+        if (!CODEX_FIELDS.has(key)) errors.push(`${where}: unknown provisional Codex field '${key}'`);
       }
     }
   }
@@ -174,7 +193,8 @@ export function lint(core, home = os.homedir()) {
   for (const a of discoverArtifacts(core, home)) {
     if (declaredRefs.has(a.abs)) continue;
     undeclared++;
-    warns.push(`undeclared ${a.kind}: ${a.abs} — no registry entry claims it (declare it or park it deliberately)`);
+    const display = a.abs.startsWith(home + path.sep) ? `~/${path.relative(home, a.abs)}` : a.abs;
+    warns.push(`undeclared ${a.kind}: ${display} — no registry entry claims it (declare it or park it deliberately)`);
   }
 
   return { errors, warns, undeclared, counts: { loops: loops.length } };

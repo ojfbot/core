@@ -130,4 +130,41 @@ describe('loops-lint', () => {
     const r = lint(ctx.core, ctx.home);
     expect(r.warns).toEqual([]);
   });
+
+  it('checks Codex artifacts without depending on paused state or a run database', () => {
+    const id = 'selfco-vault-hygiene';
+    const ref = `~/.codex/automations/${id}/automation.toml`;
+    const file = path.join(ctx.home, '.codex', 'automations', id, 'automation.toml');
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, `id = "${id}"\nkind = "heartbeat"\nstatus = "PAUSED"\nrrule = "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"\ntarget_thread_id = "thread-1"\n`);
+    writeRegistry(ctx.core, [
+      { slug: id, purpose: 'Selfco hygiene', trigger: 'codex-automation', trigger_ref: ref,
+        automation_id: id, rrule: 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0',
+        evidence_ref: `codex-run:${id}`, cadence: 'daily', status: 'live', repo: 'selfco' },
+    ]);
+    const r = lint(ctx.core, ctx.home);
+    expect(r.undeclared).toBe(0);
+    expect(r.errors).toEqual([]);
+  });
+  it('only warns when the Codex home is absent from this vantage', () => {
+    writeRegistry(ctx.core, [{ ...BASE, slug: 'hygiene', trigger: 'codex-automation',
+      trigger_ref: '~/.codex/automations/hygiene/automation.toml', automation_id: 'hygiene',
+      rrule: 'FREQ=DAILY', evidence_ref: 'codex-run:hygiene' }]);
+    const result = lint(ctx.core, ctx.home);
+    expect(result.errors).toEqual([]);
+    expect(result.warns).toHaveLength(1);
+    expect(result.warns[0]).toMatch(/vantage: hygiene/);
+    expect(result.warns[0]).not.toContain(ctx.home);
+  });
+
+  it('rejects missing and unknown provisional Codex fields without reading runtime state', () => {
+    writeRegistry(ctx.core, [{ ...BASE, slug: 'hygiene', trigger: 'codex-automation',
+      trigger_ref: '~/.codex/automations/hygiene/automation.toml', automation_id: 'hygiene',
+      evidence_ref: 'codex-run:hygiene', unexplained_field: 'x' }]);
+    const result = lint(ctx.core, ctx.home);
+    expect(result.errors.join()).toMatch(/rrule/);
+    expect(result.errors.join()).toMatch(/unknown.*unexplained_field/);
+    expect(result.errors.join()).not.toMatch(/Codex automation is/);
+  });
+
 });

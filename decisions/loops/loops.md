@@ -95,6 +95,21 @@ loops:
     owner: operator
     status: disabled
     repo: selfco
+  # Provisional #315 census adapter; trigger portability and durable evidence remain #311/#310 decisions.
+  - slug: selfco-vault-hygiene
+    purpose: "Daily Codex heartbeat checks Selfco wiki lint and schema, repairs clear wiki errors, and records ambiguous decisions in a structured outbox"
+    trigger: codex-automation
+    trigger_ref: ~/.codex/automations/selfco-vault-hygiene/automation.toml
+    automation_id: selfco-vault-hygiene
+    rrule: "FREQ=DAILY;BYHOUR=9;BYMINUTE=0"
+    cadence: daily
+    state_spine: "~/selfco/wiki plus ~/selfco/maintenance/hygiene-findings.json"
+    verifier: "Run scripts/codex-automation-status.mjs after the first real fire; correlate its local run row with the schedule and target chat, then attribute output or quiet completion separately. Firing, output and consumption evidence remain incomplete; see selfco-vault-hygiene-registration.md"
+    stop_rule: "Pause or delete selfco-vault-hygiene in the Codex app; this registry never schedules or executes it"
+    evidence_ref: "codex-run:selfco-vault-hygiene"
+    owner: operator
+    status: live
+    repo: selfco
   - slug: selfco-hot-list
     purpose: "Regenerates ~/selfco/wiki/_hot.md — the recently-active orientation router an agent reads before the 120KB index.md"
     trigger: manual
@@ -430,14 +445,14 @@ Every loop in the ojfbot cluster, declared as a first-class resource (audit cycl
 control cycle that runs without a human prompting it — a schedule, an event hook, a watcher, or
 a named manual ritual with a declared cadence. The registry answers, from one file: what loops
 exist, what triggers each (the `trigger:` value is a labeled adapter — launchd / gh-actions /
-hook / watchpath / manual — never the loop's identity), where its state lives, what verifies
+hook / watchpath / manual, plus the provisional codex-automation census adapter — never the loop's identity), where its state lives, what verifies
 it, and what stops it.
 
 **Lint.** `scripts/loops-lint.mjs` cross-checks this registry against the artifacts on disk,
 both directions: a declared `trigger_ref` that doesn't exist is an ERROR; a discovered trigger
 artifact (plist, workflow cron, registered hook script) that no entry declares is a WARN.
 Vantage rules follow `northstar-lint.mjs`: artifacts in repos or home paths not visible from
-the current checkout downgrade to WARNs.
+the current checkout downgrade to WARNs. Static lint checks fields and artifact presence only; Codex database access, paused state, and configuration drift belong to liveness, not registry errors.
 
 **Liveness.** `scripts/loops-liveness.mjs` (slice S30) reads `cadence:` + `evidence_ref:` and
 reports loops whose last-run evidence is older than their cadence allows. Report-only —
@@ -454,3 +469,23 @@ paging is F3's rail; restart is nobody's until an ADR-0086 shadow stage says oth
 - Scope: autonomous/event loops and scheduled rails. Pure CI verification gates on PRs
   (ci.yml, northstar-lint.yml, security-scan.yml…) are *verifiers*, referenced in `verifier:`
   fields — they are not registry entries themselves.
+
+### Provisional Codex census fields
+
+`codex-automation` and `codex-run:<automation_id>` describe the observed local adapter for
+#315. They are provisional pending #311's portable trigger contract and #310's durable
+run-evidence decision; registering this row accepts neither contract nor closes their
+blocking dependencies. Liveness dispatches `codex-run:` through the read-only adapter.
+
+| Field | Meaning and validation |
+| --- | --- |
+| `automation_id` | Required local automation identity, matching the `codex-run:` suffix. |
+| `rrule` | Required expected recurrence string; liveness compares TOML and database against it. Static lint does not interpret scheduling semantics. |
+| `trigger_ref` | Required local TOML artifact; missing home roots produce a vantage warning. |
+| `evidence_ref` | Required `codex-run:<automation_id>` for this provisional adapter. It locates a local observation, not accepted durable fleet history. |
+| `state_spine`, `verifier`, `stop_rule`, `owner` | Existing descriptive fields; the verifier records the first-fire follow-up. They do not establish output attribution or consumption. |
+
+Other allowed fields are the existing required fields `slug`, `purpose`, `trigger`,
+`cadence`, `status`, `repo`, plus optional `installed_ref`. Unknown Codex-row fields fail
+static lint. Private target chat identifiers stay in local TOML/database and are compared
+there; there is no registry `target_thread_id` or unused `output_ref` contract.

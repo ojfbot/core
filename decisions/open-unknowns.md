@@ -197,3 +197,59 @@ drafted inline there.
 **Standard considerations not covered**
 - Python labs' home-shape inside a pnpm workspace (the lab-surface ruling is TypeScript *first*,
   not TypeScript *only*; nothing here rules how a Python lab package coexists).
+
+## 2026-10-01 — Fleet-runner holds the affected item during uncertain publication (Q1, #307)
+
+Ruling: [adr:fleet-runner-publication-hold](adr/0109-fleet-runner-publication-hold.md)
+blocks reassignment and conflicting GitHub publication until outstanding effects are
+reconciled for the first pilot. Unrelated independent work continues. No enforcement
+experiment or implementation slice was approved by this ruling.
+
+**Deferred decisions**
+- The authorization point, later scope revision/revocation, trusted grants, reconciliation mechanism and accountable reopening authority; unblocked by: their separate policy decisions and approved proofs.
+- Q3's sole-authority and reopening rule after restoring older state, recovery owner and numerical data-loss/recovery-time targets; #311/#318's reconstruction obligations remain open.
+- Escalation deadlines and budgets. A deadline alone cannot release the Q1 hold.
+- S25 reconciliation and registration of approved delivery slices before overlapping implementation; neither registration nor movement changed here.
+
+**Unvalidated assumptions**
+- That a publisher can retain and reconcile evidence for every outstanding conflicting request, including delayed effects across restart. No mechanism has proved this yet.
+- That the hold can be enforced across admission, reassignment and publication while unrelated independent work continues. The accepted policy is not executed evidence.
+
+**Standard considerations not covered**
+- Evidence retention, loss/corruption and access controls for the eventual publication record.
+- Operator escalation and reopening workflow when remote evidence stays unavailable; the accepted tradeoff permits indefinite blocking, but its operating procedure remains unspecified.
+
+## 2026-10-02 — Fleet-runner observes skill use across all sessions
+
+Ruling: the operator confirmed all Claude and Codex sessions, including sessions not launched by fleet-runner; fleet-runner owns reconciliation and reporting. Preserve OPAV evidence validation, distinguish acceptance, loading, application, decline, ignored, and unknown, and keep telemetry advisory rather than a session gate. The [design](fleet-runner/skill-observation.md) develops this boundary and the [ADR](adr/draft-fleet-runner-skill-observation.md) remains Proposed. No runtime implementation, deployment, or remote evidence export was authorized.
+
+**Deferred decisions**
+- Response-interval closure and the exact evidence needed for an ignored classification; unblocked by: operator policy review informed by provider qualification.
+- Retention, redaction, remote export scope, authenticated producer identity, numeric freshness and recovery targets; unblocked by: the relevant operational/privacy decisions before production rollout.
+- Schema placement, durable ingestion technology, runtime/store/host choice, and independent supervision owner; unblocked by: existing fleet-runner contract and runtime decisions, without reopening accepted placement or Q1.
+- Reconciliation of rm-l1-core and rm-l2-ojfbot skill work before registering bounded implementation slices; unblocked by: roadmap review against the existing #307 umbrella.
+
+**Unvalidated assumptions**
+- Native events and transcripts can provide complete, version-qualified capture for each intended provider and environment. The local Codex trace demonstrates today's gap, not universal adapter feasibility.
+- Sessions not launched by fleet-runner can be discovered with a stated denominator; the inventory may itself be incomplete.
+- Wrapped tool calls and conversational outputs can be attributed without treating arbitrary command text or self-report as proof of application.
+- Offline delivery and restored checkpoints can preserve accepted observations within an explicit recovery policy. No fault-qualified runtime exists yet.
+
+**Standard considerations not covered**
+- Detailed multi-user access rules, capacity/cost limits, deletion requirements, and long-term retention. These need decisions before expanding beyond the local qualification slice.
+
+## 2026-10-02 — Skill reporting uses structured correspondence and PR/issue comments
+
+Ruling: the operator required reviewable PR and issue comments alongside telemetry storage and directed application of structured-correspondence lessons to heuristic capture and reporting. The [profile](fleet-runner/skill-observation-correspondence.md) records the proposed typed records, closed relations, evidence/authority boundaries, revision rules, required publication, and SC01–SC08 acceptance cases. It cites draft PR #495 at head `62d7d7a4fafa2b7e7209c4c48a4d27c7cd022fbb` without ratifying it.
+
+**Deferred decisions**
+- Operative correspondence grammar and verified human/agent authority when GitHub accounts are shared; unblocked by: existing #495 and fleet-runner grant-policy decisions. Telemetry reports cannot settle them.
+- Shared schema package/build and compatibility process, live PR/issue test targets, publication grants, coalescing cadence, and receipt retention; unblocked by: bounded implementation-slice and deployment review.
+- Reporting targets for projectless or unassociated sessions; unblocked by: an explicit routing policy. Do not infer issue assignment from repo/time proximity.
+
+**Unvalidated assumptions**
+- A qualified publisher can reconcile delayed or ambiguous remote comment effects and detect later edits without duplicating publication. The accepted affected-item hold remains applicable; no remote uniqueness or compare-and-swap guarantee is assumed.
+- Heuristic and evidence-policy dependency records are sufficient to enumerate all affected reports after a correction. Require replay and mutation evidence before claiming this.
+
+**Standard considerations not covered**
+- Detailed GitHub notification-volume budget, comment-size limits, and retention/deletion policy for archived remote revisions. These belong in publisher qualification before live rollout.

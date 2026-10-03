@@ -11,6 +11,9 @@ importers:
       mysql2:
         specifier: ^3.22.0
         version: 3.22.0(@types/node@22.19.15)
+      smol-toml:
+        specifier: ^1.6.0
+        version: 1.6.1
     devDependencies:
       '@eslint/js':
         specifier: ^9.0.0
