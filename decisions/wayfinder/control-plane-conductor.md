@@ -33,6 +33,25 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ## Notes
 
+### Skill observation extension, 2026-10-02
+
+The operator confirmed that skill observation covers all Claude and Codex sessions,
+including those fleet-runner did not launch, with fleet-runner owning reconciliation
+and reporting. Preserve OPAV evidence validation and distinguish acceptance, loading,
+application, decline, ignored, and unknown. Telemetry must not become a session gate.
+
+The [bounded investigation](../../docs/fleet-runner-skill-telemetry-investigation-2026-10-02.md)
+reproduced a Codex skill load being recorded as ignored because its session had no
+corroborating tool ledger. It also found incompatible report cohorts and sticky negative
+projections. The [extension design](../fleet-runner/skill-observation.md) and
+[proposed ADR](../adr/draft-fleet-runner-skill-observation.md) specify provider capture,
+independent skill runs, coverage, revisable projections, and shared report contracts.
+
+This develops the inherited #315/#310/#311/#316/#317/#318 obligations without closing them
+or creating another initiative. Detailed contracts and implementation slices remain
+proposed. Reconcile existing skill roadmaps before dispatch; the first governed execution
+pilot's acceptance criteria do not expand through this note.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are

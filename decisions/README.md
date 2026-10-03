@@ -156,6 +156,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 | `dispatch-queue-and-day-runner` | [Dispatch queue + day-runner — the cockpit stages intents; a headless runner delivers slices](adr/draft-dispatch-queue-and-day-runner.md) | architecture | Proposed |
 | `duplex-work-item-sync` | [(draft): Duplex work-item sync — beads canonical, GitHub issues mirrored, safe under full-duplex concurrency](adr/draft-duplex-work-item-sync.md) | architecture | Proposed |
 | `envisioned-capability-marker` | [Envisioned-capability marker — distributed marker, maturity ladder, and reference lint](adr/draft-envisioned-capability-marker.md) | convention | Proposed |
+| `fleet-runner-skill-observation` | [Fleet-runner reconciles skill observations across all sessions](adr/draft-fleet-runner-skill-observation.md) | architecture | Proposed |
 | `harness-loop-instrumentation` | [Loop harnesses ride the OPAV spine; automation is gated on triggers, invocation is not](adr/draft-harness-loop-instrumentation.md) | architecture | Proposed |
 | `headless-components-with-design-language-adapters` | [Headless components with design-language adapters](adr/draft-headless-components-with-design-language-adapters.md) | architecture | Proposed |
 | `installed-harness-is-tracked` | [The installed agent harness is tracked, not gitignored](adr/draft-installed-harness-is-tracked.md) | convention | Proposed |
