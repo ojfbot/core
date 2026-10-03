@@ -4,6 +4,13 @@ Date: 2026-10-02. Status: proposed delivery handoff. Initiative: [core #307](htt
 
 The [design](skill-observation.md), [correspondence profile](skill-observation-correspondence.md), [draft ADR](../adr/draft-fleet-runner-skill-observation.md), and [investigation](../../docs/fleet-runner-skill-telemetry-investigation-2026-10-02.md) are the git-tracked specification. The [existing map](../wayfinder/control-plane-conductor.md) owns unresolved fleet-runner decisions. PRs and issue correspondence link to those files at a commit; they report evidence and decisions against an identified revision.
 
+October 3 follow-up: [fleet qualification and consumer rollout](skill-observation-rollout.md)
+records the current daily-logger placeholder failure and reconciled inventory. It refines
+these four slices with a daily-logger fixture first, separately authorized live PR/issue
+qualification, pinned distribution, waves and independent drift checks. It is part of this
+handoff, not another queue. #495 is now merged Proposed documentation; its narrowed contract
+and changed D labels are reconciled in the profile. No delivery gate has passed as a result.
+
 ## First delivery
 
 Before any slice implementation or local experiment begins, obtain approved scope and register the bounded work with an assigned owner in the canonical roadmap. The [design's implementation entrance](skill-observation.md#out-of-scope-and-implementation-entrance) is normative; this handoff does not register or authorize pickup.
@@ -11,6 +18,12 @@ Before any slice implementation or local experiment begins, obtain approved scop
 Start with design slice 1, local provider qualification. A developer should be able to inspect a session receipt and answer which suggestion was delivered, what response was observed, whether instructions loaded, what application evidence exists, and what remains unknown. The same facts must render into scoped PR and issue comment fixtures without gaining certainty during rendering.
 
 The first implementation PR contains a bounded local replay command, redacted provider fixtures, a reproducible qualification report, session receipts, and rendered PR/issue comment fixtures. Record the command and its executed nonzero test count in that PR. Use the existing pnpm workspace and test runner. Determine the experimental file location during pickup; this proof must not silently select fleet-runner's runtime, database, or production schema package.
+
+Use daily-logger as the concrete fixture target and include its clean consumer checkout
+with a dangling core-hook symlink. The [first-slice scope and R01–R08 cases](skill-observation-rollout.md#daily-logger-qualification-and-acceptance-cases)
+make distribution failure, snapshot gaps, attribution and OPAV outcomes inspectable alongside
+the existing provider proof. Synthetic fixtures do not qualify a provider, and rendering
+does not qualify publication. Actual PR and issue readback belongs to slice 3.
 
 Before writing the adapters, pin the installed Claude and Codex versions and their observed input/output contracts. Review a redaction manifest against the [slice-1 minimum](skill-observation.md#security-considerations) before committing or sharing fixtures. Name the source interval, successful-load evidence, capture gaps, and expected receipt privately; use opaque references and relative timing in public fixtures. If a version cannot be exercised, mark it unqualified. Never replace missing live evidence with a synthetic fixture and call the provider qualified.
 
@@ -37,12 +50,19 @@ Restatement: deliver trustworthy all-session skill reporting through demonstrate
 | --- | --- | --- | --- |
 | 1. Local qualification | Selected local provider source → observation → fixture receipt → PR/issue fixture; missed use becomes inspectable | Approved scope and canonical roadmap registration with owner; pinned provider contracts; reviewed redaction manifest and fixture expectations | Execute every demonstration above. Report observed versus expected outcomes and nonzero rule coverage. Any unsupported provider stays unqualified. |
 | 2. Replay and correction | Retained facts → replay → revised reports; interruption and late evidence do not silently corrupt totals | Slice 1 evidence reviewed; select local durability semantics and correction rules | Demonstrate duplicate, late, interrupted, and restart cases through receipt outputs. Preserve revision lineage and report gaps. Resolve the closure policy before asserting ignored. |
-| 3. Verified publication and consumer cutover | Qualified report → authorized PR and issue comments → remote readback → consumer snapshot | Accept shared contracts, publication grant, explicit test targets, privacy policy, and applicable recovery policy; resolve overlapping roadmap scope | Fault tests show exact-revision delivery on both target types, correction lineage, and no false delivery or consumption. Unknown writes obey ADR-0109. Compare consumers on the same cohort, bounds, and snapshot before cutover. |
+| 3. Verified publication and consumer cutover | Qualified report → authorized PR and issue comments → remote readback → consumer snapshot | Accept bounded contracts, publication grant, explicit test targets, privacy policy, pinned clean-runner distribution, and applicable recovery policy; resolve overlapping roadmap scope | Start with daily-logger. Fault tests show exact-revision delivery on both target types, correction lineage, and no false delivery or consumption. Unknown writes obey ADR-0109. Compare consumers on the same cohort, bounds, and snapshot before a single-writer handoff. Follow rollout W1–W4 and retain coverage-failure reporting. |
 | 4. Independent observation and expansion | Collector/consumer health → independent finding → attributable disposition | Accept independent checker ownership, coverage policy, and operating targets | Stop collector and consumer separately; distinguish each from healthy empty activity. Qualify additional versions individually and report exclusions. |
 
 The Measure of Effectiveness is that reported skill use and missing evidence are trustworthy enough to act on. Initial Measures of Performance are required scenarios passed versus attempted, correspondence rules with executed positive/mutation coverage versus claimed coverage, and providers qualified versus attempted. Track these as Technical Performance Measures against the committed fixture expectations. No claimed scenario or rule may fail and no claimed coverage may have zero executed cases. These are bounded qualification thresholds, not evidence of estate-wide accuracy or production reliability.
 
 The first two slices are local verification. Slice 3 begins with shadow comparison; consumer promotion requires an accepted policy and evidence against its thresholds. Existing OPAV RIDM criteria remain separate. A failed comparison retains the existing consumers and records the discrepancy. Do not invent production targets to make a gate pass. Vertical slice and shadow mode are harness extensions to the SEH vocabulary.
+
+Slice 4's independent discovery and health checks must be available before broad slice-3
+promotion (W3/W4). Completion uses current discovered/eligible/qualified populations with
+explicit exceptions, not the historical workflow count. Missing audit components and
+missing/stale/partial telemetry require meaningful coverage-failure reports; a successful
+skip or a heuristic recommendation cannot count as a measured audit. Retire legacy producers
+only after replacement qualification and reconciliation of all outstanding writes.
 
 ## Relationship to existing work
 

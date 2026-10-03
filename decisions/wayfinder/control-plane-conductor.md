@@ -57,8 +57,15 @@ directed application of the structured-correspondence lessons. The
 [correspondence profile](../fleet-runner/skill-observation-correspondence.md) separates
 observations, claims, heuristic interpretations, assessments, dispositions, and publication
 receipts. It requires confirmed remote delivery, correction lineage, and positive/mutation
-tests for each rule. PR #495 remains draft; this extension does not ratify its governance
-contract or equate an informational reporting comment with an operative work order.
+tests for each rule. PR #495 merged on October 3 as narrowed Proposed documentation;
+the profile reconciles its changed D labels without ratifying its governance contract or
+equating an informational reporting comment with an operative work order.
+
+The October 3 [fleet rollout extension](../fleet-runner/skill-observation-rollout.md)
+adds the verified daily-logger clean-checkout failure and inventory-derived qualification
+waves inside the existing delivery handoff. It supplies bounded evidence to #315/#317;
+it neither completes the full loop census nor authorizes fixes, experiments or publication.
+Authorized non-fleet/projectless sessions remain in the observation goal.
 
 ### Current decision and evidence limits
 

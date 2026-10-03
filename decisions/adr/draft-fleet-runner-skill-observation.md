@@ -37,9 +37,16 @@ The operator confirmed the all-session advisory boundary, PR/issue reporting req
 and structured-correspondence direction on October 2. The
 [design](../fleet-runner/skill-observation.md) is the normative source for the proposed
 contract, acceptance criteria, and implementation entrance. The
-[profile](../fleet-runner/skill-observation-correspondence.md) proposes adaptations of
-#495 D8–D10 and an explicit amendment to D7; these require reconciliation and acceptance
-in #495 before governed use. This proposal does not settle that draft's authority policy.
+[profile](../fleet-runner/skill-observation-correspondence.md) originally proposed adaptations
+of #495 D8–D10 and an amendment to its historical D7. #495 merged on October 3 as a narrowed
+Proposed ADR with changed D meanings. The profile records that reconciliation; the bounded
+contract and authority mechanism still require acceptance before governed use. No shared
+schema package or fleet-wide correspondence migration is selected.
+
+The October 3 [rollout extension](../fleet-runner/skill-observation-rollout.md) adds verified
+consumer/distribution evidence, inventory-derived qualification, snapshot health, daily-logger
+acceptance cases and rollout waves within the existing handoff. It changes no ADR status,
+execution authority or all-session observation boundary.
 
 ### Relationship to existing work
 

@@ -10,6 +10,12 @@ The operator confirmed observation and reconciliation for all Claude and Codex s
 
 The operator subsequently required PR and issue comments as reporting outputs and directed application of the structured-correspondence lessons. The [correspondence profile](skill-observation-correspondence.md) is part of this design: typed observations, claims, inferences, assessments, dispositions, and delivery/consumption receipts, with eight falsifiable rule obligations. Detailed contracts remain proposed.
 
+The October 3 [fleet rollout extension](skill-observation-rollout.md) adds the verified
+daily-logger failure, inventory-derived denominators, clean-checkout distribution proposal,
+snapshot health/attribution requirements and qualification waves within the existing deliveries.
+It preserves authorized non-runner, non-fleet and projectless sessions; fleet CI coverage is
+only one cohort. The extension grants no collection, export, implementation or publication authority.
+
 ## Problem and user outcomes
 
 Suggestion delivery is currently observed in a Codex session whose tool activity is absent from the legacy corroboration ledger. That absence becomes an ignored event. Other reports use incompatible populations and timestamps. The extension must let the operator distinguish a skipped workflow from missing observation and inspect the evidence supporting each statement.
@@ -53,7 +59,16 @@ The buffer is a recoverable transport stage, not a second authoritative skill le
 
 The [correspondence profile](skill-observation-correspondence.md) defines admissible writers, a closed relation vocabulary, heuristic versioning, evidence assessments, and the required PR/issue publication contract. It separates authored claims from derived outcomes; no agent can set a verified result or confirmed delivery through an authored status field. Schema validity establishes shape, not truth. Heuristics produce attributable interpretations whose evidence and qualification remain visible.
 
-This is the normative source for the proposed skill observation scope and implementation entrance. The profile proposes adaptations of #495 D8–D10 and an explicit amendment to D7; their acceptance must be reconciled in #495 before governed use. Informational reports contain observed dispositions and existing decision links only. Requests for action or decisions are separate binding speech acts with a named recipient under the operative correspondence and grant contract.
+This is the normative source for the proposed skill observation scope and implementation entrance.
+The profile's original #495 D7 amendment and D8–D10 adaptations cite a historical draft.
+#495 merged on October 3 as Proposed documentation with changed D1–D12 meanings, not as
+an operative contract. The [profile's current-source reconciliation](skill-observation-correspondence.md#current-source-reconciliation-2026-10-03)
+preserves those pins and maps the proposal to the narrowed authority/evidence prerequisites.
+Accept the applicable bounded profile in the existing policy venues before governed use;
+no fleet-wide grammar or schema package is implicitly required or approved.
+Informational reports contain observed dispositions and existing decision links only.
+Requests for action or decisions are separate binding speech acts with a named recipient
+under the operative correspondence and grant contract.
 
 ### Records and meanings
 
@@ -127,6 +142,14 @@ These are proposed slices, not registered roadmap entries or delivery claims.
 2. Demonstrate recovery and correction through that same read model. Kill the collector, disconnect ingestion, replay duplicate and late events, omit session-end, and restart from durable checkpoints. Show unknown coverage and later correction without duplicate runs.
 3. Qualify publication to explicitly authorized PR and issue test targets through exact-revision readback, deduplicated replay, correction, and uncertain-outcome reconciliation. Demonstrate both configured sinks before marking delivery complete. Cut over cockpit, daily-logger, and audits to the same snapshot contract; prove parity for identical scopes before retiring conflicting calculators.
 4. Add independent health and consumption checks. Prove that a deliberately disabled collector and a stopped consumer produce distinguishable findings with a named owner and disposition. Then qualify additional providers, versions, hosts, and skill packages.
+
+The [rollout waves and acceptance cases](skill-observation-rollout.md#rollout-waves-within-the-existing-deliveries)
+refine these slices. Daily-logger is the first full qualification case, beginning with local
+fixtures and reaching actual PR/issue readback only after separate live authorization.
+Broad consumer promotion requires independent discovery/health checks from slice 4;
+it cannot postpone detection of missing consumers until after declaring rollout complete.
+Report discovered, eligible and qualified populations separately. Qualified workflow
+installation alone does not qualify any repository/provider/host observation interval.
 
 ### Migration
 
