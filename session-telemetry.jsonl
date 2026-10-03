@@ -1,2 +1,0 @@
-{"ts":"2026-09-30T21:06:37Z","event":"session:start","session_id":"a5a3fc6a-1528-4f09-9f11-41a2b9cc102e","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
-{"ts":"2026-10-01T00:47:01Z","event":"session:start","session_id":"f16e89d5-dab8-4a9f-917b-7f2508474ec0","source":"startup","model":"claude-opus-5-5[1m]","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
