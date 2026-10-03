@@ -17,6 +17,7 @@ The proof can use experimental record shapes derived from the proposed profile. 
 Required demonstrations:
 
 - A delivered suggestion and successful load for each pinned provider; a load earns no verified-application credit by itself.
+- An evidenced application for each qualified provider using a skill with an existing expected-artifact contract. OPAV must validate run-specific evidence, and both the session receipt and PR/issue fixtures must expose that assessment and its source. An all-indeterminate result cannot pass provider qualification.
 - A deliberate skill invocation without a suggestion; no synthetic suggestion is minted.
 - An explicit response remains distinct from load and application. An absent response with incomplete coverage or an open interval stays unknown or pending.
 - The investigation's missed Codex load appears in the receipt. The legacy ignored row remains attributable as a legacy interpretation; it cannot erase the load evidence.
