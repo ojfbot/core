@@ -96,7 +96,7 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0080 | [Vault staleness scanner — graph-aware signal, surface-only, layered on `/vault lint`](adr/0080-vault-staleness-scanner.md) | tooling | Proposed |
 | 0085 | [The `selfco` LLM Wiki and the `/vault` skill](adr/0085-selfco-vault-and-skill.md) | tooling | Accepted |
 | 0088 (rev B) | [Obsidian Bases as the vault's dynamic browsing layer](adr/0088-obsidian-bases-views.md) | tooling | Accepted |
-| 0089 | [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) | policy | Accepted |
+| 0089 (rev A) | [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) | policy | Accepted |
 | 0090 | [defuddle as a reversible, shadow-mode ingest trial](adr/0090-defuddle-ingest-fetch.md) | tooling | Accepted |
 | 0091 | [Semantic link-suggester for cultivate](adr/0091-semantic-link-suggester.md) | tooling | Accepted |
 | 0102 | [OJF-OPL — a git-native Object-Process Methodology profile as the fleet's inspectability layer](adr/0102-opm-inspectability-layer.md) | architecture | Accepted |
@@ -247,7 +247,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0086 — [Control-Gated Slices — how we decompose and ship large agentic-harness work](adr/0086-control-gated-slices.md) · Accepted
 - 0087 — [Stable-identity + facet-tag ADRs — NASA Configuration Management applied to decision records](adr/0087-stable-identity-and-facet-tags.md) · Accepted
 - 0088 — [Obsidian Bases as the vault's dynamic browsing layer](adr/0088-obsidian-bases-views.md) · Accepted
-- 0089 — [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) · Accepted
+- 0089 (rev A) — [Promote vault lint from shadow mode to a commit gate](adr/0089-lint-shadow-to-gate.md) · Accepted
 - 0090 — [defuddle as a reversible, shadow-mode ingest trial](adr/0090-defuddle-ingest-fetch.md) · Accepted
 - 0091 — [Semantic link-suggester for cultivate](adr/0091-semantic-link-suggester.md) · Accepted
 - 0093 — [Suggestion identity + denominator repair — the keystone for any skill-loop metric](adr/0093-suggestion-identity-and-denominator.md) · Accepted

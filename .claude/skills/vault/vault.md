@@ -51,7 +51,7 @@ codebase."** You own `wiki/`; the user reads it.
   So when this skill writes from the Mac: `git -C $V pull --rebase --autostash` *before*, and `git -C $V push`
   *after* its commit, whenever `$V` has a remote (the scripts do this; do it yourself if writing pages directly).
 - **No secrets.** Never write tokens, `.env` values, or credentials into the vault.
-- **Canvas nodes _and edge labels_ are sized/spaced to content — enforced, not eyeballed.** Whenever you create or edit a `.canvas`, finish with `python {skill}/scripts/canvas-fit.py <file> --vault $V` (grow-only / push-apart: text nodes → wrapped rendered lines, file-nodes → ≥420×310, node overlaps pushed down, **left↔right edge-label gaps widened so the caption clears both nodes**, groups re-expanded; never shrinks a node). An edge label renders as unboxed text at the gap midpoint, so when two horizontally-adjacent nodes are closer than the label is wide it spills under them — keep the gap ≥ the label width (the fitter does this for you). Vertical/corner labels aren't auto-moved; if one sits under a third node the fitter prints a `WARNING` to widen the gap or shorten the label by hand. `--check` exits 1 without writing, and **`lint.py --gate` runs `--check` over every hand-authored `.canvas`, so an unfit canvas blocks the gate** (run canvases under `canvas/runs/` are the renderer's domain, out of gate scope). ADR-0088 rev A.
+- **Canvas nodes _and edge labels_ are sized/spaced to content — enforced, not eyeballed.** Whenever you create or edit a `.canvas`, finish with `python {skill}/scripts/canvas-fit.py <file> --vault $V` (grow-only / push-apart: text nodes → wrapped rendered lines, file-nodes → ≥420×310, node overlaps pushed down, **left↔right edge-label gaps widened so the caption clears both nodes**, groups re-expanded; never shrinks a node). An edge label renders as unboxed text at the gap midpoint, so when two horizontally-adjacent nodes are closer than the label is wide it spills under them — keep the gap ≥ the label width (the fitter does this for you). Vertical/corner labels aren't auto-moved; if one sits under a third node the fitter prints a `WARNING` to widen the gap or shorten the label by hand. `--check` exits 1 without writing, and **`lint.py --gate` runs `--check` over every hand-authored `.canvas`, so an unfit canvas blocks the gate** (run canvases under `canvas/runs/` are the renderer's domain, out of gate scope). ADR-0088 rev B.
 - **Don't call it a "second brain."** "The vault" / "the wiki" / "source, entity, concept, synthesis pages".
 
 ## I/O Layer — tool priority
@@ -144,8 +144,11 @@ missing cross-refs, data gaps. Report findings grouped by type. Only mutate the 
 so), then append `## [date] lint | <n findings, m fixed>` to `wiki/log.md`.
 With `--gate` (adr:lint-shadow-to-gate) the script exits 1 on the two deterministic blocking classes — broken
 `[[links]]` and raw-without-source outside `raw/inbox/` (the inbox is an advisory filing queue;
-orphans/stale stay advisory) — and never fixes anything; the selfco-box runs
-it pre-commit on its push path. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
+orphans/stale stay advisory) — and never fixes anything. The selfco-box runs it for gated
+ingest, note, and cultivate commits. Its LLM-free transport pass lands inbox captures
+without invoking the gate; the exception lets those pending captures coexist with later
+gated filing work. Other unfiled raw items still block, including raw material a legacy
+`note` job writes without a source page. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
 
 ### `cultivate`
 The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it compound (full procedure in
