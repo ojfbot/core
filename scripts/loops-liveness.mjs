@@ -39,7 +39,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { loadLoopsRegistry } from './lib/northstar-fm.mjs';
-import { inspectCodexAutomation } from './lib/codex-automation.mjs';
+import { inspectCodexAutomation, MISSED_GRACE_MS } from './lib/codex-automation.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
@@ -68,11 +68,16 @@ function resolveRef(p, core, home) {
 }
 
 /** Last-evidence timestamp (ms) for a loop, or { reason } when unreadable. */
-function readEvidence(loop, core, home) {
+function readEvidence(loop, core, home, now) {
   const ref = String(loop.evidence_ref || 'none');
   const [scheme, ...rest] = ref.split(':');
   const arg = rest.join(':');
 
+  if (scheme === 'codex-run') {
+    if (arg !== loop.automation_id) return { reason: 'codex-run evidence id differs from automation_id' };
+    try { return { codex: inspectCodexAutomation(loop, core, home, now) }; }
+    catch { return { reason: 'Codex inspection failed; this loop is unverifiable' }; }
+  }
   if (scheme === 'file') {
     const abs = resolveRef(arg, core, home);
     if (!existsSync(abs)) return { reason: `evidence file absent: ${abs}` };
@@ -125,24 +130,28 @@ export async function liveness(core, home = os.homedir(), now = Date.now()) {
   for (const l of loops) {
     const base = { slug: l.slug, cadence: l.cadence, trigger: l.trigger, repo: l.repo };
     if (l.status !== 'live') { results.push({ ...base, verdict: 'EXCLUDED', detail: `status: ${l.status} (deliberate park)` }); continue; }
-    if (l.trigger === 'codex-automation') {
-      const state = inspectCodexAutomation(l, core, home, now);
+    if (String(l.evidence_ref || '').startsWith('codex-run:')) {
+      const evidence = readEvidence(l, core, home, now);
+      const state = evidence.codex;
+      if (!state) { results.push({ ...base, verdict: 'UNVERIFIABLE', detail: evidence.reason }); continue; }
       if (state.configured === 'disabled') {
         results.push({ ...base, verdict: 'EXCLUDED', detail: state.reason });
       } else if (state.configured !== 'configured') {
         results.push({ ...base, verdict: 'UNVERIFIABLE', detail: state.reason });
-      } else if (state.firing === 'missed' ||
-          (state.schedule?.nextRunAt && now > Date.parse(state.schedule.nextRunAt) + 90 * 60 * 1000)) {
-        results.push({ ...base, verdict: 'MISSED', detail: `scheduled occurrence overdue; next_run_at ${state.schedule?.nextRunAt || 'unknown'}` });
       } else if (state.firing === 'failed') {
-        results.push({ ...base, verdict: 'FAILED', detail: `Codex run ${state.receipt.threadId} failed at ${state.receipt.updatedAt}` });
+        results.push({ ...base, verdict: 'FAILED', detail: `Codex run failed at ${state.receipt.updatedAt}; later occurrences are not assessed by this verdict` });
+      } else if (state.firing === 'missed' ||
+          (state.firing === 'succeeded' && state.schedule?.nextRunAt &&
+           Date.parse(state.schedule.nextRunAt) > Date.parse(state.receipt.observedAt) &&
+           now > Date.parse(state.schedule.nextRunAt) + MISSED_GRACE_MS)) {
+        results.push({ ...base, verdict: 'MISSED', detail: `scheduled occurrence overdue; next_run_at ${state.schedule?.nextRunAt || 'unknown'}; no matching later receipt` });
       } else if (state.firing === 'succeeded') {
         const age = now - Date.parse(state.receipt.observedAt);
         results.push(age > MAX_AGE_MS[l.cadence]
-          ? { ...base, verdict: 'STALE', detail: `last Codex run ${state.receipt.threadId} at ${state.receipt.observedAt} is stale` }
-          : { ...base, verdict: 'OK', detail: `Codex run ${state.receipt.threadId} at ${state.receipt.observedAt}; output unverified` });
+          ? { ...base, verdict: 'STALE', detail: `last Codex run at ${state.receipt.observedAt} is stale` }
+          : { ...base, verdict: 'OK', detail: `Codex run at ${state.receipt.observedAt}; output unverified` });
       } else {
-        results.push({ ...base, verdict: 'UNVERIFIABLE', detail: state.reason || `Codex firing: ${state.firing}; no completed run receipt` });
+        results.push({ ...base, verdict: 'UNVERIFIABLE', detail: state.warning || state.reason || `Codex firing: ${state.firing}; no completed run receipt` });
       }
       continue;
     }

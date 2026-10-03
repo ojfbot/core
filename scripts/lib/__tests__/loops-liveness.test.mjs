@@ -30,11 +30,52 @@ const loop = (over) => ({
   slug: 'l', purpose: 'p', trigger: 'launchd', cadence: 'daily', status: 'live', repo: 'core', ...over,
 });
 
+function codexFixture(next = NOW + 60000) {
+  const id = 'hygiene-fixture';
+  const rrule = 'FREQ=DAILY;BYHOUR=9;BYMINUTE=0';
+  const file = path.join(ctx.home, '.codex', 'automations', id, 'automation.toml');
+  const db = path.join(ctx.home, '.codex', 'sqlite', 'codex-dev.db');
+  mkdirSync(path.dirname(file), { recursive: true });
+  mkdirSync(path.dirname(db), { recursive: true });
+  writeFileSync(file, `id = "${id}"\nkind = "heartbeat"\nstatus = "ACTIVE"\nrrule = "${rrule}"\ntarget_thread_id = "fixture-target"\n`);
+  const sql = (statement) => execFileSync('sqlite3', [db, statement]);
+  sql(`CREATE TABLE automations (id TEXT, kind TEXT, status TEXT, rrule TEXT, target_thread_id TEXT, next_run_at INTEGER, last_run_at INTEGER, created_at INTEGER); CREATE TABLE automation_runs (thread_id TEXT, automation_id TEXT, status TEXT, created_at INTEGER, updated_at INTEGER); INSERT INTO automations VALUES ('${id}', 'heartbeat', 'ACTIVE', '${rrule}', 'fixture-target', ${next}, NULL, ${NOW - 2 * 86400000});`);
+  return { sql, id, entry: loop({ slug: id, trigger: 'codex-automation', automation_id: id,
+    trigger_ref: `~/.codex/automations/${id}/automation.toml`, rrule, evidence_ref: `codex-run:${id}` }) };
+}
+
 let ctx;
 beforeEach(() => { ctx = scaffold(); });
 afterEach(() => { rmSync(ctx.tmp, { recursive: true, force: true }); });
 
 describe('loops-liveness', () => {
+  it('keeps a recorded failure visible when the schedule is overdue', async () => {
+    const { sql, id, entry } = codexFixture(NOW - 3 * 3600000);
+    sql(`INSERT INTO automation_runs VALUES ('fixture-run', '${id}', 'failed', ${NOW - 3600000}, ${NOW - 3500000})`);
+    writeRegistry(ctx.core, [entry]);
+    expect((await liveness(ctx.core, ctx.home, NOW)).results[0].verdict).toBe('FAILED');
+  });
+
+  it('reports an old empty history as uncertain even after next_run_at advances', async () => {
+    const { entry } = codexFixture(NOW + 86400000);
+    writeRegistry(ctx.core, [entry]);
+    const result = (await liveness(ctx.core, ctx.home, NOW)).results[0];
+    expect(result.verdict).toBe('UNVERIFIABLE');
+    expect(result.detail).toMatch(/no run history.*cadence/);
+  });
+
+  it('does not let malformed Codex data abort other loop reports', async () => {
+    const { sql, id, entry } = codexFixture();
+    sql(`INSERT INTO automation_runs VALUES ('fixture-run', '${id}', 'completed', 'bad-date', ${NOW})`);
+    const file = path.join(ctx.core, 'fresh.log');
+    writeFileSync(file, 'fixture');
+    utimesSync(file, new Date(NOW), new Date(NOW));
+    writeRegistry(ctx.core, [entry, loop({ slug: 'healthy', evidence_ref: 'file:fresh.log' })]);
+    const { results } = await liveness(ctx.core, ctx.home, NOW);
+    expect(results.map((r) => r.verdict)).toEqual(['UNVERIFIABLE', 'OK']);
+    expect(results[0].detail).toMatch(/timestamp/);
+  });
+
   it('errors mechanically when the registry is missing', async () => {
     const r = await liveness(ctx.core, ctx.home, NOW);
     expect(r.error).toMatch(/loops registry not found/);
