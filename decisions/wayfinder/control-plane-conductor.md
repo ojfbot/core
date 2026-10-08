@@ -67,6 +67,74 @@ waves inside the existing delivery handoff. It supplies bounded evidence to #315
 it neither completes the full loop census nor authorizes fixes, experiments or publication.
 Authorized non-fleet/projectless sessions remain in the observation goal.
 
+### Maintenance and decision review through existing tools, 2026-10-08
+
+The operator requires a morning workflow that clears required maintenance, clearly scoped
+infrastructure work and pending decisions before focused feature work. This is a use case
+of fleet-runner under #307, using the existing fleet plan and tools. Do not add a parallel
+maintenance runner, action queue, decision registry, dashboard or scheduled review loop.
+
+The operator selected **spoken approval before execution initially**. Complexity and risk
+inform the review gate; when the agent advises source review, require the operator to review
+the actual GitHub change before accepting that review gate. Human merge remains required.
+This records the requested interaction and authority boundary, not its runtime enforcement.
+
+| Existing responsibility | Integration requirement |
+| --- | --- |
+| Daily-logger suggestions and cleaner PRs | Read `api/actions.json` and `api/done-actions.json` with their source revisions and stable action IDs; verify the referenced repo, issue or PR. Reuse existing cleaner and review outputs. A suggestion is input, not an executable grant. |
+| `/frame-standup` intake and the shared bead queue | Reconcile suggestions against existing beads, roadmap slices and resolved work before offering them. Expand only the selected item. Preserve source-to-work links; repeated preparation or voice re-entry must not create duplicate work. |
+| Pending decisions in issues and ADRs | Resolve daily-logger narrative decisions to the existing pending decision ticket or ADR. Article `decisions[]` reports decisions; it does not establish that a decision awaits approval. Keep decision review separate from implementation admission. |
+| `/day-run`, `roadmap-compile.mjs` and `bead-emit.mjs` | Preserve ready-slice admission, claim eligibility, leases and the supported writer. The current runner selects agent-eligible beads with a `roadmap_ref`; approving an arbitrary suggestion does not make it dispatchable. Route selected work through its scoped plan and operative grant before dispatch. |
+| Morning-cockpit Available lane, `/api/claim` and GitHub review | Voice, cockpit and GitHub refer to the same work and review state. The cockpit currently delegates claims to core; a claim or button click does not prove a revision-bound execution grant or source review. Add the missing approval integration through the execution authority, not direct queue writes. |
+| Existing loop registry and operating-mode decision | Census the actual blog, cleaner, review and dispatch rails before selecting the preparation cadence. Reuse those rails where their contracts fit; voice is another entry point, not a new scheduler. S25 remains the existing operating-mode decision venue. |
+
+The intended interaction is: check the current queue; discuss one verified item with its
+evidence, scope, complexity, risk and recommended next step; record approval, deferral,
+decline or a request for investigation; dispatch only admitted work; return its result to
+the same item. Feature work does not enter this maintenance workflow merely because a
+daily-logger suggestion mentions it. Unclear scope goes to decision review or investigation.
+
+Bind spoken approval to the named item, proposed scope and reviewed source revision through
+the human-authority mechanism decided in #313 and the operative correspondence contract.
+Generic assent, silence, an agent-authored transcript or a shared-account GitHub comment
+cannot substitute for that mechanism. Record the assessment and why source review is or
+is not required. Unknown complexity or risk must remain visible; thresholds, budgets and
+promotion criteria still need decisions, rather than a guessed numeric policy here.
+
+When source review is required, link the GitHub diff and its head/base, show that requirement
+in voice and cockpit, and retain it until the operator's attributable review of that revision
+is recorded. Approval to execute does not satisfy it. A changed scope or diff requires
+reassessment and any renewed approval the operative policy requires. Do not convert one
+spoken approval into standing agent eligibility or automatic merge authority.
+
+Completion returns verified delivery and the disposition to the original item and its
+source action. Discussed, approved, claimed, PR-opened, reviewed and completed are distinct
+facts; a narrated briefing or PR creation alone does not drain the action. Deferrals and
+declines retain their reason and any revisit condition; do not label them completed work.
+If publication or disposition is uncertain, retain the outstanding item and apply Q1's
+hold rather than retrying into duplicate work or asserting closure.
+
+| Existing ticket | Required evidence for this use case |
+| --- | --- |
+| #315 census; #317 overlap | Trace actual suggestion, cleaner/review, standup, queue and dispatch producers/consumers; identify duplicates and gaps before adding or retiring rails. |
+| #313 authority | Demonstrate item/scope/revision-bound human approval, complexity/risk escalation, source-review enforcement and revocation without blanket autonomy. |
+| #316 consumption | Read back the original action's attributable disposition and resulting delivery; prove that approving or opening a PR cannot manufacture completion. |
+| #311 portability; #309 reach | Define a voice adapter to the same authority and state, preserving identities and review gates when entry points change; qualify phone access separately from Mac-sleep execution. |
+| #318 supervision | Independently detect stale preparation, missing dispositions and unconsumed review requests; preserve the stop path and recursive-trigger guard. |
+
+OpenAI documents voice through Codex on iOS with a paired, available desktop host in
+[ChatGPT Voice](https://learn.chatgpt.com/docs/features/voice) and
+[remote connections](https://learn.chatgpt.com/docs/remote-connections), inspected 2026-10-08.
+This supports an initial phone entry point, not evidence of this integration on the
+operator's account. CarPlay tool/approval access remains unverified and needs its own
+capability check. Neither phone access nor a local automation proves useful Mac-sleep work.
+
+Before implementation, reconcile S25 and register bounded deliveries in the existing L2
+roadmap after their entrance decisions are resolved. Preserve #307's inherited dependencies,
+Q1, unresolved recovery/authorization policy and the proposed status of #495's contract.
+This amendment starts no runtime, changes no live queue or schedule, closes no ticket and
+adds no new delivery status or movement claim.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are

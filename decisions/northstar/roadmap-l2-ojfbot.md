@@ -684,6 +684,18 @@ than the fleet-runner contract. Reconcile overlapping scope before dispatch; thi
 changes no slice status, success criterion or movement and does not clear runtime or
 correspondence gates.
 
+**2026-10-08 maintenance and voice-review requirement:** the existing
+[fleet-runner map](../wayfinder/control-plane-conductor.md#maintenance-and-decision-review-through-existing-tools-2026-10-08)
+now records morning maintenance, scoped infrastructure and pending-decision review using
+daily-logger intake, the shared queue, `/frame-standup`, `/day-run`, cockpit and GitHub.
+Initial execution requires item-scoped spoken approval; agent-advised source review must
+be satisfied at the actual GitHub revision. Reconcile S25's operating-mode choice with
+the actual existing rails and #307's authority/consumption/reach decisions before changing
+a schedule or dispatch path. Register bounded deliveries here once their entrances are
+resolved; do not add a competing roadmap, queue or automation. S25's current status,
+eligibility, criterion and movement remain unchanged; this records a requirement, not
+approval of unresolved runtime or grant mechanisms.
+
 Cut after the operator's external "DIA" research survey (2026-07-08) was cross-checked against
 the audit series and the week's delivery. The sequencing driver is an evidence finding: OPAV
 S1-C3's data gate is now met (193 disposition events / ~24 days) **but the distribution is

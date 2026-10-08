@@ -480,3 +480,7 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   (superset) and let the registry stay the authority for *meaning*; recorded on TD-007.
 - Same PR: surface 9 (`install-agents.sh`) deliberately not run for the four repos — three have live
   worker agents in their checkouts. Filed TD-012 instead of writing into them from a backport PR.
+
+## Deviations — fleet-runner maintenance and voice review 2026-10-08
+
+- Initial approach assumed a separate preparation workflow could be added; inspection found existing fleet-runner #307 decisions, S25, shared queue/claim tooling and cleaner/review rails. Amended the canonical map and existing L2 roadmap notes instead, preserving runtime gates and current schedules.
