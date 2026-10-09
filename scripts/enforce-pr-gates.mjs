@@ -35,12 +35,12 @@ export function policyBody(existing) {
     ],
   };
   if (!existing) return defaults;
+  const scope = existing.conditions?.ref_name;
+  if (!scope || scope.include.length !== 1 || scope.include[0] !== '~DEFAULT_BRANCH' || scope.exclude.length !== 0) {
+    throw new Error('Owned policy has unexpected branch scope; manual reconciliation required');
+  }
   return {
     ...defaults,
-    conditions: { ref_name: {
-      include: [...new Set([...(existing.conditions?.ref_name?.include ?? []), "~DEFAULT_BRANCH"])],
-      exclude: [],
-    } },
     rules: [...(existing.rules ?? []), ...defaults.rules.filter(rule =>
       !(existing.rules ?? []).some(current => current.type === rule.type))],
   };
