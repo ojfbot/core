@@ -253,3 +253,18 @@ Ruling: the operator required reviewable PR and issue comments alongside telemet
 
 **Standard considerations not covered**
 - Detailed GitHub notification-volume budget, comment-size limits, and retention/deletion policy for archived remote revisions. These belong in publisher qualification before live rollout.
+
+## 2026-10-09 — Fleet default-branch PR gates
+
+Ruling: all active ojfbot repositories, including administrators and automation, require PRs with no standing bypass. The operator explicitly left the 27 plan-blocked private repositories pending; enforce and verify the 24 public repositories now. See [rollout policy](fleet-runner/pr-gates-2026-10-09.md).
+
+**Deferred decisions**
+- Private server protection: unblocked by a GitHub plan supporting private rulesets.
+- Per-repository required CI beyond daily-logger's pilot; check names and triggers must be qualified individually.
+- Separation of routine automation credentials from ruleset administration, and independent human approval requirements.
+
+**Unvalidated assumptions**
+- All generated daily-logger PR paths can complete its mandatory checks after CI-skip markers are removed; verify on a real generated PR before claiming that coverage.
+
+**Standard considerations not covered**
+- Continuous drift detection and automatic onboarding of newly created repositories. This slice provides explicit audit/apply, not a scheduled monitor.
