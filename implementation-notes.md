@@ -484,3 +484,5 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 ## Deviations — fleet-runner maintenance and voice review 2026-10-08
 
 - Initial approach assumed a separate preparation workflow could be added; inspection found existing fleet-runner #307 decisions, S25, shared queue/claim tooling and cleaner/review rails. Amended the canonical map and existing L2 roadmap notes instead, preserving runtime gates and current schedules.
+
+- Calibration extension assumed prior correspondence links reflected the current contract; #495 is now merged documentation but remains Proposed, and #319's model configuration is author-reported. Recorded that current status and provenance limit, retaining shared-contract implementation gates rather than treating either publication as runtime qualification.
