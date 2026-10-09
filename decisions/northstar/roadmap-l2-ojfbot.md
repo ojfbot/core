@@ -707,8 +707,10 @@ lower-tier models, then decide promotion by task bucket on quality, rework, esca
 total observed cost. Preserve failures as examples and distinguish authored model reports
 from independently verified configuration. In parallel, reduce the initial backlog and
 reconcile new daily arrivals; the immediate supervised target is 10–15 evidenced original
-action dispositions, not a closure quota. The #319 review is an attributed source example,
-not yet a delivered settlement or evidence that lower-tier models qualify. This requirement
+action dispositions, not a closure quota. The historical two-action #319 review is an
+attributed source example; the map separately records its format correction and the later
+ten-action review and merge/deployment receipt. Neither review qualifies lower-tier models.
+This requirement
 is registered under #307/#504 and S25's existing dependencies. No new runtime slice is
 admitted, no dispatch bead is created for the document, and S25's frontmatter, lifecycle,
 success criterion, autonomy, eligibility and movement remain unchanged. Register later
