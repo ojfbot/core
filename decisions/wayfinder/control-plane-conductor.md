@@ -167,21 +167,41 @@ skill-observation consumer profile with that current contract before implementat
 | Resource observations | Observed tokens, elapsed execution time and cost with their source and measurement scope; preserve unavailable values as unknown. Keep operator waiting time separate. Compare total cost through verification, rework and escalation, not just the first model call. |
 | Example qualification | Exact input and expected result, provenance and dependencies, adjudicator and evidence policy, known limits, qualification status and invalidation/correction links. Redact private content before export. A ground-truth label applies only to its evidenced scope. |
 
-The [daily-logger #319 review](https://github.com/ojfbot/daily-logger/pull/319#issuecomment-6071778921)
-is the first attributed source example. Its public JSON separates final-review, Standards
-and Spec decisions and reports OpenAI `gpt-6.1-sol` with `high` effort for each. The author
+The [historical daily-logger #319 review](https://github.com/ojfbot/daily-logger/pull/319#issuecomment-6071778921)
+is the first attributed source example. Its current informational authorship table separates
+aggregate, Standards and Spec decisions and reports OpenAI `gpt-6.1-sol` with `high` effort
+for each. The comment's record correction, updated at `2026-10-09T01:11:18Z`, removed
+an unsupported JSON/schema-version declaration; retain that mistake and correction as
+source evidence, not an adopted metadata contract. The author
 reports local verification of that configuration; importing the comment observes the
 report, not the private configuration proof. All three share the same model and effort,
 so this is not a cross-model experiment. The transmitting account `ojfbot` is also the
 PR author; the comment is an agent recommendation, not a human approval.
 
-Its subject is head `6496376061aa5670dd62582700c03b87d855b055` against base
+That historical assessment covers head `6496376061aa5670dd62582700c03b87d855b055` against base
 `a3cf635a8e37b05cf7ee259307cef3cee9f69263`. The review reports exactly two action
 settlements, preserved identities and prior history, repeated API-build equality, and a
-prospective 93→91 open / 96→98 done projection. At inspection #319 remains open; those
-post-delivery counts are not an observed live outcome. No production article generation
-was triggered. Cost and token usage are not supplied. Preserve those limits with the
-example. #317's independently caught normalization defects supply candidate failure and
+prospective 93→91 open / 96→98 done projection. At the original plan inspection, #319 was
+open; those counts describe that revision's projection, not an observed live outcome or
+the current delivered state. No production article generation was reported for that review.
+
+The separate [later ten-action review](https://github.com/ojfbot/daily-logger/pull/319#issuecomment-6072196926)
+covers head `1ffbffa2940d41c61f4ccc58e442aabacd4d14f5` against the same base. It reports
+seven superseded requests and three implemented dispositions, preserved original identities
+and all 96 prior dispositions, repeated equality across 132 API JSON files, and an
+83 open / 106 done projection. Its informational authorship table asserts no schema version.
+Retain its linked finding and correction separately from the original two-action assessment.
+
+At this amendment's inspection, GitHub reports #319 merged at `2026-10-09T01:18:58Z`
+with merge commit `897cefe51c5b6c187982c149126e1f43d2d67e95`; the
+[deployment run](https://github.com/ojfbot/daily-logger/actions/runs/37869182394) succeeded
+for that commit. The [merge/deployment receipt](https://github.com/ojfbot/daily-logger/pull/319#issuecomment-6072320672)
+reports session-observed human approval and independent HTTP readback of 83 open / 106 done,
+settling ten original action IDs across seven evidence groups, not ten new deliveries.
+Importing that receipt observes its approval and readback claims; shared-account authorship
+alone does not authenticate human authority. No production article generation was reported.
+Cost and token usage remain unavailable; neither review qualifies a lower-tier model.
+#317's independently caught normalization defects supply candidate failure and
 correction examples; each finding needs its own source/revision and qualification evidence.
 
 #### Three–four week collection and comparison sequence
