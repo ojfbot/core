@@ -49,6 +49,7 @@ describe('effective default-branch PR gates', () => {
     const inspect = () => ({ protected: count++ > 0 });
     const write = (args, body) => {
       calls.push(args);
+      if (args[1] === 'repos/owner/example/rulesets/9' && !body) return { rules: [], conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } } };
       return body ? {} : [{ id: 9, name: POLICY_NAME, target: 'branch' }, { id: 10, name: 'Other', target: 'branch' }];
     };
     expect(enforceRepo('owner', repo, true, inspect, write).changed).toBe(true);
@@ -58,11 +59,14 @@ describe('effective default-branch PR gates', () => {
   it('preserves stricter reviews and status checks when repairing a policy', () => {
     const review = { type: 'pull_request', parameters: { required_approving_review_count: 2, require_code_owner_review: true } };
     const checks = { type: 'required_status_checks', parameters: { required_status_checks: [{ context: 'test', integration_id: 15368 }], strict_required_status_checks_policy: true } };
-    const repaired = policyBody({ rules: [review, checks], conditions: { ref_name: { include: ['refs/heads/release'], exclude: ['~DEFAULT_BRANCH'] } } });
+    const repaired = policyBody({ rules: [review, checks], conditions: { ref_name: { include: ['~DEFAULT_BRANCH'], exclude: [] } } });
     expect(repaired.rules).toEqual([review, checks, { type: 'deletion' }, { type: 'non_fast_forward' }]);
-    expect(repaired.conditions.ref_name).toEqual({ include: ['refs/heads/release', '~DEFAULT_BRANCH'], exclude: [] });
+    expect(repaired.conditions.ref_name).toEqual({ include: ['~DEFAULT_BRANCH'], exclude: [] });
     expect(repaired.bypass_actors).toEqual([]);
     expect(repaired.enforcement).toBe('active');
+  });
+  it('refuses to broaden an existing policy beyond its default-branch scope', () => {
+    expect(() => policyBody({ rules: [], conditions: { ref_name: { include: ['~ALL'], exclude: ['refs/heads/experiment/*'] } } })).toThrow('unexpected branch scope');
   });
   it('refuses success when readback fails or policy names collide', () => {
     expect(() => enforceRepo('owner', repo, true, () => ({ protected: false }), (_args, body) => body ? {} : [])).toThrow('effective no-bypass gate');
