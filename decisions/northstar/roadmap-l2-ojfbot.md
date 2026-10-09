@@ -696,6 +696,24 @@ resolved; do not add a competing roadmap, queue or automation. S25's current sta
 eligibility, criterion and movement remain unchanged; this records a requirement, not
 approval of unresolved runtime or grant mechanisms.
 
+**2026-10-08 attributed maintenance calibration extension:** the operator authorized
+[the existing fleet-runner map's collection and comparison sequence](../wayfinder/control-plane-conductor.md#maintenance-calibration-and-attributed-decisions-2026-10-08).
+High-tier routine runs are intentional candidate-example collection. Record separate
+implementer/reviewer agent, provider, model, effort and instruction provenance alongside
+exact revisions, findings/corrections, qualified outcomes, unknown resource measurements
+and original-action settlements through existing correspondence/tracking contracts.
+Over 3–4 weeks, collect supervised examples, qualify frozen cases and holdouts, compare
+lower-tier models, then decide promotion by task bucket on quality, rework, escalation and
+total observed cost. Preserve failures as examples and distinguish authored model reports
+from independently verified configuration. In parallel, reduce the initial backlog and
+reconcile new daily arrivals; the immediate supervised target is 10–15 evidenced original
+action dispositions, not a closure quota. The #319 review is an attributed source example,
+not yet a delivered settlement or evidence that lower-tier models qualify. This requirement
+is registered under #307/#504 and S25's existing dependencies. No new runtime slice is
+admitted, no dispatch bead is created for the document, and S25's frontmatter, lifecycle,
+success criterion, autonomy, eligibility and movement remain unchanged. Register later
+implementation slices only after policy/authority/recovery entrances are resolved.
+
 Cut after the operator's external "DIA" research survey (2026-07-08) was cross-checked against
 the audit series and the week's delivery. The sequencing driver is an evidence finding: OPAV
 S1-C3's data gate is now met (193 disposition events / ~24 days) **but the distribution is

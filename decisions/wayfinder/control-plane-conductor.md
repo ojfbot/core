@@ -135,6 +135,83 @@ Q1, unresolved recovery/authorization policy and the proposed status of #495's c
 This amendment starts no runtime, changes no live queue or schedule, closes no ticket and
 adds no new delivery status or movement claim.
 
+### Maintenance calibration and attributed decisions, 2026-10-08
+
+The operator authorized extending this plan on 2026-10-08. Routine maintenance is
+intentionally being implemented and reviewed with high-tier models during the initial
+3–4 week collection period. The purpose is to detect defects during real work and collect
+high-quality candidate examples for lower-tier models to target later. High model cost in
+this period is an explicit collection choice, not evidence of inefficient routing.
+
+A high-tier approval is still an authored assessment, not ground truth by itself. Qualify
+known-good examples against the exact artifact, independently assessed requirements and
+verification evidence. Preserve failed attempts, missed defects, corrections, disagreements,
+accepted limitations and subsequent regressions alongside successful final results. Record
+which checks were executed and which remain untested; a merged PR alone is insufficient.
+
+#### Record requirements within existing correspondence
+
+Attach records to existing action IDs, work/bead references, PRs and issue targets. Reuse
+the shared tracking and correspondence contracts through a later reviewed adapter; do not
+create a parallel action ledger, model-ranking database or issue per review event. These are
+plan requirements, not a new operative schema or a claim that an adapter is implemented.
+Core #495 is merged documentation with its bounded contract still Proposed. Reconcile the
+skill-observation consumer profile with that current contract before implementation.
+
+| Recorded subject | Required attribution and evidence |
+| --- | --- |
+| Work and selection | Original action IDs and source revision, existing work reference, task bucket, named scope, assessed complexity/risk, selection or deferral reason and expected verification. Age alone does not establish obsolescence. |
+| Implementation and review decisions | Separate actor/run reference and role for implementer, Standards, Spec and aggregate reviewer; provider, exact model identifier, reasoning effort, tool/instruction versions and configuration source. Preserve authenticated publisher separately from logical decision author. Missing identity or configuration evidence remains unknown. |
+| Decision subject | Exact repository, PR, head/base and reviewed artifact; evidence source references, verdict, findings, fixes, disagreement and escalation reason. Changed source requires revision-bound reassessment. Preserve original reports and append corrections. |
+| Verification and outcome | Executed check results and coverage, human approval/source review, merge, delivery/readback, original-action disposition and later defects as distinct records. Authored claims and verifier assessments have different writers; a review comment does not grant merge authority. |
+| Resource observations | Observed tokens, elapsed execution time and cost with their source and measurement scope; preserve unavailable values as unknown. Keep operator waiting time separate. Compare total cost through verification, rework and escalation, not just the first model call. |
+| Example qualification | Exact input and expected result, provenance and dependencies, adjudicator and evidence policy, known limits, qualification status and invalidation/correction links. Redact private content before export. A ground-truth label applies only to its evidenced scope. |
+
+The [daily-logger #319 review](https://github.com/ojfbot/daily-logger/pull/319#issuecomment-6071778921)
+is the first attributed source example. Its public JSON separates final-review, Standards
+and Spec decisions and reports OpenAI `gpt-6.1-sol` with `high` effort for each. The author
+reports local verification of that configuration; importing the comment observes the
+report, not the private configuration proof. All three share the same model and effort,
+so this is not a cross-model experiment. The transmitting account `ojfbot` is also the
+PR author; the comment is an agent recommendation, not a human approval.
+
+Its subject is head `6496376061aa5670dd62582700c03b87d855b055` against base
+`a3cf635a8e37b05cf7ee259307cef3cee9f69263`. The review reports exactly two action
+settlements, preserved identities and prior history, repeated API-build equality, and a
+prospective 93→91 open / 96→98 done projection. At inspection #319 remains open; those
+post-delivery counts are not an observed live outcome. No production article generation
+was triggered. Cost and token usage are not supplied. Preserve those limits with the
+example. #317's independently caught normalization defects supply candidate failure and
+correction examples; each finding needs its own source/revision and qualification evidence.
+
+#### Three–four week collection and comparison sequence
+
+This is a sequence of evidence gates, not a guaranteed completion date or dispatch grant.
+The operator's immediate target is 10–15 obvious or stale suggested actions on 2026-10-08.
+Count original action IDs with evidenced dispositions; report how many distinct work
+items they represent. Do not pad the target by closing unresolved compound suggestions.
+
+| Period | Existing workflow and evidence gate |
+| --- | --- |
+| Week 1 | Supervised high-tier batches. Establish a queue snapshot and task buckets for evidenced stale/already-delivered work, bounded maintenance, scoped infrastructure and pending decisions. Capture provenance, findings, corrections and verified settlement. Distinguish implemented, superseded, declined and deferred dispositions. |
+| Week 2 | Freeze qualified inputs and expected outcomes, then compare lower-tier candidates on the same cases with separate adjudication. Keep evaluation holdouts out of extracted examples, prompts and tuning. Retain negative and repaired cases; do not select only approvals. Report population, exclusions, per-bucket samples and unknown outcomes. |
+| Week 3 | Trial eligible lower-tier candidates in selected buckets under existing human gates and independent checks. Measure missed material findings, false positives, rework, escalation, later regressions and total observed cost/time per verified completion. Risk policy and sample/acceptance thresholds must be decided in #313; small samples do not prove equivalence. |
+| Week 4, if needed | Review evidence and promote, retain or reject a model policy per bucket with a recorded rationale and rollback conditions. Independently qualify scheduled morning intake and new-arrival reconciliation through S25 and #307's existing gates. Model promotion and scheduling are separate decisions; neither follows automatically from four elapsed weeks. |
+
+Morning preparation addresses new daily additions while bounded batches reduce the
+existing backlog. Record the initial backlog cohort separately from arrivals and publish
+opening backlog, new arrivals, evidenced closures by disposition, reopened items and closing
+backlog over a declared interval and population. Report task coverage and residual risk
+beside throughput; lower open counts are not by themselves evidence of good decisions.
+
+Existing ownership remains: #315/#317 census and overlap; #316 evidence-qualified
+consumption and settlement; #313 authority, spend/risk policy and model-promotion criteria;
+#311/#309 provider portability and reach; #318 supervision, correction and recovery.
+S25 remains the operating-mode venue and retains its current lifecycle and success
+criterion. Update the #307 projection and existing PR #504 with this amendment. Register
+bounded implementation deliveries in the canonical L2 roadmap after their entrances are
+resolved. This plan changes no model routing, dispatch eligibility, schedule or live queue.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are
