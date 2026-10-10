@@ -7,6 +7,7 @@
  */
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import process from 'node:process';
 
 /** @typedef {'observation'|'agent_claim'|'assessment'|'disposition'|'prepared_artifact'|'approval'|'claim_lease'|'execution_attempt'|'publication_intent'|'delivery_receipt'|'consumption_receipt'|'settlement_receipt'} RecordKind */
 
