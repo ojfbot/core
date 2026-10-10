@@ -1,5 +1,11 @@
 # MC-UX-01 candidate contract validation
 
+> Historical R1 validation. Artifact revision R2 supersedes the evaluator and manifest reviewed
+> here after independent adversarial findings. See
+> [`mc-ux-01-review-response-2026-10-10.md`](mc-ux-01-review-response-2026-10-10.md) for the current
+> evidence and pin. This record is retained rather than rewritten because the initial green result
+> is part of the correction lineage.
+
 - Verdict: **PASS WITH NOTES**
 - Spec axis: **PASS**
 - Standards axis: **PASS WITH NOTES**
@@ -75,4 +81,3 @@ a deadline.
 | Authorize cockpit's bounded read-only source-preservation/inspection slice | Proceed through its existing T2/S11/S18 entrance; do not adopt this profile as a shared runtime schema | morning-cockpit operator | 2026-10-10T19:58:31Z | PR #54 disposition / implementation authorization | Pin the accepted cockpit revision and qualify its exact diagnostic fields as consumer 1 |
 | Select a trustworthy human-authority mechanism | Keep approval `unverified` until #313 produces an unforgeable revision-bound ruling path | core operator | 2026-10-10T19:58:31Z | #313 decision review | Add counterexample/replay fixtures for the selected mechanism |
 | Promote from fixture profile to shadow conformance | Wait for one named real producer and two independent named consumers | core contract owner | 2026-10-10T19:58:31Z | Producer/consumer qualification proposal | Register a read-only shadow run with retention/redaction and rollback boundaries |
-
