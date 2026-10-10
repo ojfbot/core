@@ -1,0 +1,528 @@
+{
+  "artifact_id": "mc-ux-01-domain-contract-candidate-r2",
+  "artifact_kind": "consumer-profile-conformance-pack",
+  "profile_id": "mc-ux-01/domain-contract",
+  "profile_version": "candidate-v1",
+  "status": "proposed-non-production",
+  "synthetic": true,
+  "proves_deployed_producer": false,
+  "recorded_at": "2026-10-10T00:00:00-05:00",
+  "amended_at": "2026-10-10T16:49:42-05:00",
+  "source_pins": {
+    "core_base": "8d90aad84d5ed2115a0a83a4049af616fbb65489",
+    "morning_cockpit_main": "baf1d1139ade33eae9126260f8f8e88b09752d50",
+    "morning_cockpit_pr_54": "5078639b2e752c3e1fa7125288201a2ccfef8424",
+    "capture_inventory_sha256": "7fdbbe469615cd3a819e15ac7681dd2b8f2c31e9c173c3adc5a012b12437bea2"
+  },
+  "capture_inventory": {
+    "files": 60,
+    "bytes": 1670171,
+    "declared_references": 29
+  },
+  "authority": {
+    "accepted": [
+      "ADR-0108 core component placement and responsibility split",
+      "ADR-0109 affected-item hold during unknown publication outcomes"
+    ],
+    "proposed": [
+      "correspondence-speech-act-tiers",
+      "skill-observation correspondence/profile/delivery/rollout",
+      "this candidate evidence envelope and projection"
+    ],
+    "forbidden_inference": [
+      "fixture success proves a deployed producer",
+      "schema validity proves authority, delivery, consumption, or settlement",
+      "actor equality with recipient proves human obligation",
+      "rendering or file creation settles the original action",
+      "a delivery receipt without a matching intent, digest, and remote-object link proves publication",
+      "an agent-authored settlement receipt proves verified human authority"
+    ]
+  },
+  "promotion": {
+    "ladder": [
+      "proposed fixture profile",
+      "shadow conformance",
+      "qualified bounded producer/consumer profile",
+      "candidate shared contract seed",
+      "explicitly accepted shared contract"
+    ],
+    "candidate_shared_contract_minimum": {
+      "real_producers": 1,
+      "independent_consumers": 2,
+      "required_evidence": ["positive", "mutation", "replay", "failure"]
+    }
+  },
+  "cases": [
+    {
+      "criterion_id": "MCUX-C01",
+      "description": "An authored completion claim cannot settle the original obligation.",
+      "fixture": {
+        "fixture_id": "completion-claim-without-settlement",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "claim-1",
+            "kind": "agent_claim",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "worker-1", "kind": "agent" },
+            "source_refs": [{ "id": "report-1", "revision": "r1" }],
+            "links": [{ "rel": "reports_on", "target": "act-1" }],
+            "annotations": { "proposition": "completed" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C02",
+      "description": "Stale, missing, and conflicting source identity remains unresolved.",
+      "fixture": {
+        "fixture_id": "unresolved-source-identities",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "stale",
+            "kind": "observation",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "collector-1", "kind": "service" },
+            "source_refs": [],
+            "links": [],
+            "annotations": { "identity": { "source": "handoff", "repository": "alpha", "native_id": "42", "path": ".handoff/a.md", "freshness": "stale" } }
+          },
+          {
+            "id": "missing",
+            "kind": "observation",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "collector-1", "kind": "service" },
+            "source_refs": [],
+            "links": [],
+            "annotations": { "identity": { "repository": "alpha", "native_id": "43", "freshness": "current" } }
+          },
+          {
+            "id": "conflict",
+            "kind": "observation",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "collector-1", "kind": "service" },
+            "source_refs": [],
+            "links": [],
+            "annotations": { "identity": { "source": "handoff", "repository": "alpha", "native_id": "44", "path": ".handoff/c.md", "freshness": "current", "conflicts_with": ["handoff:beta:44:.handoff/c.md"] } }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["IDENTITY_STALE", "IDENTITY_MISSING", "IDENTITY_CONFLICT", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C03",
+      "description": "Processes remain distinct when they share a harness.",
+      "fixture": {
+        "fixture_id": "same-harness-distinct-processes",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "attempt-1",
+            "kind": "execution_attempt",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "runner-1", "kind": "service" },
+            "source_refs": [{ "id": "runner-ledger", "revision": "r7" }],
+            "links": [],
+            "annotations": { "process": { "harness": "codex", "process_id": "proc-1", "session_id": "session-1", "host_id": "host-a" } }
+          },
+          {
+            "id": "attempt-2",
+            "kind": "execution_attempt",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "runner-1", "kind": "service" },
+            "source_refs": [{ "id": "runner-ledger", "revision": "r7" }],
+            "links": [],
+            "annotations": { "process": { "harness": "codex", "process_id": "proc-2", "session_id": "session-2", "host_id": "host-a" } }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C04",
+      "description": "Actor/recipient equality does not establish an obligation.",
+      "fixture": {
+        "fixture_id": "actor-recipient-equality",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "disposition-1",
+            "kind": "disposition",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "ojfbot", "kind": "agent" },
+            "source_refs": [{ "id": "comment-1", "revision": "r1" }],
+            "links": [],
+            "annotations": { "actor": { "id": "ojfbot", "kind": "unknown" }, "recipient": { "id": "ojfbot", "role": "operator" }, "obligation_evidence": [] }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["ACTOR_RECIPIENT_EQUALITY_UNRESOLVED", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C05",
+      "description": "Unsupported schema versions and missing recipient roles are quarantined.",
+      "fixture": {
+        "fixture_id": "schema-and-role-rejection",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "wrong-schema",
+            "kind": "observation",
+            "schema_version": "mc-ux-01/candidate-v2",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "collector-1", "kind": "service" },
+            "source_refs": [],
+            "links": [],
+            "annotations": {}
+          },
+          {
+            "id": "missing-role",
+            "kind": "publication_intent",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" },
+            "source_refs": [],
+            "links": [],
+            "annotations": { "recipient": { "id": "operator" } }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["UNSUPPORTED_SCHEMA_VERSION", "RECIPIENT_ROLE_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "publication": "unproven", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C06",
+      "description": "Approval for an older subject revision is stale.",
+      "fixture": {
+        "fixture_id": "approval-old-revision",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "approval-1",
+            "kind": "approval",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-1" },
+            "producer": { "id": "operator", "kind": "human" },
+            "source_refs": [{ "id": "authority-boundary-1", "revision": "r1" }],
+            "links": [{ "rel": "authorized_by", "target": "authority-boundary-1" }],
+            "annotations": { "authority_verified": true, "permitted_act": "execute" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["APPROVAL_REVISION_MISMATCH", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "approval": "stale", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C07",
+      "description": "An agent using a shared account cannot create a verified human ruling.",
+      "fixture": {
+        "fixture_id": "agent-shared-account-ruling",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "approval-agent-1",
+            "kind": "approval",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" },
+            "producer": { "id": "codex-worker", "kind": "agent" },
+            "source_refs": [{ "id": "github-comment-1", "revision": "r1" }],
+            "links": [],
+            "annotations": { "transmitted_by_account": "ojfbot", "account_shared_with_agents": true, "authority_verified": false, "claimed_actor_kind": "human" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["HUMAN_AUTHORITY_UNVERIFIED", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "approval": "unverified", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C08",
+      "description": "A local file write is preparation, not remote delivery.",
+      "fixture": {
+        "fixture_id": "file-write-without-remote-receipt",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "prepared-1",
+            "kind": "prepared_artifact",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "writer-1", "kind": "agent" },
+            "source_refs": [{ "id": "file:.handoff/report.md", "revision": "sha256:abc" }],
+            "links": [{ "rel": "reports_on", "target": "act-1" }],
+            "annotations": { "body_digest": "sha256:abc", "local_write": "succeeded" }
+          },
+          {
+            "id": "publish-1",
+            "kind": "publication_intent",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" },
+            "source_refs": [{ "id": "prepared-1", "revision": "report-r1" }],
+            "links": [{ "rel": "derived_from", "target": "prepared-1" }],
+            "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "not_attempted" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "preparation": "proven", "publication": "unproven", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C09",
+      "description": "Unknown publication activates the affected-item hold and forbids blind retry.",
+      "fixture": {
+        "fixture_id": "unknown-publication-hold",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "publish-unknown-1",
+            "kind": "publication_intent",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" },
+            "source_refs": [{ "id": "request-1", "revision": "r1" }],
+            "links": [],
+            "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "unknown", "outstanding_request_ids": ["request-1"] }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["PUBLICATION_OUTCOME_UNKNOWN", "REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "publication": "unknown", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C10",
+      "description": "Every journey stage requires its own exact evidence.",
+      "fixture": {
+        "fixture_id": "fully-evidenced-journey",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          { "id": "prepared-1", "kind": "prepared_artifact", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "report-1", "revision": "report-r1" }, "producer": { "id": "writer-1", "kind": "agent" }, "source_refs": [{ "id": "prepared-source", "revision": "r1" }], "links": [], "annotations": { "body_digest": "sha256:abc" } },
+          { "id": "approval-1", "kind": "approval", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "work-1", "revision": "rev-2" }, "producer": { "id": "operator", "kind": "human" }, "source_refs": [{ "id": "approval-source", "revision": "r1" }], "links": [{ "rel": "authorized_by", "target": "authority-boundary-1" }], "annotations": { "authority_verified": true, "permitted_act": "execute" } },
+          { "id": "claim-1", "kind": "claim_lease", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "work-1", "revision": "rev-2" }, "producer": { "id": "runner-1", "kind": "service" }, "source_refs": [{ "id": "claim-source", "revision": "r1" }], "links": [], "annotations": { "lease_id": "lease-1", "state": "active" } },
+          { "id": "attempt-1", "kind": "execution_attempt", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "work-1", "revision": "rev-2" }, "producer": { "id": "runner-1", "kind": "service" }, "source_refs": [{ "id": "attempt-source", "revision": "r1" }], "links": [], "annotations": { "state": "completed", "process": { "harness": "codex", "process_id": "proc-1", "session_id": "session-1", "host_id": "host-a" } } },
+          { "id": "publish-1", "kind": "publication_intent", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "report-1", "revision": "report-r1" }, "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [{ "id": "publish-source", "revision": "r1" }], "links": [], "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "succeeded", "body_digest": "sha256:abc" } },
+          { "id": "delivery-1", "kind": "delivery_receipt", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "report-1", "revision": "report-r1" }, "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [{ "id": "delivery-source", "revision": "r1" }], "links": [{ "rel": "published_as", "target": "comment-1" }], "annotations": { "publication_intent_id": "publish-1", "remote_readback": true, "body_digest": "sha256:abc", "remote_object_id": "comment-1" } },
+          { "id": "consumption-1", "kind": "consumption_receipt", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "report-1", "revision": "report-r1" }, "producer": { "id": "consumer-1", "kind": "human" }, "source_refs": [{ "id": "consumption-source", "revision": "r1" }], "links": [], "annotations": { "delivery_receipt_id": "delivery-1", "consumed_revision": "report-r1", "action": "acknowledged" } },
+          { "id": "settlement-1", "kind": "settlement_receipt", "schema_version": "mc-ux-01/candidate-v1", "subject": { "id": "act-1", "revision": "action-r1" }, "producer": { "id": "operator", "kind": "human" }, "source_refs": [{ "id": "settlement-source", "revision": "r1" }], "links": [{ "rel": "reports_on", "target": "act-1" }], "annotations": { "original_action_id": "act-1", "disposition": "implemented", "verified": true, "authority_verified": true } }
+        ]
+      },
+      "expect": {
+        "finding_codes": [],
+        "stages": {
+          "preparation": "proven",
+          "approval": "proven",
+          "claim": "proven",
+          "execution": "proven",
+          "publication": "proven",
+          "consumption": "proven",
+          "settlement": "proven"
+        }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C11",
+      "description": "A delivery receipt without a named publication intent cannot prove publication.",
+      "fixture": {
+        "fixture_id": "orphan-delivery-receipt",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "delivery-orphan-1",
+            "kind": "delivery_receipt",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" },
+            "source_refs": [{ "id": "remote-readback-1", "revision": "r1" }],
+            "links": [{ "rel": "published_as", "target": "comment-1" }],
+            "annotations": { "remote_readback": true, "remote_object_id": "comment-1" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["DELIVERY_INTENT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "publication": "unproven", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C12",
+      "description": "An agent-authored settlement receipt cannot claim verified human authority.",
+      "fixture": {
+        "fixture_id": "agent-authored-settlement",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "settlement-agent-1",
+            "kind": "settlement_receipt",
+            "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "act-1", "revision": "action-r1" },
+            "producer": { "id": "worker-1", "kind": "agent" },
+            "source_refs": [{ "id": "agent-claim-1", "revision": "r1" }],
+            "links": [{ "rel": "reports_on", "target": "act-1" }],
+            "annotations": { "original_action_id": "act-1", "disposition": "implemented", "verified": true }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["SETTLEMENT_AUTHORITY_UNVERIFIED", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C13",
+      "description": "A receipt cannot override an unresolved publication outcome or its affected-item hold.",
+      "fixture": {
+        "fixture_id": "unknown-publication-with-receipt",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "publish-unknown-1", "kind": "publication_intent", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [], "links": [],
+            "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "unknown", "body_digest": "sha256:abc" }
+          },
+          {
+            "id": "delivery-1", "kind": "delivery_receipt", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [],
+            "links": [{ "rel": "published_as", "target": "comment-1" }],
+            "annotations": { "publication_intent_id": "publish-unknown-1", "remote_readback": true, "body_digest": "sha256:abc", "remote_object_id": "comment-1" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["PUBLICATION_OUTCOME_UNKNOWN", "REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "publication": "unknown", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C14",
+      "description": "An explicit append-only correction supersedes the earlier same-subject record.",
+      "fixture": {
+        "fixture_id": "approval-correction",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "approval-old", "kind": "approval", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-1" }, "producer": { "id": "operator", "kind": "human" },
+            "source_refs": [{ "id": "authority-1", "revision": "r1" }],
+            "links": [{ "rel": "authorized_by", "target": "authority-1" }],
+            "annotations": { "authority_verified": true, "permitted_act": "execute" }
+          },
+          {
+            "id": "approval-corrected", "kind": "approval", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "work-1", "revision": "rev-2" }, "producer": { "id": "operator", "kind": "human" },
+            "source_refs": [{ "id": "authority-1", "revision": "r1" }],
+            "links": [{ "rel": "corrects", "target": "approval-old" }, { "rel": "authorized_by", "target": "authority-1" }],
+            "annotations": { "authority_verified": true, "permitted_act": "execute" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "approval": "proven", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C15",
+      "description": "A delivery relation must name the independently read remote object.",
+      "fixture": {
+        "fixture_id": "delivery-link-mismatch",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "publish-1", "kind": "publication_intent", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [], "links": [],
+            "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "succeeded", "body_digest": "sha256:abc" }
+          },
+          {
+            "id": "delivery-1", "kind": "delivery_receipt", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [],
+            "links": [{ "rel": "published_as", "target": "comment-wrong" }],
+            "annotations": { "publication_intent_id": "publish-1", "remote_readback": true, "body_digest": "sha256:abc", "remote_object_id": "comment-1" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["DELIVERY_LINK_MISMATCH", "REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "publication": "unproven", "settlement": "unproven" }
+      }
+    }
+  ]
+}

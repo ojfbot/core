@@ -232,6 +232,43 @@ criterion. Update the #307 projection and existing PR #504 with this amendment. 
 bounded implementation deliveries in the canonical L2 roadmap after their entrances are
 resolved. This plan changes no model routing, dispatch eligibility, schedule or live queue.
 
+### MC-UX-01 consumer contract and promotion path, 2026-10-10
+
+The operator authorized an iterative path from a non-production consumer-profile conformance
+pack toward a production-grade shared contract seed. The first artifact is the
+[MC-UX-01 UX-to-domain crosswalk](../fleet-runner/mc-ux-01-domain-crosswalk.md) plus its
+synthetic executable manifest. It preserves current source shapes, explicit unknowns,
+source/action lineage and versioned projections. It does not create a runtime package,
+accept the Proposed correspondence ADR or prove a deployed producer.
+
+The exact inspected cockpit subject is draft PR #54 head
+[`5078639b2e752c3e1fa7125288201a2ccfef8424`](https://github.com/ojfbot/morning-cockpit/tree/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01):
+[planning entry point](https://github.com/ojfbot/morning-cockpit/blob/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01/README.md),
+[transition plan](https://github.com/ojfbot/morning-cockpit/blob/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01/transition-plan.md),
+[verification plan](https://github.com/ojfbot/morning-cockpit/blob/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01/verification-plan.md) and
+[fleet integration](https://github.com/ojfbot/morning-cockpit/blob/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01/fleet-integration.md).
+The frozen capture remains 60 files, 1,670,171 bytes and 29 declared references with inventory
+SHA-256 `7fdbbe469615cd3a819e15ac7681dd2b8f2c31e9c173c3adc5a012b12437bea2`.
+Capture and planning provenance are not operator acceptance. If the draft later merges,
+downstream runtime work must pin the actual accepted main revision rather than treating this
+review subject as a predicted merge pin.
+
+The candidate traces original action, prepared brief/report, exact subject revision, approval,
+claim lease, execution attempt, publication intent/readback, consumption, disposition and
+settlement of the original obligation. Neither an emitted file, rendered page, PR/task completion
+nor a new closed bead proves a later transition. Preserve authenticated publisher account,
+logical actor, process, session and host as distinct facts; unknown recipients and shared-account
+human/agent ambiguity remain unresolved.
+
+Cockpit's read-only source-preservation and metadata-inspection slice can proceed through its
+registered L1 S11/S18 entrances after implementation authorization and public read-contract review.
+It does not wait for final hosting or every T1–T7 gate. Core-owned authority, producer, execution,
+publication, consumption and settlement work stays with #313, #311/#309, #316 and #318; #315/#317
+retain census and overlap evidence. Preserve #310's dependency on #309. Promote this candidate
+only after positive/mutation/replay/failure evidence from at least one real producer and two
+independent consumers, followed by explicit contract acceptance and registered rollout slices.
+This note closes no ticket, allocates no slice, changes no movement/readiness and creates no queue.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are
