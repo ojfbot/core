@@ -11,6 +11,46 @@ import process from 'node:process';
 
 /** @typedef {'observation'|'agent_claim'|'assessment'|'disposition'|'prepared_artifact'|'approval'|'claim_lease'|'execution_attempt'|'publication_intent'|'delivery_receipt'|'consumption_receipt'|'settlement_receipt'} RecordKind */
 
+const ALLOWED_LINK_RELATIONS = new Set([
+  'authorized_by',
+  'corrects',
+  'derived_from',
+  'published_as',
+  'reports_on',
+]);
+
+function hasLink(record, relation, target) {
+  return Array.isArray(record?.links)
+    && record.links.some((link) => link?.rel === relation && link?.target === target);
+}
+
+function selectEffectiveRecord(records, kind, findings) {
+  const candidates = records.filter((record) => record.kind === kind);
+  const superseded = new Set();
+  const invalidCorrections = new Set();
+
+  for (const [index, record] of candidates.entries()) {
+    for (const link of record.links?.filter((candidate) => candidate?.rel === 'corrects') || []) {
+      const targetIndex = candidates.findIndex((candidate) => candidate.id === link.target);
+      const target = candidates[targetIndex];
+      if (targetIndex < 0 || targetIndex >= index || target.subject?.id !== record.subject?.id) {
+        invalidCorrections.add(record.id);
+        findings.push({
+          code: 'CORRECTION_TARGET_INVALID',
+          severity: 'error',
+          record_id: record.id,
+        });
+        continue;
+      }
+      superseded.add(target.id);
+    }
+  }
+
+  return candidates
+    .filter((record) => !superseded.has(record.id) && !invalidCorrections.has(record.id))
+    .at(-1);
+}
+
 /**
  * @typedef {object} ContractRecord
  * @property {string} id
@@ -67,6 +107,17 @@ export function evaluateFixture(_fixture) {
   }
   const quarantinedIds = new Set(quarantined);
   const validRecords = _fixture.records.filter((record) => !quarantinedIds.has(record.id));
+  for (const record of validRecords) {
+    for (const link of record.links || []) {
+      if (!ALLOWED_LINK_RELATIONS.has(link?.rel)) {
+        findings.push({
+          code: 'LINK_RELATION_UNSUPPORTED',
+          severity: 'error',
+          record_id: record.id,
+        });
+      }
+    }
+  }
   const processes = validRecords
     .map((record) => record.annotations?.process)
     .filter((process) => process?.process_id && process?.session_id && process?.host_id)
@@ -101,7 +152,7 @@ export function evaluateFixture(_fixture) {
     });
   }
 
-  const approval = validRecords.find((record) => record.kind === 'approval');
+  const approval = selectEffectiveRecord(validRecords, 'approval', findings);
   let approvalState = { state: 'unproven', evidence: [] };
   if (approval && approval.subject?.revision !== _fixture.current_subject_revision) {
     approvalState = { state: 'stale', evidence: [approval.id] };
@@ -110,7 +161,9 @@ export function evaluateFixture(_fixture) {
       severity: 'error',
       record_id: approval.id,
     });
-  } else if (approval && (approval.producer?.kind !== 'human' || approval.annotations?.authority_verified !== true)) {
+  } else if (approval && (approval.producer?.kind !== 'human'
+    || approval.annotations?.authority_verified !== true
+    || !approval.links?.some((link) => link?.rel === 'authorized_by'))) {
     approvalState = { state: 'unverified', evidence: [approval.id] };
     findings.push({
       code: 'HUMAN_AUTHORITY_UNVERIFIED',
@@ -121,13 +174,13 @@ export function evaluateFixture(_fixture) {
     approvalState = { state: 'proven', evidence: [approval.id] };
   }
 
-  const prepared = validRecords.find((record) => record.kind === 'prepared_artifact');
-  const claim = validRecords.find((record) => record.kind === 'claim_lease');
-  const execution = validRecords.find((record) => record.kind === 'execution_attempt');
-  const publicationIntent = validRecords.find((record) => record.kind === 'publication_intent');
-  const deliveryReceipt = validRecords.find((record) => record.kind === 'delivery_receipt');
-  const consumptionReceipt = validRecords.find((record) => record.kind === 'consumption_receipt');
-  const settlementReceipt = validRecords.find((record) => record.kind === 'settlement_receipt');
+  const prepared = selectEffectiveRecord(validRecords, 'prepared_artifact', findings);
+  const claim = selectEffectiveRecord(validRecords, 'claim_lease', findings);
+  const execution = selectEffectiveRecord(validRecords, 'execution_attempt', findings);
+  const publicationIntent = selectEffectiveRecord(validRecords, 'publication_intent', findings);
+  const deliveryReceipt = selectEffectiveRecord(validRecords, 'delivery_receipt', findings);
+  const consumptionReceipt = selectEffectiveRecord(validRecords, 'consumption_receipt', findings);
+  const settlementReceipt = selectEffectiveRecord(validRecords, 'settlement_receipt', findings);
   const preparationState = prepared
     ? { state: 'proven', evidence: [prepared.id] }
     : { state: 'unproven', evidence: [] };
@@ -148,24 +201,84 @@ export function evaluateFixture(_fixture) {
       record_id: publicationIntent.id,
     });
   }
-  if (publicationIntent && !deliveryReceipt) {
+  const deliveryNamesIntent = Boolean(
+    publicationIntent
+    && deliveryReceipt?.annotations?.publication_intent_id
+    && deliveryReceipt.annotations.publication_intent_id === publicationIntent.id,
+  );
+  const deliveryDigestMatches = Boolean(
+    publicationIntent?.annotations?.body_digest
+    && deliveryReceipt?.annotations?.body_digest
+    && deliveryReceipt.annotations.body_digest === publicationIntent.annotations.body_digest,
+  );
+  const deliveryNamesRemoteObject = Boolean(
+    deliveryReceipt?.annotations?.remote_object_id
+    && hasLink(deliveryReceipt, 'published_as', deliveryReceipt.annotations.remote_object_id),
+  );
+  if (deliveryReceipt && !publicationIntent) {
+    findings.push({
+      code: 'DELIVERY_INTENT_MISSING',
+      severity: 'error',
+      record_id: deliveryReceipt.id,
+    });
+  } else if (deliveryReceipt && !deliveryNamesIntent) {
+    findings.push({
+      code: 'DELIVERY_INTENT_MISMATCH',
+      severity: 'error',
+      record_id: deliveryReceipt.id,
+    });
+  }
+  if (deliveryReceipt && !deliveryNamesRemoteObject) {
+    findings.push({
+      code: 'DELIVERY_LINK_MISMATCH',
+      severity: 'error',
+      record_id: deliveryReceipt.id,
+    });
+  }
+  const deliveryIsProven = publicationIntent?.annotations?.outcome !== 'unknown'
+    && deliveryReceipt?.annotations?.remote_readback === true
+    && deliveryNamesIntent
+    && deliveryDigestMatches
+    && deliveryNamesRemoteObject;
+  if (publicationIntent && !deliveryIsProven) {
     findings.push({
       code: 'REMOTE_RECEIPT_MISSING',
       severity: 'error',
       record_id: publicationIntent.id,
     });
   }
-  if (deliveryReceipt?.annotations?.remote_readback === true
-    && deliveryReceipt.annotations.publication_intent_id === publicationIntent?.id
-    && deliveryReceipt.annotations.body_digest === publicationIntent?.annotations?.body_digest) {
+  if (deliveryIsProven) {
     publicationState = { state: 'proven', evidence: [deliveryReceipt.id] };
   }
-  const consumptionState = consumptionReceipt && deliveryReceipt
+  const consumptionState = consumptionReceipt && deliveryIsProven
     && consumptionReceipt.annotations?.delivery_receipt_id === deliveryReceipt.id
     && consumptionReceipt.annotations?.consumed_revision === deliveryReceipt.subject?.revision
     ? { state: 'proven', evidence: [consumptionReceipt.id] }
     : { state: 'unproven', evidence: [] };
-  const settlementState = settlementReceipt?.annotations?.original_action_id === _fixture.original_action_id
+  const settlementAuthorityVerified = settlementReceipt?.producer?.kind === 'human'
+    && settlementReceipt?.annotations?.authority_verified === true;
+  const settlementNamesOriginalAction = hasLink(
+    settlementReceipt,
+    'reports_on',
+    _fixture.original_action_id,
+  );
+  if (settlementReceipt && !settlementAuthorityVerified) {
+    findings.push({
+      code: 'SETTLEMENT_AUTHORITY_UNVERIFIED',
+      severity: 'error',
+      record_id: settlementReceipt.id,
+    });
+  }
+  if (settlementReceipt && !settlementNamesOriginalAction) {
+    findings.push({
+      code: 'SETTLEMENT_LINK_MISSING',
+      severity: 'error',
+      record_id: settlementReceipt.id,
+    });
+  }
+  const settlementState = settlementAuthorityVerified
+    && settlementNamesOriginalAction
+    && settlementReceipt?.annotations?.original_action_id === _fixture.original_action_id
     && settlementReceipt.annotations?.verified === true
     ? { state: 'proven', evidence: [settlementReceipt.id] }
     : { state: 'unproven', evidence: [] };
@@ -204,13 +317,30 @@ export function evaluateFixture(_fixture) {
 }
 
 function evaluateCase(testCase) {
+  const expectedCodes = testCase.expect?.finding_codes;
+  const expectedStages = testCase.expect?.stages;
+  const hasExecutableExpectation = Array.isArray(expectedCodes)
+    || (expectedStages && Object.keys(expectedStages).length > 0);
+  if (!hasExecutableExpectation) {
+    return {
+      criterion_id: testCase.criterion_id,
+      fixture_id: testCase.fixture.fixture_id,
+      description: testCase.description,
+      verdict: 'UNTESTED',
+      expected_finding_codes: [],
+      actual_finding_codes: [],
+      missing_finding_codes: [],
+      unexpected_finding_codes: [],
+      stage_mismatches: [],
+    };
+  }
   const evaluation = evaluateFixture(testCase.fixture);
   const actualCodes = evaluation.findings.map((finding) => finding.code);
-  const expectedCodes = testCase.expect?.finding_codes || [];
-  const expectedStages = testCase.expect?.stages || {};
-  const missingCodes = expectedCodes.filter((code) => !actualCodes.includes(code));
-  const unexpectedCodes = actualCodes.filter((code) => !expectedCodes.includes(code));
-  const stageMismatches = Object.entries(expectedStages)
+  const executableExpectedCodes = expectedCodes || [];
+  const executableExpectedStages = expectedStages || {};
+  const missingCodes = executableExpectedCodes.filter((code) => !actualCodes.includes(code));
+  const unexpectedCodes = actualCodes.filter((code) => !executableExpectedCodes.includes(code));
+  const stageMismatches = Object.entries(executableExpectedStages)
     .filter(([stage, state]) => evaluation.journey?.[stage]?.state !== state)
     .map(([stage, expected]) => ({
       stage,
@@ -222,7 +352,7 @@ function evaluateCase(testCase) {
     fixture_id: testCase.fixture.fixture_id,
     description: testCase.description,
     verdict: missingCodes.length === 0 && unexpectedCodes.length === 0 && stageMismatches.length === 0 ? 'PASS' : 'FAIL',
-    expected_finding_codes: expectedCodes,
+    expected_finding_codes: executableExpectedCodes,
     actual_finding_codes: actualCodes,
     missing_finding_codes: missingCodes,
     unexpected_finding_codes: unexpectedCodes,
@@ -246,6 +376,7 @@ export function main(argv) {
   const results = (manifest.cases || []).map(evaluateCase);
   const passed = results.filter((result) => result.verdict === 'PASS').length;
   const failed = results.filter((result) => result.verdict === 'FAIL').length;
+  const untested = results.filter((result) => result.verdict === 'UNTESTED').length;
   const report = {
     artifact_kind: 'mc-ux-01-conformance-report',
     profile_id: manifest.profile_id,
@@ -253,9 +384,9 @@ export function main(argv) {
     manifest_sha256: createHash('sha256').update(raw).digest('hex'),
     synthetic: manifest.synthetic === true,
     proves_deployed_producer: manifest.proves_deployed_producer === true,
-    summary: { total: results.length, passed, failed, untested: 0 },
+    summary: { total: results.length, passed, failed, untested },
     results,
   };
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  return failed > 0 ? 1 : 0;
+  return failed > 0 || untested > 0 ? 1 : 0;
 }
