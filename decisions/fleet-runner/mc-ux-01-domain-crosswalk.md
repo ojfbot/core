@@ -1,6 +1,6 @@
 # MC-UX-01 UX-to-domain contract crosswalk
 
-- Version: candidate-v1
+- Version: candidate-v1, artifact revision R2
 - Status: Proposed, non-production consumer profile
 - Recorded: 2026-10-10 America/Chicago
 - Core base: `8d90aad84d5ed2115a0a83a4049af616fbb65489`
@@ -49,7 +49,7 @@ The executable pack uses a deliberately small, profile-scoped envelope:
 | `subject.id`, `subject.revision` | Exact proposition/artifact/work revision being described | Producer, checked by consumer | A ruling or receipt for an older revision stays stale |
 | `producer.id`, `producer.kind` | Logical writer and its claimed class | Producer/collector | Keep distinct from authenticated transmitting account and human authority |
 | `source_refs[]` | Pinned inputs, observations or receipts | Collector/producer | Empty or inaccessible evidence remains a gap |
-| `links[]` | Closed typed relations such as `derived_from`, `reports_on`, `authorized_by`, `published_as` | Writer allowed for that record class | An edge is accepted only within its source/target and evidence policy |
+| `links[]` | Closed typed relations: `derived_from`, `reports_on`, `authorized_by`, `published_as`, `corrects` | Writer allowed for that record class | Unknown relations fail; delivery and settlement targets must match their annotations; `corrects` must point backward to the same kind and subject |
 | `annotations` | Namespaced payload for the bounded record class | Record producer | No free-form annotation promotes lifecycle or authority |
 
 Current source records are adapted into this envelope; they are not rewritten into a new
@@ -72,7 +72,7 @@ consumers pass positive, mutation, replay and failure qualification.
 | “Publication unknown” | Publication intent with outstanding requests; affected-item hold active | Publisher/reconciler | Admission, reassignment and cockpit status | Request identities and remote inspections; absence on one read is insufficient | Hold policy accepted; enforcement absent | Reconciler and accountable reopening authority | ADR-0109 proof slice plus #318 recovery/supervision |
 | “Consumed” | `consumption_receipt` referring to exact delivered revision | Attributable consumer or responding actor | Fleet-runner/cockpit | Consumer identity, exact report revision and attributable action/acknowledgment | Proposed in #316/profile | Instrumented consumer or downstream artifact evidence | #316 consumption decision and consumer qualification |
 | “Disposition” | Attributable accepted/declined/deferred/acknowledged response to a named subject | Human or qualified consumer under applicable authority | Original action owner and projections | Subject revision, actor role, source, reason/revisit condition | Partly represented in existing action ledgers; mapping incomplete | Typed join to original action and authority classification | #316 plus bounded correspondence profile |
-| “Settled” | Verified settlement receipt `reports_on original_action` | Original obligation owner/qualified settlement adapter | Daily-logger, cockpit and fleet-runner | Original action ID, final disposition, evidence, authority and correction lineage | Missing end-to-end | Production source readback and negative proof that PR/task completion alone is insufficient | #316 settlement rule, then registered producer/consumer slice |
+| “Settled” | Human-authorized settlement receipt `reports_on original_action` | Original obligation owner/qualified settlement adapter | Daily-logger, cockpit and fleet-runner | Human producer classification, separately verified authority, original action ID, final disposition, evidence and correction lineage | Missing end-to-end | Production source readback and negative proof that agent authorship or PR/task completion is insufficient | #316 settlement rule, then registered producer/consumer slice |
 | “Needs human decision” | Projection over unresolved approval/authority evidence | Versioned projector | Cockpit UI | Projection revision, watermarks and named missing evidence | UI concept exists; exact contract proposed | Qualified identity/authority inputs | Cockpit may show explicit unknowns without waiting for runtime |
 
 The UI may expose an earlier state while later states remain unproven. For example, a report can
@@ -117,9 +117,17 @@ The versioned input artifact is
 | MCUX-C08 | Local file write with no remote receipt | Preparation proven; publication unproven |
 | MCUX-C09 | Delayed/unknown publication | Affected-item hold active; blind retry forbidden |
 | MCUX-C10 | Explicit evidence at every stage | Seven journey stages proven independently; zero findings |
+| MCUX-C11 | Orphan delivery receipt with absent intent fields | Publication remains unproven; missing intent diagnosed |
+| MCUX-C12 | Agent-authored receipt claims settlement | Settlement remains unproven; human authority diagnosed |
+| MCUX-C13 | Delivery receipt appears while publication outcome is unknown | Unknown state and affected-item hold remain dominant |
+| MCUX-C14 | Later approval explicitly `corrects` the earlier record | Same-subject correction is projected; history remains append-only |
+| MCUX-C15 | `published_as` target differs from remote readback object | Publication remains unproven; relation mismatch diagnosed |
 
 Synthetic PASS means the evaluator produced the expected state and exact finding set. It is not
 evidence of a deployed producer, authenticated human, live publication, consumer or settlement.
+Artifact revision R2 adds the independent adversarial probes reported in
+[`core#523`](https://github.com/ojfbot/core/issues/523); they are retained in the public manifest,
+not only in the unit suite.
 
 ## Promotion path and entrances
 

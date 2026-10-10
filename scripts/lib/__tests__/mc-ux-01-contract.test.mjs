@@ -288,6 +288,142 @@ describe('MC-UX-01 candidate evidence contract', () => {
       severity: 'error',
     }));
   });
+  it('does not accept an orphan delivery receipt when intent fields are absent', () => {
+    const result = evaluateFixture({
+      fixture_id: 'orphan-delivery-receipt',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [{
+        id: 'delivery-orphan-1',
+        kind: 'delivery_receipt',
+        schema_version: 'mc-ux-01/candidate-v1',
+        subject: { id: 'report-1', revision: 'report-r1' },
+        producer: { id: 'publisher-1', kind: 'service' },
+        source_refs: [{ id: 'remote-readback-1', revision: 'r1' }],
+        links: [{ rel: 'published_as', target: 'comment-1' }],
+        annotations: { remote_readback: true, remote_object_id: 'comment-1' },
+      }],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'unproven', evidence: [] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'DELIVERY_INTENT_MISSING',
+      record_id: 'delivery-orphan-1',
+    }));
+  });
+  it('does not accept an agent-authored settlement as verified human authority', () => {
+    const result = evaluateFixture({
+      fixture_id: 'agent-authored-settlement',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [{
+        id: 'settlement-agent-1',
+        kind: 'settlement_receipt',
+        schema_version: 'mc-ux-01/candidate-v1',
+        subject: { id: 'act-1', revision: 'action-r1' },
+        producer: { id: 'worker-1', kind: 'agent' },
+        source_refs: [{ id: 'agent-claim-1', revision: 'r1' }],
+        links: [{ rel: 'reports_on', target: 'act-1' }],
+        annotations: { original_action_id: 'act-1', disposition: 'implemented', verified: true },
+      }],
+    });
+
+    expect(result.journey.settlement).toEqual({ state: 'unproven', evidence: [] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'SETTLEMENT_AUTHORITY_UNVERIFIED',
+      record_id: 'settlement-agent-1',
+    }));
+  });
+  it('keeps an unknown-publication hold active even when a receipt claims delivery', () => {
+    const result = evaluateFixture({
+      fixture_id: 'unknown-publication-with-receipt',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        {
+          id: 'publish-unknown-1', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'unknown', body_digest: 'sha256:abc' },
+        },
+        {
+          id: 'delivery-1', kind: 'delivery_receipt', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'published_as', target: 'comment-1' }],
+          annotations: { publication_intent_id: 'publish-unknown-1', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-1' },
+        },
+      ],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'unknown', evidence: ['publish-unknown-1'] });
+    expect(result.publication_hold).toEqual({ active: true, scope: 'affected-item', retry_allowed: false });
+  });
+  it('projects an explicit append-only correction instead of the first record', () => {
+    const approval = (id, revision, links) => ({
+      id,
+      kind: 'approval',
+      schema_version: 'mc-ux-01/candidate-v1',
+      subject: { id: 'work-1', revision },
+      producer: { id: 'operator', kind: 'human' },
+      source_refs: [{ id: `${id}-authority`, revision: 'r1' }],
+      links,
+      annotations: { authority_verified: true, permitted_act: 'execute' },
+    });
+    const result = evaluateFixture({
+      fixture_id: 'approval-correction',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        approval('approval-old', 'rev-1', [{ rel: 'authorized_by', target: 'authority-1' }]),
+        approval('approval-corrected', 'rev-2', [
+          { rel: 'corrects', target: 'approval-old' },
+          { rel: 'authorized_by', target: 'authority-1' },
+        ]),
+      ],
+    });
+
+    expect(result.journey.approval).toEqual({ state: 'proven', evidence: ['approval-corrected'] });
+    expect(result.findings.map((finding) => finding.code)).not.toContain('APPROVAL_REVISION_MISMATCH');
+  });
+  it('requires the delivery relation to name the remote object', () => {
+    const result = evaluateFixture({
+      fixture_id: 'delivery-link-mismatch',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        {
+          id: 'publish-1', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc' },
+        },
+        {
+          id: 'delivery-1', kind: 'delivery_receipt', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'published_as', target: 'comment-wrong' }],
+          annotations: { publication_intent_id: 'publish-1', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-1' },
+        },
+      ],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'unproven', evidence: ['publish-1'] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'DELIVERY_LINK_MISMATCH',
+      record_id: 'delivery-1',
+    }));
+  });
   it('requires explicit evidence for preparation, claim, execution, delivery, consumption, and settlement', () => {
     const record = (id, kind, subject, producer, annotations, links = []) => ({
       id,
@@ -313,7 +449,7 @@ describe('MC-UX-01 candidate evidence contract', () => {
         record('publish-1', 'publication_intent', { id: 'report-1', revision: 'report-r1' }, { id: 'publisher-1', kind: 'service' }, { recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc' }),
         record('delivery-1', 'delivery_receipt', { id: 'report-1', revision: 'report-r1' }, { id: 'publisher-1', kind: 'service' }, { publication_intent_id: 'publish-1', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-1' }, [{ rel: 'published_as', target: 'comment-1' }]),
         record('consumption-1', 'consumption_receipt', { id: 'report-1', revision: 'report-r1' }, { id: 'consumer-1', kind: 'human' }, { delivery_receipt_id: 'delivery-1', consumed_revision: 'report-r1', action: 'acknowledged' }),
-        record('settlement-1', 'settlement_receipt', { id: 'act-1', revision: 'action-r1' }, { id: 'operator', kind: 'human' }, { original_action_id: 'act-1', disposition: 'implemented', verified: true }, [{ rel: 'reports_on', target: 'act-1' }]),
+        record('settlement-1', 'settlement_receipt', { id: 'act-1', revision: 'action-r1' }, { id: 'operator', kind: 'human' }, { original_action_id: 'act-1', disposition: 'implemented', verified: true, authority_verified: true }, [{ rel: 'reports_on', target: 'act-1' }]),
       ],
     });
 
@@ -417,5 +553,35 @@ describe('MC-UX-01 candidate evidence contract', () => {
     const report = JSON.parse(run.stdout);
     expect(report.summary).toEqual({ total: 1, passed: 0, failed: 1, untested: 0 });
     expect(report.results[0].unexpected_finding_codes).toEqual(['ORIGINAL_ACTION_UNSETTLED']);
+  });
+
+  it('reports a manifest case without expectations as untested and fails the run', () => {
+    const root = mkdtempSync(path.join(os.tmpdir(), 'mc-ux-contract-'));
+    temporaryRoots.push(root);
+    const manifestPath = path.join(root, 'manifest.json');
+    writeFileSync(manifestPath, JSON.stringify({
+      profile_id: 'mc-ux-01/domain-contract',
+      profile_version: 'candidate-v1',
+      synthetic: true,
+      proves_deployed_producer: false,
+      cases: [{
+        criterion_id: 'MCUX-UNTESTED',
+        description: 'no executable expectation',
+        fixture: {
+          fixture_id: 'no-expectation',
+          synthetic: true,
+          proves_deployed_producer: false,
+          original_action_id: 'act-1',
+          current_subject_revision: 'rev-2',
+          records: [],
+        },
+      }],
+    }));
+
+    const run = spawnSync(process.execPath, [CLI, '--manifest', manifestPath, '--json'], { encoding: 'utf8' });
+    expect(run.status).toBe(1);
+    const report = JSON.parse(run.stdout);
+    expect(report.summary).toEqual({ total: 1, passed: 0, failed: 0, untested: 1 });
+    expect(report.results[0]).toEqual(expect.objectContaining({ verdict: 'UNTESTED' }));
   });
 });
