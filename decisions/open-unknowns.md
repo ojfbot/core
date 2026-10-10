@@ -268,3 +268,27 @@ Ruling: all active ojfbot repositories, including administrators and automation,
 
 **Standard considerations not covered**
 - Continuous drift detection and automatic onboarding of newly created repositories. This slice provides explicit audit/apply, not a scheduled monitor.
+
+## 2026-10-10 — MC-UX-01 promotion-ready evidence contract
+
+Ruling: begin with a non-production consumer-profile conformance pack built around an
+append-only evidence envelope and versioned projections. Preserve current source shapes,
+typed provenance and explicit unknowns from the first artifact. Promote the bounded profile
+toward a shared contract only after executed positive, mutation, replay and failure evidence,
+including at least one real producer and two independent consumers. This ruling does not
+accept the Proposed correspondence ADR, authorize runtime implementation or claim that a
+fixture proves a deployed producer.
+
+**Deferred decisions**
+- The trustworthy human-authority mechanism, identity/canonical-state owner and operative bounded correspondence profile; unblocked by: their existing #313/#495 decision venues and executed counterexample proof.
+- Production schema/package ownership, durable store, retention policy and compatibility/deprecation process; unblocked by: bounded qualification showing which fields and relations real producers and consumers actually require.
+- Exact promotion authority and rollout sequence after the one-producer/two-consumer qualification threshold; unblocked by: a versioned evidence packet reviewed against the registered roadmap entrances.
+
+**Unvalidated assumptions**
+- Current cockpit and core records can be adapted losslessly into a small evidence envelope without inventing actor, recipient, process, host or settlement facts.
+- A closed relation vocabulary plus namespaced profiles can remain useful through correction and replay without becoming a parallel canonical state owner.
+- The proposed telemetry can identify validator version, fixture/input revisions, coverage and correction lineage without collecting or exporting private session content.
+
+**Standard considerations not covered**
+- Long-term retention, redaction, deletion and access-control policy for evidence and telemetry artifacts.
+- Performance, size and backpressure limits for future runtime producers; the first pack is a deterministic conformance harness, not a throughput qualification.

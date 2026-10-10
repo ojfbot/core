@@ -716,6 +716,21 @@ admitted, no dispatch bead is created for the document, and S25's frontmatter, l
 success criterion, autonomy, eligibility and movement remain unchanged. Register later
 implementation slices only after policy/authority/recovery entrances are resolved.
 
+**2026-10-10 MC-UX-01 consumer-contract requirement:** the existing fleet-runner map now
+registers the [versioned UX-to-domain crosswalk](../fleet-runner/mc-ux-01-domain-crosswalk.md)
+and synthetic conformance pack against morning-cockpit draft PR #54 head
+[`5078639b2e752c3e1fa7125288201a2ccfef8424`](https://github.com/ojfbot/morning-cockpit/tree/5078639b2e752c3e1fa7125288201a2ccfef8424/planning/mc-ux-01).
+The cockpit transition remains in `rm:rm-l1-morning-cockpit`; its qualified read-only evidence
+preservation/inspection work can use existing S11/S18 entrances without waiting for the complete
+fleet-runner runtime. Shared producer, authority, execution, receipt, consumption and original-
+action settlement work remains here only after #307's applicable decisions and S25 overlap are
+reconciled. Promotion toward a shared contract requires at least one real producer, two independent
+consumers and executed positive/mutation/replay/failure evidence, then explicit acceptance.
+This body-only registration adds no slice or dependency, changes no S25 frontmatter, status,
+autonomy, eligibility or movement, and creates no dispatch bead or readiness claim. Capture and
+planning provenance are not operator acceptance; later runtime work must pin the actual accepted
+cockpit main revision if PR #54 merges.
+
 Cut after the operator's external "DIA" research survey (2026-07-08) was cross-checked against
 the audit series and the week's delivery. The sequencing driver is an evidence finding: OPAV
 S1-C3's data gate is now met (193 disposition events / ~24 days) **but the distribution is
