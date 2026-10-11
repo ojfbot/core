@@ -7,71 +7,88 @@ description: >
   session in the daily-logger repo. Dense orientation — no files modified.
 ---
 
-Load the daily-logger architecture context and orient yourself before making any changes.
+# /daily-logger
 
-**Tier:** 1 — Context load / orientation
-**Repo:** `../daily-logger` (sibling of core)
+Produce evidence-backed orientation for the requested daily workflow. This skill is read-only.
 
-## Route the question first
+**Input:** `$ARGUMENTS`, the project checkout, and available workflow or task receipts.
+**Tier:** 1
+**Phase:** continuous
+**Repo:** Resolve the daily-logger checkout. In the fleet it is core's sibling.
 
-For daily-run timing, issue pickup, queued actions or editorial follow-up, identify
-the workflow the user means before explaining article internals. Read the project's
-`docs/daily-cycle.md` when available, then inspect the relevant current merged
-workflow/source or scheduled task's saved prompt and latest receipt. If the project
-context file has not landed, inspect those primary sources directly.
+## Core principles
 
-"Pick up" usually means discover/reconcile on the next daily pass, not permission
-to launch an agent. Distinguish expected collection from a confirmed run receipt,
-article suggestions, linked tracked work and authorized execution. Fetch full
-issues/comments for work intake; article previews can omit gates. An unidentified
-scheduled skill is an evidence gap, not proof that no such workflow exists.
+1. Workflow identity precedes claims about issue pickup or timing.
+2. A saved prompt defines a scheduled task's intake and authority. A skill name does not.
+3. Cite the revision or run that supports each operational claim. Mark predictions as expectations.
+4. Orientation yields a report. Execution follows the separately authorized workflow.
 
-For article-generation questions, use Steps 1-3 below. This routing remains
-read-only and does not change the scheduled task's scope or human gates.
+## Workflow
 
-## Step 1: Read article-pipeline context
+### Step 1: Resolve the request
 
-> **Load `knowledge/architecture-brief.md`** for the full pipeline overview before reading code.
+Classify the question as article pipeline, scheduled run, or queue follow-up.
+With no arguments, select article-pipeline orientation.
+For a scheduled run, identify the workflow file or saved task by name and intake.
+If identity remains ambiguous, ask for its task name or latest receipt. Report
+other established facts separately rather than substituting the article generator.
 
-Then read the actual source:
-1. `src/types.ts` — all TypeScript interfaces (`BlogContext`, `GeneratedArticle`, `Persona`, `CouncilNote`)
-2. `src/council.ts` — `loadPersonas()`, `reviewDraft()`, `synthesizeWithCouncil()`
-3. `src/index.ts` — the 4-phase pipeline with env var flags
-4. `personas/` directory — each `.md` is an expert reviewer persona (YAML frontmatter: `slug`, `role`)
+Completion: record the branch, project location, and workflow identity, or the
+single missing identifier needed to continue.
 
-## Step 2: Confirm understanding
+### Step 2: Gather branch evidence
 
-After reading, produce a concise orientation confirming:
-- Which 4 pipeline phases run on `pnpm generate`
-- Which files call Claude and with what inputs/outputs
-- How many Claude calls occur per run (with vs without council)
-- What `SKIP_COUNCIL=true` and `DRY_RUN=true` do
-- Which invariants must not be broken (fallbacks, deduplication, 7-day previous-articles window)
+For article-pipeline questions:
+> **Load `knowledge/architecture-brief.md`** for call sites and source contracts.
 
-## Step 3: Answer the question
+Inspect the sources relevant to the question at the recorded revision. For a
+default orientation, cover phases, model-call inputs and outputs, call totals,
+flags, invariants, and each current persona's slug, role, and review focus.
 
-Respond to `$ARGUMENTS` with this context loaded.
+For scheduled-run or queue questions:
+> **Load `knowledge/workflow-evidence.md`** for intake, timing, and gate evidence requirements.
 
-If no `$ARGUMENTS`: produce the orientation summary above, list the current personas
-(slug + role + their primary challenge), and note any gaps visible from the file structure.
+Use project `docs/daily-cycle.md` as a source index when present. Otherwise inspect
+the primary sources named in the loaded reference.
 
-## Quick reference
+Completion: every requested claim has cited evidence or a named evidence gap.
+Every queue item has its original identity and disposition, including retained gates.
 
-**Pipeline:** collect → draft → council → synthesize+write
-**Council pattern:** 1 call/persona (review) + 1 synthesis call = N+1 extra calls per run
-**Add a persona:** drop `.md` with YAML frontmatter (`slug`, `role`) + markdown body in `personas/`
-**Fast mode:** `SKIP_COUNCIL=true` → only Phase 1+2+4 (1 Claude call total)
-**Dry run:** `DRY_RUN=true` → print to stdout, no file writes
-**GitHub Actions:** runs nightly, posts to BlogEngine via `BLOGENGINE_API_URL`
+### Step 3: Return the orientation
+
+Answer the user's question first. Use the report fields below, omitting unrelated
+branches. PASS means every requested claim is supported. PASS WITH NOTES means
+the answer has explicit evidence gaps. BLOCKED means workflow identity or required
+access prevents the requested determination.
+
+Completion: expectations, observed receipts, and unknowns remain distinguishable.
+Every retained gate includes its owner, decision, evidence, and checkpoint status.
 
 ## Gotchas
 
-- **This is an orientation skill — confirm understanding before you touch code.** The trap is jumping to "fix the council" after reading the brief. Step 2 (state the phases, the call sites, the call count, the invariants) is the deliverable; skipping it means you act on a half-loaded mental model of the pipeline.
-- **The nominal Claude-call count is N+2 with council, 1 without.** Council adds N reviews and one synthesis to the initial draft; draft retries can add calls. State the call math before and after a pipeline edit rather than treating N+1 extra calls as the total.
-- **Read the actual `src/` after the brief, not instead of it.** `knowledge/architecture-brief.md` orients; `src/council.ts`, `src/index.ts`, and `src/types.ts` are ground truth. The brief can lag the code — when the orientation summary contradicts the source, the source wins, and flag the drift.
-- **The load-bearing invariants are easy to break and invisible in tests.** Fallbacks, deduplication, and the 7-day previous-articles window are what keep the nightly run from posting duplicate or empty articles. Name them in Step 2 so a later change doesn't quietly remove one.
-- **`personas/` lives in the daily-logger repo, not core.** This skill runs against `../daily-logger`; reading core's personas or paths produces an orientation for the wrong repo.
+- The article collector truncates issue bodies. A gate can occur after the preview.
+  Fetch the full relevant discussion before assessing work disposition.
+- A declaration of 03:30 does not establish run start or publication time.
+  Match receipts to the intended date and workflow.
+- Local automation inventory can be incomplete. Ask for the missing task identity
+  rather than claiming the user's scheduled worker does not exist.
+- Council review adds N+1 calls to the draft, not N+1 total. Report nominal calls
+  separately from retries, mock mode, and runs skipped before drafting.
 
----
+## Output
 
-$ARGUMENTS
+```text
+Daily-logger orientation: <question>
+Verdict: PASS | PASS WITH NOTES | BLOCKED
+Workflow: <name and defining source, or unresolved>
+Evidence: <revision, observation time, run/task receipt if available>
+Answer: <supported result, with expectations labeled>
+Branch details: <pipeline facts, timing comparison, or item dispositions>
+Retained gates: <item, owner, decision, packet, checkpoint requested/agreed/elapsed>
+Gaps: <missing evidence and bounded next check, or none>
+```
+
+## Postflight
+
+When reviewing a change to this skill, load `knowledge/review-cases.md` for
+isolated behavioral cases. Report unexecuted cases as NOT RUN.
