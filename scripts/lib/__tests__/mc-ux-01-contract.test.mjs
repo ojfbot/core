@@ -365,6 +365,194 @@ describe('MC-UX-01 candidate evidence contract', () => {
     expect(result.journey.publication).toEqual({ state: 'unknown', evidence: ['publish-unknown-1'] });
     expect(result.publication_hold).toEqual({ active: true, scope: 'affected-item', retry_allowed: false });
   });
+  it('does not let an unlinked publication successor clear an unknown-outcome hold', () => {
+    const result = evaluateFixture({
+      fixture_id: 'unlinked-publication-successor',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        {
+          id: 'publish-unknown-1', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'unknown', body_digest: 'sha256:abc', outstanding_request_ids: ['request-1'] },
+        },
+        {
+          id: 'publish-agent-2', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'worker-1', kind: 'agent' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc' },
+        },
+        {
+          id: 'delivery-2', kind: 'delivery_receipt', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'published_as', target: 'comment-2' }],
+          annotations: { publication_intent_id: 'publish-agent-2', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-2' },
+        },
+      ],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'unknown', evidence: ['publish-unknown-1'] });
+    expect(result.publication_hold).toEqual({ active: true, scope: 'affected-item', retry_allowed: false });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'PUBLICATION_SUCCESSOR_UNLINKED',
+      record_id: 'publish-agent-2',
+    }));
+  });
+  it('does not accept a publication correction without reconciliation evidence', () => {
+    const result = evaluateFixture({
+      fixture_id: 'publication-correction-without-reconciliation',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        {
+          id: 'publish-unknown-1', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'unknown', body_digest: 'sha256:abc', outstanding_request_ids: ['request-1'] },
+        },
+        {
+          id: 'publish-2', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'corrects', target: 'publish-unknown-1' }],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc' },
+        },
+      ],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'unknown', evidence: ['publish-unknown-1'] });
+    expect(result.publication_hold.active).toBe(true);
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'PUBLICATION_RECONCILIATION_EVIDENCE_MISSING',
+      record_id: 'publish-2',
+    }));
+  });
+  it('clears an unknown-publication hold only after reconciliation evidence is present', () => {
+    const result = evaluateFixture({
+      fixture_id: 'publication-reconciled',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        {
+          id: 'publish-unknown-1', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [], links: [],
+          annotations: { recipient: { id: 'core-307', role: 'issue' }, outcome: 'unknown', body_digest: 'sha256:abc', outstanding_request_ids: ['request-1'] },
+        },
+        {
+          id: 'publish-2', kind: 'publication_intent', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'reconciler-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'corrects', target: 'publish-unknown-1' }],
+          annotations: {
+            recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc',
+            reconciliation: {
+              authority_verified: true,
+              authority_ref: 'authority-boundary-1',
+              resolved_request_ids: ['request-1'],
+              remote_inspection_refs: ['github-comment:2'],
+            },
+          },
+        },
+        {
+          id: 'delivery-2', kind: 'delivery_receipt', schema_version: 'mc-ux-01/candidate-v1',
+          subject: { id: 'report-1', revision: 'report-r1' },
+          producer: { id: 'publisher-1', kind: 'service' }, source_refs: [],
+          links: [{ rel: 'published_as', target: 'comment-2' }],
+          annotations: { publication_intent_id: 'publish-2', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-2' },
+        },
+      ],
+    });
+
+    expect(result.journey.publication).toEqual({ state: 'proven', evidence: ['delivery-2'] });
+    expect(result.publication_hold).toEqual({ active: false, scope: 'none', retry_allowed: false });
+    expect(result.findings.map((finding) => finding.code)).not.toContain('PUBLICATION_OUTCOME_UNKNOWN');
+  });
+  it('does not replace an approval by array position without a correction link', () => {
+    const approval = (id, revision) => ({
+      id,
+      kind: 'approval',
+      schema_version: 'mc-ux-01/candidate-v1',
+      subject: { id: 'work-1', revision },
+      producer: { id: 'operator', kind: 'human' },
+      source_refs: [{ id: `${id}-authority`, revision: 'r1' }],
+      links: [{ rel: 'authorized_by', target: 'authority-1' }],
+      annotations: { authority_verified: true, permitted_act: 'execute' },
+    });
+    const result = evaluateFixture({
+      fixture_id: 'unlinked-approval-successor',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [approval('approval-old', 'rev-1'), approval('approval-new', 'rev-2')],
+    });
+
+    expect(result.journey.approval).toEqual({ state: 'stale', evidence: ['approval-old'] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'APPROVAL_SUCCESSOR_UNLINKED',
+      record_id: 'approval-new',
+    }));
+  });
+  it('requires settlement authority to be named by relation', () => {
+    const result = evaluateFixture({
+      fixture_id: 'settlement-without-authority-link',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [{
+        id: 'settlement-1',
+        kind: 'settlement_receipt',
+        schema_version: 'mc-ux-01/candidate-v1',
+        subject: { id: 'act-1', revision: 'action-r1' },
+        producer: { id: 'operator', kind: 'human' },
+        source_refs: [{ id: 'authority-1', revision: 'r1' }],
+        links: [{ rel: 'reports_on', target: 'act-1' }],
+        annotations: { original_action_id: 'act-1', disposition: 'implemented', verified: true, authority_verified: true },
+      }],
+    });
+
+    expect(result.journey.settlement).toEqual({ state: 'unproven', evidence: [] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'SETTLEMENT_AUTHORITY_LINK_MISSING',
+      record_id: 'settlement-1',
+    }));
+  });
+  it('quarantines a record whose links field is not an array', () => {
+    const result = evaluateFixture({
+      fixture_id: 'malformed-links',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [{
+        id: 'approval-malformed',
+        kind: 'approval',
+        schema_version: 'mc-ux-01/candidate-v1',
+        subject: { id: 'work-1', revision: 'rev-2' },
+        producer: { id: 'operator', kind: 'human' },
+        source_refs: [],
+        links: { rel: 'authorized_by', target: 'authority-1' },
+        annotations: { authority_verified: true, permitted_act: 'execute' },
+      }],
+    });
+
+    expect(result.quarantined).toEqual(['approval-malformed']);
+    expect(result.journey.approval).toEqual({ state: 'unproven', evidence: [] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'LINKS_INVALID',
+      record_id: 'approval-malformed',
+    }));
+  });
   it('projects an explicit append-only correction instead of the first record', () => {
     const approval = (id, revision, links) => ({
       id,
@@ -449,7 +637,7 @@ describe('MC-UX-01 candidate evidence contract', () => {
         record('publish-1', 'publication_intent', { id: 'report-1', revision: 'report-r1' }, { id: 'publisher-1', kind: 'service' }, { recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:abc' }),
         record('delivery-1', 'delivery_receipt', { id: 'report-1', revision: 'report-r1' }, { id: 'publisher-1', kind: 'service' }, { publication_intent_id: 'publish-1', remote_readback: true, body_digest: 'sha256:abc', remote_object_id: 'comment-1' }, [{ rel: 'published_as', target: 'comment-1' }]),
         record('consumption-1', 'consumption_receipt', { id: 'report-1', revision: 'report-r1' }, { id: 'consumer-1', kind: 'human' }, { delivery_receipt_id: 'delivery-1', consumed_revision: 'report-r1', action: 'acknowledged' }),
-        record('settlement-1', 'settlement_receipt', { id: 'act-1', revision: 'action-r1' }, { id: 'operator', kind: 'human' }, { original_action_id: 'act-1', disposition: 'implemented', verified: true, authority_verified: true }, [{ rel: 'reports_on', target: 'act-1' }]),
+        record('settlement-1', 'settlement_receipt', { id: 'act-1', revision: 'action-r1' }, { id: 'operator', kind: 'human' }, { original_action_id: 'act-1', disposition: 'implemented', verified: true, authority_verified: true }, [{ rel: 'reports_on', target: 'act-1' }, { rel: 'authorized_by', target: 'authority-boundary-1' }]),
       ],
     });
 

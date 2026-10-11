@@ -24,7 +24,22 @@ function hasLink(record, relation, target) {
     && record.links.some((link) => link?.rel === relation && link?.target === target);
 }
 
-function selectEffectiveRecord(records, kind, findings) {
+function hasPublicationReconciliationEvidence(record, target) {
+  const reconciliation = record.annotations?.reconciliation;
+  const outstandingRequestIds = target.annotations?.outstanding_request_ids;
+  return ['human', 'service'].includes(record.producer?.kind)
+    && reconciliation?.authority_verified === true
+    && typeof reconciliation.authority_ref === 'string'
+    && reconciliation.authority_ref.length > 0
+    && Array.isArray(outstandingRequestIds)
+    && outstandingRequestIds.length > 0
+    && Array.isArray(reconciliation.resolved_request_ids)
+    && outstandingRequestIds.every((id) => reconciliation.resolved_request_ids.includes(id))
+    && Array.isArray(reconciliation.remote_inspection_refs)
+    && reconciliation.remote_inspection_refs.length > 0;
+}
+
+function selectEffectiveRecord(records, kind, findings, options = {}) {
   const candidates = records.filter((record) => record.kind === kind);
   const superseded = new Set();
   const invalidCorrections = new Set();
@@ -42,13 +57,33 @@ function selectEffectiveRecord(records, kind, findings) {
         });
         continue;
       }
+      const invalidCorrectionCode = options.validateCorrection?.(record, target);
+      if (invalidCorrectionCode) {
+        invalidCorrections.add(record.id);
+        findings.push({
+          code: invalidCorrectionCode,
+          severity: 'error',
+          record_id: record.id,
+        });
+        continue;
+      }
       superseded.add(target.id);
     }
   }
 
-  return candidates
-    .filter((record) => !superseded.has(record.id) && !invalidCorrections.has(record.id))
-    .at(-1);
+  const effective = candidates
+    .filter((record) => !superseded.has(record.id) && !invalidCorrections.has(record.id));
+  if (options.requireExplicitCorrection && effective.length > 1) {
+    for (const record of effective.slice(1)) {
+      findings.push({
+        code: options.unlinkedCode,
+        severity: 'error',
+        record_id: record.id,
+      });
+    }
+    return effective[0];
+  }
+  return effective.at(-1);
 }
 
 /**
@@ -91,6 +126,15 @@ export function evaluateFixture(_fixture) {
       quarantined.push(record.id);
       findings.push({
         code: 'UNSUPPORTED_SCHEMA_VERSION',
+        severity: 'error',
+        record_id: record.id,
+      });
+      continue;
+    }
+    if (!Array.isArray(record.links)) {
+      quarantined.push(record.id);
+      findings.push({
+        code: 'LINKS_INVALID',
         severity: 'error',
         record_id: record.id,
       });
@@ -152,7 +196,10 @@ export function evaluateFixture(_fixture) {
     });
   }
 
-  const approval = selectEffectiveRecord(validRecords, 'approval', findings);
+  const approval = selectEffectiveRecord(validRecords, 'approval', findings, {
+    requireExplicitCorrection: true,
+    unlinkedCode: 'APPROVAL_SUCCESSOR_UNLINKED',
+  });
   let approvalState = { state: 'unproven', evidence: [] };
   if (approval && approval.subject?.revision !== _fixture.current_subject_revision) {
     approvalState = { state: 'stale', evidence: [approval.id] };
@@ -177,7 +224,14 @@ export function evaluateFixture(_fixture) {
   const prepared = selectEffectiveRecord(validRecords, 'prepared_artifact', findings);
   const claim = selectEffectiveRecord(validRecords, 'claim_lease', findings);
   const execution = selectEffectiveRecord(validRecords, 'execution_attempt', findings);
-  const publicationIntent = selectEffectiveRecord(validRecords, 'publication_intent', findings);
+  const publicationIntent = selectEffectiveRecord(validRecords, 'publication_intent', findings, {
+    requireExplicitCorrection: true,
+    unlinkedCode: 'PUBLICATION_SUCCESSOR_UNLINKED',
+    validateCorrection: (record, target) => target.annotations?.outcome === 'unknown'
+      && !hasPublicationReconciliationEvidence(record, target)
+      ? 'PUBLICATION_RECONCILIATION_EVIDENCE_MISSING'
+      : null,
+  });
   const deliveryReceipt = selectEffectiveRecord(validRecords, 'delivery_receipt', findings);
   const consumptionReceipt = selectEffectiveRecord(validRecords, 'consumption_receipt', findings);
   const settlementReceipt = selectEffectiveRecord(validRecords, 'settlement_receipt', findings);
@@ -262,6 +316,9 @@ export function evaluateFixture(_fixture) {
     'reports_on',
     _fixture.original_action_id,
   );
+  const settlementNamesAuthority = Boolean(
+    settlementReceipt?.links?.some((link) => link?.rel === 'authorized_by' && link?.target),
+  );
   if (settlementReceipt && !settlementAuthorityVerified) {
     findings.push({
       code: 'SETTLEMENT_AUTHORITY_UNVERIFIED',
@@ -276,8 +333,16 @@ export function evaluateFixture(_fixture) {
       record_id: settlementReceipt.id,
     });
   }
+  if (settlementReceipt && !settlementNamesAuthority) {
+    findings.push({
+      code: 'SETTLEMENT_AUTHORITY_LINK_MISSING',
+      severity: 'error',
+      record_id: settlementReceipt.id,
+    });
+  }
   const settlementState = settlementAuthorityVerified
     && settlementNamesOriginalAction
+    && settlementNamesAuthority
     && settlementReceipt?.annotations?.original_action_id === _fixture.original_action_id
     && settlementReceipt.annotations?.verified === true
     ? { state: 'proven', evidence: [settlementReceipt.id] }

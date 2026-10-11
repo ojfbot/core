@@ -1,5 +1,8 @@
 # MC-UX-01 adversarial review response
 
+> Historical R2 response. The current response is
+> [`mc-ux-01-review-response-r3-2026-10-10.md`](mc-ux-01-review-response-r3-2026-10-10.md).
+
 - Review source: [`core#523`](https://github.com/ojfbot/core/issues/523), reviewing PR #522 at `a6c58898a5e16bd243dea5d821598392fd1c830d`
 - Corrected implementation: `394eba4098053ebda22dd9f119bae674942c2cb5`
 - Corrected artifact: `mc-ux-01-domain-contract-candidate-r2`
@@ -42,4 +45,3 @@ the `/pr-review` skill is not folded into this candidate-contract PR; doing so w
 engine evolution with the contract artifact it reviewed. The adversarial probes themselves are
 retained here as manifest criteria C11–C15 so the evaluator cannot regress while that broader skill
 proposal is decided independently.
-
