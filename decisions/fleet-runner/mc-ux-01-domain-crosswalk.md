@@ -68,7 +68,7 @@ consumers pass positive, mutation, replay and failure qualification.
 | “Claimed” | Active queue claim/lease on the work reference | Core supported queue writer; cockpit delegates through `/api/claim` | Runner and cockpit | Lease ID, work ID, owner, expiry and readback | Existing delegated human claim exception in cockpit ADR-0010 | Cross-source work mapping and race/renewal proof | Existing claim contract; do not infer execution from claim |
 | “Executing” | `execution_attempt` for exact work and subject revision | Future fleet-runner worker supervisor | Cockpit/read model/recovery | Attempt ID plus distinct process, session, host, harness, start/result evidence | Not deployed for MC-UX | Qualified producer, process authentication and recovery evidence | Registered core runtime slice after #311/#309/#313 entrances |
 | “Completed attempt” | Execution-attempt outcome assessment | Verifier, separate from worker claim | Review and publication admission | Checks, artifact revision and verifier provenance | Candidate only | Deployed verifier and failure/replay qualification | Runtime implementation and exact-state review contract |
-| “Published” | `delivery_receipt published_as remote_object` | Authorized publisher after independent remote readback | Cockpit, issue/PR reporting, recovery | Publication intent, destination, publisher, exact body digest/revision and remote object | Proposed profile; ADR-0109 governs unknown outcomes | Live publisher, remote readback and reconciliation proof | Accepted publication grant and bounded live qualification |
+| “Published” | `delivery_receipt published_as remote_object` | Authorized publisher after independent remote readback | Cockpit, issue/PR reporting, recovery | Publication intent, destination, publisher, prepared-artifact body digest matching intent and delivery, exact revision and remote object | Proposed profile; ADR-0109 governs unknown outcomes | Live publisher, remote readback and reconciliation proof | Accepted publication grant and bounded live qualification |
 | “Publication unknown” | Publication intent with outstanding requests; affected-item hold active | Publisher/reconciler | Admission, reassignment and cockpit status | Request identities and remote inspections; absence on one read is insufficient; later array position is never reconciliation | Hold policy accepted; candidate correction requires resolved request IDs, remote inspection references and declared authority evidence; runtime enforcement absent | Authenticated reconciler and accountable reopening authority | ADR-0109 proof slice plus #318 recovery/supervision |
 | “Consumed” | `consumption_receipt` referring to exact delivered revision | Attributable consumer or responding actor | Fleet-runner/cockpit | Consumer identity, exact report revision and attributable action/acknowledgment | Proposed in #316/profile | Instrumented consumer or downstream artifact evidence | #316 consumption decision and consumer qualification |
 | “Disposition” | Attributable accepted/declined/deferred/acknowledged response to a named subject | Human or qualified consumer under applicable authority | Original action owner and projections | Subject revision, actor role, source, reason/revisit condition | Partly represented in existing action ledgers; mapping incomplete | Typed join to original action and authority classification | #316 plus bounded correspondence profile |
@@ -128,6 +128,7 @@ The versioned input artifact is
 | MCUX-C19 | Later approval omits `corrects` | Earlier approval remains effective; positional successor is diagnosed |
 | MCUX-C20 | Human settlement shape omits `authorized_by` | Settlement remains unproven; missing authority relation diagnosed |
 | MCUX-C21 | `links` is an object instead of an array | Record quarantined; projection continues without crashing |
+| MCUX-C22 | Intent and delivery agree on a digest different from the prepared artifact | Intent quarantined; publication and consumption remain unproven |
 
 Synthetic PASS means the evaluator produced the expected state and exact finding set. It is not
 evidence of a deployed producer, authenticated human, live publication, consumer or settlement.
@@ -135,7 +136,8 @@ Artifact revision R2 added the independent adversarial probes reported in
 [`core#523`](https://github.com/ojfbot/core/issues/523). R3 adds the successor, reconciliation,
 authority-link and malformed-input probes from the second review of
 [`core#522`](https://github.com/ojfbot/core/pull/522#issuecomment-6103617342). All are retained in
-the public manifest, not only in the unit suite.
+the public manifest, not only in the unit suite. R4 adds the prepared-body digest
+counterexample in MCUX-C22; it remains a synthetic profile check.
 
 ## Promotion path and entrances
 

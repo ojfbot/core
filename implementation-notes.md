@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-10-11 (MC-UX-01 publication digest fixture): the validation action expected a mismatched publication intent to quarantine, but the checker compared only delivery receipt to intent and let both agree on a digest different from the prepared artifact. Added a conformance fixture and bound publication proof to the recorded prepared digest, leaving the candidate profile non-production.
+
 - Skill telemetry rollout design (2026-10-03): the reported daily-logger failure described an ignored/untracked hook, but both current main and PR #298 track an external symlink whose target is absent in a clean checkout; recorded the executable-target failure and added that counterexample instead of repeating the placeholder's explanation.
 - Skill telemetry rollout inventory (2026-10-03): fleet-manifest was expected to reconcile daily-logger's roster, but its extractors still look for removed arrays while daily-logger now discovers GitHub repositories dynamically; retained `unparsed` and registry omissions as gaps and proposed reuse/repair of the existing discovery mechanism instead of inventing a new authoritative list.
 - Skill telemetry correspondence follow-up (2026-10-03): #501 referenced the original open #495 draft, while current main contains a merged, narrowed Proposed contract with changed D1–D12 meanings; preserved historical pins and added an explicit mapping to current prerequisites without treating either merge as ratification.

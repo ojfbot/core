@@ -612,6 +612,36 @@ describe('MC-UX-01 candidate evidence contract', () => {
       record_id: 'delivery-1',
     }));
   });
+  it('quarantines publication when intent and delivery agree on the wrong prepared body digest', () => {
+    const subject = { id: 'report-1', revision: 'report-r1' };
+    const base = (id, kind, producer, annotations, links = []) => ({
+      id, kind, schema_version: 'mc-ux-01/candidate-v1', subject, producer,
+      source_refs: [], links, annotations,
+    });
+    const result = evaluateFixture({
+      fixture_id: 'publication-source-digest-mismatch',
+      synthetic: true,
+      proves_deployed_producer: false,
+      original_action_id: 'act-1',
+      current_subject_revision: 'rev-2',
+      records: [
+        base('prepared-1', 'prepared_artifact', { id: 'writer-1', kind: 'agent' }, { body_digest: 'sha256:original' }),
+        base('publish-1', 'publication_intent', { id: 'publisher-1', kind: 'service' }, {
+          recipient: { id: 'core-307', role: 'issue' }, outcome: 'succeeded', body_digest: 'sha256:different',
+        }),
+        base('delivery-1', 'delivery_receipt', { id: 'publisher-1', kind: 'service' }, {
+          publication_intent_id: 'publish-1', remote_readback: true,
+          body_digest: 'sha256:different', remote_object_id: 'comment-1',
+        }, [{ rel: 'published_as', target: 'comment-1' }]),
+      ],
+    });
+
+    expect(result.quarantined).toContain('publish-1');
+    expect(result.journey.publication).toEqual({ state: 'unproven', evidence: ['publish-1'] });
+    expect(result.findings).toContainEqual(expect.objectContaining({
+      code: 'PUBLICATION_SOURCE_DIGEST_MISMATCH', record_id: 'publish-1',
+    }));
+  });
   it('requires explicit evidence for preparation, claim, execution, delivery, consumption, and settlement', () => {
     const record = (id, kind, subject, producer, annotations, links = []) => ({
       id,

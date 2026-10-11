@@ -1,5 +1,5 @@
 {
-  "artifact_id": "mc-ux-01-domain-contract-candidate-r3",
+  "artifact_id": "mc-ux-01-domain-contract-candidate-r4",
   "artifact_kind": "consumer-profile-conformance-pack",
   "profile_id": "mc-ux-01/domain-contract",
   "profile_version": "candidate-v1",
@@ -7,7 +7,7 @@
   "synthetic": true,
   "proves_deployed_producer": false,
   "recorded_at": "2026-10-10T00:00:00-05:00",
-  "amended_at": "2026-10-10T19:26:31-05:00",
+  "amended_at": "2026-10-11T14:15:26-05:00",
   "source_pins": {
     "core_base": "8d90aad84d5ed2115a0a83a4049af616fbb65489",
     "morning_cockpit_main": "baf1d1139ade33eae9126260f8f8e88b09752d50",
@@ -705,6 +705,42 @@
       "expect": {
         "finding_codes": ["LINKS_INVALID", "ORIGINAL_ACTION_UNSETTLED"],
         "stages": { "approval": "unproven", "settlement": "unproven" }
+      }
+    },
+    {
+      "criterion_id": "MCUX-C22",
+      "description": "A publication intent cannot prove the prepared projection when its body digest differs, even if delivery agrees with the intent.",
+      "fixture": {
+        "fixture_id": "publication-source-digest-mismatch",
+        "synthetic": true,
+        "proves_deployed_producer": false,
+        "original_action_id": "act-1",
+        "current_subject_revision": "rev-2",
+        "records": [
+          {
+            "id": "prepared-1", "kind": "prepared_artifact", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "writer-1", "kind": "agent" }, "source_refs": [], "links": [],
+            "annotations": { "body_digest": "sha256:original" }
+          },
+          {
+            "id": "publish-1", "kind": "publication_intent", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [], "links": [],
+            "annotations": { "recipient": { "id": "core-307", "role": "issue" }, "outcome": "succeeded", "body_digest": "sha256:different" }
+          },
+          {
+            "id": "delivery-1", "kind": "delivery_receipt", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [],
+            "links": [{ "rel": "published_as", "target": "comment-1" }],
+            "annotations": { "publication_intent_id": "publish-1", "remote_readback": true, "body_digest": "sha256:different", "remote_object_id": "comment-1" }
+          }
+        ]
+      },
+      "expect": {
+        "finding_codes": ["PUBLICATION_SOURCE_DIGEST_MISMATCH", "REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
+        "stages": { "preparation": "proven", "publication": "unproven", "settlement": "unproven" }
       }
     }
   ]

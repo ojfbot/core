@@ -235,6 +235,17 @@ export function evaluateFixture(_fixture) {
   const deliveryReceipt = selectEffectiveRecord(validRecords, 'delivery_receipt', findings);
   const consumptionReceipt = selectEffectiveRecord(validRecords, 'consumption_receipt', findings);
   const settlementReceipt = selectEffectiveRecord(validRecords, 'settlement_receipt', findings);
+  const publicationSourceDigestMatches = !prepared || !publicationIntent
+    || !publicationIntent.annotations?.body_digest
+    || prepared.annotations?.body_digest === publicationIntent.annotations.body_digest;
+  if (!publicationSourceDigestMatches) {
+    quarantined.push(publicationIntent.id);
+    findings.push({
+      code: 'PUBLICATION_SOURCE_DIGEST_MISMATCH',
+      severity: 'error',
+      record_id: publicationIntent.id,
+    });
+  }
   const preparationState = prepared
     ? { state: 'proven', evidence: [prepared.id] }
     : { state: 'unproven', evidence: [] };
@@ -290,6 +301,7 @@ export function evaluateFixture(_fixture) {
     });
   }
   const deliveryIsProven = publicationIntent?.annotations?.outcome !== 'unknown'
+    && publicationSourceDigestMatches
     && deliveryReceipt?.annotations?.remote_readback === true
     && deliveryNamesIntent
     && deliveryDigestMatches
