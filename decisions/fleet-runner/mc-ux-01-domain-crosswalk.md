@@ -1,6 +1,6 @@
 # MC-UX-01 UX-to-domain contract crosswalk
 
-- Version: candidate-v1, artifact revision R2
+- Version: candidate-v1, artifact revision R3
 - Status: Proposed, non-production consumer profile
 - Recorded: 2026-10-10 America/Chicago
 - Core base: `8d90aad84d5ed2115a0a83a4049af616fbb65489`
@@ -49,7 +49,7 @@ The executable pack uses a deliberately small, profile-scoped envelope:
 | `subject.id`, `subject.revision` | Exact proposition/artifact/work revision being described | Producer, checked by consumer | A ruling or receipt for an older revision stays stale |
 | `producer.id`, `producer.kind` | Logical writer and its claimed class | Producer/collector | Keep distinct from authenticated transmitting account and human authority |
 | `source_refs[]` | Pinned inputs, observations or receipts | Collector/producer | Empty or inaccessible evidence remains a gap |
-| `links[]` | Closed typed relations: `derived_from`, `reports_on`, `authorized_by`, `published_as`, `corrects` | Writer allowed for that record class | Unknown relations fail; delivery and settlement targets must match their annotations; `corrects` must point backward to the same kind and subject |
+| `links[]` | Closed typed relations: `derived_from`, `reports_on`, `authorized_by`, `published_as`, `corrects` | Writer allowed for that record class | Non-arrays quarantine and unknown relations fail; delivery and settlement targets must match their annotations; approval/publication successors replace prior evidence only through a backward same-kind, same-subject `corrects` link |
 | `annotations` | Namespaced payload for the bounded record class | Record producer | No free-form annotation promotes lifecycle or authority |
 
 Current source records are adapted into this envelope; they are not rewritten into a new
@@ -64,15 +64,15 @@ consumers pass positive, mutation, replay and failure qualification.
 | “Source item” | Source-qualified observation: source, repository, native ID and path | Cockpit handoff/Dolt adapters | Current cards; proposed inspector | Exact source revision and adapter version; conflicts retained | Existing shapes, incomplete identity preservation | Cross-repo/native collisions, stale/conflicting source diagnostics | Cockpit T2/S11 implementation authorization and public read-contract review |
 | “Original action” | Existing stable action ID and source revision | Daily-logger actions feed or original repository ledger | Standup, cockpit and fleet-runner planning | Original action ID must survive every later relation | Existing in some flows; no universal join | Demonstrated action→work→settlement lineage | #315 census plus bounded adapter qualification |
 | “Prepared” | `prepared_artifact reports_on original_action` | Existing handoff writer or report composer | Cockpit preview/inspector | Exact bytes/digest, path and subject revision | ADR-0005 accepts brief preparation/emission only | Report-write carve-out and remote delivery evidence | Cockpit Q3 for reports; existing ADR-0005 remains brief-only |
-| “Approved” | Revision-bound approval `authorized_by` a verified human ruling | Trustworthy human-authority boundary, not a shared-account agent comment | Fleet-runner admission and cockpit display | Human decision bound to item, scope, revision and permitted act through an unforgeable boundary | Proposed prerequisite in #495 D7; mechanism absent | Replay, changed-subject, revocation and shared-account counterexample proof | #313 authority decision and accepted bounded profile |
+| “Approved” | Revision-bound approval `authorized_by` a verified human ruling | Trustworthy human-authority boundary, not a shared-account agent comment | Fleet-runner admission and cockpit display | Human decision bound to item, scope, revision and permitted act through an unforgeable boundary | Proposed prerequisite in #495 D7; candidate checker validates declared authority shape only; mechanism absent | Replay, changed-subject, revocation and shared-account counterexample proof | #313 authority decision and accepted bounded profile |
 | “Claimed” | Active queue claim/lease on the work reference | Core supported queue writer; cockpit delegates through `/api/claim` | Runner and cockpit | Lease ID, work ID, owner, expiry and readback | Existing delegated human claim exception in cockpit ADR-0010 | Cross-source work mapping and race/renewal proof | Existing claim contract; do not infer execution from claim |
 | “Executing” | `execution_attempt` for exact work and subject revision | Future fleet-runner worker supervisor | Cockpit/read model/recovery | Attempt ID plus distinct process, session, host, harness, start/result evidence | Not deployed for MC-UX | Qualified producer, process authentication and recovery evidence | Registered core runtime slice after #311/#309/#313 entrances |
 | “Completed attempt” | Execution-attempt outcome assessment | Verifier, separate from worker claim | Review and publication admission | Checks, artifact revision and verifier provenance | Candidate only | Deployed verifier and failure/replay qualification | Runtime implementation and exact-state review contract |
 | “Published” | `delivery_receipt published_as remote_object` | Authorized publisher after independent remote readback | Cockpit, issue/PR reporting, recovery | Publication intent, destination, publisher, exact body digest/revision and remote object | Proposed profile; ADR-0109 governs unknown outcomes | Live publisher, remote readback and reconciliation proof | Accepted publication grant and bounded live qualification |
-| “Publication unknown” | Publication intent with outstanding requests; affected-item hold active | Publisher/reconciler | Admission, reassignment and cockpit status | Request identities and remote inspections; absence on one read is insufficient | Hold policy accepted; enforcement absent | Reconciler and accountable reopening authority | ADR-0109 proof slice plus #318 recovery/supervision |
+| “Publication unknown” | Publication intent with outstanding requests; affected-item hold active | Publisher/reconciler | Admission, reassignment and cockpit status | Request identities and remote inspections; absence on one read is insufficient; later array position is never reconciliation | Hold policy accepted; candidate correction requires resolved request IDs, remote inspection references and declared authority evidence; runtime enforcement absent | Authenticated reconciler and accountable reopening authority | ADR-0109 proof slice plus #318 recovery/supervision |
 | “Consumed” | `consumption_receipt` referring to exact delivered revision | Attributable consumer or responding actor | Fleet-runner/cockpit | Consumer identity, exact report revision and attributable action/acknowledgment | Proposed in #316/profile | Instrumented consumer or downstream artifact evidence | #316 consumption decision and consumer qualification |
 | “Disposition” | Attributable accepted/declined/deferred/acknowledged response to a named subject | Human or qualified consumer under applicable authority | Original action owner and projections | Subject revision, actor role, source, reason/revisit condition | Partly represented in existing action ledgers; mapping incomplete | Typed join to original action and authority classification | #316 plus bounded correspondence profile |
-| “Settled” | Human-authorized settlement receipt `reports_on original_action` | Original obligation owner/qualified settlement adapter | Daily-logger, cockpit and fleet-runner | Human producer classification, separately verified authority, original action ID, final disposition, evidence and correction lineage | Missing end-to-end | Production source readback and negative proof that agent authorship or PR/task completion is insufficient | #316 settlement rule, then registered producer/consumer slice |
+| “Settled” | Settlement receipt `reports_on original_action` and names its authority with `authorized_by` | Original obligation owner/qualified settlement adapter | Daily-logger, cockpit and fleet-runner | Human producer classification, declared authority shape, named authority reference, original action ID, final disposition, evidence and correction lineage | Candidate checker validates the record/link shape but does not authenticate real-world authority; end-to-end mechanism missing | Production authority authentication/readback and negative proof that agent authorship or PR/task completion is insufficient | #313 authority decision, #316 settlement rule, then registered producer/consumer slice |
 | “Needs human decision” | Projection over unresolved approval/authority evidence | Versioned projector | Cockpit UI | Projection revision, watermarks and named missing evidence | UI concept exists; exact contract proposed | Qualified identity/authority inputs | Cockpit may show explicit unknowns without waiting for runtime |
 
 The UI may expose an earlier state while later states remain unproven. For example, a report can
@@ -122,12 +122,20 @@ The versioned input artifact is
 | MCUX-C13 | Delivery receipt appears while publication outcome is unknown | Unknown state and affected-item hold remain dominant |
 | MCUX-C14 | Later approval explicitly `corrects` the earlier record | Same-subject correction is projected; history remains append-only |
 | MCUX-C15 | `published_as` target differs from remote readback object | Publication remains unproven; relation mismatch diagnosed |
+| MCUX-C16 | Agent-authored success follows an unknown publication without `corrects` | Earlier unknown evidence and affected-item hold remain dominant |
+| MCUX-C17 | Success explicitly corrects unknown publication but lacks reconciliation evidence | Correction rejected; unknown hold remains active |
+| MCUX-C18 | Non-agent reconciler record declares a correction, resolved requests, remote inspection evidence and authority shape | Matching delivery proves publication and clears the hold within the synthetic profile |
+| MCUX-C19 | Later approval omits `corrects` | Earlier approval remains effective; positional successor is diagnosed |
+| MCUX-C20 | Human settlement shape omits `authorized_by` | Settlement remains unproven; missing authority relation diagnosed |
+| MCUX-C21 | `links` is an object instead of an array | Record quarantined; projection continues without crashing |
 
 Synthetic PASS means the evaluator produced the expected state and exact finding set. It is not
 evidence of a deployed producer, authenticated human, live publication, consumer or settlement.
-Artifact revision R2 adds the independent adversarial probes reported in
-[`core#523`](https://github.com/ojfbot/core/issues/523); they are retained in the public manifest,
-not only in the unit suite.
+Artifact revision R2 added the independent adversarial probes reported in
+[`core#523`](https://github.com/ojfbot/core/issues/523). R3 adds the successor, reconciliation,
+authority-link and malformed-input probes from the second review of
+[`core#522`](https://github.com/ojfbot/core/pull/522#issuecomment-6103617342). All are retained in
+the public manifest, not only in the unit suite.
 
 ## Promotion path and entrances
 
@@ -153,6 +161,9 @@ authority, publication, consumption and settlement changes retain their own gate
   restores the prior core behavior; no runtime state or queue migration exists.
 - The checker is deterministic and offline. It does not authenticate accounts, access private
   telemetry, contact GitHub or prove runtime credentials.
+- `authority_verified`, `authority_ref`, producer kind and `authorized_by` are candidate evidence
+  shape. The checker can reject missing/inconsistent shape; it cannot establish that the named
+  authority is authentic or entitled to act. That production decision remains gated by #313.
 - The candidate envelope is not installed in `packages/fleet-runner`, because no production
   package exists and this slice is not runtime scaffolding.
 - Retention, redaction, export, performance, backpressure, store choice, human-authority mechanism,
