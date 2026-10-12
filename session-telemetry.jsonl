@@ -1,3 +1,1 @@
-{"ts":"2026-10-10T18:04:25Z","event":"session:start","session_id":"e645082a-a251-4ae9-961b-e81797e2d80c","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
-{"ts":"2026-10-10T19:54:37Z","event":"session:start","session_id":"f7e8dc0d-efb3-48d5-ac58-cc6b23420eb7","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
 {"ts":"2026-10-10T21:37:09Z","event":"session:start","session_id":"6842493e-702c-4332-b15c-0877da84fb67","source":"startup","model":"","repo":"core","branch":"adr/judge-primitive","cwd":"/Users/yuri/ojfbot/core"}
