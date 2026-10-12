@@ -269,6 +269,44 @@ only after positive/mutation/replay/failure evidence from at least one real prod
 independent consumers, followed by explicit contract acceptance and registered rollout slices.
 This note closes no ticket, allocates no slice, changes no movement/readiness and creates no queue.
 
+### Independent daily article review, 2026-10-12
+
+The operator chose a separate **advisory Codex review** of each final daily article in
+addition to web editorial comments. The article-generation council critiques an earlier
+draft, and daily-logger's deterministic checker covers only selected concrete references;
+neither establishes that the visible article's consequential claims are accurate. The
+October 12 independent pass found wrong source ownership, an invented action terminal
+state, and an unsupported fleet-runner blocker in the published draft. Its
+revision-pinned record is proposed in [daily-logger PR #354](https://github.com/ojfbot/daily-logger/pull/354)
+at `reviews/articles/2026-10-12-97c8864.md`.
+
+An interim local Codex task, `independent-daily-article-review`, is registered for 07:00
+America/Chicago. It checks the visible article against primary sources and records the
+article/source revision, reviewer and known configuration, findings with evidence,
+uncertainties, and later editorial dispositions. It does not edit, accept, merge or post
+comments. The task has a registration receipt, not a demonstrated scheduled-run receipt;
+it requires an available local host and does not meet fleet-runner's Mac-sleep goal.
+Daily-logger owns the article and existing editorial/correction flow. A Codex finding is
+an informational assessment; a human web comment or acceptance is a separate act.
+Because the blog can auto-merge before this check, advisory review may lead to a later
+correction of an already visible article. The operator's advisory choice adds no merge gate.
+
+Treat this rail as an input to the existing fleet-runner obligations, not a second article
+queue or a claim that the runner is operating:
+
+| Existing venue | Article-review evidence needed before integration |
+| --- | --- |
+| #315 / #317 | Census the blog, council, claim checker, Codex review and editorial correction rails; record overlap, missed drafts and contradictory findings. |
+| #310 / #311 | Preserve trigger/run identity, exact article revision, evidence and portable receipts across provider or host changes; distinguish no article, no run, failed review and clean review. |
+| #316 | Link each review finding to a human disposition or an explicit unresolved state, using the existing article and correction PR identities. A generated report is not proof of consumption. |
+| #318 | Independently detect stale or missing reviews and changed article revisions; qualify reviewer independence and the stop path without self-grading. |
+
+S20's queued judge calibration against operator labels is a later measurement track, not
+a prerequisite for this advisory source review and not evidence that its accuracy target
+has been met. #313 retains any future authority or spend-policy decision; S25 and the
+first governed pilot retain their existing entrances. This note registers no delivery
+slice, dispatch authority, movement, or runtime completion.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are

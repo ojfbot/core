@@ -731,6 +731,17 @@ autonomy, eligibility or movement, and creates no dispatch bead or readiness cla
 planning provenance are not operator acceptance; later runtime work must pin the actual accepted
 cockpit main revision if PR #54 merges.
 
+**2026-10-12 article-review requirement:** the operator selected an advisory, separate
+Codex check of each final daily-logger article alongside human web comments. The
+[fleet-runner map](../wayfinder/control-plane-conductor.md#independent-daily-article-review-2026-10-12)
+records the interim 07:00 America/Chicago local task, the October 12 revision-pinned
+findings, and the existing #315/#317 census, #310/#311 receipt/portability, #316
+consumption, and #318 independent-supervision entrances. Registration does not prove
+the scheduled task ran or that it works while the Mac sleeps. Daily-logger retains
+editorial authority; the review does not gate acceptance or merge. S20's operator-label
+judge calibration remains queued and separate. No new slice, status, dependency,
+movement value, runtime grant, or S25 criterion is created by this registration.
+
 Cut after the operator's external "DIA" research survey (2026-07-08) was cross-checked against
 the audit series and the week's delivery. The sequencing driver is an evidence finding: OPAV
 S1-C3's data gate is now met (193 disposition events / ~24 days) **but the distribution is
