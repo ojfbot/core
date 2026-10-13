@@ -16,7 +16,7 @@ Repos affected: `ojfbot/core` (extends `.claude/skills/vault/scripts/lint.py`), 
 
 ## Context
 
-ADR-0079 named the *signal* — staleness = (zero non-`index.md` inbound `[[wikilinks]]`) ∧ (no git-tracked edits in N days) ∧ (not mentioned in `wiki/log.md` since the page was created) — and committed to **surface-only, never destructive** action. It left several questions open: where the code lives, the exact algorithm and output schema, the calibration of N, the `category: reference-data` exclusion, the false-positive escape hatch, and the relationship to `/vault lint`'s existing orphan check.
+ADR-0079 named the *signal* — staleness = (zero independent inbound `[[wikilinks]]`) ∧ (no git-tracked edits in N days) ∧ (not mentioned in `wiki/log.md` since the page was created) — and committed to **surface-only, never destructive** action. It left several questions open: where the code lives, the exact algorithm and output schema, the calibration of N, the `category: reference-data` exclusion, the false-positive escape hatch, and the relationship to `/vault lint`'s existing orphan check.
 
 Those questions matter because:
 
@@ -52,9 +52,9 @@ exec python3 "$HOME/ojfbot/core/.claude/skills/vault/scripts/lint.py" \
 A page `wiki/<type>/<slug>.md` is **stale** iff *all four* hold:
 
 1. **`type ∈ {entities, concepts, synthesis}`** — `sources/` and the top-level `index.md` / `log.md` are excluded as a class. (Source pages have their own currency concern, deferred to a future ADR.)
-2. **Zero non-`index.md` inbound `[[wikilinks]]`** — same predicate as the existing orphan check, except `index.md` references don't count (every page is reachable from index by schema requirement; that's not real demand).
+2. **Zero independent inbound `[[wikilinks]]`** — retain the existing `index.md`-source exclusion and exclude only the canonical `wiki/log.md` temporal ledger. Ordinary knowledge pages named `log.md` still count. This differs from the unchanged orphan metric, which includes index and ledger links.
 3. **No git-tracked edits in the last `--days` window** (default **90**) — `git log --since=<days>.days.ago --pretty=%H -- <path>` returns empty. Implemented via `subprocess.run(['git', 'log', ...])`; falls back gracefully if not in a git repo.
-4. **Not referenced in `wiki/log.md` since the page's creation entry** — `grep <slug> wiki/log.md` returns only the original `## [date] ingest|research|note` line that created it. Implemented as a simple line-grep + counts-check.
+4. **No dated `wiki/log.md` reference beyond verified creation** — match the whole slug in recognized headings and body lines after stripping comments and code. No mention permits evaluation; any mention protects the page unless it is the sole `ingest`, `research`, `note`, or `create` section and was already present in the page's first tracked addition commit, dated on that commit's date. Operation name or date alone is insufficient. Missing/shallow history conservatively preserves the reference. A genuine later reference protects the page regardless of its operation or age; `--days` controls edits, not a separate log-recency window.
 
 A page with frontmatter `category: reference-data` is **excluded** before the four-check evaluation. So is a page with frontmatter `staleness: ignore` — see (4) below.
 
@@ -71,8 +71,8 @@ A Markdown section in the lint report (or stdout if invoked as the wrapper), col
 
 - **Page** — repo-relative path, clickable as `file_path` in terminals.
 - **Age** — days since most recent git edit. Sort the table by age desc (most-stale first).
-- **Inbound** — count of non-`index.md` inbound `[[links]]` (always 0 by predicate; column kept for future loosening).
-- **Last log** — date + op of the most recent `wiki/log.md` mention (always the create entry by predicate).
+- **Inbound** — count of independent inbound `[[links]]` excluding index sources and the canonical ledger (always 0 by predicate; column kept for future loosening).
+- **Last log** — date + op of the most recent `wiki/log.md` mention (verified creation entry by predicate, or absent).
 - **Hint** — heuristic action prompt: `reference-data candidate` (if `kind: product` in entity frontmatter and `url:` source present), `review for merge` (if it shares ≥2 tags with another non-stale page), `consider archive` (default).
 
 The hints are advisory — the operator decides.
@@ -107,7 +107,9 @@ The threshold is configurable via `--days N`. The default lives in `lint.py`'s a
 The existing `/vault lint` orphan check stays. The staleness section is added below it in the lint report when `--stale` is passed. They are different signals:
 
 - **Orphan** (existing): structural — no inbound links *right now*. Includes never-linked new pages.
-- **Stale** (new): temporal + structural — no inbound links **and** not edited in N days **and** not log-mentioned since creation. Strictly a subset of orphan (every stale page is an orphan; not every orphan is stale).
+- **Stale** (new): temporal + structural — no independent inbound demand **and** not edited in N days **and** no log use beyond verified creation. It is a separate metric, not a subset of the existing orphan count: index-only and verified creation-log-only old pages can be stale with zero orphans. Conversely, a new orphan remains protected by its tracked-age grace period.
+
+Both metrics remain advisory under Accepted ADR-0089 (`adr:lint-shadow-to-gate`). Broken links, unfiled non-inbox raw items and canvas fit retain their existing gate behavior. This amendment does not accept either Proposed ADR, migrate private pages, or establish calibration or deployed integration. The 1–4-candidate calibration branch and initial six-week versus later six-month cadence still need disposition through #508.
 
 A new page that's an orphan today is correctly *not yet* stale — it's still in its grace period.
 
