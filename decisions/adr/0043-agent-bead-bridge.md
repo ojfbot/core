@@ -9,6 +9,11 @@ type: architecture
 **Deciders:** Jim Green
 **Supersedes:** Partially supersedes ADR-0042 (session beads replaced by agent beads)
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#511](https://github.com/ojfbot/core/issues/511) examines persistent role attribution against authenticated workload identity. This accepted bridge decision is unchanged.
+
 ## Context
 
 ADR-0042 introduced a two-tier session initializer that creates a `type: 'session'` bead for every Claude Code session. This works but produces anonymous, flat beads with no identity, role, hook pointer, or parent-child chain.

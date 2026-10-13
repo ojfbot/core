@@ -12,6 +12,11 @@ Repos affected: core, gastown-pilot, shell
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#529](https://github.com/ojfbot/core/issues/529) examines application transaction boundaries, event parity, and per-caller Dolt commit ownership. The accepted backend decision is unchanged; the research does not select a replacement store.
+
 ## Context
 
 FilesystemBeadStore (ADR-0016) stores beads as JSON files under `~/.beads/`. This works for single-agent scenarios but has critical limitations for multi-agent coordination:

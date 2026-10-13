@@ -15,6 +15,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#528](https://github.com/ojfbot/core/issues/528) registers transaction, queue, sandbox, identity, and verification research under #307. This accepted ownership decision is unchanged; runtime, store, host, and operative contracts retain their existing gates.
+
 ## Context
 
 The existing day-runner is a morning-invoked CLI in core. The fleet-runner design expands

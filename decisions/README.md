@@ -283,6 +283,13 @@ Personal/career OKRs live in `personal-knowledge/okr/` (not tracked publicly).
 
 ---
 
+## Research registrations
+
+- [NanoClaw trust, queue, and evidence research, 2026-10-11](research/2026-10-11-nanoclaw-trust-queue-registration.md)
+  connects [#528](https://github.com/ojfbot/core/issues/528) and its research lanes to stable ADR
+  identities, receiving issues, and pending roadmap consumers. Research input does not amend
+  accepted decisions or change delivery readiness.
+
 ## How to write an ADR
 
 Use `/adr new "title of the decision"` to generate a stub from the template.

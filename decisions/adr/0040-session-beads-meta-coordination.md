@@ -12,6 +12,11 @@ Repos affected: core
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#511](https://github.com/ojfbot/core/issues/511) and [#505](https://github.com/ojfbot/core/issues/505) distinguish session attribution, authenticated publisher, and human authority. This accepted decision is unchanged.
+
 ## Context
 
 When multiple Claude Code sessions work in parallel (e.g. two `/frame-standup` runs across different repos, or a session implementing features while another runs audits), they have no awareness of each other. This leads to:

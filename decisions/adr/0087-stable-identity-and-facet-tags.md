@@ -14,6 +14,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#531](https://github.com/ojfbot/core/issues/531) tests serial allocation across divergent checkouts and the assumed acceptance serialization point. Stable slug identity and this accepted convention are unchanged.
+
 ## Context
 
 Pure sequential ADR numbering (`0001`…`0086`) is fragile, and the failure modes all bit in one

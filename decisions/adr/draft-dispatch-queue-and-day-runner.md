@@ -20,6 +20,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#529](https://github.com/ojfbot/core/issues/529), [#530](https://github.com/ojfbot/core/issues/530), and [#532](https://github.com/ojfbot/core/issues/532) qualify transactions, unwired renewal/fencing, and confinement. This ADR remains Proposed. S25 retains its current status and criterion.
+
 ## Context
 
 The goal is a day of relatively unsupervised agentic work driven from morning-cockpit. Three

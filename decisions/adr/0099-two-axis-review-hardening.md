@@ -20,6 +20,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#523](https://github.com/ojfbot/core/issues/523) examines selectable executable review methods. Its original MC-UX bypasses were repaired in #522; current synthetic conformance does not prove deployed authority. This accepted review contract is unchanged.
+
 ## Context
 
 The local review family is already two-axis in intent (`adr:pocock-skill-conventions-and-new-skills`

@@ -11,6 +11,11 @@ type: architecture
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#529](https://github.com/ojfbot/core/issues/529) and [#530](https://github.com/ojfbot/core/issues/530) test outbox atomicity, causal revisions, fences, and logical-effect deduplication across new generations. This ADR remains Proposed; the research does not adopt global bead canonicality.
+
 ## Context
 
 The prioritized agent task queue is a **hybrid**: **beads are canonical**, GitHub **issues are a mirror**

@@ -808,3 +808,24 @@ then backfills with the existing `/resume --verify` and promotes the schema chec
 the fleet is clean — the ADR-0086 data-gated pattern, same shape as S16. S33 is `human_only` on
 purpose: every closure is a truth claim about whether work shipped, which is exactly the judgment
 that produced this defect. Filed as TD-006.
+
+## Supplemental research input, 2026-10-11
+
+The [NanoClaw trust, queue, and evidence registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+connects [#528](https://github.com/ojfbot/core/issues/528) and research #529/#530/#531/#532
+to the existing fleet-runner decisions under #307. The registration records exact source pins,
+receiving owners, and qualification limits. It does not register a new delivery slice or amend
+the frontmatter, status, eligibility, movement, or success criteria of any existing slice.
+
+Pending consumers are `rm:rm-l2-ojfbot#S20`, `rm:rm-l2-ojfbot#S22`,
+`rm:rm-l2-ojfbot#S23`, `rm:rm-l2-ojfbot#S25`, `rm:rm-l2-ojfbot#S26`,
+`rm:rm-l2-ojfbot#S31`, `rm:rm-l2-ojfbot#S32`, `rm:rm-l2-ojfbot#S33`,
+`rm:rm-l2-ojfbot#S37`, `rm:rm-l2-ojfbot#S38`, and `rm:rm-l2-ojfbot#S39`.
+The registration states how each consumes the research. S25 remains ready, human_only,
+and gate-0 with its older operating-mode/live-proof criterion. Reconcile that criterion
+with the governed pilot through the existing venues before dispatch.
+
+`rm:rm-l1-core#S18` remains the separate dispatch-channel experiment. The recovered OPAV
+plan's historical S4/S5 section names are not registered S4/S5 references in this roadmap.
+Research findings return to #313 authority, #311 portability/recovery, #316 consumption,
+#318 supervision, #505 exchange, #510 evaluation, and #511 identity as applicable.

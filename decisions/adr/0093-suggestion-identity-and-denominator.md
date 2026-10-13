@@ -12,6 +12,11 @@ type: architecture
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#531](https://github.com/ojfbot/core/issues/531) keeps event, operation, attempt, work, and trace identities distinct. This accepted identity and denominator decision is unchanged.
+
 ## Context
 
 Every downstream metric in the skill self-improvement loop (action-rate, queue dedup, fencing,

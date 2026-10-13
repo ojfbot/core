@@ -12,6 +12,11 @@ Repos affected: core; morning-cockpit and daily-logger as consumers
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#510](https://github.com/ojfbot/core/issues/510) and [#505](https://github.com/ojfbot/core/issues/505) examine coverage, correction lineage, and separate authored/assessed records. This ADR remains Proposed and observation does not become an execution gate.
+
 ## Context
 
 Skill-use telemetry has received repeated capture and reporting repairs, including
