@@ -271,6 +271,9 @@ This note closes no ticket, allocates no slice, changes no movement/readiness an
 
 ### Independent daily article review, 2026-10-12
 
+**Status: Proposed documentation registration.** Accepting this record does not
+activate a workflow, accept a schedule, or establish runtime readiness.
+
 The operator chose a separate **advisory Codex review** of each final daily article in
 addition to web editorial comments. The article-generation council critiques an earlier
 draft, and daily-logger's deterministic checker covers only selected concrete references;
@@ -280,12 +283,15 @@ state, and an unsupported fleet-runner blocker in the published draft. Its
 revision-pinned record is proposed in [daily-logger PR #354](https://github.com/ojfbot/daily-logger/pull/354)
 at `reviews/articles/2026-10-12-97c8864.md`.
 
-An interim local Codex task, `independent-daily-article-review`, is registered for 07:00
-America/Chicago. It checks the visible article against primary sources and records the
+The October 12 registration reports an interim local Codex task,
+`independent-daily-article-review`, with a declared 07:00 America/Chicago cadence.
+That historical registration is not a current schedule or run verification.
+The proposed review checks the visible article against primary sources and records the
 article/source revision, reviewer and known configuration, findings with evidence,
 uncertainties, and later editorial dispositions. It does not edit, accept, merge or post
-comments. The task has a registration receipt, not a demonstrated scheduled-run receipt;
-it requires an available local host and does not meet fleet-runner's Mac-sleep goal.
+comments. The registration reports a receipt; a demonstrated scheduled-run receipt is not
+established by this document. The local-host proposal does not meet fleet-runner's
+Mac-sleep goal.
 Daily-logger owns the article and existing editorial/correction flow. A Codex finding is
 an informational assessment; a human web comment or acceptance is a separate act.
 Because the blog can auto-merge before this check, advisory review may lead to a later
