@@ -7,7 +7,7 @@
   "synthetic": true,
   "proves_deployed_producer": false,
   "recorded_at": "2026-10-10T00:00:00-05:00",
-  "amended_at": "2026-10-11T14:15:26-05:00",
+  "amended_at": "2026-10-13T19:40:50.543Z",
   "source_pins": {
     "core_base": "8d90aad84d5ed2115a0a83a4049af616fbb65489",
     "morning_cockpit_main": "baf1d1139ade33eae9126260f8f8e88b09752d50",
@@ -735,12 +735,18 @@
             "producer": { "id": "publisher-1", "kind": "service" }, "source_refs": [],
             "links": [{ "rel": "published_as", "target": "comment-1" }],
             "annotations": { "publication_intent_id": "publish-1", "remote_readback": true, "body_digest": "sha256:different", "remote_object_id": "comment-1" }
+          },
+          {
+            "id": "consumption-1", "kind": "consumption_receipt", "schema_version": "mc-ux-01/candidate-v1",
+            "subject": { "id": "report-1", "revision": "report-r1" },
+            "producer": { "id": "consumer-1", "kind": "human" }, "source_refs": [], "links": [],
+            "annotations": { "delivery_receipt_id": "delivery-1", "consumed_revision": "report-r1", "action": "acknowledged" }
           }
         ]
       },
       "expect": {
         "finding_codes": ["PUBLICATION_SOURCE_DIGEST_MISMATCH", "REMOTE_RECEIPT_MISSING", "ORIGINAL_ACTION_UNSETTLED"],
-        "stages": { "preparation": "proven", "publication": "unproven", "settlement": "unproven" }
+        "stages": { "preparation": "proven", "publication": "unproven", "consumption": "unproven", "settlement": "unproven" }
       }
     }
   ]
