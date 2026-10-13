@@ -279,7 +279,8 @@ addition to web editorial comments. The article-generation council critiques an 
 draft, and daily-logger's deterministic checker covers only selected concrete references;
 neither establishes that the visible article's consequential claims are accurate. The
 October 12 independent pass found wrong source ownership, an invented action terminal
-state, and an unsupported fleet-runner blocker in the published draft. Its
+state, and an unsupported fleet-runner blocker in the historical October 12 article
+source. Its
 revision-pinned record is proposed in [daily-logger PR #354](https://github.com/ojfbot/daily-logger/pull/354)
 at `reviews/articles/2026-10-12-97c8864.md`.
 
