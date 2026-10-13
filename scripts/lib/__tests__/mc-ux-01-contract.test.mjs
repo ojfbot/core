@@ -633,9 +633,13 @@ describe('MC-UX-01 candidate evidence contract', () => {
           publication_intent_id: 'publish-1', remote_readback: true,
           body_digest: 'sha256:different', remote_object_id: 'comment-1',
         }, [{ rel: 'published_as', target: 'comment-1' }]),
+        base('consumption-1', 'consumption_receipt', { id: 'consumer-1', kind: 'human' }, {
+          delivery_receipt_id: 'delivery-1', consumed_revision: 'report-r1', action: 'acknowledged',
+        }),
       ],
     });
 
+    expect(result.journey.consumption).toEqual({ state: 'unproven', evidence: [] });
     expect(result.quarantined).toContain('publish-1');
     expect(result.journey.publication).toEqual({ state: 'unproven', evidence: ['publish-1'] });
     expect(result.findings).toContainEqual(expect.objectContaining({
