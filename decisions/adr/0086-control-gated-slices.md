@@ -12,6 +12,11 @@ Repos affected: core (source); the pattern applies fleet-wide
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#528](https://github.com/ojfbot/core/issues/528) and [#515](https://github.com/ojfbot/core/issues/515) connect failure scenarios and qualification evidence to existing promotion gates. This accepted process and its thresholds are unchanged.
+
 ## Context
 
 Large efforts in this harness — a new enforcement gate, a fleet-wide config rollout, a

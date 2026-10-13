@@ -12,6 +12,11 @@ Repos affected: core (the /vault skill, consumer Agent Skill, connectors doc, au
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [Selfco-box #5](https://github.com/ojfbot/selfco-box/issues/5) examines capture, commit, push, acknowledgment, and replay in the recorded deployed transport. This accepted access decision is unchanged; the study does not activate a connector or retired loop.
+
 ## Context
 
 `/vault` (ADR-0085) is a Claude-Code skill and `~/selfco` is a local-only git repo on the Mac. The user wants to

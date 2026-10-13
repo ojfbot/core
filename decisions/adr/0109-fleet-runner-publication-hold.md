@@ -14,6 +14,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#530](https://github.com/ojfbot/core/issues/530) examines stale workers, delayed effects, and reconciliation. The accepted affected-item hold is unchanged; a lease timeout or research finding does not release it.
+
 ## Context
 
 A controlled publisher can send an authorized GitHub write and lose its response.

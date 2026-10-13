@@ -15,6 +15,11 @@ Repos affected: core (packages/workflows), gastown-pilot (api/intake), daily-log
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#531](https://github.com/ojfbot/core/issues/531) examines namespace ownership and validated state. [#524](https://github.com/ojfbot/core/issues/524) retains the specific invalid-queue and audit-lock correction scope. This ADR remains Proposed.
+
 ## Context
 
 The morning ritual photographs three pencil bullets per rig. The afternoon converts each bullet into beads that workers can claim, decompose, and close. The bead is the unit of work; FrameBead is the type ([ADR-0016](0016-framebead-work-primitive.md)). FrameBead's `labels` field is a flat `Record<string, string>` on `core/packages/workflows/src/types/bead.ts:45`. Two keys already live there: `goal_parent` and `okr` (`core/packages/workflows/src/types/bead.ts:42-44`).

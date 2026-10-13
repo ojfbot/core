@@ -15,6 +15,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#510](https://github.com/ojfbot/core/issues/510) and [#318](https://github.com/ojfbot/core/issues/318) examine independent evidence and capture/verification limits. This accepted instrumentation contract and its promotion gates are unchanged.
+
 ## Context
 
 After ADR-0092, most skills are followed **inline** (read the SKILL.md by path), which **bypasses the

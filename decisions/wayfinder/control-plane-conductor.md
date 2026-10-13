@@ -481,6 +481,18 @@ The operator superseded those initiative boundaries on 2026-10-01. The earlier c
 rejection of a particular migration is not a blanket approval to replace the current queue.
 Keep its valid constraints until a reviewed implementation decision explicitly reconciles them.
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw trust, queue, and evidence registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+records [#528](https://github.com/ojfbot/core/issues/528), transaction research #529,
+lease/publication research #530, tag/serial research #531, and sandbox/mailbox research #532.
+Existing #511/#505 and #510/#523/#318 retain the identity, exchange, and verification work.
+The registration also links the deployed selfco-box transport study and pending roadmap consumers.
+
+These are research inputs to the existing owners and frontier, not replacement decision tickets.
+The map's blocking edges, Q1 hold, runtime/authority prerequisites, and S25 reconciliation remain
+unchanged. Research filing creates no implementation slice, dispatch bead, or movement claim.
+
 ## Next handoff
 
 For skill observation, use the [delivery handoff](../fleet-runner/skill-observation-delivery.md).

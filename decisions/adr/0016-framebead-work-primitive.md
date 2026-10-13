@@ -12,6 +12,11 @@ Repos affected: core, core-reader, cv-builder, blogengine, tripplanner, purefoy,
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#529](https://github.com/ojfbot/core/issues/529) and [#531](https://github.com/ojfbot/core/issues/531) examine work identity, validated state, and projections. This ADR remains Proposed.
+
 ## Context
 
 Frame is adopting Gas Town's multi-agent coordination patterns. Every subsequent adoption (AgentBead, Hooks + GUPP, Molecules, Mail, Convoys) requires a common work primitive that agents can create, route, persist, and query across the cluster. Without it, each adoption invents its own shape and the cluster has no shared language for work items.

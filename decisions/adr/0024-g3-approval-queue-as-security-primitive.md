@@ -12,6 +12,11 @@ Shipped: [shell] #37 (`704f5ee`)
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#532](https://github.com/ojfbot/core/issues/532) and [#511](https://github.com/ojfbot/core/issues/511) examine approval and worker boundaries. This accepted shell decision is unchanged; it does not qualify fleet-runner authority.
+
 ## Context
 
 NL instance spawning and cross-domain fan-out writes are high-impact operations: a single

@@ -14,6 +14,11 @@ traces:
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [#529](https://github.com/ojfbot/core/issues/529), [#505](https://github.com/ojfbot/core/issues/505), and [#511](https://github.com/ojfbot/core/issues/511) supply state-owner, record-shape, and trustworthy-authority research. This bounded contract remains Proposed, including its existing D3/D7/D8/D11 prerequisites.
+
 ## Context
 
 Core needs a bounded contract for the correspondence and evidence a governed fleet-runner

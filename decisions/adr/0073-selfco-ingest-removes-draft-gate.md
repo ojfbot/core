@@ -14,6 +14,11 @@ Repos affected: selfco-box (poller filter + test + README), core (this ADR, `/va
 
 ---
 
+## Supplemental research, 2026-10-11
+
+The [NanoClaw research registration](../research/2026-10-11-nanoclaw-trust-queue-registration.md)
+links versioned sources and receiving work. [Selfco-box #5](https://github.com/ojfbot/selfco-box/issues/5) distinguishes current transport acknowledgment from historical ingest policy. This ADR remains Proposed, and disabled legacy modes stay outside the research scope.
+
 ## Context
 
 The `selfco-box` Notion poller (ADR-0070/0072) drained only `status=ready` rows from the `📥 selfco — Inbox`
