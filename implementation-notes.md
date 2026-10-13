@@ -7,6 +7,8 @@ Log the gap between plan and reality, not routine choices the plan already cover
 The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
+- PR526 correction (Oct 13, separate-metrics direction): a sole ingest/research/note label did not establish creation and basename log.md hid knowledge-page demand; required the matching first-add ledger snapshot, preserved uncertain references, and limited ledger exclusion to canonical wiki/log.md.
+- PR526 regression fixtures assumed a hard-coded log date proved creation despite a different git creation date and missing history in the threshold mock; aligned the native creation fixture with its real commit and kept the age-boundary test independent of log provenance.
 - 2026-10-10 (orientation source drift): the inherited architecture brief claimed a seven-day previous-article window and a generator duplicate-file guard. Current source reads five latest files and writes the dated article directly. Corrected those reference claims, leaving runtime behavior and workflow safeguards unchanged.
 - 2026-10-10 (skill-authoring repair): the initial proposal passed structural checks but used the bundled authoring skill instead of core's input/output and completion-contract stack. Replaced the prose addendum with the canonical workflow structure and branch references, preserved discovery metadata, and left independent evaluation pending for the operator's next-day sessions. The separate 24-hour issue worker is still unidentified, so its identity is a required input rather than a claim of absence.
 

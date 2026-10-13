@@ -23,7 +23,7 @@ The vault is growing through two write paths:
 
 Observed bloat: the **2026-05-12 "10 datasets every urban designer should know"** research session produced **27 new files** (10 entity pages, 5 concept pages, 11 source pages, 1 raw, 1 synthesis) for a single Instagram listicle. The synthesis page is load-bearing; many of the entity pages are reference shells whose value depends on whether the practice ever touches that data again ([[selfco/wiki/synthesis/ten-datasets-urban-design]]). The same pattern — one social-media surface → ~20 vault files — would compound the same way for every future "N tools / N datasets / N papers" listicle.
 
-The naive remedy is a **time-bound staleness sweep** ("flag pages not touched in N days, prune"). That gives the wrong signal for reference data: a well-formed entity page for `landsat` or `era5` is *supposed* to sit unread for months — its value is presence-when-needed, not access frequency. mtime can't separate *settled reference* from *dead weight*. The link graph can: a page with zero non-`index.md` inbound links after N weeks, no edits, and no `log.md` mention since ingest is dead weight regardless of how recent its mtime is.
+The naive remedy is a **time-bound staleness sweep** ("flag pages not touched in N days, prune"). That gives the wrong signal for reference data: a well-formed entity page for `landsat` or `era5` is *supposed* to sit unread for months — its value is presence-when-needed, not access frequency. mtime can't separate *settled reference* from *dead weight*. The link graph can: a page with zero independent inbound links after N weeks, no edits, and no `log.md` mention beyond verified creation is dead weight regardless of how recent its mtime is.
 
 The architectural call: ingest discipline (the "should this become entity/concept pages or just an inline mention?" decision) belongs in the **promoter**, not in the **`/vault` consumer Skill writer**. The writer has no vault state — it can't look up "does this topic already have a synthesis page?" — and lives in three independent app environments (web / iPhone / Mac Desktop) whose policy would drift. The promoter is on-host, has full vault read access, runs server-side under one rule set, and is the right policy layer.
 
@@ -55,9 +55,11 @@ The page-shape decision is **deterministic, rules-based, and recorded in the row
 
 A new script at `~/selfco/scripts/vault-stale.sh` (alongside `autocommit.sh`) emits a review queue. A page is **stale** iff *all three* hold:
 
-- **Zero non-`index.md` inbound `[[wikilinks]]`** — computed by `rg -o '\[\[[^]]+\]\]' wiki -N` and excluding `wiki/index.md`.
+- **Zero independent inbound `[[wikilinks]]`** — retain the existing exclusion of sources named `index.md` and also exclude only the canonical `wiki/log.md` ledger. Knowledge pages named `log.md` still supply independent demand. Index and ledger links continue to count in the separate orphan report.
 - **No git-tracked edits in the last 90 days** — `git log --pretty=%H --since=90.days.ago -- <path>` returns empty.
-- **Not referenced in `wiki/log.md`** since the page's creation entry — `rg <slug> wiki/log.md` returns only the original `## [date] ingest|research` line.
+- **No dated `wiki/log.md` reference beyond verified creation** — whole-slug mentions in recognized section headings or bodies count; comments and code do not. A sole `ingest`, `research`, `note`, or `create` section is exempt only when it already mentions the page in the first tracked addition commit on that commit's date. A later section, including one on the same day, protects the page. Missing or shallow history cannot establish the exception; preserve the mention conservatively.
+
+Staleness and orphanhood are separate metrics. Orphanhood counts all existing inbound links; staleness measures independent demand plus tracked age and log use. An old index-only or verified creation-log-only page may be stale without being an orphan. Both signals stay advisory under Accepted `adr:lint-shadow-to-gate` (ADR-0089); neither changes that gate's blocking classes.
 
 The script is **surface-only**: it prints a Markdown table to stdout (`page · age-days · category-hint`); never moves files; never deletes. Pages tagged with `category: reference-data` in their frontmatter are excluded — pre-empts false-flags on `landsat`/`era5`/`gtfs` style pages. Operator (you) reviews the queue manually; the destructive verb is a separate `rm` decision.
 
@@ -114,7 +116,7 @@ URL rot, `retrieved:` age, and re-fetch cadence are *currency*, not *staleness*.
 
 ## Open questions
 
-- **Calibration of the staleness thresholds.** 90 days mtime / zero non-index inbound links is a guess. First-run output will tell us if it's too tight (false-positives on settled reference) or too loose (misses obvious dead weight).
+- **Calibration of the staleness thresholds.** 90 days tracked age / zero independent inbound links is a guess. First-run output will tell us if it's too tight (false-positives on settled reference) or too loose (misses obvious dead weight).
 - **`category: reference-data` adoption.** Should the promoter auto-tag entities classed as reference data (e.g. anything with `kind: product` and a `url:` source whose `retrieved:` is the only inbound source)? Defer until the staleness scanner has been observed for false-positives.
 - **Rule-(b) tag/slug overlap thresholds.** "≥2 shared tags" is a heuristic. May need tuning based on real ingest patterns.
 - **Interaction with the bead-provenance dedup pass** ([[selfco/wiki/synthesis/selfco-ingest-beads-provenance-spec]]). The gate runs before dedup; both must agree on "is this a second mention of the same topic?" — coordinate definitions when both ADRs are filed.

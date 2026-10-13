@@ -6,7 +6,8 @@ page doesn't exist), raw/ items with no wiki/sources/ page that references them.
 of /vault lint (contradictions, stale claims, missing cross-refs) is done by the LLM, not here.
 
 With `--stale` (ADR-0080): also reports graph-aware stale pages — pages in entities/concepts/
-synthesis that are orphans (zero non-index inbound), haven't been git-edited in --days
+synthesis with zero independent inbound links (index sources and canonical wiki/log.md excluded),
+haven't been git-edited in --days
 (default 90), and aren't `wiki/log.md`-mentioned outside their creation entry. Excludes pages
 whose frontmatter has `category: reference-data` (class-level: Landsat/ERA5-style reference
 entities collectively) or `staleness: ignore` (page-level operator override). Surface-only —
@@ -128,18 +129,19 @@ def git_age_days(page: Path, vault: Path) -> int | None:
 
 
 def log_section_dates(slug: str, log_text: str) -> list[str]:
-    """Section dates (YYYY-MM-DD) of every `## [date] op …` block whose body mentions slug."""
+    """Dated log sections whose heading or body names the page as a whole slug."""
     found: list[str] = []
     current_section: str | None = None
     current_mentions: bool = False
-    for line in log_text.splitlines():
+    name = re.compile(rf"(?<![\w-]){re.escape(slug)}(?![\w-])")
+    for line in strip_noise(log_text).splitlines():
         m = LOG_HEADER_RE.match(line)
         if m:
             if current_section is not None and current_mentions:
                 found.append(current_section)
             current_section = f"{m.group(1)} ({m.group(2)})"
-            current_mentions = False
-        elif current_section is not None and slug in line:
+            current_mentions = bool(name.search(line[m.end():]))
+        elif current_section is not None and name.search(line):
             current_mentions = True
     if current_section is not None and current_mentions:
         found.append(current_section)
@@ -152,6 +154,35 @@ def page_type(page: Path) -> str | None:
         if part in STALE_TYPES + ("sources",):
             return part
     return None
+
+
+def is_creation_log_mention(page: Path, vault: Path, section: str) -> bool:
+    """Require the section in the page's first-add commit, on that commit's date.
+    Missing/shallow history cannot prove creation; preserve the mention instead.
+    """
+    try:
+        shallow = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"],
+            cwd=vault, capture_output=True, text=True, check=False,
+        )
+        if shallow.returncode != 0 or shallow.stdout.strip() != "false":
+            return False
+        created = subprocess.run(
+            ["git", "log", "--follow", "--diff-filter=A", "--format=%H %cs", "--", str(page.relative_to(vault))],
+            cwd=vault, capture_output=True, text=True, check=False,
+        )
+        if created.returncode != 0 or not created.stdout.strip():
+            return False
+        commit, date = created.stdout.strip().splitlines()[-1].split()
+        if not section.startswith(f"{date} ("):
+            return False
+        log = subprocess.run(
+            ["git", "show", f"{commit}:wiki/log.md"],
+            cwd=vault, capture_output=True, text=True, check=False,
+        )
+        return log.returncode == 0 and section in log_section_dates(page.stem, log.stdout)
+    except (FileNotFoundError, ValueError):
+        return False
 
 
 def is_stale(
@@ -171,7 +202,7 @@ def is_stale(
     if fm.get("category") == "reference-data" or (isinstance(tags, list) and "reference-data" in tags):
         return False, None, None, None
 
-    # (predicate condition 2) Zero non-index inbound — caller passes 0 for orphans
+    # (predicate condition 2) Zero independent inbound demand.
     if non_index_inbound > 0:
         return False, None, None, None
 
@@ -183,7 +214,13 @@ def is_stale(
     # (4) Not log-mentioned in any section beyond the creation entry
     slug = page.stem
     mentions = log_section_dates(slug, log_text)
-    if len(mentions) > 1:
+    creation_ops = {"ingest", "research", "note", "create"}
+    only_creation = (
+        len(mentions) == 1
+        and mentions[0].split(" (", 1)[-1].rstrip(")") in creation_ops
+        and is_creation_log_mention(page, vault, mentions[0])
+    )
+    if mentions and not only_creation:
         return False, None, age, None
 
     last_log = mentions[0] if mentions else None
@@ -344,7 +381,7 @@ def main() -> int:
     ap.add_argument(
         "--stale",
         action="store_true",
-        help="Also report stale pages (ADR-0080: orphan ∧ no edits in --days ∧ not log-mentioned since creation)",
+        help="Also report stale pages (no independent inbound links, old git edit, no later log mention)",
     )
     ap.add_argument(
         "--days",
@@ -404,20 +441,21 @@ def main() -> int:
         pages[str(rel.with_suffix("")).replace(os.sep, "/")] = p  # e.g. "sources/foo"
 
     inbound: dict[str, int] = {p.stem: 0 for p in wiki.rglob("*.md")}
-    # Per ADR-0080 §(2): the staleness predicate uses inbound excluding index.md (every
-    # page is reachable from index by schema requirement; that's not real demand).
+    # log.md is temporal history, not independent graph demand. Its creation entry
+    # must not exempt a page forever; later mentions are checked separately below.
     inbound_non_index: dict[str, int] = {p.stem: 0 for p in wiki.rglob("*.md")}
     broken: list[tuple[str, str]] = []  # (source page rel, missing target)
 
     for p in wiki.rglob("*.md"):
         text = strip_noise(p.read_text(encoding="utf-8", errors="ignore"))
         is_index = p.name == "index.md"
+        is_log = p == wiki / "log.md"
         for m in WIKILINK_RE.finditer(text):
             target = m.group(1).strip()
             key = target.split("/")[-1]
             if target in pages or key in pages:
                 inbound[key] = inbound.get(key, 0) + 1
-                if not is_index:
+                if not is_index and not is_log:
                     inbound_non_index[key] = inbound_non_index.get(key, 0) + 1
             elif p.name != "log.md":  # log.md is an append-only ledger; historical entries may name renamed/removed pages
                 broken.append((str(p.relative_to(v)), target))
@@ -482,9 +520,8 @@ def main() -> int:
                     if len(items) > 40:
                         print(f"     ... and {len(items) - 40} more")
 
-    # --stale: ADR-0080. Layered on top of the orphan check — every stale page is an
-    # orphan; not every orphan is stale (new pages have a grace period via the
-    # --days threshold + log.md mention).
+    # --stale: ADR-0080. Separate from the orphan count: the latter includes
+    # index/log links, while staleness excludes both as independent demand.
     if args.stale:
         log_path = wiki / "log.md"
         log_text = log_path.read_text(encoding="utf-8", errors="ignore") if log_path.is_file() else ""
@@ -505,8 +542,9 @@ def main() -> int:
             for page, hint, age, last_log in sorted(rows, key=lambda r: -r[2]):
                 print(f"| {page.relative_to(v)} | {age}d | 0 | {last_log or '—'} | {hint} |")
         print(
-            "\n(Stale = type ∈ {entities,concepts,synthesis} ∧ zero non-index inbound ∧ "
-            "no git edits in --days ∧ ≤1 log.md section mentions it. Surface-only — never "
+            "\n(Stale = type ∈ {entities,concepts,synthesis} ∧ zero independent inbound "
+            "(index sources and canonical wiki/log.md excluded) ∧ no git edits in --days ∧ "
+            "no log.md mentions beyond verified creation. Surface-only — never "
             "destructive. Escape hatches: `category: reference-data` (class) or "
             "`staleness: ignore` (page). See ADR-0079 / ADR-0080.)"
         )
