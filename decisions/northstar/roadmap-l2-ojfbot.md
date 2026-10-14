@@ -829,3 +829,18 @@ with the governed pilot through the existing venues before dispatch.
 plan's historical S4/S5 section names are not registered S4/S5 references in this roadmap.
 Research findings return to #313 authority, #311 portability/recovery, #316 consumption,
 #318 supervision, #505 exchange, #510 evaluation, and #511 identity as applicable.
+
+
+**2026-10-13 historical article evaluation research registration:** the operator requested
+an adversarial review and future subagent proof briefs for historical daily-logger accuracy,
+actual-input faithfulness and generated-to-accepted editorial lineage. The
+[review and hypotheses](../research/2026-10-13-daily-article-evaluation-review.md) and
+[12 structured briefs](../research/2026-10-13-daily-article-evaluation-tasks.json) are research
+inputs to existing #307/#510. [daily-logger #358](https://github.com/ojfbot/daily-logger/issues/358)
+receives the bounded evidence/lineage pilot; #357 retains the advisory article-page consumer.
+S19's real-failure hermetic lane, S20's queued human-only calibration criteria, S21 trace
+identity and S25's operating-mode/live-proof criteria retain their current meanings.
+Lineage isolation precedes held-out calibration; human-adjudicated consumption proof does
+not acquire a judge prerequisite. Existing authority, identity, publication/recovery and
+exchange owners receive the relevant gaps. This body registration adds no slice, dependency,
+movement value, status change, queue, runtime or dispatch grant.
