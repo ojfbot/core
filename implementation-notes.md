@@ -506,3 +506,9 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 ## Deviations
 - Fleet protection assumed an organization-wide policy was available; ojfbot is a user account and 27 private repositories are plan-blocked. Use repository rulesets for public repositories and leave private enforcement pending as the operator directed.
 - MC-UX-01 validation assumed the repository build, typecheck, and full test suite could run in parallel. The full suite imports `packages/workflows/dist/tracking/skill-acted-rate.js`, so its first run raced the build and failed before collecting that suite while the build itself passed. Run the full suite after `pnpm build`; keep this ordering dependency explicit rather than treating the race as a product failure.
+
+## Deviations
+
+- Decision11 requires shared-source identity and production-state fields absent from accepted SDL; prepared a coupled local query-only schema proposal rather than a cockpit-only REST exception. Producer mint/restart/trace semantics are explicit proposals, with emission enforcement inactive pending owner acceptance.
+
+- Decision11's explicit-null proposal left schema-v1 omission behavior implicit; coordinator controls found the reader accepted undeclared nullable fields. Clarified that schema-v1 declares every nullable field, with null for unknown/inapplicable values, while whole absent capture stays legacy-unknown; owner acceptance and producer activation remain pending.
