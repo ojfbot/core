@@ -508,3 +508,33 @@ The relevant accepted and operative correspondence contract and runtime proofs m
 clear before a governed pilot. Isolated, authorized experiments can proceed earlier. LEGO
 migration requires its own ratification. Loop consumption, contradiction handling and independent
 supervision must have separate evidence before claiming the inherited conductor remit delivered.
+
+
+## Historical article evaluation research registration 2026-10-13
+
+The operator requested an adversarial review of the historical daily-logger evaluation
+operation and its generated-to-accepted editorial history. The
+[research review](../research/2026-10-13-daily-article-evaluation-review.md) records
+12 significant gaps, falsifiable hypotheses and
+[structured follow-up agent briefs](../research/2026-10-13-daily-article-evaluation-tasks.json).
+[daily-logger #358](https://github.com/ojfbot/daily-logger/issues/358) receives the
+historical evidence and editorial-lineage pilot. Existing
+[#510](https://github.com/ojfbot/core/issues/510) owns observability/evaluation research;
+[daily-logger #357](https://github.com/ojfbot/daily-logger/issues/357) owns the article-page
+review consumer and need not wait for the whole retrospective harness.
+
+Compare historical accuracy and actual-input faithfulness separately. Preserve one direct
+human-review chain and one agent-submitted request following discussion, with exact article,
+feedback and accepted revisions. Independent source/capture denominators, leakage controls
+before held-out calibration, qualified authorship/authority and actual correction consumption
+are proposed proof obligations. Source hashes and configuration claims do not establish
+runtime outcomes or executed model identity.
+
+This is research registration under existing ns:l2-ojfbot#P2, not an adopted contract or
+implementation slice. #315/#317 retain census/overlap, #310/#311 evidence/portability,
+#313 authority/budgets/promotion, #316 consumption/settlement, #318 supervision/recovery,
+#505/#513 interface research, #511 identity, #512 epistemic status and #514 measures.
+ADR-0108 ownership and ADR-0109 affected-item hold remain accepted. Proposed MC-UX and
+skill-observation contracts retain their maturity. Existing S19/S20/S21/S25 requirements,
+frontier and blocking edges are unchanged. No schedule, queue, runtime, provider export,
+autonomy, model promotion or dispatch grant follows from this registration.
