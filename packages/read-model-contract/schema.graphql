@@ -334,6 +334,17 @@ type DoltLiteralMetadata {
   updatedAt: String
   closedAt: String
 }
+"Whitelisted string-valued labels, preserved literally; not current eligibility or ownership."
+type DoltLiteralLabels {
+  "Observed labels.queue; no lane-policy inference."
+  queueDisposition: String
+  "Observed labels.claimed_by_kind."
+  claimedByKind: String
+  "Observed labels.lease_until; never interpreted as a renewed lease."
+  leaseUntil: String
+  "Observed labels.expires_at; not a claimability decision."
+  expiresAt: String
+}
 enum RepositoryCoordinateReason {
   missing
   invalid
@@ -358,6 +369,7 @@ type DoltRecordEvidence {
   sourceRecord: DoltBeadSourceRecord!
   title: String!
   native: DoltLiteralMetadata!
+  literalLabels: DoltLiteralLabels!
   collectedAt: String!
   coordinateDiagnostics: [RepositoryCoordinateDiagnostic!]!
   declaredLinks: [TaskDocumentResolution!]!
