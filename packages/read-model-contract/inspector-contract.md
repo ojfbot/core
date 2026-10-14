@@ -1,22 +1,40 @@
 # Existing-source inspector contract proposal
 
-Status: local proposal under approved Decision11. The schema amendment requires core owner acceptance and a separate publication decision. It does not promote MC-UX-01 or change any dispatch, readiness, settlement, correspondence or authority policy.
+Status: local proposal under approved local repair preparation. The schema amendment requires core owner acceptance and a separate publication decision. It does not promote MC-UX-01 or change any dispatch, readiness, settlement, correspondence or authority policy.
 
 The existing Dolt/handoff inspector reads metadata through the core-owned SDL, vendored and code-generated in cockpit. No core runtime import is added. Query-only reads preserve the existing shell, keyboard modal and explicit repository Focus action.
 
 ## Resource coordinates
 
-`SourceRecord` is closed over `dolt-bead-v1` and `handoff-document-v1`. A Dolt observation has its native bead ID, observed repository (nullable for missing metadata), and no file path. A handoff document has the configured repository and repository-relative document path, and its authored native ID when recorded. The opaque resource key uses the variant and resource coordinates. It is scoped to the configured existing sources; this proposal does not define universal cross-database or cross-provider identity. Authored actors, principals, credentials, agent/runtime/session/model/trace/host fields never participate in the key.
+`SourceRecord` is a concrete union closed over `dolt-bead-v1` and `handoff-document-v1`. A Dolt observation has its native bead ID, observed repository (nullable for missing metadata), and no file path. A handoff document has the configured repository and repository-relative document path, and its authored native ID when recorded. The opaque resource key uses the variant and resource coordinates. It is scoped to the configured existing sources; this proposal does not define universal cross-database or cross-provider identity. Authored actors, principals, credentials, agent/runtime/session/model/trace/host fields never participate in the key.
 
 A future GitHub variant must first specify provider host, fully qualified owner/repository and provider-native resource ID. The same resource viewed by two accounts has one resource identity. Account routing stays server-side. Unsupported GitHub observations fail closed; this proposal provisions no accounts, devices or credentials.
 
-## Observation and diagnostic reads
+## Captured source collections and inspection
 
-`evidenceSummary` returns coverage, counted population/repository totals, unresolved count, generation time and an opaque `snapshotId`. REST `/api/cockpit` carries this small summary, never the full metadata ledger. `evidenceIndex(snapshotId)` returns normalized record summaries, population record keys and diagnostics. `evidenceRecord(snapshotId, sourceRecordKey)` returns metadata and production state from that same observation.
+`evidenceSummary` describes one observation: its ID, generation/expiry times, Dolt inventory scope/coverage/counts and handoff inventory scope/coverage/counts. Handoff's standalone-unanswered-brief population has its own count. An unavailable inventory/population has a null count, not a fabricated zero. Collection times remain source specific because the aggregate uses bounded source caches. The Dolt scope is the configured database's created/live beads or rows updated/closed since the overnight boundary; absence means not observed within that scope. Handoff observes supported frontmatter in the configured repositories' `.handoff/*.md` files. Bodies and arbitrary labels are absent. The unresolved count combines retained legacy handoff diagnostics and unresolved physically declared task/document links.
 
-Snapshots are process-local, cloned observations retained for five minutes and at most 32 snapshots. Exact expiry, capacity eviction or server restart yields `refresh-required`; no resolver substitutes a newer observation. A missing key in a retained snapshot yields `record-not-observed`. IDs have no persistence or cross-server guarantee. Failure/partial coverage remains visible independently of population zero.
+`evidenceIndex(snapshotId)` returns a typed product of Dolt and handoff partitions. Each partition is observed (complete/partial coverage) or unavailable; an outage preserves the other source. Index summaries are projections of the captured native collections, not another authoritative inventory. `evidenceRecord(snapshotId, sourceRecordKey)` returns a closed Dolt-native or handoff-authored metadata payload. Production metadata exists only on handoff documents. Invalid coordinates, source unavailable, record not observed in scope, and refresh required are distinct results. Public query names and arguments remain unchanged; there is no caller-selectable source parameter.
 
-Diagnostics preserve roles: referrer/requested target for missing targets; referrer/candidate targets for ambiguous targets; predecessor/candidate successors for unresolved order; directed predecessor-to-successor cycle keys, canonically rotated to the least key. A role-less sorted participant bag is not the contract. Unresolved observations remain outside guessed lane state; inspection cannot change source status.
+Every current WorkItem receives an exact server-minted `inspectionTarget` from that capture, including its key, source coordinates and generation/expiry times. Legacy items without an observed pin/key expose an unavailable target. Clients never synthesize a target from titles, native IDs, actors, sessions or display URLs. All aggregate-dependent roots within one GraphQL request share one capture.
+
+Snapshots are cloned process-local observations retained for five minutes and at most 32 IDs. Exact expiry, eviction or restart yields refresh-required; pinned reads never recollect or substitute a newer observation. Source scope is explicit and an opaque key has no persistence or cross-server guarantee.
+
+Dolt's canonical repository is a unique, nonempty, valid observed `labels.app`/`labels.repo` value. Missing, invalid or conflicting declarations produce a null coordinate and bounded diagnostics. The existing WorkItem display prefix fallback stays separate. The reader does not infer canonical coordinates from prefixes, actors or session metadata.
+
+Handoff diagnostics preserve roles, ambiguity and directed cycles. `closes:` resolves against all observed handoff documents, including closed predecessors. Only eligible live predecessors fold into live successors; an observed closed predecessor is not diagnosed missing and does not hide its live successor. Legacy report `responding_to` and raw refs remain governed by existing handoff-local policies.
+
+## Proposed physically declared task/document navigation
+
+A v1 `source_links` array may be physically present in handoff frontmatter. Dolt `labels.source_links` records that array as a JSON string, preserving the existing string-valued label contract. Each entry has exactly `schemaVersion: 1`, `relation: task-document` and `target`. A document can target `{source: dolt-bead, nativeId}` in the configured Dolt scope. An observed Dolt task can target `{source: handoff-bead, repository, sourcePath}`. The containing record supplies origin and the original declaration field path; supplied origin fields, unknown versions, invalid coordinates and incompatible directions are rejected. No producer is enabled and no historical metadata is converted by this proposal.
+
+Resolution preserves direction and returns resolved observed endpoints/keys, target source unavailable, target not observed in scope, ambiguous observed candidates, incompatible target kind, or invalid declaration. A resolved Dolt endpoint must actually be an observed task. Equal IDs in different sources never create an edge. Absence of declarations means no declared relationship. Resolution neither invents a reverse declaration nor settles work, proves delivery, authenticates a principal, or changes legacy lane/folding rules.
+
+## Proposed foreground behavior
+
+An open inspector keeps its observation pinned. Background polling advertises a new observation without replacing open detail. Explicit refresh ends the old selection/request lifetime; the newest request wins even when it fails before an older success. Collapse, close, unmount and selection replacement abort or invalidate their obsolete requests. Repeated inspection of the same card/key starts a fresh detail request.
+
+Cached detail remains reference material after known expiry and is visibly labeled historical. A new lookup requires explicit refresh; expiry/eviction/restart responses never silently adopt background data. This foreground/expiry policy remains a precise owner-acceptance choice, alongside schema names, repository null/conflict semantics and declaration spelling/navigation semantics.
 
 ## Document production and proposed producer semantics
 
@@ -36,6 +54,6 @@ Required-trace validation for actual cockpit emissions is **inactive**. The exis
 
 ## Coupled landing and checks
 
-Core SDL/proposal lands first after its owner/publication decision. Cockpit then vendors that accepted exact SDL, regenerates and verifies the served schema. Bidirectional field parity rejects SDL-only and shared-only fields on the governed public types. The existing rich WorkItem chain/detail/provenance REST fields remain explicit pre-existing exclusions; new source/evidence/provenance fields are not exempt.
+The local pair vendors the proposed exact SDL for review. Publication requires owner acceptance of the precise contract and a separate publication decision. No prerequisite PR or producer activation is created by local qualification. Neutral inspector models are generated from the transitive SDL query/target closure with required concrete discriminants and explicit nullable fields. Query/args/resolver/operation wrappers remain private. Regenerate-diff plus constructors/codecs and exhaustive consumers reject additions until handled; legacy bidirectional field parity remains in force. The existing rich WorkItem chain/detail/provenance REST fields remain explicit pre-existing exclusions; new source/evidence/provenance fields are not exempt.
 
 Native checks cover roles, directed-cycle permutations, unsupported sources, unknown/invalid/recorded production, unchanged resource identity, normalized population, cloned/pinned reads, exact expiry/eviction/restart, actual HTTP/GraphQL metadata-only reads, and lazy UI/disclosure/focus behavior. Controlled browser evidence qualifies this bounded experience only; it does not identify a deployed revision or qualify the complete operating loop.
