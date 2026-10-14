@@ -512,3 +512,5 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 - Decision11 requires shared-source identity and production-state fields absent from accepted SDL; prepared a coupled local query-only schema proposal rather than a cockpit-only REST exception. Producer mint/restart/trace semantics are explicit proposals, with emission enforcement inactive pending owner acceptance.
 
 - Decision11's explicit-null proposal left schema-v1 omission behavior implicit; coordinator controls found the reader accepted undeclared nullable fields. Clarified that schema-v1 declares every nullable field, with null for unknown/inapplicable values, while whole absent capture stays legacy-unknown; owner acceptance and producer activation remain pending.
+
+- Inspector preparation keeps Dolt/handoff source knowledge in typed collections, with physically bound navigation-only declarations and explicit unavailable card targets. Required discriminants/nulls and private neutral exports are generated from the existing SDL toolchain; no producer or enforcement is activated.

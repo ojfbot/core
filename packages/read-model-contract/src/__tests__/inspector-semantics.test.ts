@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { isInterfaceType, isObjectType, isUnionType, parse, validate } from "graphql";
+import { isObjectType, isUnionType, parse, validate } from "graphql";
 import { buildReadModelSchema } from "../index.js";
 const schema = buildReadModelSchema();
 describe("inspector contract variants", () => {
   it("closes source identity over current source variants only", () => {
     const source = schema.getType("SourceRecord");
-    expect(isInterfaceType(source)).toBe(true);
-    if (isInterfaceType(source))
+    expect(isUnionType(source)).toBe(true);
+    if (isUnionType(source))
       expect(
-        schema
-          .getPossibleTypes(source)
+        source
+          .getTypes()
           .map((type) => type.name)
           .sort(),
       ).toEqual(["DoltBeadSourceRecord", "HandoffDocumentSourceRecord"]);
@@ -36,7 +36,7 @@ describe("inspector contract variants", () => {
       validate(
         schema,
         parse(
-          '{ evidenceIndex(snapshotId:"expired") { ... on EvidenceIndex { unresolvedRelations { ... on RelationCycleDiagnostic { affectedSourceRecordKeys } } } } }',
+          '{ evidenceIndex(snapshotId:"expired") { ... on EvidenceIndex { handoff { ... on ObservedHandoffIndex { unresolvedRelations { ... on RelationCycleDiagnostic { affectedSourceRecordKeys } } } } } } }',
         ),
       ),
     ).toHaveLength(1);
@@ -53,7 +53,13 @@ describe("inspector contract variants", () => {
       ],
       [
         "EvidenceRecordResult",
-        ["EvidenceRecord", "EvidenceRecordNotObserved", "EvidenceRefreshRequired"],
+        [
+          "EvidenceInvalidReference",
+          "EvidenceRecord",
+          "EvidenceRecordNotObserved",
+          "EvidenceRefreshRequired",
+          "EvidenceSourceUnavailable",
+        ],
       ],
     ] as const) {
       const type = schema.getType(name);
