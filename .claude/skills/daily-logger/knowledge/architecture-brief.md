@@ -15,8 +15,9 @@ Paths are relative to the daily-logger checkout.
 | Draft | `src/generate-article.ts`, `src/schema.ts` | `BlogContext` and article prompt | Validated `GeneratedArticle` |
 | Council review | `src/council.ts`, `personas/` | Draft and each loaded `Persona` | One `CouncilNote` per persona |
 | Synthesis | `src/council.ts` | Draft, council notes, context | Revised article or original-draft fallback |
-| Write | `src/index.ts` | Article and publication configuration | Markdown, optional BlogEngine POST |
-| API build | `src/build-api.ts` | Articles and action dispositions | Static `api/` JSON |
+| Timestamp preparation | `src/index.ts`, `src/article-time-metadata.ts` | Final serialized prose and collected source events | Bounded immutable facts and an article digest pointer |
+| Write | `src/article-time-metadata.ts`, `src/index.ts` | Prepared article, source artifact, and publication configuration | Artifact before article, optional BlogEngine POST |
+| API build | `src/build-api.ts`, `src/article-time-metadata.ts` | Current prose, recorded time evidence, and action dispositions | Static `api/` JSON, including resolved time references |
 
 `src/types.ts` defines the shared interfaces. `src/schema.ts` defines article
 validation and recovery. Persona files contain `slug` and `role` frontmatter
@@ -35,7 +36,11 @@ For an admitted live run, let N be the number of loaded personas.
 | `MOCK_LLM=true` | 0 | Fixtures replace generation, review, and synthesis calls |
 
 Draft validation can cause one additional model call. Failed calls and retries
-are separate from nominal totals. `DRY_RUN=true` suppresses article writes and
+are separate from nominal totals. The current admitted non-mock path also makes
+one one-token Messages API credit probe in `src/check-anthropic-credits.ts` before
+drafting. With four personas, that is six authoring calls plus the probe; with
+council skipped, one authoring call plus the probe. Mock mode skips both.
+`DRY_RUN=true` suppresses article writes and
 publication, not live model calls unless mock mode is also selected.
 
 Use provider-neutral terms for stages and call counts. Preserve real API symbols,
@@ -53,6 +58,10 @@ The current integration uses `ANTHROPIC_API_KEY`. Neutral wording does not chang
 | Draft validation has schema recovery paths | `src/schema.ts`, `src/generate-article.ts` |
 | Synthesis failure retains the original draft | `src/council.ts` |
 | Action closure requires identity and an explicit resolution | `src/index.ts`, `src/schema.ts`, `src/build-api.ts` |
+| Timestamp facts are retained by code after final serialization, not authored by draft or council models | `src/index.ts`, `src/article-time-metadata.ts`, `src/time-references.ts` |
+| Ordinary revision restores the original time declaration outside model control; API building resolves current prose without harvesting | `src/article-time-frontmatter.ts`, `src/revise-article.ts`, `src/article-time-metadata.ts` |
+
+For timestamp coverage or backfill, read [Time-reference evidence](time-references.md).
 
 ## Commands
 

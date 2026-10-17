@@ -27,7 +27,8 @@ Produce evidence-backed orientation for the requested daily workflow. This skill
 
 ### Step 1: Resolve the request
 
-Classify the question as article pipeline, scheduled run, or queue follow-up.
+Classify the question as article pipeline, scheduled run, queue follow-up, or
+article timestamp coverage.
 With no arguments, select article-pipeline orientation.
 For a scheduled run, identify the workflow file or saved task by name and intake.
 If identity remains ambiguous, ask for its task name or latest receipt. Report
@@ -51,6 +52,9 @@ For scheduled-run or queue questions:
 Use project `docs/daily-cycle.md` as a source index when present. Otherwise inspect
 the primary sources named in the loaded reference.
 
+For time-popover coverage, generation metadata, or historical backfill questions:
+> **Load `knowledge/time-references.md`** for source ownership, stage-specific evidence, and verification.
+
 Completion: every requested claim has cited evidence or a named evidence gap.
 Every queue item has its original identity and disposition, including retained gates.
 
@@ -73,7 +77,10 @@ Every retained gate includes its owner, decision, evidence, and checkpoint statu
 - Local automation inventory can be incomplete. Ask for the missing task identity
   rather than claiming the user's scheduled worker does not exist.
 - Council review adds N+1 calls to the draft, not N+1 total. Report nominal calls
-  separately from retries, mock mode, and runs skipped before drafting.
+  separately from the credit probe, retries, mock mode, and runs skipped before drafting.
+- A merged UI does not establish coverage of the latest article. Check its actual
+  timestamp evidence, API references, and deployed controls. Missing event dates
+  stay unknown; neither an article date nor a matching clock supplies them.
 
 ## Output
 

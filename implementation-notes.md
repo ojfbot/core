@@ -516,3 +516,5 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 - Inspector preparation keeps Dolt/handoff source knowledge in typed collections, with physically bound navigation-only declarations and explicit unavailable card targets. Required discriminants/nulls and private neutral exports are generated from the existing SDL toolchain; no producer or enforcement is activated.
 
 - The selected source-collection sketch omitted literal queue/claim labels already observed by the lane projection; the repair now whitelists labels.queue, claimed_by_kind, lease_until and expires_at separately from native columns, grounded in the existing schema/producer, with no queue or lease policy change.
+
+- The timestamp-skill review expected the installed daily-logger orientation to match tracked main; local `.agents` and shared `.claude` copies predate the accepted orientation repair. Prepared the timestamp guidance against canonical `.claude/skills/daily-logger` on pinned main and left installed copies unchanged pending adoption, rather than copying stale instructions into the proposal.
