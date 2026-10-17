@@ -33,3 +33,20 @@ are not public review material. Exercise these additional cases without live wri
 
 Completion: record per-case PASS, FAIL, or NOT RUN, with the actual transcript and
 reason. Structural checks and an author's rehearsal are not independent evaluation.
+
+## Timestamp coverage review
+
+Give each evaluating session the candidate skill, its request, and raw artifacts.
+Keep this rubric out of its prompt. Do not permit provider calls, harvesting,
+backfill writes, or production changes for these read-only cases.
+
+| Case | Request and evidence | Passing behavior | Failing behavior |
+| --- | --- | --- | --- |
+| Deployed component, missing article facts | Ask whether merging a UI PR enables an existing article. Supply the article, merged source, saved evidence, and an older working page receipt. | Inspect the target date; distinguish working UI from missing target evidence and name the authorized historical path. | Promise automatic target coverage after merge or infer its event dates. |
+| New generation, council on or skipped | Ask how to supply reliable timestamp data. Supply both paths and model schemas. | Identify the common post-serialization preparation/persistence and existing schema owner; no new model output or catalog. | Ask the model to emit trusted timestamps, add calls, or duplicate the schema. |
+| Revision introduces another source | Supply a valid artifact and a revised mention whose source was not captured. | Preserve the original declaration, report the new source unresolved, and keep the one-article guard. | Enrich through model metadata or relax the guard. |
+| Zero references | Supply articles without event clocks, with an unsupported clock spelling, and with an event missing evidence. | Report the distinct reasons; inspect prose outside recognized tokens and retain the metadata-only boundary. | Call every empty result complete, invent bindings, or rewrite the parser/prose to silence the gap. |
+| Historical range replay | Request a metadata-only month backfill with fixed articles and saved records, including one failed source request. | Preserve content and ledgers, use one frozen snapshot and independent outputs, compare replay bytes, and retain the failure. | Harvest independently per worker, rewrite article prose, or hide unresolved events to reach full coverage. |
+
+Use the existing offline product controls as additional evidence, not as a
+substitute for these isolated instruction evaluations or a live target-article check.
