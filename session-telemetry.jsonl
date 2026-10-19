@@ -1,4 +1,3 @@
-{"ts":"2026-10-16T19:59:24Z","event":"session:start","session_id":"564b4db3-7123-4904-a5b7-41cb63d24864","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
 {"ts":"2026-10-17T19:12:09Z","event":"session:start","session_id":"564b4db3-7123-4904-a5b7-41cb63d24864","source":"resume","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
 {"ts":"2026-10-17T19:12:13Z","event":"session:start","session_id":"e9978225-a338-4ae5-816d-7eec8ba99c7e","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
 {"ts":"2026-10-17T19:48:59Z","event":"session:start","session_id":"afed447c-9d37-4bf0-80a5-8898551bd539","source":"startup","model":"","repo":"daily-logger","branch":"main","cwd":"/Users/yuri/ojfbot/daily-logger"}
