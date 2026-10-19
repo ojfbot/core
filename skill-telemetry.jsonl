@@ -1,2 +1,0 @@
-{"ts":"2026-10-17T19:12:20Z","event":"skill:invoked","skill":"pr-review","args":"372 --comment","tool_name":"Skill","repo":"daily-logger","cwd":"/Users/yuri/ojfbot/daily-logger","session_id":"e9978225-a338-4ae5-816d-7eec8ba99c7e","source":"interactive"}
-{"ts":"2026-10-17T19:12:20Z","event":"skill:suggestion-followed","skill":"pr-review","suggested_at":"2026-10-17T19:12:14Z","repo":"daily-logger","session_id":"e9978225-a338-4ae5-816d-7eec8ba99c7e","suggestion_id":"977F994E-D3D8-401E-A278-D50BB6140AB6"}
