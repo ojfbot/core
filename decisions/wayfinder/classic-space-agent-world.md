@@ -6,11 +6,12 @@ tracker_issue: "#541"
 status: charting
 ---
 
-# Wayfinder — Classic Space agent world
+# Wayfinder — Classic Space Venue (CSV), the Classic Space agent world
 
 ## Destination
 
-The Arcade gains an ambient venue. A Classic Space server room — 1980s LEGO space illustration,
+The project is named **Classic Space Venue (CSV)** (ruled by Yuri, 2026-10-20; the slug above is
+immutable identity and does not change). The Arcade gains an ambient venue. A Classic Space server room — 1980s LEGO space illustration,
 blue spacemen, black contours — runs all day on a desk monitor, and every minifig in it is a real,
 named ojfbot agent, process or queue. A glance reads status; selecting a figure or place reveals
 the real entity, its task and its evidence; a plain dashboard/text view renders the same state in
@@ -22,15 +23,19 @@ reaches a usable surface in its natural venue). The minifig is the flâneur of t
 naming register (name the operating surface, #273).
 
 It is a **novel representation stack over the same shared agent state** the rest of the fleet
-reads — a UI layer, not a second source of truth — so it binds to fleet-runner's object model as
-that work lands, through the same read seam morning-cockpit uses as fleet-runner's **first
-client surface**; this venue is the second. The **play-well cluster is the engine for building
-any LEGO world model**, so the room's geometry, stud grid and validated components integrate
-closely with play-well's tooling rather than growing a private world model. It is **resolutely visual** and built as a design experiment for the operator
+reads — a UI layer, not a second source of truth. Its **only feed is fleet-runner's
+orchestration layer**: the venue tracks every agent and task attached to projects and repos as
+fleet-runner reports them, and has **no direct dependency on any project repo**. morning-cockpit
+is fleet-runner's first client surface; this venue is a sibling consumer on the same read seam,
+never a reader of cockpit. The **play-well cluster is the engine for building any LEGO world
+model**, so the room's geometry, stud grid and validated components integrate closely with
+play-well's tooling rather than growing a private world model. It is **resolutely visual** and built as a design experiment for the operator
 alone. A **voice-first companion surface** runs side by side with it, equal in *capability*
 (every entity, state and action the scene shows is reachable by voice) and accessible at all
 times; the accessibility-tree contract governs the companion, and the canvas is exempt. First
-proof tracks the agents of **morning-cockpit** and **daily-logger**.
+proof tracks the agents and tasks attached to **morning-cockpit** and **daily-logger** — as
+subjects seen through fleet-runner, not as feeds. Because fleet-runner has no runtime yet, how
+the first proof is fed until its read projection exists is a ticket, not an assumption.
 
 The initiative consumes the play-well cluster's tools — Drafting Table tokens, the LEGO building
 UI, Blender expertise — as a client cluster and contributes features back, the way other clusters
@@ -103,9 +108,12 @@ out-of-scope below).
   sharing that seam. The play-well cluster has no world-model code yet: LVP's `tools/` are
   register, preflight and design-package tooling, its roadmap's only slice is the Q13 railbed
   geometry check, and the LEGO world-model engine (ldraw-nova precedent, stud-grid geometry,
-  validated components) is a research-lane vision under the 2026-10-21 ORDER-BY gate. The first
-  proof therefore runs on what exists — the projection scene and cockpit/daily-logger facts —
-  with explicit seams left for both engines, and never claims either is in the loop until it is.
+  validated components) is a research-lane vision under the 2026-10-21 ORDER-BY gate. The venue
+  depends on fleet-runner alone for facts (operator ruling, fourth round), so until fleet-runner's
+  read projection exists the venue has **no live feed at all**; the bridging ticket decides
+  whether that means waiting, a labelled fixture in fleet-runner's object shape, or building the
+  read projection as this venue's first contribution. The proof never claims either engine is in
+  the loop until it is.
 - **Governance fact:** `REGISTER.md` scope text — "the play-well cluster, not one repo … and any
   further play-well repo" — means calling this repo play-well pulls it under memo preflight,
   register versions and relay-only self-merge. Membership is a decision (repo-home ticket).
@@ -141,10 +149,14 @@ roll-up finds repeats); patterns and seams get a dated bullet here while the map
 handoff this section graduates to a vault synthesis (candidate: `cross-cluster-consumer-pattern`)
 and, where a convention emerges, an ADR. Seeded from this charting session:
 
-- **Consumer of a consumer.** fleet-runner → cockpit (`/api/cockpit`, first client) → this venue
-  (second client). Pattern: a second surface reads the *same* seam as the first; never scrapes the
-  first surface. Friction: the seam is designed-not-built, so the venue's first proof reads
-  cockpit and daily-logger facts directly and must leave the seam swappable.
+- **Subjects are not feeds.** "Track cockpit and daily-logger agents" was read by the agent as
+  "read cockpit's and daily-logger's state", and drawn that way; the operator corrected it the
+  same evening: the venue reads **only** fleet-runner's orchestration layer, which reports the
+  agents and tasks attached to any project or repo. Pattern: one-to-many across clusters goes
+  through the orchestration layer, with zero per-project adapters in the consumer; cockpit is a
+  sibling consumer of that layer, not an upstream. Friction: the layer is designed-not-built, so
+  the venue currently has no live feed at all — a dependency on another initiative, charted as the
+  bridging ticket rather than worked around.
 - **Engines that do not exist yet.** Both named engines (fleet-runner runtime, play-well world
   model) are visions with research behind them. Pattern: name the seam, run the proof on what
   exists, never claim the engine is in the loop. Friction: every ticket touching those seams
@@ -174,42 +186,51 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
 
 ### Who feeds whom (context view, 2026-10-20)
 
-**Caption:** For the operator: which clusters and apps this venue depends on, and in which
-direction facts flow. Notation: a dependency/context view drawn as a Mermaid flowchart, not C4 or
-OPM. Key: a label ending in "designed, no runtime" or "designed, not built" marks a thing that
-does not exist yet; an edge label ending in "later" marks a connection that is planned, not live.
-Takeaway: the only live inputs for the first proof are cockpit and daily-logger agent facts plus
-play-well's conventions; both engines are seams left open. Omitted: Siri, Blender's role, the
-correspondence register, and the Arcade map's own open tickets. Rendered with
-`@mermaid-js/mermaid-cli` 11.4.2 (`securityLevel: strict`, `htmlLabels: false`).
+**Caption:** For the operator: what the Classic Space Venue depends on, and in which direction
+facts flow. Notation: a dependency/context view drawn as a Mermaid flowchart, not C4 or OPM. Key:
+a label ending in "designed, no runtime" or "designed, not built" marks a thing that does not
+exist yet; an edge label ending in "later" marks a connection that is planned, not live; the
+accent-bordered node is this map's subject. Takeaway: the venue has exactly one fact source,
+fleet-runner's orchestration layer, which reports the agents and tasks attached to any project;
+there is deliberately **no edge** from any project to the venue, and morning-cockpit appears as a
+tracked project that is also fleet-runner's first client surface. Play-well supplies conventions
+now and the world-model engine later. Omitted: Siri, Blender's role, the correspondence register,
+the Arcade map's own open tickets. Corrected 2026-10-20 (fourth round): an earlier version drew
+cockpit and daily-logger as direct feeds; that was wrong. Rendered with `@mermaid-js/mermaid-cli`
+11.4.2 (`securityLevel: strict`, `htmlLabels: false`).
 
 ```mermaid
 ---
-title: Classic Space agent world — cross-cluster connections (2026-10-20)
+title: Classic Space Venue (CSV) — cross-cluster connections (2026-10-20, corrected)
 ---
 flowchart LR
-  accTitle: Classic Space agent world cross-cluster connections
-  accDescr: The venue reads fleet-runner state through the read seam morning-cockpit already uses, reads cockpit and daily-logger agent facts directly for the first proof, inherits conventions and later the world-model engine from the play-well cluster, and ladders to the Arcade property of the ojfbot northstar. fleet-runner and the play-well world model are designed, not built.
+  accTitle: Classic Space Venue cross-cluster connections
+  accDescr: The Classic Space Venue reads only fleet-runner's orchestration layer, which reports the agents and tasks attached to tracked projects such as morning-cockpit and daily-logger. No project feeds the venue directly. morning-cockpit is also fleet-runner's first client surface, a sibling consumer. The play-well cluster supplies conventions now and the LEGO world-model engine later. fleet-runner and the play-well world model are designed, not built.
+  subgraph projects["tracked projects and repos, subjects not feeds"]
+    cockpit["morning-cockpit, also fleet-runner's first client surface"]
+    logger["daily-logger, pipeline runs once a day"]
+    other["any other project or repo"]
+  end
+  subgraph fr["fleet-runner orchestration layer, designed, no runtime"]
+    seam["read projection"]
+  end
   subgraph arcade["Arcade lineage, ns:l2-ojfbot#P3"]
-    venue["Classic Space venue, this map"]
+    venue["Classic Space Venue, this map"]:::subject
     companion["Voice-first companion, carries the a11y contract"]
   end
-  subgraph fr["fleet-runner, designed, no runtime"]
-    seam["read projection seam"]
-  end
-  cockpit["morning-cockpit, first client via /api/cockpit"]
-  logger["daily-logger, pipeline runs"]
   subgraph pw["play-well cluster"]
     engine["LEGO world-model engine, designed, not built"]
     conv["conventions and Drafting Table tokens, exist today"]
   end
-  seam -->|"facts, first client"| cockpit
-  seam -->|"facts, second client, same seam, later"| venue
-  cockpit -->|"agent facts, first proof"| venue
-  logger -->|"agent facts, first proof"| venue
+  cockpit -->|"attached agents and tasks"| seam
+  logger -->|"attached agents and tasks"| seam
+  other -->|"attached agents and tasks"| seam
+  seam -->|"facts, first client surface"| cockpit
+  seam -->|"every attached agent and task, by project, later"| venue
   engine -->|"stud grid and validated components, later"| venue
   conv -->|"inherited by choice"| venue
   venue <-->|"same state reducer"| companion
+  classDef subject stroke-width:2.5px
 ```
 
 ## Decisions so far
@@ -226,12 +247,18 @@ tickets):
 - Second round, same session: the scene is **resolutely visual and for the operator alone**; the
   a11y-tree contract is carried by a **voice-first companion surface**, equal in capability and
   accessible at all times, not by the canvas.
-- Second round: the first proof tracks **morning-cockpit and daily-logger agents**; the venue is a
-  **representation stack over shared agent state** and binds to fleet-runner's object model
-  rather than inventing a parallel schema (the handoff's Agent/Place/Lane/Task/Event proposal is
-  a candidate projection, not the source model).
-- Third round: **morning-cockpit is fleet-runner's first client surface**; this venue consumes
-  the same read seam as the second client, never a private scrape of cockpit.
+- Second round: the first proof tracks the agents and tasks attached to **morning-cockpit and
+  daily-logger** (as subjects); the venue is a **representation stack over shared agent state**
+  and binds to fleet-runner's object model rather than inventing a parallel schema (the handoff's
+  Agent/Place/Lane/Task/Event proposal is a candidate projection, not the source model).
+- Third round: **morning-cockpit is fleet-runner's first client surface**; this venue is a
+  sibling consumer on the same read seam.
+- Fourth round: the venue **runs fully independent of morning-cockpit and daily-logger** — it
+  reads only fleet-runner's orchestration layer, which reports agents and tasks attached to
+  projects and repos; no project repo is read directly. fleet-runner is not built yet (planning
+  and research only, 2026-10-20), so the first proof's feed is an open ticket.
+- Fourth round: the agent UI project is named **Classic Space Venue (CSV)**. Spell it out on
+  first use in any document; "CSV" alone collides with comma-separated values.
 - Third round: the **play-well cluster is the engine for any LEGO world model**; the room's
   spatial definition integrates closely with play-well's tooling as that engine lands, which
   raises (not settles) the register-governance question in the home ticket.
@@ -251,12 +278,13 @@ Closed tickets: none yet.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | Repo and northstar home (#542) | grilling | — | open |
-| Observable fleet state survey (#543) | research | — | open |
+| What fleet-runner's orchestration layer will expose to a read-only consumer (#543) | research | — | open |
 | Blender's role in the loop (#544) | grilling | — | open |
 | Two-agent route proof on the projection scene (#545) | prototype | — | open |
 | Nested bay alongside the walkway: one complex, two places (#558) | grilling | — | open |
 | Reacquire the measured minifig references (#546) | task | — | open |
-| First feed binding (#547) | grilling | Observable fleet state survey | open |
+| First feed binding (#547) | grilling | What fleet-runner's orchestration layer will expose to a read-only consumer | open |
+| Bridging until fleet-runner's read projection exists (#560) | grilling | What fleet-runner's orchestration layer will expose to a read-only consumer | open |
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
 | Ambient host and display operations (#550) | grilling | Repo and northstar home | open |
@@ -269,8 +297,8 @@ Closed tickets: none yet.
 | Room document and restart survival (#556) | grilling | First feed binding; Authoritative spatial source | open |
 
 Frontier at charting (amended 2026-10-20 after the visual-evolution bundle, then corrected: the
-bundle supplements the first pass): Repo and northstar home · Observable agent state in
-morning-cockpit and daily-logger · Blender's role in the loop · Two-agent route proof on the
+bundle supplements the first pass): Repo and northstar home · What fleet-runner's orchestration
+layer will expose to a read-only consumer · Blender's role in the loop · Two-agent route proof on the
 projection scene · Reacquire the measured minifig references · Nested bay alongside the walkway ·
 Presentation modes at arrival. Research runs one cycle at a time; the survey is the only
 research ticket.
@@ -288,9 +316,10 @@ bundles into whatever repo the home ticket names.
 - **Siri as a transport** — operator intent is clear ("quick queries and interactions via Siri");
   the companion surface is now a ticket, but whether Siri fronts it is not statable until that
   ticket fixes the companion's API.
-- **Feed cadence versus an animated room** — daily-logger fires once a day and cockpit runs on
-  launchd; if per-phase progress is not observable, the room stands still most of the day. The
-  survey reports cadence; whether the live session census joins the first feed is a later question.
+- **Feed cadence versus an animated room** — daily-logger's pipeline fires once a day; if
+  fleet-runner reports only coarse attempt transitions, the room stands still most of the day.
+  Whether finer progress (phases, the live session census) enters fleet-runner is fleet-runner's
+  question, not this venue's; the survey reports what the designed projection carries.
 - **Interaction vocabulary** — inspect panel, carry archive capsule, pause at a busy junction,
   acknowledge-attention gesture, and now seated console work and collaboration-pocket poses from
   images 12–13; depends on the state vocabulary.
