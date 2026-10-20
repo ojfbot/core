@@ -51,6 +51,25 @@ out-of-scope below).
   `handoff/KNOWN_LIMITATIONS.md`, `handoff/NEXT_LAYOUT_CHANGE.md`. The bundle's `AGENTS.md`
   standing rules (preserve the visual contract; work honestly and incrementally; never claim a
   Blender run or render without evidence) are inherited verbatim as working constraints.
+- **Visual-evolution companion bundle (arrived 2026-10-20 17:40):**
+  `classic-space-visual-evolution/` beside the source bundle — 13 AI raster studies with a hashed
+  `manifest.json`, `START_HERE.md`, `FIRST_PRINCIPLES.md`, `DESIGN_EVOLUTION.md`,
+  `AGENT_HANDOFF.md`, `GALLERY.html`. No geometry, rig or scene was built; sequence numbers, not
+  file timestamps, are the order of record. What it changes: (1) **preferred scene** is the
+  eye-level nested collaboration bay (12 realistic, 13 illustrated) — suspended rack islands on
+  visible rods with air gaps, seated agents at low consoles, distinct work pockets, a green glass
+  office, larger complex visible beyond; precedent Alberto Kalach's Biblioteca Vasconcelos. This
+  scene has no source geometry; the walkway scene does. (2) **Three-system semantics** supersede
+  the earlier table: blue = bulk application/user space; yellow = hygiene collection, logging,
+  deep archive, cleanup, safe/secure deletion; dark oxygen-green = isolation, privacy, secure
+  privilege. Color is domain, never status; actor color is not authorization; a rendered gate is
+  not implemented authorization. (3) The walkway's perpendicular yellow branch (01–02) and
+  green-to-yellow ramp (03–04) are **discarded** ("do not resume without a new geometric layout
+  study"), so `NEXT_LAYOUT_CHANGE.md` is discarded as drawn. (4) **Two presentation modes** —
+  molded plastic and illustrated manual — are wanted over one scene; the pairs are style studies,
+  not a proven switch. (5) Worm-eye (09–10) has no interface value; bird-eye (11) is an optional
+  macro overview. (6) Suspended-rack contract: rods/brackets, cabinet bottoms clear the floor,
+  interaction height, reach and route headroom solved together.
 - **Why "fork from LVP" is weaker than it sounds.** LVP is a procurement digital twin that spends
   real money against a BOM; this is an ambient agent-ops venue. What carries over is conventions
   (teacher principle, evidence axes, a11y-tree contract, Drafting Table tokens at
@@ -135,6 +154,12 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   venue may be the first realisation of that pattern and should record what it takes.
 - **Where cross-cluster work lives.** Today the only neutral home is this map in core's library.
   Friction: the source bundle sits on the Desktop with no git history until the home ticket rules.
+- **Companion bundles supersede by arrival, not by record.** The visual-evolution bundle changed
+  the green semantics and discarded the pending layout change, and only the newer bundle says so;
+  the older bundle still reads as current. Pattern worth keeping from it: a hashed manifest with
+  sequence-based ordering and explicit `status` per artifact (discarded / limited-value /
+  exploration / preferred). Friction: two unversioned bundles on the Desktop with a one-way
+  supersession pointer; the map carries the reconciliation until a repo exists.
 
 ### Who feeds whom (context view, 2026-10-20)
 
@@ -199,6 +224,12 @@ tickets):
 - Third round: the **play-well cluster is the engine for any LEGO world model**; the room's
   spatial definition integrates closely with play-well's tooling as that engine lands, which
   raises (not settles) the register-governance question in the home ticket.
+- From the visual-evolution bundle (operator rulings in the originating ChatGPT session, recorded
+  in `DESIGN_EVOLUTION.md`, order by sequence number): images 12–13 are the **leading visual
+  targets**; the perpendicular yellow branch and ramp studies (01–04) are **discarded**; the
+  **three-system semantics** (blue/yellow/green) supersede green-as-observation; worm-eye is not
+  an interface camera. Recorded here as inputs; the scene and semantics decisions stay with their
+  tickets.
 
 Closed tickets: none yet.
 
@@ -209,28 +240,34 @@ Closed tickets: none yet.
 | Repo and northstar home (#542) | grilling | — | open |
 | Observable fleet state survey (#543) | research | — | open |
 | Blender's role in the loop (#544) | grilling | — | open |
-| Two-agent route proof on the projection scene (#545) | prototype | — | open |
+| First-proof scene: walkway or nested bay (#558) | grilling | — | open |
+| Two-agent route proof on the projection scene (#545) | prototype | First-proof scene: walkway or nested bay | open |
 | Reacquire the measured minifig references (#546) | task | — | open |
 | First feed binding (#547) | grilling | Observable fleet state survey | open |
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
 | Ambient host and display operations (#550) | grilling | Repo and northstar home | open |
-| Authoritative spatial source (#551) | grilling | Blender's role in the loop; Two-agent route proof on the projection scene | open |
+| Authoritative spatial source (#551) | grilling | First-proof scene: walkway or nested bay; Blender's role in the loop; Two-agent route proof on the projection scene | open |
+| Presentation modes at arrival (#559) | grilling | First-proof scene: walkway or nested bay | open |
 | State vocabulary and honesty rules (#552) | grilling | First feed binding | open |
-| Yellow lane semantics (#553) | grilling | First feed binding | open |
+| Three-system semantics: blue, yellow, green (#553) | grilling | First feed binding | open |
 | Minifig fidelity bar (#554) | grilling | Reacquire the measured minifig references | open |
 | Voice-first companion surface (#555) | grilling | State vocabulary and honesty rules | open |
 | Room document and restart survival (#556) | grilling | First feed binding; Authoritative spatial source | open |
 
-Frontier at charting: Repo and northstar home · Observable fleet state survey · Blender's role in
-the loop · Two-agent route proof on the projection scene · Reacquire the measured minifig
-references. Research runs one cycle at a time; the survey is the only research ticket.
+Frontier at charting (amended 2026-10-20 after the visual-evolution bundle): Repo and northstar
+home · Observable agent state in morning-cockpit and daily-logger · Blender's role in the loop ·
+First-proof scene: walkway or nested bay · Reacquire the measured minifig references. The two-agent
+prototype left the frontier: it now waits on the scene decision. Research runs one cycle at a
+time; the survey is the only research ticket.
 
 Deliveries deliberately **not** on this map (they are roadmap slices once the decisions above make
-their entrance statable): the longitudinal yellow gangway layout pass (`NEXT_LAYOUT_CHANGE.md`),
-the production two-agent slice, the semantic vertical slice with replayed inspection and archive
-tasks, character interaction clips, and the baseline commit of the bundle into whatever repo the
-home ticket names.
+their entrance statable): the bundle's proposed "small real scene" (one suspended rack island, two
+collaboration pockets, several agents, both materials at one camera), the production two-agent
+slice, the semantic vertical slice with replayed inspection and archive
+tasks, character interaction clips, and the baseline commit of both bundles into whatever repo the
+home ticket names. The longitudinal yellow gangway pass (`NEXT_LAYOUT_CHANGE.md`) is no longer a
+pending delivery: its drawn attempts were discarded in the visual-evolution bundle.
 
 ## Not yet specified
 
@@ -241,7 +278,11 @@ home ticket names.
   launchd; if per-phase progress is not observable, the room stands still most of the day. The
   survey reports cadence; whether the live session census joins the first feed is a later question.
 - **Interaction vocabulary** — inspect panel, carry archive capsule, pause at a busy junction,
-  acknowledge-attention gesture; depends on the state vocabulary.
+  acknowledge-attention gesture, and now seated console work and collaboration-pocket poses from
+  images 12–13; depends on the state vocabulary.
+- **Second fixed camera** — bird-eye (image 11) as an optional macro overview. The 2026-10-20
+  out-of-scope ruling covers camera *moves and transitions*, not a second fixed camera; the
+  question is not statable until the first-proof scene is chosen.
 - **Queue aggregation visuals** — how many items become one visual summary, and what the summary
   may hide; depends on the bound feed's queue shape.
 - **Contribution path back to play-well** — which play-well tool receives its first feature from
@@ -259,6 +300,10 @@ home ticket names.
   until one real cluster compiles into agreed scene and dashboard state.
 - **Multiple rooms** — ruled by Yuri, 2026-10-20. One room is the proof; rooms-as-clusters is a
   later initiative.
+- **Worm-eye as an operational camera** — ruled by Yuri in the originating session (visual
+  evolution images 09–10, "limited practical interface value"); kept as architectural study only.
+- **The drawn yellow branch and ramp (images 01–04)** — discarded by Yuri in the originating
+  session; retained as failure history, never reused without a new geometric layout study.
 - **Family-facing use** — ruled by Yuri, 2026-10-20: "a design experiment and for myself." The
   people rules still apply to any copy, but the family-surface requirements of LVP P3 do not.
 - **Canvas accessibility** — ruled by Yuri, 2026-10-20: the scene is resolutely visual; the
