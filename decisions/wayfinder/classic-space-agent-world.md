@@ -166,6 +166,33 @@ out-of-scope below).
   the Blender MCP connector attached to this session, `asset-foundry`'s subprocess bridge. Evaluate
   any generator on one small module before widening (handoff `TOOLS_AND_PRECEDENTS.md`).
 
+## Standing strand: the dev-host
+
+Operator direction, 2026-10-20: one strand **always** keeps a dev-host up and running, as quickly
+as possible, so the other strands are never blocked on each other. The dev-host functions on
+**mocked data only**, and degrades gracefully: full (interactive, composable, mock-bound) → no
+interactivity → no dynamic composability → **a static running screensaver** at minimum. It is the
+workbench for the rendering and world-building flow:
+
+| Stage | What it is | Map tickets / fog it touches |
+|---|---|---|
+| (a) generate source image | the art plate (today: AI still, approved plate in the bundle) | Presentation modes at arrival (#559); generative asset tooling (fog) |
+| (b) extrude to depth | plate projected onto rough blocked solids (today: Three.js projection) | Blender's role in the loop (#544) |
+| (c) build into navigable world volume | authoritative solids/voids, levels, supports | Authoritative spatial source (#551); Nested bay alongside the walkway (#558) |
+| (d) build routable path areas | lanes, portals, clearances, reservations | Two-agent route proof (#545); Three-system semantics (#553) |
+| (e) build actions at places | inspect, carry, wait, acknowledge, seated console work | State vocabulary (#552); interaction vocabulary (fog) |
+| (f) seed NPC behaviours | unbound minifigs "maintaining" and "monitoring" the environment | NPC behaviours versus bound agents (#562) |
+| (all) render and move it | Three.js / Blender / motion tooling, browser **and** native macOS, screensaver-grade performance | Rendering and motion stack for browser and native macOS (#563); Ambient hosts (#550); Blender's role (#544) |
+
+Rules for the strand: mock data is a **workbench input, labelled simulated in scene and
+companion, and never counts toward arrival** (the bridging ruling's "no fixture" stands: it
+concerned the arrival feed, not the workbench); the walkway viewer in the bundle
+(`walkway-pass/walkway-layout.html`, self-contained, 36 s loop) already satisfies the static
+floor, so **dev-host v0 is a host around what exists**, gated only by where it lives (Repo and
+northstar home, #542) — and even that can be deferred with a local `git init`, no remote, no
+registration, until the home ticket rules. Dev-host v0 is a delivery, not a ticket; it is listed
+with the other deliveries below.
+
 ## Integration notes (cross-cluster)
 
 Operator instruction, 2026-10-20: this is one of the first initiatives with robust overlapping
@@ -316,7 +343,8 @@ Closed tickets:
 |-------------------------------|------|------------|--------|
 | Repo and northstar home (#542) | grilling | — | open |
 | What fleet-runner's orchestration layer will expose to a read-only consumer (#543) | research | — | open |
-| Blender's role in the loop (#544) | grilling | — | open |
+| Blender's role in the loop: layout, rig, motion (#544) | grilling | — | open |
+| NPC behaviours versus bound agents (#562) | grilling | — | open |
 | Two-agent route proof on the projection scene (#545) | prototype | — | open |
 | Nested bay alongside the walkway: one complex, two places (#558) | grilling | — | open |
 | Reacquire the measured minifig references (#546) | task | — | open |
@@ -324,9 +352,10 @@ Closed tickets:
 | Bridging until fleet-runner's read projection exists (#560) | grilling | — | closed |
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
-| Ambient host and display operations (#550) | grilling | Repo and northstar home | open |
+| Ambient hosts (browser and native macOS) and display operations (#550) | grilling | Repo and northstar home | open |
 | Authoritative spatial source (#551) | grilling | Blender's role in the loop; Two-agent route proof on the projection scene | open |
 | Presentation modes at arrival (#559) | grilling | — | open |
+| Rendering and motion stack for browser and native macOS (#563) | research | — (serialized behind #543 by the one-research-cycle rule) | open |
 | State vocabulary and honesty rules (#552) | grilling | First feed binding | open |
 | Three-system semantics: blue, yellow, green (#553) | grilling | First feed binding | open |
 | Minifig fidelity bar (#554) | grilling | Reacquire the measured minifig references | open |
@@ -336,13 +365,16 @@ Closed tickets:
 Frontier at charting (amended 2026-10-20 after the visual-evolution bundle, then corrected: the
 bundle supplements the first pass): Repo and northstar home · What fleet-runner's orchestration
 layer will expose to a read-only consumer (now narrowed: what read-projection v0 must carry beyond
-`WorkItem` — attempts, project attachment, transition cadence) · Blender's role in the loop · Two-agent route proof on the
-projection scene · Reacquire the measured minifig references · Nested bay alongside the walkway ·
-Presentation modes at arrival. Research runs one cycle at a time; the survey is the only
-research ticket.
+`WorkItem` — attempts, project attachment, transition cadence) · Blender's role in the loop ·
+Two-agent route proof on the projection scene · Reacquire the measured minifig references ·
+Nested bay alongside the walkway · Presentation modes at arrival · NPC behaviours versus bound
+agents · Rendering and motion stack for browser and native macOS. Research runs one cycle at a
+time: the fleet-runner survey (#543) first, the rendering-and-motion stack (#563) after it.
 
 Deliveries deliberately **not** on this map (they are roadmap slices once the decisions above make
-their entrance statable): the bundle's proposed "small real scene" (one suspended rack island, two
+their entrance statable): **dev-host v0** (a host around the existing walkway viewer with labelled
+mock data and the static-screensaver floor; entrance is only a place to put it), the bundle's
+proposed "small real scene" (one suspended rack island, two
 collaboration pockets, several agents, both materials at one camera), the production two-agent
 slice, the semantic vertical slice with replayed inspection and archive
 tasks, character interaction clips, and the longitudinal yellow gangway layout pass (`NEXT_LAYOUT_CHANGE.md`, still pending — through a
