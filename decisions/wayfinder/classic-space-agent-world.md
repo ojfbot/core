@@ -23,7 +23,10 @@ naming register (name the operating surface, #273).
 
 It is a **novel representation stack over the same shared agent state** the rest of the fleet
 reads — a UI layer, not a second source of truth — so it binds to fleet-runner's object model as
-that work lands. It is **resolutely visual** and built as a design experiment for the operator
+that work lands, through the same read seam morning-cockpit uses as fleet-runner's **first
+client surface**; this venue is the second. The **play-well cluster is the engine for building
+any LEGO world model**, so the room's geometry, stud grid and validated components integrate
+closely with play-well's tooling rather than growing a private world model. It is **resolutely visual** and built as a design experiment for the operator
 alone. A **voice-first companion surface** runs side by side with it, equal in *capability*
 (every entity, state and action the scene shows is reachable by voice) and accessible at all
 times; the accessibility-tree contract governs the companion, and the canvas is exempt. First
@@ -69,6 +72,15 @@ out-of-scope below).
   `.handoff/` (typed, dated, with refs and status), `decisions/northstar/status.jsonl`
   (movement ledger, sparse), the northstar registry and roadmaps, GitHub issues/PRs/sub-issues,
   the daily-logger sweep. The first feed is a research question, not a lookup.
+- **Two engines, both designed-not-built (2026-10-20).** fleet-runner has no runtime; its
+  planning names cockpit's existing REST `/api/cockpit` as the first publication path (a
+  read-only evidence card), which makes cockpit the first client and this venue the second,
+  sharing that seam. The play-well cluster has no world-model code yet: LVP's `tools/` are
+  register, preflight and design-package tooling, its roadmap's only slice is the Q13 railbed
+  geometry check, and the LEGO world-model engine (ldraw-nova precedent, stud-grid geometry,
+  validated components) is a research-lane vision under the 2026-10-21 ORDER-BY gate. The first
+  proof therefore runs on what exists — the projection scene and cockpit/daily-logger facts —
+  with explicit seams left for both engines, and never claims either is in the loop until it is.
 - **Governance fact:** `REGISTER.md` scope text — "the play-well cluster, not one repo … and any
   further play-well repo" — means calling this repo play-well pulls it under memo preflight,
   register versions and relay-only self-merge. Membership is a decision (repo-home ticket).
@@ -92,6 +104,38 @@ out-of-scope below).
   the Blender MCP connector attached to this session, `asset-foundry`'s subprocess bridge. Evaluate
   any generator on one small module before widening (handoff `TOOLS_AND_PRECEDENTS.md`).
 
+## Integration notes (cross-cluster)
+
+Operator instruction, 2026-10-20: this is one of the first initiatives with robust overlapping
+concerns and one-to-many connections between clusters (Arcade lineage · fleet-runner via the
+cockpit seam · play-well as world-model engine · daily-logger as a feed). Keep notes on how the
+integration behaves, the patterns established, the friction points, and how to integrate such
+processes going forward. **Convention:** friction met while working a ticket or slice goes to
+`implementation-notes.md` `## Deviations` in the repo where it happened (the fleet's existing
+roll-up finds repeats); patterns and seams get a dated bullet here while the map is open; at
+handoff this section graduates to a vault synthesis (candidate: `cross-cluster-consumer-pattern`)
+and, where a convention emerges, an ADR. Seeded from this charting session:
+
+- **Consumer of a consumer.** fleet-runner → cockpit (`/api/cockpit`, first client) → this venue
+  (second client). Pattern: a second surface reads the *same* seam as the first; never scrapes the
+  first surface. Friction: the seam is designed-not-built, so the venue's first proof reads
+  cockpit and daily-logger facts directly and must leave the seam swappable.
+- **Engines that do not exist yet.** Both named engines (fleet-runner runtime, play-well world
+  model) are visions with research behind them. Pattern: name the seam, run the proof on what
+  exists, never claim the engine is in the loop. Friction: every ticket touching those seams
+  carries a "now vs later" split.
+- **Governance by label.** A cluster's register can claim a repo by scope text alone. Pattern:
+  cluster membership is a decision ticket (home), decided before any landing, not inferred from
+  aesthetic or tooling overlap.
+- **Contracts that assume a DOM.** LVP's a11y-tree-as-agent-contract cannot see a WebGL canvas.
+  Pattern: the contract moves to a companion surface equal in capability. Friction: "equal" needs
+  a definition per surface pair.
+- **The blogengine-consumer pattern is still a vision.** Operator framing: other clusters consume
+  blogengine's publishing harness without joining its cluster. No cluster does so yet, so this
+  venue may be the first realisation of that pattern and should record what it takes.
+- **Where cross-cluster work lives.** Today the only neutral home is this map in core's library.
+  Friction: the source bundle sits on the Desktop with no git history until the home ticket rules.
+
 ## Decisions so far
 
 Grill-resolved at charting (recorded here as pre-map rulings by Yuri, 2026-10-20, not closed
@@ -110,6 +154,11 @@ tickets):
   **representation stack over shared agent state** and binds to fleet-runner's object model
   rather than inventing a parallel schema (the handoff's Agent/Place/Lane/Task/Event proposal is
   a candidate projection, not the source model).
+- Third round: **morning-cockpit is fleet-runner's first client surface**; this venue consumes
+  the same read seam as the second client, never a private scrape of cockpit.
+- Third round: the **play-well cluster is the engine for any LEGO world model**; the room's
+  spatial definition integrates closely with play-well's tooling as that engine lands, which
+  raises (not settles) the register-governance question in the home ticket.
 
 Closed tickets: none yet.
 
