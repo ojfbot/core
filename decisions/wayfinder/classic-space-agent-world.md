@@ -300,7 +300,15 @@ tickets):
   worm-eye is not an interface camera. Recorded here as inputs; the bay-relation and semantics
   decisions stay with their tickets.
 
-Closed tickets: none yet.
+Closed tickets:
+
+- **Lift the contract to fleet-runner**: cockpit's `WorkItem` + `AdapterHealth` + snapshot shape
+  (facts and health, minus lanes) becomes fleet-runner read-projection v0 in
+  `core/packages/fleet-runner`, versioned; cockpit's server is the temporary host behind a
+  configurable URL; the venue binds to the contract, never to cockpit; owned by fleet-runner under
+  core #307; paired with authorising cockpit S1/S2; no fixture — Bridging until fleet-runner's
+  read projection exists (#560), ruled by Yuri 2026-10-20 in the charting session (operator
+  ruling, not agent resolution). Cross-initiative slice proposed to fleet-runner's owner.
 
 ## Tickets
 
@@ -313,7 +321,7 @@ Closed tickets: none yet.
 | Nested bay alongside the walkway: one complex, two places (#558) | grilling | — | open |
 | Reacquire the measured minifig references (#546) | task | — | open |
 | First feed binding (#547) | grilling | What fleet-runner's orchestration layer will expose to a read-only consumer | open |
-| Bridging until fleet-runner's read projection exists (#560) | grilling | What fleet-runner's orchestration layer will expose to a read-only consumer | open |
+| Bridging until fleet-runner's read projection exists (#560) | grilling | — | closed |
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
 | Ambient host and display operations (#550) | grilling | Repo and northstar home | open |
@@ -327,7 +335,8 @@ Closed tickets: none yet.
 
 Frontier at charting (amended 2026-10-20 after the visual-evolution bundle, then corrected: the
 bundle supplements the first pass): Repo and northstar home · What fleet-runner's orchestration
-layer will expose to a read-only consumer · Blender's role in the loop · Two-agent route proof on the
+layer will expose to a read-only consumer (now narrowed: what read-projection v0 must carry beyond
+`WorkItem` — attempts, project attachment, transition cadence) · Blender's role in the loop · Two-agent route proof on the
 projection scene · Reacquire the measured minifig references · Nested bay alongside the walkway ·
 Presentation modes at arrival. Research runs one cycle at a time; the survey is the only
 research ticket.
