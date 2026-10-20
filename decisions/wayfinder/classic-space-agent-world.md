@@ -55,17 +55,23 @@ out-of-scope below).
   `classic-space-visual-evolution/` beside the source bundle — 13 AI raster studies with a hashed
   `manifest.json`, `START_HERE.md`, `FIRST_PRINCIPLES.md`, `DESIGN_EVOLUTION.md`,
   `AGENT_HANDOFF.md`, `GALLERY.html`. No geometry, rig or scene was built; sequence numbers, not
-  file timestamps, are the order of record. What it changes: (1) **preferred scene** is the
-  eye-level nested collaboration bay (12 realistic, 13 illustrated) — suspended rack islands on
-  visible rods with air gaps, seated agents at low consoles, distinct work pockets, a green glass
-  office, larger complex visible beyond; precedent Alberto Kalach's Biblioteca Vasconcelos. This
-  scene has no source geometry; the walkway scene does. (2) **Three-system semantics** supersede
+  file timestamps, are the order of record. **It supplements the first batch; it does not
+  replace it** (operator correction 2026-10-20) — the walkway scene, its source, route,
+  continuity checks and loop remain the first-pass baseline. What it adds: (1) a **preferred
+  routine-interaction place**: the eye-level nested collaboration bay (12 realistic, 13
+  illustrated) — suspended rack islands on visible rods with air gaps, seated agents at low
+  consoles, distinct work pockets, a green glass office, larger complex visible beyond; precedent
+  Alberto Kalach's Biblioteca Vasconcelos. The bundle frames it as a nested area within a much
+  larger complex, of which the walkway is part; it has no source geometry yet. (2) **Three-system
+  semantics** that extend the first pass and supersede only the tentative green-as-observation
+  reading: they
   the earlier table: blue = bulk application/user space; yellow = hygiene collection, logging,
   deep archive, cleanup, safe/secure deletion; dark oxygen-green = isolation, privacy, secure
   privilege. Color is domain, never status; actor color is not authorization; a rendered gate is
-  not implemented authorization. (3) The walkway's perpendicular yellow branch (01–02) and
-  green-to-yellow ramp (03–04) are **discarded** ("do not resume without a new geometric layout
-  study"), so `NEXT_LAYOUT_CHANGE.md` is discarded as drawn. (4) **Two presentation modes** —
+  not implemented authorization. (3) The AI image attempts at the walkway's perpendicular yellow
+  branch (01–02) and a green-to-yellow ramp (03–04) are **discarded** as pictures ("do not resume
+  without a new geometric layout study"); the `NEXT_LAYOUT_CHANGE.md` brief itself stands and
+  proceeds through geometry, never from those images. (4) **Two presentation modes** —
   molded plastic and illustrated manual — are wanted over one scene; the pairs are style studies,
   not a proven switch. (5) Worm-eye (09–10) has no interface value; bird-eye (11) is an optional
   macro overview. (6) Suspended-rack contract: rods/brackets, cabinet bottoms clear the floor,
@@ -154,12 +160,17 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   venue may be the first realisation of that pattern and should record what it takes.
 - **Where cross-cluster work lives.** Today the only neutral home is this map in core's library.
   Friction: the source bundle sits on the Desktop with no git history until the home ticket rules.
-- **Companion bundles supersede by arrival, not by record.** The visual-evolution bundle changed
-  the green semantics and discarded the pending layout change, and only the newer bundle says so;
-  the older bundle still reads as current. Pattern worth keeping from it: a hashed manifest with
-  sequence-based ordering and explicit `status` per artifact (discarded / limited-value /
-  exploration / preferred). Friction: two unversioned bundles on the Desktop with a one-way
-  supersession pointer; the map carries the reconciliation until a repo exists.
+- **"Preferred" is not "supersedes".** The visual-evolution bundle supplements the first pass;
+  the agent's first reading (2026-10-20) treated the preferred bay as replacing the walkway,
+  demoted the two-agent prototype off the frontier and struck a pending delivery, and the operator
+  corrected it within the hour. Pattern: a companion bundle must state its relation to the prior
+  batch (supplement / supersede / partial) per artifact, and an agent reads "preferred" as
+  "additionally wanted" unless told otherwise. What this bundle does supersede is narrow: the
+  tentative green-as-observation reading and four discarded image attempts. Pattern worth keeping
+  from it: a hashed manifest with sequence-based ordering and explicit `status` per artifact
+  (discarded / limited-value / exploration / preferred). Friction: two unversioned bundles on the
+  Desktop with the relation stated only in the newer one; the map carries the reconciliation until
+  a repo exists.
 
 ### Who feeds whom (context view, 2026-10-20)
 
@@ -226,10 +237,12 @@ tickets):
   raises (not settles) the register-governance question in the home ticket.
 - From the visual-evolution bundle (operator rulings in the originating ChatGPT session, recorded
   in `DESIGN_EVOLUTION.md`, order by sequence number): images 12–13 are the **leading visual
-  targets**; the perpendicular yellow branch and ramp studies (01–04) are **discarded**; the
-  **three-system semantics** (blue/yellow/green) supersede green-as-observation; worm-eye is not
-  an interface camera. Recorded here as inputs; the scene and semantics decisions stay with their
-  tickets.
+  targets for routine interaction**, added beside the walkway first pass, not in place of it
+  (operator correction 2026-10-20: supplement, never lose the first pass); the image attempts at
+  the yellow branch and ramp (01–04) are **discarded as pictures**; the **three-system
+  semantics** (blue/yellow/green) supersede only the tentative green-as-observation reading;
+  worm-eye is not an interface camera. Recorded here as inputs; the bay-relation and semantics
+  decisions stay with their tickets.
 
 Closed tickets: none yet.
 
@@ -240,34 +253,35 @@ Closed tickets: none yet.
 | Repo and northstar home (#542) | grilling | — | open |
 | Observable fleet state survey (#543) | research | — | open |
 | Blender's role in the loop (#544) | grilling | — | open |
-| First-proof scene: walkway or nested bay (#558) | grilling | — | open |
-| Two-agent route proof on the projection scene (#545) | prototype | First-proof scene: walkway or nested bay | open |
+| Two-agent route proof on the projection scene (#545) | prototype | — | open |
+| Nested bay alongside the walkway: one complex, two places (#558) | grilling | — | open |
 | Reacquire the measured minifig references (#546) | task | — | open |
 | First feed binding (#547) | grilling | Observable fleet state survey | open |
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
 | Ambient host and display operations (#550) | grilling | Repo and northstar home | open |
-| Authoritative spatial source (#551) | grilling | First-proof scene: walkway or nested bay; Blender's role in the loop; Two-agent route proof on the projection scene | open |
-| Presentation modes at arrival (#559) | grilling | First-proof scene: walkway or nested bay | open |
+| Authoritative spatial source (#551) | grilling | Blender's role in the loop; Two-agent route proof on the projection scene | open |
+| Presentation modes at arrival (#559) | grilling | — | open |
 | State vocabulary and honesty rules (#552) | grilling | First feed binding | open |
 | Three-system semantics: blue, yellow, green (#553) | grilling | First feed binding | open |
 | Minifig fidelity bar (#554) | grilling | Reacquire the measured minifig references | open |
 | Voice-first companion surface (#555) | grilling | State vocabulary and honesty rules | open |
 | Room document and restart survival (#556) | grilling | First feed binding; Authoritative spatial source | open |
 
-Frontier at charting (amended 2026-10-20 after the visual-evolution bundle): Repo and northstar
-home · Observable agent state in morning-cockpit and daily-logger · Blender's role in the loop ·
-First-proof scene: walkway or nested bay · Reacquire the measured minifig references. The two-agent
-prototype left the frontier: it now waits on the scene decision. Research runs one cycle at a
-time; the survey is the only research ticket.
+Frontier at charting (amended 2026-10-20 after the visual-evolution bundle, then corrected: the
+bundle supplements the first pass): Repo and northstar home · Observable agent state in
+morning-cockpit and daily-logger · Blender's role in the loop · Two-agent route proof on the
+projection scene · Reacquire the measured minifig references · Nested bay alongside the walkway ·
+Presentation modes at arrival. Research runs one cycle at a time; the survey is the only
+research ticket.
 
 Deliveries deliberately **not** on this map (they are roadmap slices once the decisions above make
 their entrance statable): the bundle's proposed "small real scene" (one suspended rack island, two
 collaboration pockets, several agents, both materials at one camera), the production two-agent
 slice, the semantic vertical slice with replayed inspection and archive
-tasks, character interaction clips, and the baseline commit of both bundles into whatever repo the
-home ticket names. The longitudinal yellow gangway pass (`NEXT_LAYOUT_CHANGE.md`) is no longer a
-pending delivery: its drawn attempts were discarded in the visual-evolution bundle.
+tasks, character interaction clips, and the longitudinal yellow gangway layout pass (`NEXT_LAYOUT_CHANGE.md`, still pending — through a
+geometric layout study, since its image attempts were discarded), and the baseline commit of both
+bundles into whatever repo the home ticket names.
 
 ## Not yet specified
 
@@ -282,7 +296,7 @@ pending delivery: its drawn attempts were discarded in the visual-evolution bund
   images 12–13; depends on the state vocabulary.
 - **Second fixed camera** — bird-eye (image 11) as an optional macro overview. The 2026-10-20
   out-of-scope ruling covers camera *moves and transitions*, not a second fixed camera; the
-  question is not statable until the first-proof scene is chosen.
+  question is not statable until the nested bay's relation to the walkway is decided.
 - **Queue aggregation visuals** — how many items become one visual summary, and what the summary
   may hide; depends on the bound feed's queue shape.
 - **Contribution path back to play-well** — which play-well tool receives its first feature from
