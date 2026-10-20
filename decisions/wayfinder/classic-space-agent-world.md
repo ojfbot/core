@@ -114,6 +114,17 @@ out-of-scope below).
   whether that means waiting, a labelled fixture in fleet-runner's object shape, or building the
   read projection as this venue's first contribution. The proof never claims either engine is in
   the loop until it is.
+- **Posture (operator, 2026-10-20).** This runs **in parallel** with lego-village-pipeline, not
+  instead of it: it supports LVP by being a real consumer of play-well's tools and contributing
+  features back, it keeps the operator excited (a fun project), and it ends as a good addition
+  running on a desktop monitor. fleet-runner and its working clients (morning-cockpit, which
+  already exists in an unwired state, and the Classic Space Venue) are **quick fast follows** in
+  the operator's view. Precision on that claim: the venue needs only fleet-runner's **read
+  projection** (facts about agents, attempts and tasks attached to projects), which can ship far
+  ahead of fleet-runner's authorization, restoration and publication contracts (Q1–Q7); the
+  fast-follow is credible for the read side, and the read side is all this venue needs. Scope
+  every ticket session to this appetite (vault: `concepts/appetite`): small, parallel, delightful,
+  never a second orchestration layer.
 - **Governance fact:** `REGISTER.md` scope text — "the play-well cluster, not one repo … and any
   further play-well repo" — means calling this repo play-well pulls it under memo preflight,
   register versions and relay-only self-merge. Membership is a decision (repo-home ticket).
