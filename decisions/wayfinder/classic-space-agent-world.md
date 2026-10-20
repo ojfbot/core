@@ -21,11 +21,20 @@ restart. Serves `ns:l2-ojfbot#P3` (the Arcade fronts the fleet) and `ns:l2-ojfbo
 reaches a usable surface in its natural venue). The minifig is the flâneur of the Arcade's own
 naming register (name the operating surface, #273).
 
+It is a **novel representation stack over the same shared agent state** the rest of the fleet
+reads — a UI layer, not a second source of truth — so it binds to fleet-runner's object model as
+that work lands. It is **resolutely visual** and built as a design experiment for the operator
+alone. A **voice-first companion surface** runs side by side with it, equal in *capability*
+(every entity, state and action the scene shows is reachable by voice) and accessible at all
+times; the accessibility-tree contract governs the companion, and the canvas is exempt. First
+proof tracks the agents of **morning-cockpit** and **daily-logger**.
+
 The initiative consumes the play-well cluster's tools — Drafting Table tokens, the LEGO building
 UI, Blender expertise — as a client cluster and contributes features back, the way other clusters
 are meant to consume blogengine's publishing harness without joining its cluster. It does not join
-play-well's correspondence register unless the repo-home ticket rules otherwise. Siri, camera
-moves, node authoring and further rooms are beyond arrival (see fog and out-of-scope below).
+play-well's correspondence register unless the repo-home ticket rules otherwise. Siri as a
+transport, camera moves, node authoring and further rooms are beyond arrival (see fog and
+out-of-scope below).
 
 ## Notes
 
@@ -94,6 +103,13 @@ tickets):
   charting grill.
 - Camera moves/transitions, node-based room authoring and multiple rooms are **out of scope** —
   ruled in the charting grill.
+- Second round, same session: the scene is **resolutely visual and for the operator alone**; the
+  a11y-tree contract is carried by a **voice-first companion surface**, equal in capability and
+  accessible at all times, not by the canvas.
+- Second round: the first proof tracks **morning-cockpit and daily-logger agents**; the venue is a
+  **representation stack over shared agent state** and binds to fleet-runner's object model
+  rather than inventing a parallel schema (the handoff's Agent/Place/Lane/Task/Event proposal is
+  a candidate projection, not the source model).
 
 Closed tickets: none yet.
 
@@ -114,7 +130,7 @@ Closed tickets: none yet.
 | State vocabulary and honesty rules (#552) | grilling | First feed binding | open |
 | Yellow lane semantics (#553) | grilling | First feed binding | open |
 | Minifig fidelity bar (#554) | grilling | Reacquire the measured minifig references | open |
-| Plain view parity and the a11y contract (#555) | grilling | State vocabulary and honesty rules | open |
+| Voice-first companion surface (#555) | grilling | State vocabulary and honesty rules | open |
 | Room document and restart survival (#556) | grilling | First feed binding; Authoritative spatial source | open |
 
 Frontier at charting: Repo and northstar home · Observable fleet state survey · Blender's role in
@@ -129,9 +145,12 @@ home ticket names.
 
 ## Not yet specified
 
-- **Siri / voice query** — operator intent is clear ("quick queries and interactions via Siri");
-  the question is not statable until an application API over the state store exists (after
-  Ambient host and display operations and Plain view parity).
+- **Siri as a transport** — operator intent is clear ("quick queries and interactions via Siri");
+  the companion surface is now a ticket, but whether Siri fronts it is not statable until that
+  ticket fixes the companion's API.
+- **Feed cadence versus an animated room** — daily-logger fires once a day and cockpit runs on
+  launchd; if per-phase progress is not observable, the room stands still most of the day. The
+  survey reports cadence; whether the live session census joins the first feed is a later question.
 - **Interaction vocabulary** — inspect panel, carry archive capsule, pause at a busy junction,
   acknowledge-attention gesture; depends on the state vocabulary.
 - **Queue aggregation visuals** — how many items become one visual summary, and what the summary
@@ -140,8 +159,6 @@ home ticket names.
   this consumer (tokens, building UI, Blender recipes); depends on the consumption contract.
 - **Generative asset tooling** — whether Mint, `generate_3d` or asset-foundry supply candidate
   modules; depends on Blender's role.
-- **Family exposure** — whether EH/HH/LH ever see this surface, which would pull in the family
-  rules in full; nothing in the operator's direction says so yet.
 - **Level connector behaviour** — lift/stairs traversal and reservations; depends on the
   authoritative spatial source.
 
@@ -153,5 +170,9 @@ home ticket names.
   until one real cluster compiles into agreed scene and dashboard state.
 - **Multiple rooms** — ruled by Yuri, 2026-10-20. One room is the proof; rooms-as-clusters is a
   later initiative.
+- **Family-facing use** — ruled by Yuri, 2026-10-20: "a design experiment and for myself." The
+  people rules still apply to any copy, but the family-surface requirements of LVP P3 do not.
+- **Canvas accessibility** — ruled by Yuri, 2026-10-20: the scene is resolutely visual; the
+  accessibility contract lives in the companion surface (ticket), never in the WebGL canvas.
 - **Touching lego-village-pipeline** — stated in the charting brief: this initiative reads LVP
   for precedent and never edits it.
