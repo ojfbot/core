@@ -125,6 +125,24 @@ out-of-scope below).
   fast-follow is credible for the read side, and the read side is all this venue needs. Scope
   every ticket session to this appetite (vault: `concepts/appetite`): small, parallel, delightful,
   never a second orchestration layer.
+- **The read projection already half-exists (facts gathered 2026-10-20 for the bridging
+  ticket).** morning-cockpit's `packages/shared/src/work-item.ts` defines `WorkItem` — a
+  unified shape every source normalises into (Dolt beads, `.handoff` beads, GitHub, standup):
+  kinds `agent | convoy | task | pr | session | brief | report | decision | discovery | issue |
+  pull_request | priority`, status `running | open | done | stale | failed | unknown`, `actor`,
+  `repo`, `claimedBy`/`leaseUntil`, provenance refs, and per-adapter `AdapterHealth`
+  (`up | down | degraded | disabled`). `CockpitSnapshot` is served by `GET /api/cockpit` from
+  cockpit's Express server (launchd-hosted). fleet-runner's **only** planning slice, MC-UX-01
+  (`fleet-runner/planning/mc-ux-01/`, operator-confirmed REST boundary 2026-10-08, implementation
+  not yet authorised), is built explicitly over that snapshot: "one shared projection over the
+  REST snapshot." Cockpit's own roadmap already holds the producer-wiring slices in `ready`
+  state: S1 (GitHub adapter into the aggregate), S2 (fleet sessions emit `agent-*` bead events
+  end-to-end), S10 (registry adapter), S11 (derived-truth selectors). Caveats: `WorkItem` carries
+  cockpit view semantics (the three lanes) that are not fleet facts; `agent`/`session` items come
+  from Dolt beads, so live agents appear only once S2 lands and Dolt is up. Consequence for the
+  venue: the honest "temporary adapter" is not new code in the venue — it is lifting the snapshot
+  contract (facts + health, minus lanes) to the approved fleet-runner home in core and treating
+  cockpit's server as the *temporary host* of that contract behind a configurable URL.
 - **Governance fact:** `REGISTER.md` scope text — "the play-well cluster, not one repo … and any
   further play-well repo" — means calling this repo play-well pulls it under memo preflight,
   register versions and relay-only self-merge. Membership is a decision (repo-home ticket).
