@@ -136,6 +136,46 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
 - **Where cross-cluster work lives.** Today the only neutral home is this map in core's library.
   Friction: the source bundle sits on the Desktop with no git history until the home ticket rules.
 
+### Who feeds whom (context view, 2026-10-20)
+
+**Caption:** For the operator: which clusters and apps this venue depends on, and in which
+direction facts flow. Notation: a dependency/context view drawn as a Mermaid flowchart, not C4 or
+OPM. Key: a label ending in "designed, no runtime" or "designed, not built" marks a thing that
+does not exist yet; an edge label ending in "later" marks a connection that is planned, not live.
+Takeaway: the only live inputs for the first proof are cockpit and daily-logger agent facts plus
+play-well's conventions; both engines are seams left open. Omitted: Siri, Blender's role, the
+correspondence register, and the Arcade map's own open tickets. Rendered with
+`@mermaid-js/mermaid-cli` 11.4.2 (`securityLevel: strict`, `htmlLabels: false`).
+
+```mermaid
+---
+title: Classic Space agent world — cross-cluster connections (2026-10-20)
+---
+flowchart LR
+  accTitle: Classic Space agent world cross-cluster connections
+  accDescr: The venue reads fleet-runner state through the read seam morning-cockpit already uses, reads cockpit and daily-logger agent facts directly for the first proof, inherits conventions and later the world-model engine from the play-well cluster, and ladders to the Arcade property of the ojfbot northstar. fleet-runner and the play-well world model are designed, not built.
+  subgraph arcade["Arcade lineage, ns:l2-ojfbot#P3"]
+    venue["Classic Space venue, this map"]
+    companion["Voice-first companion, carries the a11y contract"]
+  end
+  subgraph fr["fleet-runner, designed, no runtime"]
+    seam["read projection seam"]
+  end
+  cockpit["morning-cockpit, first client via /api/cockpit"]
+  logger["daily-logger, pipeline runs"]
+  subgraph pw["play-well cluster"]
+    engine["LEGO world-model engine, designed, not built"]
+    conv["conventions and Drafting Table tokens, exist today"]
+  end
+  seam -->|"facts, first client"| cockpit
+  seam -->|"facts, second client, same seam, later"| venue
+  cockpit -->|"agent facts, first proof"| venue
+  logger -->|"agent facts, first proof"| venue
+  engine -->|"stud grid and validated components, later"| venue
+  conv -->|"inherited by choice"| venue
+  venue <-->|"same state reducer"| companion
+```
+
 ## Decisions so far
 
 Grill-resolved at charting (recorded here as pre-map rulings by Yuri, 2026-10-20, not closed
