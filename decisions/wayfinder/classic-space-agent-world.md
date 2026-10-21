@@ -220,7 +220,7 @@ with the other deliveries below.
 
 Operator instruction, 2026-10-20: this is one of the first initiatives with robust overlapping
 concerns and one-to-many connections between clusters (Arcade lineage · fleet-runner via the
-cockpit seam · play-well as world-model engine · daily-logger as a feed). Keep notes on how the
+cockpit seam · play-well as world-model engine · daily-logger as a tracked subject). Keep notes on how the
 integration behaves, the patterns established, the friction points, and how to integrate such
 processes going forward. **Convention:** friction met while working a ticket or slice goes to
 `implementation-notes.md` `## Deviations` in the repo where it happened (the fleet's existing
@@ -240,6 +240,7 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   model) are visions with research behind them. Pattern: name the seam, run the proof on what
   exists, never claim the engine is in the loop. Friction: every ticket touching those seams
   carries a "now vs later" split.
+- **A client-neutral read contract (2026-10-20 onboarding review).** Lifting cockpit's snapshot exposes lane-derived fields and cockpit-local identity; pattern: fleet-runner owns a versioned facts-and-health projection with stable identity and freshness semantics before a second consumer binds, while cockpit keeps its lane view (proposal #561; remaining consumer questions #543).
 - **Governance by label.** A cluster's register can claim a repo by scope text alone. Pattern:
   cluster membership is a decision ticket (home), decided before any landing, not inferred from
   aesthetic or tooling overlap.
@@ -399,7 +400,7 @@ Closed tickets:
 | Arcade seam (#548) | grilling | Repo and northstar home | open |
 | Play-well consumption contract (#549) | grilling | Repo and northstar home | open |
 | Ambient hosts (browser and native macOS) and display operations (#550) | grilling | Repo and northstar home | open |
-| Authoritative spatial source (#551) | grilling | Blender's role in the loop; Two-agent route proof on the projection scene | open |
+| Authoritative spatial source (#551) | grilling | Blender as world hub: what it authors and the export contract; Two-agent route proof on the projection scene | open |
 | Presentation modes at arrival (#559) | grilling | — | open |
 | Rendering and motion stack for browser and native macOS (#563) | research | — (serialized behind #543 by the one-research-cycle rule) | open |
 | State vocabulary and honesty rules (#552) | grilling | First feed binding | open |
