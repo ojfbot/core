@@ -241,6 +241,9 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   exists, never claim the engine is in the loop. Friction: every ticket touching those seams
   carries a "now vs later" split.
 - **Client-neutral read contract (2026-10-20 onboarding review, proposed).** A second consumer exposed cockpit lane-derived fields and cockpit-local identity in the proposed lift; route neutral fact shape, stable identity, freshness and health semantics to #561/#543 for owner review before binding, without treating mock data as arrival.
+- **Fleet enumeration drift (2026-10-20 onboarding review).** The fleet-onboard matrix still names daily-logger lists that current code derives from `REPO_NOTES`; inspect the live mechanism before adding a second hand-maintained list.
+- **Installer output ownership (2026-10-20 onboarding review).** The installer creates symlink trees and also refreshes a workflow while leaving an app-owned standup starter; distinguish ignored per-clone links from durable tracked files before calling installation complete.
+- **Research filing versus intake (2026-10-20 onboarding review).** A venue RFI in `docs/rfi/` is an unallocated request, while the play-well harness dispatcher owns the lane ledger; link the serving ticket and record acceptance separately from filing.
 - **Governance by label.** A cluster's register can claim a repo by scope text alone. Pattern:
   cluster membership is a decision ticket (home), decided before any landing, not inferred from
   aesthetic or tooling overlap.
