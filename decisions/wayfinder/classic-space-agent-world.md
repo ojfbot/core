@@ -166,6 +166,29 @@ out-of-scope below).
   the Blender MCP connector attached to this session, `asset-foundry`'s subprocess bridge. Evaluate
   any generator on one small module before widening (handoff `TOOLS_AND_PRECEDENTS.md`).
 
+## First strand: the world-building pipeline
+
+Operator direction, 2026-10-20 (fifth round): **before** interface work and agent binding, build
+the pipeline that turns a still image into a navigable, filmable world — "static image to
+blender world to renderable app/browser deliverable". Blender is the world hub. Character
+objects then perform parametric, procedural actions driven by world state, events, and
+operator or agent inputs, plus easter-egg world-building behaviours that bring the room to life.
+The pipeline accrues assets over time: more characters, poses, props, and rigging sheets.
+
+| Step | What it produces | Map tickets |
+|---|---|---|
+| 1. still image | art plate or style plate; character rigging-sheet generation | Image-first or layout-first (#564); Presentation modes (#559) |
+| 2. Blender world | layout, solids/voids, walkable surfaces, rig, poses, motion, both material modes | Blender as world hub (#544); Authoritative spatial source (#551); Nested bay alongside the walkway (#558) |
+| 3. paths | routable areas, lanes, portals, clearances | Two-agent route proof (#545); Three-system semantics (#553) |
+| 4. actions | parametric, procedural actions at places; easter eggs | Action model (#566); NPC versus bound agents (#562) |
+| 5. asset library | accrued characters, poses, props, rig sheets, plates, with provenance | Home and format of the accrued world-asset library (#565) |
+| 6. runtime deliverable | browser build and native app, screensaver-grade performance | Rendering and motion stack (#563); Ambient hosts (#550) |
+
+How the pipeline is orchestrated by agents is a research question first: Multiagent
+orchestration for game-asset and world-building pipelines (#567), filed to the play-well
+research harness as RFI-0002. The dev-host below is the pipeline's always-running viewer, not a
+separate product.
+
 ## Standing strand: the dev-host
 
 Operator direction, 2026-10-20: one strand **always** keeps a dev-host up and running, as quickly
@@ -348,6 +371,13 @@ Closed tickets:
   agents, serving #562). The browser/bundled-Node versus native-Swift fork is **deferred** by
   the operator ("another time, down roadmap as infrastructure capacity builds") — #563 stays a
   map research ticket, not an RFI — ruled 2026-10-20.
+- Fifth round (2026-10-20): **the world-building pipeline comes first**, before interface work
+  and agent binding. Its spine is still image → **Blender world** → renderable app or browser
+  deliverable; Blender is the world hub, which narrows Blender as world hub (#544) to what it
+  authors and its export contract. Assets accrue (characters, poses, props, rigging sheets);
+  characters perform parametric, procedural actions from world state, events and inputs, plus
+  easter eggs. Research is reordered accordingly: game-dev orchestration (#567) first, then the
+  fleet-runner survey (#543), then the rendering stack (#563).
 
 ## Tickets
 
@@ -355,7 +385,11 @@ Closed tickets:
 |-------------------------------|------|------------|--------|
 | Repo and northstar home (#542) | grilling | — | closed |
 | What fleet-runner's orchestration layer will expose to a read-only consumer (#543) | research | — | open |
-| Blender's role in the loop: layout, rig, motion (#544) | grilling | — | open |
+| Blender as world hub: what it authors and the export contract (#544) | grilling | — | open |
+| Image-first or layout-first world building (#564) | grilling | — | open |
+| Home and format of the accrued world-asset library (#565) | grilling | — | open |
+| Action model: parametric actions driven by world state, events and inputs (#566) | grilling | — | open |
+| Multiagent orchestration for game-asset and world-building pipelines (#567) | research | — (first in the research queue) | open |
 | NPC behaviours versus bound agents (#562) | grilling | — | open |
 | Two-agent route proof on the projection scene (#545) | prototype | — | open |
 | Nested bay alongside the walkway: one complex, two places (#558) | grilling | — | open |
@@ -374,14 +408,14 @@ Closed tickets:
 | Voice-first companion surface (#555) | grilling | State vocabulary and honesty rules | open |
 | Room document and restart survival (#556) | grilling | First feed binding; Authoritative spatial source | open |
 
-Frontier at charting (amended 2026-10-20 after the visual-evolution bundle, then corrected: the
-bundle supplements the first pass): Repo and northstar home · What fleet-runner's orchestration
-layer will expose to a read-only consumer (now narrowed: what read-projection v0 must carry beyond
-`WorkItem` — attempts, project attachment, transition cadence) · Blender's role in the loop ·
-Two-agent route proof on the projection scene · Reacquire the measured minifig references ·
-Nested bay alongside the walkway · Presentation modes at arrival · NPC behaviours versus bound
-agents · Rendering and motion stack for browser and native macOS. Research runs one cycle at a
-time: the fleet-runner survey (#543) first, the rendering-and-motion stack (#563) after it.
+Frontier (2026-10-20, after the fifth round put the world-building pipeline first): Image-first
+or layout-first world building · Blender as world hub · Home and format of the accrued
+world-asset library · Action model · Two-agent route proof on the projection scene · Nested bay
+alongside the walkway · Presentation modes at arrival · NPC behaviours versus bound agents ·
+Reacquire the measured minifig references · Arcade seam · Play-well consumption contract ·
+Ambient hosts. Research runs one cycle at a time, pipeline first: Multiagent orchestration for
+game-asset and world-building pipelines (#567), then What fleet-runner's orchestration layer
+will expose (#543), then the rendering and motion stack (#563).
 
 Deliveries deliberately **not** on this map (they are roadmap slices once the decisions above make
 their entrance statable): **dev-host v0** (a host around the existing walkway viewer with labelled
@@ -402,9 +436,6 @@ bundles into whatever repo the home ticket names.
   fleet-runner reports only coarse attempt transitions, the room stands still most of the day.
   Whether finer progress (phases, the live session census) enters fleet-runner is fleet-runner's
   question, not this venue's; the survey reports what the designed projection carries.
-- **Interaction vocabulary** — inspect panel, carry archive capsule, pause at a busy junction,
-  acknowledge-attention gesture, and now seated console work and collaboration-pocket poses from
-  images 12–13; depends on the state vocabulary.
 - **Second fixed camera** — bird-eye (image 11) as an optional macro overview. The 2026-10-20
   out-of-scope ruling covers camera *moves and transitions*, not a second fixed camera; the
   question is not statable until the nested bay's relation to the walkway is decided.
