@@ -1,3 +1,4 @@
 {"ts":"2026-10-20T21:42:12Z","event":"session:start","session_id":"7610ffd0-c36c-4ccd-886d-072f26e1abe6","source":"startup","model":"","repo":"lego-village-pipeline","branch":"main","cwd":"/Users/yuri/ojfbot/lego-village-pipeline"}
 {"ts":"2026-10-20T23:52:10Z","event":"session:start","session_id":"e7cc85ee-3eae-4854-aba1-5e5993f63365","source":"startup","model":"","repo":"classic-space-walkway-pass","branch":"","cwd":"/Users/yuri/Desktop/classic-space-walkway-pass"}
 {"ts":"2026-10-21T00:48:33Z","event":"session:start","session_id":"d5d22195-8950-4614-b29f-f94887711961","source":"startup","model":"","repo":"lego-village-pipeline","branch":"main","cwd":"/Users/yuri/ojfbot/lego-village-pipeline"}
+{"ts":"2026-10-21T19:12:20Z","event":"session:start","session_id":"7610ffd0-c36c-4ccd-886d-072f26e1abe6","source":"resume","model":"","repo":"lego-village-pipeline","branch":"main","cwd":"/Users/yuri/ojfbot/lego-village-pipeline"}
