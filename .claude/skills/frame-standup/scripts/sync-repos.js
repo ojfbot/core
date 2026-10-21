@@ -59,6 +59,7 @@ const REPOS = [
   'play-well-library',
   'dealdesk',
   'foundry-recipes',
+  'classic-space-venue',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');
