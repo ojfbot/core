@@ -34,13 +34,13 @@ alone. A **voice-first companion surface** runs side by side with it, equal in *
 (every entity, state and action the scene shows is reachable by voice) and accessible at all
 times; the accessibility-tree contract governs the companion, and the canvas is exempt. First
 proof tracks the agents and tasks attached to **morning-cockpit** and **daily-logger** — as
-subjects seen through fleet-runner, not as feeds. Because fleet-runner has no runtime yet, how
-the first proof is fed until its read projection exists is a ticket, not an assumption.
+subjects seen through fleet-runner, not as feeds. Fleet-runner has no runtime yet; #560
+ruled that arrival waits for its versioned read projection with live producers.
 
 The initiative consumes the play-well cluster's tools — Drafting Table tokens, the LEGO building
 UI, Blender expertise — as a client cluster and contributes features back, the way other clusters
 are meant to consume blogengine's publishing harness without joining its cluster. It does not join
-play-well's correspondence register unless the repo-home ticket rules otherwise. Siri as a
+play-well's correspondence register (#542). Siri as a
 transport, camera moves, node authoring and further rooms are beyond arrival (see fog and
 out-of-scope below).
 
@@ -69,8 +69,7 @@ out-of-scope below).
   Alberto Kalach's Biblioteca Vasconcelos. The bundle frames it as a nested area within a much
   larger complex, of which the walkway is part; it has no source geometry yet. (2) **Three-system
   semantics** that extend the first pass and supersede only the tentative green-as-observation
-  reading: they
-  the earlier table: blue = bulk application/user space; yellow = hygiene collection, logging,
+  reading: blue = bulk application/user space; yellow = hygiene collection, logging,
   deep archive, cleanup, safe/secure deletion; dark oxygen-green = isolation, privacy, secure
   privilege. Color is domain, never status; actor color is not authorization; a rendered gate is
   not implemented authorization. (3) The AI image attempts at the walkway's perpendicular yellow
@@ -110,10 +109,9 @@ out-of-scope below).
   geometry check, and the LEGO world-model engine (ldraw-nova precedent, stud-grid geometry,
   validated components) is a research-lane vision under the 2026-10-21 ORDER-BY gate. The venue
   depends on fleet-runner alone for facts (operator ruling, fourth round), so until fleet-runner's
-  read projection exists the venue has **no live feed at all**; the bridging ticket decides
-  whether that means waiting, a labelled fixture in fleet-runner's object shape, or building the
-  read projection as this venue's first contribution. The proof never claims either engine is in
-  the loop until it is.
+  read projection exists the venue has **no live feed at all**. #560 ruled that fleet-runner owns
+  a versioned read-projection v0, temporarily hosted by cockpit; arrival requires live producers,
+  not a fixture. The proof never claims either engine is in the loop until it is.
 - **Posture (operator, 2026-10-20).** This runs **in parallel** with lego-village-pipeline, not
   instead of it: it supports LVP by being a real consumer of play-well's tools and contributing
   features back, it keeps the operator excited (a fun project), and it ends as a good addition
@@ -145,7 +143,7 @@ out-of-scope below).
   cockpit's server as the *temporary host* of that contract behind a configurable URL.
 - **Governance fact:** `REGISTER.md` scope text — "the play-well cluster, not one repo … and any
   further play-well repo" — means calling this repo play-well pulls it under memo preflight,
-  register versions and relay-only self-merge. Membership is a decision (repo-home ticket).
+  register versions and relay-only self-merge. #542 ruled this venue is not a play-well member.
 - **Vault reads (design-time, read-only):**
   - `synthesis/play-well-research-harness` — the decomposition alarm and innovation alarm apply
     to any "ahead of the field" claim this venue makes; keep candidate modules as findings until
@@ -211,9 +209,8 @@ Rules for the strand: mock data is a **workbench input, labelled simulated in sc
 companion, and never counts toward arrival** (the bridging ruling's "no fixture" stands: it
 concerned the arrival feed, not the workbench); the walkway viewer in the bundle
 (`walkway-pass/walkway-layout.html`, self-contained, 36 s loop) already satisfies the static
-floor, so **dev-host v0 is a host around what exists**, gated only by where it lives (Repo and
-northstar home, #542) — and even that can be deferred with a local `git init`, no remote, no
-registration, until the home ticket rules. Dev-host v0 is a delivery, not a ticket; it is listed
+floor, so **dev-host v0 is a host around what exists** in the new
+`ojfbot/classic-space-venue` repo chosen by #542. Dev-host v0 is a delivery, not a ticket; it is listed
 with the other deliveries below.
 
 ## Integration notes (cross-cluster)
@@ -254,7 +251,8 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   blogengine's publishing harness without joining its cluster. No cluster does so yet, so this
   venue may be the first realisation of that pattern and should record what it takes.
 - **Where cross-cluster work lives.** Today the only neutral home is this map in core's library.
-  Friction: the source bundle sits on the Desktop with no git history until the home ticket rules.
+  Friction at charting: the source bundle sat on the Desktop without git history; #542 later
+  established the repo home.
 - **"Preferred" is not "supersedes".** The visual-evolution bundle supplements the first pass;
   the agent's first reading (2026-10-20) treated the preferred bay as replacing the walkway,
   demoted the two-agent prototype off the frontier and struck a pending delivery, and the operator
@@ -339,12 +337,12 @@ tickets):
 - Fourth round: the venue **runs fully independent of morning-cockpit and daily-logger** — it
   reads only fleet-runner's orchestration layer, which reports agents and tasks attached to
   projects and repos; no project repo is read directly. fleet-runner is not built yet (planning
-  and research only, 2026-10-20), so the first proof's feed is an open ticket.
+  and research only, 2026-10-20); #560 subsequently ruled the bridge for the first proof.
 - Fourth round: the agent UI project is named **Classic Space Venue (CSV)**. Spell it out on
   first use in any document; "CSV" alone collides with comma-separated values.
 - Third round: the **play-well cluster is the engine for any LEGO world model**; the room's
   spatial definition integrates closely with play-well's tooling as that engine lands, which
-  raises (not settles) the register-governance question in the home ticket.
+  raised the register-governance question subsequently settled by #542.
 - From the visual-evolution bundle (operator rulings in the originating ChatGPT session, recorded
   in `DESIGN_EVOLUTION.md`, order by sequence number): images 12–13 are the **leading visual
   targets for routine interaction**, added beside the walkway first pass, not in place of it
