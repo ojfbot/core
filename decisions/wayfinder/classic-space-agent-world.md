@@ -240,7 +240,7 @@ and, where a convention emerges, an ADR. Seeded from this charting session:
   model) are visions with research behind them. Pattern: name the seam, run the proof on what
   exists, never claim the engine is in the loop. Friction: every ticket touching those seams
   carries a "now vs later" split.
-- **A client-neutral read contract (2026-10-20 onboarding review).** Lifting cockpit's snapshot exposes lane-derived fields and cockpit-local identity; pattern: fleet-runner owns a versioned facts-and-health projection with stable identity and freshness semantics before a second consumer binds, while cockpit keeps its lane view (proposal #561; remaining consumer questions #543).
+- **Client-neutral read contract (2026-10-20 onboarding review, proposed).** A second consumer exposed cockpit lane-derived fields and cockpit-local identity in the proposed lift; route neutral fact shape, stable identity, freshness and health semantics to #561/#543 for owner review before binding, without treating mock data as arrival.
 - **Governance by label.** A cluster's register can claim a repo by scope text alone. Pattern:
   cluster membership is a decision ticket (home), decided before any landing, not inferred from
   aesthetic or tooling overlap.
