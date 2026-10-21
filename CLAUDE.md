@@ -60,6 +60,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | play-well-library | — | play-well cluster — canonical LEGO village content library (branch flow play/<user> → staging → main) | 0 | active |
 | dealdesk | — | Control-plane dashboard for client-work bids, proposals, and engagements — local board + AI proposal reviewer | 0 | active |
 | foundry-recipes | — | Blender tutorial extraction pipeline — sped-up reels become structured BlenderRecipe records in Notion, read by asset-foundry | 0 | active |
+| classic-space-venue | — | Classic Space Venue (CSV): ambient Arcade venue where LEGO Classic Space minifigs represent live agents/tasks read from fleet-runner only; dev-host on mock data | — | active |
 
 ## Skills
 
