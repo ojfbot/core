@@ -336,12 +336,24 @@ Closed tickets:
   core #307; paired with authorising cockpit S1/S2; no fixture — Bridging until fleet-runner's
   read projection exists (#560), ruled by Yuri 2026-10-20 in the charting session (operator
   ruling, not agent resolution). Cross-initiative slice proposed to fleet-runner's owner.
+- **New L1 app, repo and northstar now**: `ojfbot/classic-space-venue` (private) founded with
+  `l1-classic-space-venue` (P1 arrival → `ns:l2-ojfbot#P3`; P2 companion parity, P3 dev-host
+  always runs → `#P1`), registered in core's registry on this map's branch; not a play-well
+  member, not register-governed; play-well consumed as a client cluster — Repo and northstar
+  home (#542), ruled by Yuri 2026-10-20 in the charting session ("we have enough foundation
+  now"). Unblocked Arcade seam, Play-well consumption contract, Ambient hosts.
+- **Open questions route to the play-well research harness as RFC/RFIs** (Claude-run, Codex-
+  supported): filings live in the repo's `docs/rfi/`, harness numbering stays with the
+  dispatcher, the decision stays with the ticket. First filing: RFI-0001 (NPC crew versus bound
+  agents, serving #562). The browser/bundled-Node versus native-Swift fork is **deferred** by
+  the operator ("another time, down roadmap as infrastructure capacity builds") — #563 stays a
+  map research ticket, not an RFI — ruled 2026-10-20.
 
 ## Tickets
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| Repo and northstar home (#542) | grilling | — | open |
+| Repo and northstar home (#542) | grilling | — | closed |
 | What fleet-runner's orchestration layer will expose to a read-only consumer (#543) | research | — | open |
 | Blender's role in the loop: layout, rig, motion (#544) | grilling | — | open |
 | NPC behaviours versus bound agents (#562) | grilling | — | open |

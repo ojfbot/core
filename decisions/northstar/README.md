@@ -189,6 +189,17 @@ registry:
     path: ../play-well-library/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # Classic Space Venue founded 2026-10-20 from the wayfinder map
+  # decisions/wayfinder/classic-space-agent-world.md (#541): an Arcade venue (ns:l2-ojfbot#P3)
+  # where Classic Space minifigs represent live agents/tasks read from fleet-runner only.
+  # Consumes play-well's tools as a client cluster; not a play-well member (home ruling #542).
+  # NUMERIC CURRENTS/TARGETS ARE PROPOSALS (operator to calibrate).
+  - slug: l1-classic-space-venue
+    tier: L1
+    app: classic-space-venue
+    path: ../classic-space-venue/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
