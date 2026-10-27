@@ -62,7 +62,9 @@ if that checkout moves, rerun the installer from its new location to repair the 
 Skill installation does not enable telemetry. Opt in separately with
 `--telemetry-dir=/absolute/private/path` to choose where hook ledgers are written.
 Existing hook settings are preserved when this option is omitted. A destination
-inside `~/selfco` additionally requires `--with-selfco`.
+inside `~/selfco` or the configured `SELFCO_VAULT` additionally requires `--with-selfco`.
+Only simple owned hook commands are repointed; customized shell commands are
+preserved with a warning that their destinations remain unchanged.
 
 <!-- managed:end -->
 
