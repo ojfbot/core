@@ -519,3 +519,7 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 - The selected source-collection sketch omitted literal queue/claim labels already observed by the lane projection; the repair now whitelists labels.queue, claimed_by_kind, lease_until and expires_at separately from native columns, grounded in the existing schema/producer, with no queue or lease policy change.
 
 - The timestamp-skill review expected the installed daily-logger orientation to match tracked main; local `.agents` and shared `.claude` copies predate the accepted orientation repair. Prepared the timestamp guidance against canonical `.claude/skills/daily-logger` on pinned main and left installed copies unchanged pending adoption, rather than copying stale instructions into the proposal.
+
+## Deviations — Minifour user-scope rollout
+
+- The no-vault rollout assumed omitting `--with-selfco` prevented Selfco writes; isolated runtime validation found the default telemetry hooks still create `~/selfco/tracking`. Prepared a separate explicit-destination telemetry opt-in while preserving existing hooks unless explicitly repointed; live rollout and Codex projection remain outside this slice.
