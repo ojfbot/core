@@ -61,14 +61,16 @@ done
 if [[ -n "$TELEMETRY_DIR" ]]; then
   USER_SCOPE=true
   TELEMETRY_DIR="$(python3 - "$TELEMETRY_DIR" "$WITH_SELFCO" <<'PYTHON'
-import pathlib, sys
+import os, pathlib, sys
 p = pathlib.Path(sys.argv[1]).expanduser()
 if not p.is_absolute():
     sys.exit("Error: --telemetry-dir must be an absolute path")
 p = p.resolve()
-vault = (pathlib.Path.home() / 'selfco').resolve()
-if sys.argv[2] != 'true' and (p == vault or vault in p.parents):
-    sys.exit("Error: telemetry inside ~/selfco requires --with-selfco")
+vaults = [(pathlib.Path.home() / 'selfco').resolve()]
+if os.environ.get('SELFCO_VAULT'):
+    vaults.append(pathlib.Path(os.environ['SELFCO_VAULT']).expanduser().resolve())
+if sys.argv[2] != 'true' and any(p == vault or vault in p.parents for vault in vaults):
+    sys.exit("Error: telemetry inside default or configured Selfco vault requires --with-selfco")
 print(p)
 PYTHON
 )"
@@ -228,15 +230,43 @@ for event, script, asynchronous, matcher in specs:
         for hook in entry.get('hooks', []):
             if hook.get('type') != 'command':
                 continue
-            try:
-                tokens = shlex.split(hook.get('command', ''))
-            except ValueError:
+            original = hook.get('command', '')
+            if script not in original:
                 continue
-            # Match the invoked script, never a substring of unrelated shell text.
-            executable = tokens[1] if len(tokens) > 1 and pathlib.Path(tokens[0]).name == 'node' else (tokens[0] if tokens else '')
-            if pathlib.Path(executable).name == script:
-                hook['command'] = command
-                found = True
+            # Shell tokenization alone is not proof of a simple invocation. Only
+            # migrate the bare owned invocation or our explicit ledger form.
+            lexer = shlex.shlex(original, posix=True, punctuation_chars=True)
+            lexer.whitespace_split = True
+            lexer.commenters = ''
+            try:
+                tokens = list(lexer)
+            except ValueError:
+                tokens = []
+            prefix_length = 2 if script.endswith('.mjs') else 1
+            valid_prefix = (
+                len(tokens) >= prefix_length
+                and pathlib.Path(tokens[prefix_length - 1]).name == script
+                and (prefix_length == 1 or pathlib.Path(tokens[0]).name == 'node')
+            )
+            tail = tokens[prefix_length:]
+            simple = valid_prefix and (not tail or (len(tail) == 1 and tail[0].startswith('--ledger-root=')))
+            # Expansion/substitution may be meaningful customization. Shell-safe
+            # paths emitted by shlex.join may contain literal $ within single quotes.
+            # Re-tokenizing with non-POSIX mode retains those quote boundaries.
+            raw_lexer = shlex.shlex(original, posix=False, punctuation_chars=True)
+            raw_lexer.whitespace_split = True
+            raw_lexer.commenters = ''
+            try:
+                raw_tokens = list(raw_lexer)
+            except ValueError:
+                raw_tokens = []
+            if original != shlex.join(tokens) and any(('$' in token or '`' in token) and not (token.startswith("'") and token.endswith("'")) for token in raw_tokens):
+                simple = False
+            found = True
+            if not simple:
+                print(f"  WARN: custom {script} hook preserved; its destination is unmodified; migrate it manually", file=sys.stderr)
+                continue
+            hook['command'] = command
     if not found:
         hook = {'type': 'command', 'command': command}
         if asynchronous:

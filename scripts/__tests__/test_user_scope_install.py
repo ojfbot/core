@@ -1,6 +1,7 @@
 """Isolated user-scope rollout and runtime regression checks (stdlib only)."""
 import json
 import os
+import shlex
 from pathlib import Path
 import shutil
 import subprocess
@@ -120,6 +121,60 @@ class UserScopeInstall(unittest.TestCase):
         self.install('--telemetry-dir=' + str(alias / 'tracking'), ok=False)
         self.assertFalse((self.home / '.claude').exists())
         self.assertEqual(list(vault.iterdir()), [])
+
+    def test_configured_vault_guard_and_safe_runtime(self):
+        vault = self.home / 'private-vault'
+        self.env['SELFCO_VAULT'] = str(vault)
+        self.install('--telemetry-dir=' + str(vault / 'tracking'), ok=False)
+        self.assertFalse(self.settings.exists())
+        self.assertFalse(vault.exists())
+        alias = self.home / 'vault-alias'
+        alias.symlink_to(vault, target_is_directory=True)
+        self.install('--telemetry-dir=' + str(alias / 'tracking'), ok=False)
+        self.assertFalse(self.settings.exists())
+        # Configuring an alternate vault must not remove the default-root guard.
+        self.install('--telemetry-dir=' + str(self.home / 'selfco/tracking'), ok=False)
+        ledger = self.home / 'non-vault-ledger'
+        self.install('--telemetry-dir=' + str(ledger))
+        self.run_hooks()
+        self.assertTrue((ledger / 'loop-health.jsonl').is_file())
+        self.assertFalse(vault.exists())
+        self.assertFalse((self.home / 'selfco').exists())
+
+    def test_compound_custom_hooks_preserved_and_surfaced(self):
+        script = '/old/core/scripts/hooks/reconcile-skill-acted.mjs'
+        commands = [
+            'node ' + script + ' && printf custom-marker',
+            'node ' + script + ';printf custom-marker',
+            'node ' + script + ' > custom.log',
+            'node ' + script + ' --program=custom',
+            'node "${CUSTOM_CORE}/reconcile-skill-acted.mjs"',
+        ]
+        for command in commands:
+            with self.subTest(command=command):
+                original = {'type': 'command', 'command': command, 'async': True}
+                self.seed_settings({'hooks': {'Stop': [{'hooks': [original]}]}})
+                result = self.install('--telemetry-dir=' + str(self.home / 'ledger'))
+                hooks = json.loads(self.settings.read_text())['hooks']['Stop']
+                matching = [h for e in hooks for h in e['hooks'] if 'reconcile-skill-acted.mjs' in h['command']]
+                self.assertEqual(matching, [original])
+                self.assertIn('destination is unmodified', result.stderr)
+                self.assertIn('migrate it manually', result.stderr)
+
+    def test_generated_quoted_commands_can_be_repointed(self):
+        first = self.home / "ledger 'quoted' $literal"
+        self.install('--telemetry-dir=' + str(first))
+        second = self.home / 'new-ledger'
+        result = self.install('--telemetry-dir=' + str(second))
+        self.assertNotIn('custom ', result.stderr)
+        settings = json.loads(self.settings.read_text())
+        for entries in settings['hooks'].values():
+            for entry in entries:
+                for hook in entry['hooks']:
+                    self.assertIn('--ledger-root=' + str(second.resolve()), shlex.split(hook['command']))
+        self.run_hooks()
+        self.assertTrue((second / 'loop-health.jsonl').is_file())
+        self.assertFalse(first.exists())
 
 
 if __name__ == '__main__':
