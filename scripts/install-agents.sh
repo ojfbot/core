@@ -7,6 +7,9 @@
 #   ./scripts/install-agents.sh ../cv-builder
 #   ./scripts/install-agents.sh /Users/yuri/ojfbot/cv-builder
 #   ./scripts/install-agents.sh cv-builder --force   # overwrite existing symlinks
+#   ./scripts/install-agents.sh --user-scope           # skills and instructions only
+#   ./scripts/install-agents.sh --user-scope --telemetry-dir=/private/ledger
+# Telemetry is opt-in. Without an explicit destination, existing hooks are untouched.
 #
 # What it does:
 #   1. Creates .claude/skills/ with symlinks to all core skill directories
@@ -41,20 +44,40 @@ FORCE=false
 TARGET_ARG=""
 USER_SCOPE=false
 WITH_SELFCO=false
+TELEMETRY_DIR=""
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=true ;;
     --user-scope) USER_SCOPE=true ;;
     --with-selfco) WITH_SELFCO=true ;;
+    --telemetry-dir=) echo "Error: --telemetry-dir needs an absolute path" >&2; exit 1 ;;
+    --telemetry-dir=*) TELEMETRY_DIR="${arg#*=}" ;;
     *) TARGET_ARG="$arg" ;;
   esac
 done
 
+# Telemetry is a separate opt-in. Resolve and validate its destination before any writes.
+if [[ -n "$TELEMETRY_DIR" ]]; then
+  USER_SCOPE=true
+  TELEMETRY_DIR="$(python3 - "$TELEMETRY_DIR" "$WITH_SELFCO" <<'PYTHON'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]).expanduser()
+if not p.is_absolute():
+    sys.exit("Error: --telemetry-dir must be an absolute path")
+p = p.resolve()
+vault = (pathlib.Path.home() / 'selfco').resolve()
+if sys.argv[2] != 'true' and (p == vault or vault in p.parents):
+    sys.exit("Error: telemetry inside ~/selfco requires --with-selfco")
+print(p)
+PYTHON
+)"
+fi
+
 # --with-selfco is a user-scope add-on (vault skill + scaffold + opt-in SessionEnd hook)
 [[ "$WITH_SELFCO" == "true" ]] && USER_SCOPE=true
 
-# --user-scope: install Pocock skills + ~/.claude/CLAUDE.md baseline (no repo target)
+# --user-scope: install catalog skills + ~/.claude/CLAUDE.md baseline (no repo target)
 # See ADR-0055.
 if [[ "$USER_SCOPE" == "true" ]]; then
   USER_SKILLS_DIR="$HOME/.claude/skills"
@@ -181,103 +204,53 @@ PY
     fi
   fi
 
-  # ── Skill-action capture (OPAV-S1, ADR-0095) ─────────────────────────────
-  # The independent per-session disposition recorder. USER-SCOPE so it fires
-  # across all repos + chat/desktop + subagents — the inline-follow signal is
-  # user-scope (log-tool-use), so capture must be too. SHADOW/observe-only,
-  # async, non-blocking; no-ops until `pnpm --filter @core/workflows build`.
-  RECONCILE_HOOK="$CORE_DIR/scripts/hooks/reconcile-skill-acted.mjs"
-  RECONCILE_CMD="node \"$RECONCILE_HOOK\""
-  USER_SETTINGS="${HOME}/.claude/settings.json"
-  if command -v jq >/dev/null 2>&1; then
-    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
-    # Match by script NAME, not absolute path (see the vault-session.sh guard
-    # note above): the path check duplicated this hook when the installer ran
-    # from the core-tracking checkout.
-    if jq -e 'any(.. | objects | .command? // empty; contains("reconcile-skill-acted.mjs"))' "$USER_SETTINGS" >/dev/null 2>&1; then
-      echo "  reconcile-skill-acted.mjs already in ~/.claude/settings.json — skipping"
-    else
-      if jq -e '.hooks.Stop' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$RECONCILE_CMD" \
-          '.hooks.Stop += [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$RECONCILE_CMD" \
-          '.hooks.Stop = [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      else
-        jq --arg cmd "$RECONCILE_CMD" \
-          '. + {"hooks":{"Stop":[{"hooks":[{"type":"command","command":$cmd,"async":true}]}]}}' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      fi
-      echo "  added reconcile-skill-acted.mjs → ~/.claude/settings.json (Stop, async)"
-    fi
+  # Skills/instructions do not implicitly activate cross-session telemetry.
+  # Existing settings are preserved unless the operator explicitly chooses a ledger.
+  if [[ -n "$TELEMETRY_DIR" ]]; then
+    python3 - "$HOME/.claude/settings.json" "$CORE_DIR" "$TELEMETRY_DIR" <<'PYTHON'
+import json, pathlib, shlex, sys
+settings_path, core, ledger = map(pathlib.Path, sys.argv[1:])
+settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+hooks = settings.setdefault('hooks', {})
+specs = [
+    ('Stop', 'reconcile-skill-acted.mjs', True, None),
+    ('Stop', 'deviation-log.mjs', True, None),
+    ('PreToolUse', 'merge-quiz.sh', False, 'Bash'),
+]
+for event, script, asynchronous, matcher in specs:
+    argv = [str(core / 'scripts' / 'hooks' / script), '--ledger-root=' + str(ledger)]
+    if script.endswith('.mjs'):
+        argv.insert(0, 'node')
+    command = shlex.join(argv)
+    entries = hooks.setdefault(event, [])
+    found = False
+    for entry in entries:
+        for hook in entry.get('hooks', []):
+            if hook.get('type') != 'command':
+                continue
+            try:
+                tokens = shlex.split(hook.get('command', ''))
+            except ValueError:
+                continue
+            # Match the invoked script, never a substring of unrelated shell text.
+            executable = tokens[1] if len(tokens) > 1 and pathlib.Path(tokens[0]).name == 'node' else (tokens[0] if tokens else '')
+            if pathlib.Path(executable).name == script:
+                hook['command'] = command
+                found = True
+    if not found:
+        hook = {'type': 'command', 'command': command}
+        if asynchronous:
+            hook['async'] = True
+        entry = {'hooks': [hook]}
+        if matcher:
+            entry['matcher'] = matcher
+        entries.append(entry)
+settings_path.write_text(json.dumps(settings, indent=2) + '\n')
+print(f"  telemetry hooks configured with explicit ledger: {ledger}")
+PYTHON
   else
-    echo "  WARN: jq not found — add reconcile-skill-acted.mjs to ~/.claude/settings.json Stop manually"
-  fi
-
-  # ── Deviation capture (H6, adr:harness-loop-instrumentation) ─────────────
-  # The independent plan-vs-territory detector. USER-SCOPE for the same reason
-  # as the recorder above: deviations happen in every repo and in chat/desktop
-  # sessions, not just inside core. SHADOW/observe-only, async, non-blocking;
-  # no-ops silently in any repo with no implementation-notes.md.
-  DEVIATION_HOOK="$CORE_DIR/scripts/hooks/deviation-log.mjs"
-  DEVIATION_CMD="node \"$DEVIATION_HOOK\""
-  if command -v jq >/dev/null 2>&1; then
-    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
-    # Match by script NAME, not absolute path — same duplicate-hook guard as above.
-    if jq -e 'any(.. | objects | .command? // empty; contains("deviation-log.mjs"))' "$USER_SETTINGS" >/dev/null 2>&1; then
-      echo "  deviation-log.mjs already in ~/.claude/settings.json — skipping"
-    else
-      if jq -e '.hooks.Stop' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$DEVIATION_CMD" \
-          '.hooks.Stop += [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$DEVIATION_CMD" \
-          '.hooks.Stop = [{"hooks":[{"type":"command","command":$cmd,"async":true}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      else
-        jq --arg cmd "$DEVIATION_CMD" \
-          '. + {"hooks":{"Stop":[{"hooks":[{"type":"command","command":$cmd,"async":true}]}]}}' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      fi
-      echo "  added deviation-log.mjs → ~/.claude/settings.json (Stop, async)"
-    fi
-  else
-    echo "  WARN: jq not found — add deviation-log.mjs to ~/.claude/settings.json Stop manually"
-  fi
-
-  # ── Pre-merge comprehension observer (H8 Stage A, adr:harness-loop-instrumentation) ──
-  # PreToolUse(Bash), SYNC by necessity (it must see the command before it runs), which is
-  # why the installed entry is the bash prefilter and NOT the .mjs: merge-quiz.sh rejects
-  # non-merge commands in ~4ms without spawning node. Do not "simplify" this to call the
-  # .mjs directly — that spawns node on every Bash call in every session.
-  # STAGE A IS OBSERVE-ONLY: it records what a gate would have caught and never blocks.
-  MERGEQUIZ_HOOK="$CORE_DIR/scripts/hooks/merge-quiz.sh"
-  MERGEQUIZ_CMD="\"$MERGEQUIZ_HOOK\""
-  if command -v jq >/dev/null 2>&1; then
-    [[ -f "$USER_SETTINGS" ]] || echo '{}' > "$USER_SETTINGS"
-    if jq -e 'any(.. | objects | .command? // empty; contains("merge-quiz.sh"))' "$USER_SETTINGS" >/dev/null 2>&1; then
-      echo "  merge-quiz.sh already in ~/.claude/settings.json — skipping"
-    else
-      if jq -e '.hooks.PreToolUse' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$MERGEQUIZ_CMD" \
-          '.hooks.PreToolUse += [{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      elif jq -e '.hooks' "$USER_SETTINGS" >/dev/null 2>&1; then
-        jq --arg cmd "$MERGEQUIZ_CMD" \
-          '.hooks.PreToolUse = [{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      else
-        jq --arg cmd "$MERGEQUIZ_CMD" \
-          '. + {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":$cmd}]}]}}' \
-          "$USER_SETTINGS" > "$USER_SETTINGS.tmp" && mv "$USER_SETTINGS.tmp" "$USER_SETTINGS"
-      fi
-      echo "  added merge-quiz.sh → ~/.claude/settings.json (PreToolUse: Bash, shadow)"
-    fi
-  else
-    echo "  WARN: jq not found — add merge-quiz.sh to ~/.claude/settings.json PreToolUse manually"
+    echo "  no new telemetry registered; existing hooks left unchanged (may still write their old ledgers)"
+    echo "  opt in with --telemetry-dir=/absolute/private/path (no default vault writes)"
   fi
 
   echo ""
@@ -288,6 +261,7 @@ fi
 if [[ -z "$TARGET_ARG" ]]; then
   echo "Usage: $0 <target-repo> [--force]"
   echo "       $0 --user-scope                  # install Pocock baseline at ~/.claude/"
+  echo "       $0 --user-scope --telemetry-dir=/absolute/path  # opt-in telemetry destination"
   echo "       $0 --user-scope --with-selfco    # also: /vault skill + ~/selfco vault + opt-in SessionEnd hook"
   echo ""
   echo "Available sibling repos:"

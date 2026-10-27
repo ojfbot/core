@@ -28,5 +28,5 @@ OBSERVER="$HOOK_DIR/merge-quiz.mjs"
 
 # The observer does the precise classification (the bash grep above is deliberately loose;
 # `git merge --abort` and `git merge-base` are rejected there, not here).
-printf '%s' "$HOOK_INPUT" | node "$OBSERVER" >/dev/null 2>&1 || true
+printf '%s' "$HOOK_INPUT" | node "$OBSERVER" "$@" >/dev/null 2>&1 || true
 exit 0

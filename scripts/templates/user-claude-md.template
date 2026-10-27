@@ -56,8 +56,13 @@ them — charting foggy, multi-session initiatives — and degrades to a file-on
 the fleet, where there is no northstar registry to anchor to. `/vault` is opt-in via `--with-selfco`.
 
 The set is **catalog-driven** — flag a skill `scope:["user"]` in the catalog and re-run
-`core/scripts/install-agents.sh --user-scope` to sync. Skills resolve through symlinks to
-`/Users/yuri/ojfbot/core/.claude/skills/`; if those paths break, the same command repairs them.
+`core/scripts/install-agents.sh --user-scope` to sync. Skills resolve through symlinks to the Core checkout used for installation;
+if that checkout moves, rerun the installer from its new location to repair the links.
+
+Skill installation does not enable telemetry. Opt in separately with
+`--telemetry-dir=/absolute/private/path` to choose where hook ledgers are written.
+Existing hook settings are preserved when this option is omitted. A destination
+inside `~/selfco` additionally requires `--with-selfco`.
 
 <!-- managed:end -->
 

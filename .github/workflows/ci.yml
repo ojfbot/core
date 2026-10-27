@@ -19,6 +19,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: User-scope installer and hook isolation regression
+        run: python3 scripts/__tests__/test_user_scope_install.py -v
+
       - name: Build
         run: pnpm build
 
