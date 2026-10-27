@@ -54,6 +54,13 @@ A packaged instruction set under `.claude/skills/<name>/`, catalog-registered, i
 `/<name>`. Git-canonical here; user-scope skills are symlinked to `~/.claude/skills/`.
 _Avoid_: command, plugin (a plugin is a distribution channel, rejected — ADR-0083)
 
+**Fleet hooks**:
+Claude Code settings hooks that make any session on a machine follow fleet conventions —
+skill suggestions, session init, local tool and session logs, and the discipline hooks
+(`git-guard`, `verify-outward-writes`). They never write to a vault.
+_Avoid_: agent hooks (a Gas Town agent hook holds slung work — ADR-0043)
+→ deeper: `scripts/install-agents.sh`
+
 ## Relationships
 
 - A **Northstar** is moved by **Slices**; a roadmap orders them; **Control gates** sit between them
@@ -65,5 +72,7 @@ _Avoid_: command, plugin (a plugin is a distribution channel, rejected — ADR-0
 
 - "handoff" — resolved: `/bead` owns inter-session continuity; `/handoff` owns post-ship
   runbook docs. Never interchangeable.
+- "hook" — a Claude Code settings hook runs a command on a session event; a Gas Town agent
+  hook (ADR-0043) holds work slung to an agent. Qualify every use.
 - "ticket" — an implementation unit lives in the tracker as an issue backing a **Slice**;
   a **decision ticket** is a wayfinder question. The qualifier is load-bearing.

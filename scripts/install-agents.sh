@@ -9,7 +9,10 @@
 #   ./scripts/install-agents.sh cv-builder --force   # overwrite existing symlinks
 #   ./scripts/install-agents.sh --user-scope           # skills and instructions only
 #   ./scripts/install-agents.sh --user-scope --telemetry-dir=/private/ledger
+#   ./scripts/install-agents.sh --user-scope --fleet-hooks
 # Telemetry is opt-in. Without an explicit destination, existing hooks are untouched.
+# Fleet hooks are a separate opt-in: skill suggestions, session init, local logs under
+# ~/.claude/, and the git-guard / verify-outward-writes discipline hooks. No vault writes.
 #
 # What it does:
 #   1. Creates .claude/skills/ with symlinks to all core skill directories
@@ -44,6 +47,7 @@ FORCE=false
 TARGET_ARG=""
 USER_SCOPE=false
 WITH_SELFCO=false
+FLEET_HOOKS=false
 TELEMETRY_DIR=""
 
 for arg in "$@"; do
@@ -51,6 +55,7 @@ for arg in "$@"; do
     --force) FORCE=true ;;
     --user-scope) USER_SCOPE=true ;;
     --with-selfco) WITH_SELFCO=true ;;
+    --fleet-hooks) FLEET_HOOKS=true ;;
     --telemetry-dir=) echo "Error: --telemetry-dir needs an absolute path" >&2; exit 1 ;;
     --telemetry-dir=*) TELEMETRY_DIR="${arg#*=}" ;;
     *) TARGET_ARG="$arg" ;;
@@ -78,6 +83,7 @@ fi
 
 # --with-selfco is a user-scope add-on (vault skill + scaffold + opt-in SessionEnd hook)
 [[ "$WITH_SELFCO" == "true" ]] && USER_SCOPE=true
+[[ "$FLEET_HOOKS" == "true" ]] && USER_SCOPE=true
 
 # --user-scope: install catalog skills + ~/.claude/CLAUDE.md baseline (no repo target)
 # See ADR-0055.
@@ -155,6 +161,21 @@ PY
     echo "  refreshed managed block in $USER_CLAUDE_MD"
   fi
 
+  # A section promoted into the managed block may still exist as a hand-written copy
+  # below it. Report duplicates; never edit the operator's own section.
+  python3 - "$USER_CLAUDE_MD" <<'PY'
+import re, sys, pathlib
+text = pathlib.Path(sys.argv[1]).read_text()
+start = text.find("<!-- managed:start")
+end = re.search(r"<!-- managed:end[^>]*-->", text)
+if start >= 0 and end:
+    heading = re.compile(r"^## +(.+?)\s*$", re.M)
+    inside = {h for h in heading.findall(text[start:end.end()])}
+    outside = heading.findall(text[:start] + text[end.end():])
+    for h in sorted(inside.intersection(outside)):
+        print(f"  WARN: '## {h}' is now managed and also appears outside the managed block; remove your copy if it is identical")
+PY
+
   # ── Opt-in: selfco vault (--with-selfco) ──────────────────────────────────
   # Adds the /vault skill at user scope, scaffolds ~/selfco, and installs the
   # opt-in vault-session.sh SessionEnd hook into ~/.claude/settings.json.
@@ -204,6 +225,50 @@ PY
     else
       echo "  WARN: jq not found — add vault-session.sh to ~/.claude/settings.json SessionEnd manually"
     fi
+  fi
+
+  # ── Opt-in: fleet hooks (--fleet-hooks) ───────────────────────────────────
+  # The behavioral layer that makes a session follow fleet conventions. Every hook
+  # here writes only under ~/.claude/ or /tmp. A hook already registered under any
+  # path (matched by script name) is left exactly as it is.
+  if [[ "$FLEET_HOOKS" == "true" ]]; then
+    echo ""
+    echo "── fleet hooks (--fleet-hooks)"
+    python3 - "$HOME/.claude/settings.json" "$CORE_DIR" <<'PYTHON'
+import json, pathlib, shlex, sys
+settings_path, core = map(pathlib.Path, sys.argv[1:])
+settings_path.parent.mkdir(parents=True, exist_ok=True)
+settings = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+hooks = settings.setdefault('hooks', {})
+# (event, script, matcher, async, prepend)
+specs = [
+    ('UserPromptSubmit', 'session-init.sh', None, False, True),
+    ('UserPromptSubmit', 'suggest-skill.sh', None, False, False),
+    ('SessionStart', 'log-session.sh', None, True, False),
+    ('PostToolUse', 'log-tool-use.sh', None, True, False),
+    ('PostToolUse', 'verify-outward-writes.py', 'Bash', False, False),
+    ('PreToolUse', 'git-guard.py', 'Bash', False, False),
+]
+for event, script, matcher, asynchronous, prepend in specs:
+    entries = hooks.setdefault(event, [])
+    existing = [hook.get('command', '') for entry in entries for hook in entry.get('hooks', [])
+                if script in hook.get('command', '')]
+    if existing:
+        print(f"  {script} already registered — left unchanged")
+        continue
+    hook = {'type': 'command', 'command': shlex.quote(str(core / 'scripts' / 'hooks' / script))}
+    if asynchronous:
+        hook['async'] = True
+    entry = {'hooks': [hook]}
+    if matcher:
+        entry['matcher'] = matcher
+    if prepend:
+        entries.insert(0, entry)
+    else:
+        entries.append(entry)
+    print(f"  registered {script} ({event}{', ' + matcher if matcher else ''})")
+settings_path.write_text(json.dumps(settings, indent=2) + '\n')
+PYTHON
   fi
 
   # Skills/instructions do not implicitly activate cross-session telemetry.
@@ -292,6 +357,7 @@ if [[ -z "$TARGET_ARG" ]]; then
   echo "Usage: $0 <target-repo> [--force]"
   echo "       $0 --user-scope                  # install Pocock baseline at ~/.claude/"
   echo "       $0 --user-scope --telemetry-dir=/absolute/path  # opt-in telemetry destination"
+  echo "       $0 --user-scope --fleet-hooks    # also: skill suggestions, session init, local logs, discipline hooks"
   echo "       $0 --user-scope --with-selfco    # also: /vault skill + ~/selfco vault + opt-in SessionEnd hook"
   echo ""
   echo "Available sibling repos:"

@@ -22,6 +22,9 @@ jobs:
       - name: User-scope installer and hook isolation regression
         run: python3 scripts/__tests__/test_user_scope_install.py -v
 
+      - name: Discipline hooks acceptance battery
+        run: python3 scripts/__tests__/test_discipline_hooks.py
+
       - name: Build
         run: pnpm build
 

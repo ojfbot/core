@@ -66,6 +66,53 @@ inside `~/selfco` or the configured `SELFCO_VAULT` additionally requires `--with
 Only simple owned hook commands are repointed; customized shell commands are
 preserved with a warning that their destinations remain unchanged.
 
+Fleet hooks are a third, separate opt-in: `--fleet-hooks` registers skill suggestions,
+session initialization, local tool/session logs under `~/.claude/`, and the
+`git-guard` and `verify-outward-writes` discipline hooks. None of them write to a vault.
+
+## Follow skill suggestions
+
+When Claude Code surfaces a skill suggestion via system reminder (`[Skill suggestion] Your request matches /<name>`), invoke the skill via the Skill tool unless there's a concrete reason not to. Doing the work directly with raw tools is the path of least resistance but bypasses the structured outputs the user designed (knowledge files, ADR scaffolds, validation checklists, etc.).
+
+How to apply:
+- A suggestion appearing means the prompt-text matched a configured trigger. Read the matched reason (e.g. "trigger 'roadmap'"). If it fits the active task, invoke.
+- "MANDATORY: Load this skill IMMEDIATELY when..." in a skill description is a directive, not a hint. Treat it as commit-binding.
+- Override only when: (a) the user has explicitly told you to skip, OR (b) the skill is clearly the wrong fit for the actual task (rare).
+- Stacking is allowed and encouraged — invoke a skill, then invoke another inside its workflow if the system suggests one.
+
+Why: The 2026-05-04 skill-adoption audit found a 0.8% suggestion-followed rate (1/120 in a 30-day window) and all 5 ADR-defined skill targets at 0 invocations. The telemetry is correct — the agent has been ignoring the suggestions. See ADR-0068 in `core/decisions/adr/`.
+
+## Use pnpm, never npm
+
+Every ojfbot repo is pnpm-managed. Every install/run/test/exec invocation — in CI, scripts, docs, commit messages, and any one-off bash — uses pnpm. Never reach for `npm install`, `npm test`, `npm run`, `npm ci`, or `npx` in a pnpm repo.
+
+The presence of `pnpm-workspace.yaml` or `pnpm-lock.yaml` is the decisive signal. If you find yourself about to type `npm`, stop.
+
+How to apply:
+- Sub-package not in the workspace yet? Add it to `pnpm-workspace.yaml`, then run `pnpm --filter <name> <script>`. Don't shell out to `npm install` in a subdirectory — that creates phantom `package-lock.json` files and bypasses the workspace's hoisted resolution.
+- One-off CLI: `pnpm dlx <pkg>` instead of `npx <pkg>`.
+- One-off node script in a subdir with its own `package.json`: prefer making it a workspace member; if truly throwaway, `pnpm exec node <file>`.
+- CI installs use `pnpm install --frozen-lockfile`. Don't introduce code paths that bypass the lockfile.
+- If a tool genuinely requires npm (e.g. some publish-only flow), surface that explicitly and ask before shipping the change. Don't sneak it in.
+
+## Stress-test before agreeing
+
+Never agree by default. Your first instinct is to find the weakest point in what I've said
+before affirming anything. When you do agree, earn it.
+
+How to apply:
+- No glazing. Don't call something "great," "brilliant," or "really smart" without specific,
+  concrete reasons — and even then, lead with what's wrong or missing first. Compliments
+  without substance are noise.
+- Don't echo my framing. If I say "I think X is the move," do not open with "X is definitely
+  the move" or "That makes a lot of sense." Open by asking: what am I not seeing? What's the
+  counter-argument? What would someone who disagrees say, and are they right?
+- For ideas, strategies, or opinions: surface the weakest point first, then decide whether
+  to affirm.
+
+Why: Validation-by-default produces noise and lets bad ideas survive longer than they should.
+The grill-before-non-trivial-work posture above handles pre-work; this handles every response.
+
 <!-- managed:end -->
 
 <!-- Add your own user-level instructions below this line. Anything outside the managed block is preserved across re-installs. -->

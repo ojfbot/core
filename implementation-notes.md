@@ -523,3 +523,9 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 ## Deviations — Minifour user-scope rollout
 
 - The no-vault rollout assumed omitting `--with-selfco` prevented Selfco writes; isolated runtime validation found the default telemetry hooks still create `~/selfco/tracking`. Prepared a separate explicit-destination telemetry opt-in while preserving existing hooks unless explicitly repointed; live rollout and Codex projection remain outside this slice.
+
+## Deviations — Minifour full-peer Claude configuration 2026-10-27
+
+- "Full peer" was framed as matching Yuri; the fingerprint showed Yuri's own skills resolve into a dirty `adr/judge-primitive` checkout, with four frozen copies (`eli`, `mece`, `minto`, `pitch-craft`) and both discipline hooks living only in `~/.claude/hooks/`. Targeted canonical `origin/main` instead, promoted the discipline hooks and their 26-case battery into Core, and left Yuri's drift reported, not repaired.
+- The plan named the new installer opt-in `--agent-hooks`; ADR-0043 already uses "agent hook" for Gas Town work slung to an agent. Renamed to `--fleet-hooks` and recorded the term plus the "hook" ambiguity in `CONTEXT.md`.
+- Full peer assumed `--with-selfco` was the way to give Mini the vault skill and a vault ledger. On an existing vault it still runs `init-vault.py` — regenerating the repo list in `wiki/index.md` from whatever is cloned locally, seeding entity stubs, `git init`, plugin fetch — and adds a SessionEnd `wiki/log.md` writer that Yuri does not run. Against Mini's accepted Sync seed that rewrites synced content on every device. Went with a ledger outside the vault plus a direct `vault` skill link; decoupling scaffold and session-log from `--with-selfco` is a separate follow-up.

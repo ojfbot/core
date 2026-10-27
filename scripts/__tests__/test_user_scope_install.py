@@ -177,5 +177,121 @@ class UserScopeInstall(unittest.TestCase):
         self.assertFalse(first.exists())
 
 
+    FLEET_HOOKS = {
+        'session-init.sh': ('UserPromptSubmit', None),
+        'suggest-skill.sh': ('UserPromptSubmit', None),
+        'log-session.sh': ('SessionStart', None),
+        'log-tool-use.sh': ('PostToolUse', None),
+        'verify-outward-writes.py': ('PostToolUse', 'Bash'),
+        'git-guard.py': ('PreToolUse', 'Bash'),
+    }
+
+    def registered(self, script):
+        settings = json.loads(self.settings.read_text())
+        return [(event, entry.get('matcher'), hook['command'])
+                for event, entries in settings['hooks'].items()
+                for entry in entries for hook in entry['hooks'] if script in hook['command']]
+
+    def fleet_env(self):
+        # session-init emits beads into any Dolt listening on DOLT_PORT; port 1 never
+        # listens, so the isolated HOME cannot reach a live bead database.
+        self.env['DOLT_PORT'] = '1'
+
+    def test_fleet_hooks_register_once_and_write_no_vault(self):
+        self.fleet_env()
+        self.install('--fleet-hooks')
+        self.install('--fleet-hooks')
+        for script, (event, matcher) in self.FLEET_HOOKS.items():
+            with self.subTest(script=script):
+                found = self.registered(script)
+                self.assertEqual(len(found), 1, found)
+                self.assertEqual(found[0][:2], (event, matcher))
+                self.assertTrue(Path(shlex.split(found[0][2])[0]).is_file())
+        # Drive the registered discipline hooks with real tool payloads, not the harness no-op.
+        guard = self.registered('git-guard.py')[0][2]
+        verify = self.registered('verify-outward-writes.py')[0][2]
+        def call(command, payload):
+            return subprocess.run(command, shell=True, executable='/bin/bash', env=self.env,
+                                  input=json.dumps({'tool_name': 'Bash', 'tool_input': {'command': payload}}),
+                                  capture_output=True, text=True)
+        self.assertEqual(call(guard, 'git add -A').returncode, 2)
+        self.assertEqual(call(guard, 'git add scripts/x.py').returncode, 0)
+        self.assertIn('VERIFY BEFORE REPORTING', call(verify, 'git push').stdout)
+        prompt_hooks = json.loads(self.settings.read_text())['hooks']['UserPromptSubmit']
+        self.assertIn('session-init.sh', prompt_hooks[0]['hooks'][0]['command'])
+        self.run_hooks()
+        self.assertFalse((self.home / 'selfco').exists())
+
+    def test_fleet_hooks_leave_existing_registrations_untouched(self):
+        self.fleet_env()
+        custom = {'type': 'command', 'command': '/custom/place/git-guard.py'}
+        unrelated = {'type': 'command', 'command': 'true'}
+        self.seed_settings({'permissions': {'allow': ['Read']},
+                            'hooks': {'PreToolUse': [{'matcher': 'Bash', 'hooks': [custom]}],
+                                      'Stop': [{'hooks': [unrelated]}]}})
+        result = self.install('--fleet-hooks')
+        settings = json.loads(self.settings.read_text())
+        self.assertEqual(self.registered('git-guard.py'), [('PreToolUse', 'Bash', custom['command'])])
+        self.assertIn('git-guard.py already registered', result.stdout)
+        self.assertEqual(settings['permissions'], {'allow': ['Read']})
+        self.assertEqual(settings['hooks']['Stop'], [{'hooks': [unrelated]}])
+
+    def test_full_peer_composition_matches_reference_hook_set(self):
+        self.fleet_env()
+        self.install('--fleet-hooks', '--telemetry-dir=' + str(self.home / 'ledger'))
+        expected = set(self.FLEET_HOOKS) | {'reconcile-skill-acted.mjs', 'deviation-log.mjs', 'merge-quiz.sh'}
+        settings = json.loads(self.settings.read_text())
+        scripts = [Path(token).name
+                   for entries in settings['hooks'].values() for e in entries for h in e['hooks']
+                   for token in shlex.split(h['command']) if Path(token).name in expected]
+        self.assertEqual(sorted(scripts), sorted(expected))
+        self.run_hooks()
+        self.assertFalse((self.home / 'selfco').exists())
+
+    def test_managed_instructions_carry_peer_sections_and_flag_duplicates(self):
+        claude_md = self.home / '.claude/CLAUDE.md'
+        claude_md.parent.mkdir()
+        claude_md.write_text('<!-- managed:start old -->\nold\n<!-- managed:end -->\n\n'
+                             '## Use pnpm, never npm\n\nMy own copy.\n')
+        result = self.install()
+        text = claude_md.read_text()
+        managed = text[:text.index('<!-- managed:end')]
+        for heading in ('## Follow skill suggestions', '## Use pnpm, never npm',
+                        '## Stress-test before agreeing'):
+            self.assertIn(heading, managed)
+        self.assertIn('My own copy.', text[text.index('<!-- managed:end'):])
+        self.assertIn("WARN: '## Use pnpm, never npm' is now managed", result.stdout)
+        self.assertNotIn('Follow skill suggestions', result.stdout)
+
+
+    def fingerprint(self, *args):
+        r = subprocess.run(['python3', str(CORE / 'scripts/claude-config-fingerprint.py'), *args],
+                           env=self.env, capture_output=True, text=True)
+        return r
+
+    def test_fingerprint_is_sanitized_and_self_compares_clean(self):
+        self.fleet_env()
+        self.install('--fleet-hooks')
+        bucket = self.home / '.claude/skills/synced/0a1b2c3d-1111-2222-3333-444455556666_x'
+        (bucket / 'account-skill').mkdir(parents=True)
+        (self.home / '.claude/CLAUDE.md').write_text(
+            (self.home / '.claude/CLAUDE.md').read_text() + '\nsecret-instruction-body\n')
+        out = self.home / 'fp.json'
+        r = self.fingerprint('--device', 'fixture', '--out', str(out))
+        self.assertEqual(r.returncode, 0, r.stderr)
+        text = out.read_text()
+        self.assertNotIn(str(self.home), text)
+        self.assertNotIn('0a1b2c3d', text)
+        self.assertNotIn('secret-instruction-body', text)
+        data = json.loads(text)
+        self.assertEqual(data['account_skills'], ['account-skill'])
+        # vault is opt-in (--with-selfco), so a default install truthfully reports it missing.
+        self.assertEqual(data['catalog_drift']['missing'], ['vault'])
+        self.assertIn('git-guard.py', [h['script'] for h in data['hooks']['PreToolUse']])
+        same = self.fingerprint('--compare', str(out), str(out))
+        self.assertEqual(same.returncode, 0, same.stdout)
+        self.assertIn('no differences', same.stdout)
+
+
 if __name__ == '__main__':
     unittest.main()
