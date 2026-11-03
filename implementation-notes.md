@@ -526,3 +526,11 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
 ## Deviations — Minifour user-scope rollout
 
 - The no-vault rollout assumed omitting `--with-selfco` prevented Selfco writes; isolated runtime validation found the default telemetry hooks still create `~/selfco/tracking`. Prepared a separate explicit-destination telemetry opt-in while preserving existing hooks unless explicitly repointed; live rollout and Codex projection remain outside this slice.
+
+## Fleet-runner queue lift (#578)
+
+- Lifted the queue and its synthetic tests from BookcaseDiscovery main at
+  `63472ef3ba75c6ce78d36fca4cff1c6cba609e54`. The package carries the source's
+  AGPL-3.0-only license. BookcaseDiscovery keeps its handler and CLI tests.
+  The lifted tests provide executable evidence for #530.
+  The SQLite import uses Node directly for compatibility with core’s Vite 5 test runner.

@@ -1,0 +1,16 @@
+{
+  "name": "@core/fleet-runner",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "exports": {
+    ".": "./dist/jobs.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  }
+}
