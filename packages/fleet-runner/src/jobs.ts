@@ -12,9 +12,10 @@ import { createHash, randomUUID } from "node:crypto";
 import { linkSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
+import type * as SQLite from "node:sqlite";
 
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
-const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 
 export const JOBS_SCHEMA_VERSION = 2;
 
@@ -176,11 +177,11 @@ export function jobKey(spec: Pick<JobSpec, "kind" | "inputs"> & Partial<JobSpec>
  * to a temporary file, then hard-linked into place) and is never overwritten: linking fails if the name
  * exists. So a worker that wakes after losing its lease cannot touch the accepted attempt's bytes.
  */
-export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data: string, ext = "jsonl"): JobOutput {
+export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data: string | Uint8Array, ext = "jsonl"): JobOutput {
   mkdirSync(dir, { recursive: true });
   const file = `${job.key}.${job.fence}.${ext}`;
   const tmp = join(dir, `${file}.${process.pid}.${randomUUID()}.tmp`);
-  writeFileSync(tmp, data);
+  writeFileSync(tmp, data, { mode: 0o600, flag: "wx" });
   try {
     linkSync(tmp, join(dir, file));
   } finally {
@@ -200,6 +201,16 @@ export interface JobStoreOptions {
  * The morning report. Two scopes, never mixed: `now` is the table's state when the report runs; `period`
  * counts what happened between `since` and `until`.
  */
+export interface JobEvent {
+  seq: number;
+  ts: number;
+  key: string;
+  type: JobEventType;
+  worker: string | null;
+  fence: number | null;
+}
+
+/** The morning report. Its current state and time window are separate. */
 export interface JobReport {
   now: {
     at: number;
@@ -233,7 +244,7 @@ export interface WorkerPeriod {
 }
 
 export class JobStore {
-  readonly #db: import("node:sqlite").DatabaseSync;
+  readonly #db: SQLite.DatabaseSync;
   readonly #now: () => number;
   readonly #leaseMs: number;
 
@@ -359,14 +370,19 @@ export class JobStore {
    * Record success and make this attempt's file the accepted output. Rejected (and recorded) unless the
    * worker still holds the job under the same fencing token.
    */
-  complete(key: string, fence: number, worker: string, output: JobOutput): boolean {
+  complete(key: string, fence: number, worker: string, output: JobOutput | (() => JobOutput)): boolean {
     return this.#tx(() => {
+      if (typeof output === "function" && !this.#held(key, fence, worker)) {
+        this.#event(key, "rejected-stale", worker, fence);
+        return false;
+      }
+      const accepted = typeof output === "function" ? output() : output;
       const now = this.#now();
       const res = this.#db
         .prepare(
           "UPDATE jobs SET status = 'done', output = ?, output_file = ?, error = NULL, lease_expires = NULL, updated = ?, rev = rev + 1 WHERE key = ? AND status = 'claimed' AND fence = ? AND worker = ? AND lease_expires > ?",
         )
-        .run(output.sha256, output.file, now, key, fence, worker, now);
+        .run(accepted.sha256, accepted.file, now, key, fence, worker, now);
       const ok = Number(res.changes) === 1;
       this.#event(key, ok ? "completed" : "rejected-stale", worker, fence);
       return ok;
@@ -413,10 +429,16 @@ export class JobStore {
       .get(key) as JobRow | undefined;
   }
 
+  events(after: number): JobEvent[] {
+    return this.#db
+      .prepare("SELECT seq, ts, key, type, worker, fence FROM job_events WHERE seq > ? ORDER BY seq LIMIT 1000")
+      .all(after) as unknown as JobEvent[];
+  }
+
   /** The morning report: aggregates only (kinds, workers, counts, error codes). */
   report(since = 0): JobReport {
     const until = this.#now();
-    const byKind: JobReport["now"]["byKind"] = {};
+    const byKind: JobReport["now"]["byKind"] = Object.create(null);
     for (const r of this.#db.prepare("SELECT kind, status, COUNT(*) AS n FROM jobs GROUP BY kind, status").all() as { kind: string; status: JobStatus; n: number }[]) {
       byKind[r.kind] ??= { ready: 0, claimed: 0, done: 0, failed: 0 };
       byKind[r.kind]![r.status] = r.n;
@@ -427,7 +449,7 @@ export class JobStore {
     const oldest = this.#db.prepare("SELECT MIN(created) AS t FROM jobs WHERE status = 'ready'").get() as { t: number | null };
 
     const events: JobReport["period"]["events"] = {};
-    const byWorker: JobReport["period"]["byWorker"] = {};
+    const byWorker: JobReport["period"]["byWorker"] = Object.create(null);
     const forWorker = (w: string): WorkerPeriod =>
       (byWorker[w] ??= { completed: 0, failed: 0, released: 0, leaseExpired: 0, retired: 0, staleRejected: 0, machineSeconds: 0 });
     // Leased time inside the window [since, until], never negative (a future `since` gives zero).

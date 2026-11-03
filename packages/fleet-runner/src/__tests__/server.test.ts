@@ -1,0 +1,100 @@
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import type { Server } from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, expect, it } from "vitest";
+import { generateToken, signer } from "../auth.js";
+import { JobStore } from "../jobs.js";
+import type { Claim } from "../jobs.js";
+import { fleetServer } from "../server.js";
+
+let dir: string;
+let store: JobStore;
+let server: Server;
+let clock: number;
+let base: string;
+
+beforeEach(async () => {
+  dir = mkdtempSync(join(tmpdir(), "fleet-http-"));
+  for (const name of ["owner", "worker", "other"]) generateToken(join(dir, name));
+  clock = 1_000;
+  store = new JobStore(":memory:", { now: () => clock, leaseMs: 100 });
+  server = fleetServer(store, { registry: dir, outDir: dir });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("missing listener");
+  base = `http://127.0.0.1:${address.port}`;
+});
+
+afterEach(async () => {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  store.close();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+function request(id: string, target: string, data?: unknown) {
+  const body = data === undefined ? undefined : JSON.stringify(data);
+  const method = body === undefined ? "GET" : "POST";
+  const authorization = signer(id, join(dir, id))(method, target, Buffer.from(body ?? ""));
+  return fetch(base + target, {
+    method,
+    ...(body === undefined ? {} : { body }),
+    headers: { authorization },
+  });
+}
+
+it("requires a registered signature, rejects replay, and reserves admission for owner", async () => {
+  expect((await fetch(base + "/report")).status).toBe(401);
+  expect((await request("worker", "/enqueue", { kind: "noop", inputs: [] })).status).toBe(403);
+  const authorize = signer("owner", join(dir, "owner"));
+  const authorization = authorize("GET", "/report", Buffer.alloc(0));
+  expect((await fetch(base + "/events", { headers: { authorization } })).status).toBe(401);
+  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(200);
+  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(401);
+});
+
+it("fences uploads, validates the digest, and records an immutable accepted file", async () => {
+  const spec = { kind: "noop", inputs: ["synthetic"], requires: ["test"] };
+  expect((await request("owner", "/enqueue", { ...spec, payload: "unexpected" })).status).toBe(400);
+  const admitted = (await (await request("owner", "/enqueue", spec)).json()) as { key: string };
+  const claim = (id: string) =>
+    request(id, "/claim", { caps: ["test"], kinds: ["noop"] }).then((res) =>
+      res.json(),
+    ) as Promise<Claim>;
+  const first = await claim("worker");
+  expect(await (await request("other", "/heartbeat", first)).json()).toBe(false);
+  expect(await (await request("worker", "/heartbeat", first)).json()).toBe(true);
+  expect(await (await request("worker", "/release", first)).json()).toBe(true);
+  const second = await claim("worker");
+  clock += 101;
+  const third = await claim("other");
+  const output = Buffer.from("synthetic result");
+  const sha256 = createHash("sha256").update(output).digest("hex");
+  const upload = { output: output.toString("base64"), sha256 };
+  expect(await (await request("worker", "/complete", { ...second, ...upload })).json()).toBe(false);
+  expect(await (await request("worker", "/complete", { ...third, ...upload })).json()).toBe(false);
+  expect(
+    (await request("other", "/complete", { ...third, ...upload, sha256: "0".repeat(64) })).status,
+  ).toBe(400);
+  expect(await (await request("other", "/complete", { ...third, ...upload })).json()).toBe(true);
+  expect(await (await request("other", "/complete", { ...third, ...upload })).json()).toBe(true);
+  const file = join(dir, `${admitted.key}.${third.fence}.jsonl`);
+  expect(readFileSync(file)).toEqual(output);
+  const report = () => request("owner", `/report?verify=${admitted.key}`).then((res) => res.json());
+  expect(await report()).toMatchObject({
+    verified: true,
+    period: { byWorker: { other: { completed: 1 } } },
+  });
+  const events = (await (await request("owner", "/events?after=1")).json()) as {
+    seq: number;
+    type: string;
+  }[];
+  expect(events[0]?.seq).toBe(2);
+  expect(events.filter(({ type }) => type === "completed")).toHaveLength(1);
+  writeFileSync(file, "changed");
+  expect(await report()).toMatchObject({ verified: false });
+});
