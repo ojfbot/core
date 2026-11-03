@@ -332,7 +332,7 @@ low-risk tracer for obligations already on this map:
 | Existing venue | What this workload exercises |
 | --- | --- |
 | P2 / #313 | Durable jobs with leases, heartbeats and fencing; a worker that wakes from sleep must not overwrite a newer result; idempotent outputs checked by hash |
-| P2b | Capacity-limited GPU scheduling across concurrent work, plus human pause and priority. Measured: detection ran 3–4× slower per photo when three sessions shared one GPU unscheduled |
+| P2b | Capacity-limited GPU scheduling across concurrent work, plus human pause and priority. Observed: detection ran about 2.6–4.3× slower per photo when three sessions shared one GPU unscheduled (from private run logs; not yet a committed measurement) |
 | #309 / P4 | Useful work while a Mac sleeps; a second host (a 64 GB laptop) that joins at night or when idle and leaves without notice |
 | #311 | The same job runs on any qualified host; each host provisions itself (its own model-hub login, models manifest, lockfiles), never by copying credentials from another host |
 | #318 | Pre-registered evaluation rules as machine gates; output hash and replay checks as deterministic gates |
@@ -348,7 +348,14 @@ contract. It is a workload-local stopgap, not a second execution authority for d
 work, and it dispatches no coding sessions. Its retirement condition: the first fleet-runner
 iteration that can host a compute job. At that point the first suitable BookcaseDiscovery
 card migrates the workload. The operator asked that this need be treated as an added nudge
-to bring fleet-runner's first runnable iteration (P0–P2) forward.
+to bring fleet-runner's first runnable iteration (P0–P2) forward. The operator ruled the same
+day that Yojimbo may host the workload-local job table, pending a NAS. That placement covers
+the interim table only. Production fleet-runner hosting and reach stay with #309.
+
+**What this tracer can and cannot prove.** P0–P2 with this workload can prove a local compute
+tracer: admission, lease, fenced completion, gate record and morning report for deterministic
+jobs. It does not satisfy the governed coding pilot's own entrances. That pilot keeps its
+separate S25, publication, exact-state review and human-merge entrances, unchanged by this note.
 
 **Gate-authority input.** The operator also asked for bounded agentic capabilities in the
 control plane, with tiered machine- and agent-reviewable gates. The proposal is

@@ -92,4 +92,4 @@ These are recorded in the PRs and are not up for re-grilling.
 - Log deviations in `implementation-notes.md`.
 - Work in your own worktree. The main core checkout holds other sessions' uncommitted edits.
 - Never read or print tokens or credentials.
-- No career content in core or BookcaseDiscovery. The private career overlay lives in the operator's selfco vault (the mission-graph note filed 2026-11-03) and stays there.
+- No career or job-target content in core or BookcaseDiscovery (`adr:employer-evidence-boundary`).
