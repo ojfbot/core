@@ -5,12 +5,13 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire } from "node:module";
+import type * as SQLite from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { JobError, JobStore, canonicalJson, jobKey, runWorker, writeOutput } from "../jobs.js";
 import type { JobHandler, JobOutput, JobSpec } from "../jobs.js";
 
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
-const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof import("node:sqlite");
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 
 const LEASE = 60_000;
 let dir: string;
