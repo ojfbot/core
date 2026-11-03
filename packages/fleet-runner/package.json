@@ -8,7 +8,10 @@
     "node": ">=22.18"
   },
   "exports": {
-    ".": "./dist/jobs.js"
+    ".": "./dist/jobs.js",
+    "./auth": "./dist/auth.js",
+    "./client": "./dist/client.js",
+    "./worker": "./dist/worker.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json"
