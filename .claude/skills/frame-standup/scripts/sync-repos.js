@@ -60,6 +60,8 @@ const REPOS = [
   'dealdesk',
   'foundry-recipes',
   'classic-space-venue',
+  // Added 2026-11-02 (BookcaseDiscovery card Z-2, fleet registration).
+  'BookcaseDiscovery',
 ];
 
 const BASE = path.join(process.env.HOME, 'ojfbot');

@@ -200,6 +200,16 @@ registry:
     path: ../classic-space-venue/.claude/northstar.md
     ladders_up_to: l2-ojfbot
     posture: active
+  # BookcaseDiscovery: public build-in-public bookstore discovery engine (planned 2026-10-31,
+  # Opus 5.5 draft revised by Fable 5.1; plan canonical in BookcaseDiscovery/docs/plan/).
+  # Registered 2026-11-02 by card Z-2 (owner approved the proposal as written, checklist #13).
+  # NUMERIC CURRENTS/TARGETS ARE PROPOSALS (operator to calibrate).
+  - slug: l1-bookcase-discovery
+    tier: L1
+    app: BookcaseDiscovery
+    path: ../BookcaseDiscovery/.claude/northstar.md
+    ladders_up_to: l2-ojfbot
+    posture: active
   # Deferred to a later slice (declared here so lint/standup know the intended shape):
   # - slug: l2-selfco
   #   tier: L2
@@ -269,6 +279,11 @@ roadmaps:
   - slug: rm-l1-cv-builder
     northstar: l1-cv-builder
     path: ../cv-builder/.claude/roadmap.md
+  # BookcaseDiscovery (2026-11-02, card Z-2): one slice per dispatchable DELIVERY-PLAN card, ids in
+  # card order; 18 merged at registration, F-0 in flight. One depends_on edge per slice.
+  - slug: rm-l1-bookcase-discovery
+    northstar: l1-bookcase-discovery
+    path: ../BookcaseDiscovery/.claude/roadmap.md
 ---
 
 # Northstar — three-tier vision tracking
