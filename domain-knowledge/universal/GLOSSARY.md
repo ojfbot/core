@@ -130,6 +130,12 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Game Library** — TBD-named Frame sub-app for switching between game projects (beaverGame and future siblings). On the roadmap; not yet scaffolded. Reserved bead prefix: `lib-`. See ADR-0052.
 
+**Gate authority** — *Proposed.* Who or what may pass a Control Gate: human only, deterministic, machine (pre-registered rule), agent-reviewable (proposer + independent challenger + deterministic checks), or shadow (agent verdict recorded, human decides). Derived by a fixed table from the gate class's Impact (I0–I3), Reversibility (R0–R2), Verifiability (V0–V3) and measured Trust; I3, R2 or V3 is always human only. Projects onto the draft `autonomy: gate-0/1/2` labels. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
+
+**Gate canary** — *Proposed.* A known-bad change, drawn from a real past defect or a synthetic mutation, injected into a machine or agent gate class to measure its catch rate. A gate that never fails is unverified, not safe. The catch rate is part of the class's Trust. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
+
+**Gate record** — *Proposed.* The append-only verdict of one Control Gate: class and classification version, subject revision, pins (model id, prompt hash, input content hashes, config), check results, challenger findings, deciding identity and decision. A passed gate's pins form the baseline that rollback re-points to and bisection searches over. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
+
 **Glossary** — This file. Companion to CONTEXT.md.
 
 **Grill / Grilling** — Default agent posture: restate the request, surface 2–3 assumptions, ask the highest-leverage clarifying question, wait. (`agent-defaults.md`)
@@ -183,6 +189,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Measure of Effectiveness (MOE)** — *NASA SEH term.* The **qualitative** stakeholder goal a slice is judged against — not directly a design-to number. Top of the metric hierarchy: a MOE is realized by one or more MOPs, tracked as TPMs. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
 
 **Measure of Performance (MOP)** — *NASA SEH term.* A **quantitative** measure that, when met, helps ensure its parent MOE is satisfied (typically 2+ per MOE). The middle of the MOE → MOP → TPM hierarchy. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
+**Milestone gate** — *Proposed.* A human gate that bundles many lower-tier gate records into one evidence pack (records, diffs, metrics, escalations, open unknowns). Lets large decomposed work proceed between human checks without per-step review. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
 
 **Module Federation (MF)** — The Webpack/Vite mechanism for runtime composition of separate apps into a single shell. ojfbot uses it instead of iframes. (ADR-0001)
 
@@ -289,6 +297,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **standup-emit.mjs** — Pure-Node JSONL appender at `scripts/hooks/standup-emit.mjs`. Commands: `suggested` (PR-X1) and `closed` (PR-X2). Writes to `~/.claude/standup-telemetry.jsonl`. Never blocks the skill flow — exits 0 on any error path.
 
 **Standup telemetry** — `~/.claude/standup-telemetry.jsonl`. Append-only JSONL of `standup:suggested` and `standup:closed` events. Read by `/skill-metrics --funnel=standup` (PR-X2).
+
+**Stochastic step** — *Proposed.* One model call run inside a deterministic runner that pins inputs, validates output against a schema, treats the output as a proposal applied only by deterministic code, runs declared checks and (for V2 gates) an independent challenger, respects a budget, and emits a Gate record. A timeout or lost reply is unresolved, never passed. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
 
 **Substrate** — Foundational layer delivering assets/data/engine interactions, with apps built on top; never switcher-listed; registry `role: substrate`. Examples: mirrorworld, asset-foundry, f1-substrate, switchboard, core. (adr:operating-surface-tiered-composition)
 

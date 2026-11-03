@@ -314,6 +314,51 @@ has been met. #313 retains any future authority or spend-policy decision; S25 an
 first governed pilot retain their existing entrances. This note registers no delivery
 slice, dispatch authority, movement, or runtime completion.
 
+### Multi-host compute workload and gate-authority input, 2026-11-03
+
+The operator asked for local compute spread across more than one of their Macs. Several
+machines pull from a shared queue of evaluation, model, labelling and test jobs, under the
+Day Shift / Night Shift split. The operator also set a platform principle: no single agentic
+interface (Claude, Codex or an owned harness) and no single machine is the source of truth
+or governor of other clients. Authority and state belong to platform services, which may run
+on any host. Agents and interfaces are bounded clients. This restates #307's "one execution
+authority" and ADR-0108's independent deployment; it does not change them.
+
+**Receiving workload.** BookcaseDiscovery's local compute is registered here as a receiving
+workload beside daily-logger: open-model detection, OCR and VLM reading, renders and its
+test suite, all keyed by content hash plus model and code version. It is a deliberately
+low-risk tracer for obligations already on this map:
+
+| Existing venue | What this workload exercises |
+| --- | --- |
+| P2 / #313 | Durable jobs with leases, heartbeats and fencing; a worker that wakes from sleep must not overwrite a newer result; idempotent outputs checked by hash |
+| P2b | Capacity-limited GPU scheduling across concurrent work, plus human pause and priority. Measured: detection ran 3–4× slower per photo when three sessions shared one GPU unscheduled |
+| #309 / P4 | Useful work while a Mac sleeps; a second host (a 64 GB laptop) that joins at night or when idle and leaves without notice |
+| #311 | The same job runs on any qualified host; each host provisions itself (its own model-hub login, models manifest, lockfiles), never by copying credentials from another host |
+| #318 | Pre-registered evaluation rules as machine gates; output hash and replay checks as deterministic gates |
+
+Its effects stay inside the owner's machines: no external publication, so P3 is not on its
+path. Private photos may move only between the owner's machines on the LAN; that boundary is
+the workload's own and is not widened by this note.
+
+**Interim queue.** fleet-runner has no runnable first iteration yet. The operator directed
+that the workload **must not block on it**. BookcaseDiscovery may build a minimal local job
+queue for compute jobs only, behind an adapter boundary shaped like P2's command and evidence
+contract. It is a workload-local stopgap, not a second execution authority for development
+work, and it dispatches no coding sessions. Its retirement condition: the first fleet-runner
+iteration that can host a compute job. At that point the first suitable BookcaseDiscovery
+card migrates the workload. The operator asked that this need be treated as an added nudge
+to bring fleet-runner's first runnable iteration (P0–P2) forward.
+
+**Gate-authority input.** The operator also asked for bounded agentic capabilities in the
+control plane, with tiered machine- and agent-reviewable gates. The proposal is
+[gate-authority-tiers](../fleet-runner/gate-authority-tiers.md): four classification axes,
+a deterministic authority table, a stochastic step contract, pinned baselines for rollback
+and bisection, and gate canaries. It is an input to #313 and #318 and is not accepted.
+
+This note registers no delivery slice, dispatch authority, movement, queue change or
+runtime claim.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are
