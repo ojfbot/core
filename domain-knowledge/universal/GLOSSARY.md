@@ -130,7 +130,7 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Game Library** — TBD-named Frame sub-app for switching between game projects (beaverGame and future siblings). On the roadmap; not yet scaffolded. Reserved bead prefix: `lib-`. See ADR-0052.
 
-**Gate authority** — *Proposed.* Who or what may pass a Control Gate: human only, deterministic, machine (pre-registered rule), agent-reviewable (proposer + independent challenger + deterministic checks), or shadow (agent verdict recorded, human decides). Derived by a fixed table from the gate class's Impact (I0–I3), Reversibility (R0–R2), Verifiability (V0–V3) and measured Trust; I3, R2 or V3 is always human only. Projects onto the draft `autonomy: gate-0/1/2` labels. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
+**Gate authority** — *Proposed.* Who or what may pass a Control Gate: human only, deterministic, machine (pre-registered rule), agent-reviewable (proposer + independent challenger + deterministic checks), or shadow (agent verdict recorded, human decides). A fixed, fail-closed table derives a class's *eligible* authority from its Impact (I0–I3), Reversibility (R0–R2) and Verifiability (V0–V3); I3, R2, V3 or an invalid classification is always human only. Every class starts in shadow and reaches its eligible authority only by RIDM promotion (ADR-0086) with measured Trust; its *operating* authority is the lower of the two. Projects onto the draft `autonomy: gate-0/1/2` labels. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
 
 **Gate canary** — *Proposed.* A known-bad change, drawn from a real past defect or a synthetic mutation, injected into a machine or agent gate class to measure its catch rate. A gate that never fails is unverified, not safe. The catch rate is part of the class's Trust. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
 
@@ -298,7 +298,7 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Standup telemetry** — `~/.claude/standup-telemetry.jsonl`. Append-only JSONL of `standup:suggested` and `standup:closed` events. Read by `/skill-metrics --funnel=standup` (PR-X2).
 
-**Stochastic step** — *Proposed.* One model call run inside a deterministic runner that pins inputs, validates output against a schema, treats the output as a proposal applied only by deterministic code, runs declared checks and (for V2 gates) an independent challenger, respects a budget, and emits a Gate record. A timeout or lost reply is unresolved, never passed. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
+**Stochastic step** — *Proposed.* One model call run inside a deterministic runner that pins inputs, validates output against a schema, treats the output as a proposal applied only by deterministic code, runs declared checks, is always challenged adversarially (holdout and mutation checks; an independent model challenger as well for V2 gates), respects a budget, and emits a Gate record. A timeout or lost reply is unresolved, never passed. (decisions/fleet-runner/gate-authority-tiers.md, proposed input to #313)
 
 **Substrate** — Foundational layer delivering assets/data/engine interactions, with apps built on top; never switcher-listed; registry `role: substrate`. Examples: mirrorworld, asset-foundry, f1-substrate, switchboard, core. (adr:operating-surface-tiered-composition)
 
