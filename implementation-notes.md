@@ -553,3 +553,12 @@ aggregate results. CI uses synthetic doubles for its server and client tests.
 Pilot setup used the existing nvm-managed Node runtime in a subshell and
 pnpm 12.15.0. The temporary PF rules included a loopback allowance for
 Yojimbo's own administration requests and limited LAN ingress to Yuri.
+
+
+- **2026-11-03 (BookcaseDiscovery compute tracer, #578).** The workload roadmap
+  planned SSH CLI calls and rsync for N-2. Yuri's Remote Login is off. The owner
+  chose authenticated LAN HTTP for queue operations and fenced output uploads,
+  with a LAN-only Yojimbo bind, an owner-managed firewall, and local input
+  staging by hash. The pilot combined the N-2 remote-worker and N-3 queue
+  transport proof for read-vision. Detection and the remaining N-card exits
+  carry forward.
