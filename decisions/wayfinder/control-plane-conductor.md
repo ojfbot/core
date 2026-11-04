@@ -366,6 +366,27 @@ and bisection, and gate canaries. It is an input to #313 and #318 and is not acc
 This note registers no delivery slice, dispatch authority, movement, queue change or
 runtime claim.
 
+### BookcaseDiscovery compute tracer delivery, 2026-11-03
+
+[Core #578](https://github.com/ojfbot/core/issues/578) tracks the P0–P2
+BookcaseDiscovery compute tracer. The live pilot exercised owner admission,
+a Yuri lease, fenced completion, accepted-output SHA-256 verification, and
+Yojimbo's aggregate report. A worker-process suspension exercised stale-upload
+rejection and recovery under a newer claim. Yuri remained awake during the
+physical lid-close trial.
+
+The resident follow-up adds a supervised pull loop, per-host worker identity,
+an operator stop path, and restart evidence for this tracer. The owner's Yuri
+claim window is 20:00–07:00 America/Chicago on external power. Yojimbo hosts
+the interim compute queue. Results stay in shadow for owner review. The output
+digest checks file integrity. Model quality and the detection contention target
+need separate evidence.
+
+The open P0–P2 decisions stay with #315, #308, #311, #313, and #318.
+Production hosting and reach stay with #309. Consumption, overlap, and
+settlement stay with #316, #317, and #310. Queue-wide pause and GPU capacity
+beyond a sequential worker are deferred for this read-vision tranche.
+
 ### Current decision and evidence limits
 
 Repository placement, initiative succession and Q1's first-pilot affected-item hold are
