@@ -534,3 +534,22 @@ Entries preserved verbatim from that session's ledger; the code they describe sh
   AGPL-3.0-only license. BookcaseDiscovery keeps its handler and CLI tests.
   The lifted tests provide executable evidence for #530.
   The SQLite import uses Node directly for compatibility with core’s Vite 5 test runner.
+
+## Fleet-runner multi-host pilot (#578)
+
+On 2026-11-03, Yojimbo admitted one read-vision job against a locally generated
+JPEG. Yuri pulled and ran the job with BookcaseDiscovery's read-vision handler
+and a byte-identical copy of the OCR helper built on Yojimbo. Yojimbo accepted
+the upload. Its report and file verification returned:
+
+```text
+worker yuri: 1 completed
+accepted output SHA-256: matches
+```
+
+The accepted response contained recognized text. This record contains only
+aggregate results. CI uses synthetic doubles for its server and client tests.
+
+Pilot setup used the existing nvm-managed Node runtime in a subshell and
+pnpm 12.15.0. The temporary PF rules included a loopback allowance for
+Yojimbo's own administration requests and limited LAN ingress to Yuri.
