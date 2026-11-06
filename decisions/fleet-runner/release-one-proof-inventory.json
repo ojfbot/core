@@ -1,0 +1,120 @@
+{
+  "format": "fleet-runner-release-one-inventory/1",
+  "approvedScope": "NAS compute service, Mac workers, CLI and operations dashboard; governed development dispatch later",
+  "baselineCore": "973dcfdfc43129353b0ec37fc1a27fcbe97a2f85",
+  "baselineClient": "ff321c6963aa77d10990d71bbf7a7607e887f910",
+  "qualificationTools": {
+    "node": "24.22.2",
+    "pnpm": "9.15.4",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
+  },
+  "requiredG1Mutants": [
+    "owner-authorization",
+    "completion-fence",
+    "output-digest",
+    "durable-replay"
+  ],
+  "cases": [
+    {
+      "id": "G0-SCOPE",
+      "gate": "G0",
+      "claim": "Release scope, authority and exact source/tool provenance are recorded."
+    },
+    {
+      "id": "G1-MODEL",
+      "gate": "G1",
+      "claim": "1000 distinct named seeds with >=64 model steps pass."
+    },
+    {
+      "id": "G1-AUTH",
+      "gate": "G1",
+      "claim": "Unauthorized and tampered requests cannot mutate the queue."
+    },
+    {
+      "id": "G1-RESTART-REPLAY",
+      "gate": "G1",
+      "claim": "Consumed request remains rejected after reopening the server/store."
+    },
+    {
+      "id": "G1-NONCE-CONTENTION",
+      "gate": "G1",
+      "claim": "Concurrent nonce consumers produce at most one acceptance."
+    },
+    {
+      "id": "G1-LEASE-FENCE",
+      "gate": "G1",
+      "claim": "Expired, replaced and wrong-worker attempts cannot accept outputs."
+    },
+    {
+      "id": "G1-LOST-RESPONSE",
+      "gate": "G1",
+      "claim": "Completion retry after lost response preserves one event and correct bytes."
+    },
+    {
+      "id": "G1-OUTPUT-ROLLBACK",
+      "gate": "G1",
+      "claim": "Filesystem/DB interruption cannot create a dangling accepted result."
+    },
+    {
+      "id": "G1-MUTANTS",
+      "gate": "G1",
+      "claim": "Every targeted broken guard fails its named behavioral assertion."
+    },
+    {
+      "id": "G1-EVIDENCE",
+      "gate": "G1",
+      "claim": "Independent checker rejects missing cases, skipped evidence and tampered hashes."
+    },
+    {
+      "id": "G2-CLEAN-INSTALL",
+      "gate": "G2",
+      "claim": "Two clean pinned workspace installs match normalized manifests and outputs."
+    },
+    {
+      "id": "G2-AMD64",
+      "gate": "G2",
+      "claim": "Actual linux/amd64 image builds, runs nonroot and serves a signed fixture job/readback."
+    },
+    {
+      "id": "G2-PACKAGE",
+      "gate": "G2",
+      "claim": "Portable library package installs with its real API and no home/cache dependency."
+    },
+    {
+      "id": "G3-RESTART",
+      "gate": "G3",
+      "claim": "NAS process/reboot recovery and storage/auth readiness meet declared limits."
+    },
+    {
+      "id": "G4-MACS",
+      "gate": "G4",
+      "claim": "Both Macs join, obtain inputs and obey handler/resource/power/time policies."
+    },
+    {
+      "id": "G5-INSPECT",
+      "gate": "G5",
+      "claim": "CLI/browser agree on revision, freshness, trace and protected/redacted status."
+    },
+    {
+      "id": "G6-FAULTS",
+      "gate": "G6",
+      "claim": "Actual sleep/network faults preserve fenced results and bounded eligible recovery."
+    },
+    {
+      "id": "G6-HELPDESK",
+      "gate": "G6",
+      "claim": "HelpDesk and FleetRunner fail independently; coordination is not execution authority."
+    },
+    {
+      "id": "G7-RESTORE",
+      "gate": "G7",
+      "claim": "Independent backup and generation-safe paused restores meet recovery objectives."
+    },
+    {
+      "id": "G8-CUTOVER",
+      "gate": "G8",
+      "claim": "One coordinator and rollback preserve authority through cutover and 48h acceptance."
+    }
+  ]
+}

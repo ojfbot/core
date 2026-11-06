@@ -562,3 +562,6 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
   staging by hash. The pilot combined the N-2 remote-worker and N-3 queue
   transport proof for read-vision. Detection and the remaining N-card exits
   carry forward.
+
+- G0–G2 assumed the configured selfco path was the live vault; inspection found an older dirty Git copy beside the active Sync replica. Preserved the capture bundle and assigned verified Sync cutover/final capture to the user-requested separate fork.
+- G0–G2 assumed the bundled pnpm launcher honored the repository pin; it ran pnpm11, appended an esbuild build-policy placeholder and blocked scripts. Removed only that generated workspace delta and selected actual pnpm9.15.4 instead of changing the lock or approving broader build policy.
