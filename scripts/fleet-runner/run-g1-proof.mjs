@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -38,8 +38,12 @@ assert.equal(process.versions.node, '24.22.2', 'qualify with the pinned Node ver
 const manager = run(pnpm, ['--version']);
 assert.equal(manager.status, 0, manager.stderr);
 assert.equal(manager.stdout.trim(), '9.15.4', 'qualify with the pinned pnpm version');
-assert.equal(run('git', ['diff', '--quiet', 'HEAD', '--', 'packages/fleet-runner', 'scripts/fleet-runner']).status, 0,
-  'commit tested source before recording a source-bound proof');
+const proofInputs = [
+  'packages/fleet-runner', 'scripts/fleet-runner', 'package.json', 'pnpm-lock.yaml',
+  'pnpm-workspace.yaml', 'tsconfig.base.json', 'vitest.config.ts',
+];
+assert.equal(git(['status', '--porcelain=v1', '--untracked-files=all', '--', ...proofInputs]), '',
+  'commit tested source and configuration before recording a source-bound proof');
 assert.ok(!existsSync(join(output, 'g1-evidence.json')), 'choose a new evidence directory for each run');
 mkdirSync(join(output, 'mutants'), { recursive: true });
 const sourceCommit = git(['rev-parse', 'HEAD']);
