@@ -121,6 +121,14 @@ if ! docker buildx build --platform linux/amd64 --no-cache --pull \
 fi
 docker image inspect "$image_tag" > "$evidence_dir/runtime-image-inspect.json"
 docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image_tag" | grep -qx 'linux/amd64'
+runtime_probe_command="docker run --rm --platform linux/amd64 --entrypoint node $image_tag <runtime-manifest-probe>"
+runtime_probe_code='import { createHash } from "node:crypto"; import { readdir, readFile } from "node:fs/promises"; import { join, relative } from "node:path"; const hash = (b) => createHash("sha256").update(b).digest("hex"); const files = []; async function walk(dir) { for (const entry of await readdir(dir, { withFileTypes: true })) { const path = join(dir, entry.name); if (entry.isDirectory()) await walk(path); else if (entry.isFile()) files.push({ path: `packages/fleet-runner/${relative("/app", path)}`, sha256: hash(await readFile(path)) }); } } await walk("/app/dist"); files.sort((a,b) => a.path.localeCompare(b.path)); console.log(JSON.stringify({ node: process.version, arch: process.arch, uid: process.getuid(), entrypointSha256: hash(await readFile("/app/docker-entrypoint.mjs")), dist: files }));'
+if ! docker run --rm --platform linux/amd64 --entrypoint node "$image_tag" \
+  --input-type=module -e "$runtime_probe_code" \
+  > "$evidence_dir/runtime-manifest.json" 2> "$evidence_dir/runtime-manifest.log"; then
+  cat "$evidence_dir/runtime-manifest.log" >&2
+  exit 1
+fi
 docker image save --output "$evidence_dir/runtime-image.tar" "$image_tag"
 shasum -a 256 "$evidence_dir/runtime-image.tar" > "$evidence_dir/runtime-image.tar.sha256"
 
@@ -140,8 +148,8 @@ docker run --rm --platform linux/amd64 --user node \
   -e 'import { copyFileSync, chmodSync } from "node:fs"; for (const id of ["owner", "worker"]) { copyFileSync(`/probe/${id}.pub`, `/registry/${id}.pub`); chmodSync(`/registry/${id}.pub`, 0o644); }'
 
 capture_expected_exit() {
-  local name="$1" expected="$2" output_file="$3" code=0
-  shift 3
+  local name="$1" expected="$2" output_file="$3" expected_text="$4" code=0
+  shift 4
   if "$@" > "$output_file" 2>&1; then code=0; else code=$?; fi
   printf '%s\n' "$code" > "$evidence_dir/$name.exit-code"
   if [[ "$code" -ne "$expected" ]]; then
@@ -149,12 +157,19 @@ capture_expected_exit() {
     echo "$name exited $code; expected $expected" >&2
     exit 1
   fi
+  if [[ -n "$expected_text" ]] && ! grep -Fq "$expected_text" "$output_file"; then
+    cat "$output_file" >&2
+    echo "$name output did not contain expected diagnostic: $expected_text" >&2
+    exit 1
+  fi
 }
 unsupported_command="docker run --rm --platform linux/amd64 $image_tag unsupported-proof-command"
 capture_expected_exit unsupported-command 2 "$evidence_dir/unsupported-command.log" \
+  "usage: fleet-runner keygen" \
   docker run --rm --platform linux/amd64 "$image_tag" unsupported-proof-command
 invalid_port_command="docker run --rm --platform linux/amd64 --env FLEET_PORT=0 $image_tag serve"
 capture_expected_exit invalid-port 2 "$evidence_dir/invalid-port.log" \
+  "usage: fleet-runner keygen" \
   docker run --rm --platform linux/amd64 --env FLEET_PORT=0 "$image_tag" serve
 
 docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:/bad-schema" \
@@ -162,7 +177,12 @@ docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:
   -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync("/bad-schema/fleet.sqlite"); db.exec("PRAGMA user_version = 99"); db.close();'
 incompatible_schema_command="docker run --rm --platform linux/amd64 --volume $bad_schema_volume:/var/lib/fleet-runner/state $image_tag serve"
 capture_expected_exit incompatible-schema 1 "$evidence_dir/incompatible-schema.log" \
+  "fleet-runner command failed" \
   docker run --rm --platform linux/amd64 --volume "$bad_schema_volume:/var/lib/fleet-runner/state" "$image_tag" serve
+schema_diagnostic_code='import assert from "node:assert/strict"; import { JobStore, JOBS_SCHEMA_VERSION } from "/app/dist/jobs.js"; assert.equal(JOBS_SCHEMA_VERSION, 2); let diagnostic = ""; try { new JobStore("/bad-schema/fleet.sqlite"); } catch (error) { diagnostic = error instanceof Error ? error.message : String(error); } assert.equal(diagnostic, "job table schema 99, expected 2"); console.log(JSON.stringify({ schemaVersion: JOBS_SCHEMA_VERSION, observedDatabaseVersion: 99, diagnostic, rejected: true }));'
+docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:/bad-schema" \
+  --entrypoint node "$image_tag" --input-type=module -e "$schema_diagnostic_code" \
+  > "$evidence_dir/incompatible-schema-diagnostic.json" 2> "$evidence_dir/incompatible-schema-diagnostic.log"
 
 container_id="$(docker run --detach --name "$container_name" --platform linux/amd64 \
   --publish 127.0.0.1::8787 \
@@ -202,13 +222,13 @@ fi
 
 node --input-type=module - "$repo_root" "$evidence_dir" "$image_tag" \
   "$first_command" "$second_command" "$image_command" "$unsupported_command" \
-  "$invalid_port_command" "$incompatible_schema_command" "$probe_command" <<'NODE'
+  "$invalid_port_command" "$incompatible_schema_command" "$probe_command" "$runtime_probe_command" <<'NODE'
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-const [repoArg, evidenceArg, imageTag, firstCommand, secondCommand, imageCommand, unsupportedCommand, invalidPortCommand, incompatibleSchemaCommand, probeCommand] = process.argv.slice(2);
+const [repoArg, evidenceArg, imageTag, firstCommand, secondCommand, imageCommand, unsupportedCommand, invalidPortCommand, incompatibleSchemaCommand, probeCommand, runtimeProbeCommand] = process.argv.slice(2);
 const repo = resolve(repoArg);
 const evidence = resolve(evidenceArg);
 const hash = (data) => createHash("sha256").update(data).digest("hex");
@@ -240,6 +260,13 @@ const comparison = {
   bitIdenticalImageClaim: false,
 };
 if (Object.entries(comparison).some(([key, value]) => key !== "bitIdenticalImageClaim" && value !== true)) throw new Error("clean install manifests differ");
+if (firstManifest.tools.node !== "v24.22.2" || firstManifest.tools.pnpm !== "9.15.4") throw new Error(`unexpected clean-build tools: ${JSON.stringify(firstManifest.tools)}`);
+const excludedFromImage = new Set(["packages/fleet-runner/Dockerfile", "packages/fleet-runner/Dockerfile.dockerignore", "packages/fleet-runner/docker-entrypoint.mjs"]);
+const hostContextFiles = new Map(context.filter((row) => !excludedFromImage.has(row.path)).map((row) => [row.path, row.sha256]));
+for (const row of firstManifest.source.files) {
+  if (hostContextFiles.get(row.path) !== row.sha256) throw new Error(`clean-install source does not match host context: ${row.path}`);
+}
+if (firstManifest.source.files.length !== hostContextFiles.size) throw new Error("clean-install source file list differs from staged build context");
 const artifacts = [];
 for (const id of ["install-first", "install-second"]) {
   const archive = join(evidence, id, "core-fleet-runner-0.1.0.tgz");
@@ -253,6 +280,10 @@ for (const id of ["install-first", "install-second"]) {
 const imageInspect = await readJson(join(evidence, "runtime-image-inspect.json"));
 const image = imageInspect[0];
 const metadata = await readJson(join(evidence, "runtime-build-metadata.json"));
+const runtimeManifest = await readJson(join(evidence, "runtime-manifest.json"));
+if (runtimeManifest.node !== "v24.22.2" || runtimeManifest.arch !== "x64" || runtimeManifest.uid !== 1000) throw new Error(`unexpected runtime: ${JSON.stringify({ node: runtimeManifest.node, arch: runtimeManifest.arch, uid: runtimeManifest.uid })}`);
+if (JSON.stringify(runtimeManifest.dist) !== JSON.stringify(firstManifest.dist)) throw new Error("runtime image compiled files differ from clean-install build");
+if (runtimeManifest.entrypointSha256 !== hostContextFiles.get("packages/fleet-runner/docker-entrypoint.mjs")) throw new Error("runtime image entrypoint differs from host source");
 const smoke = await readJson(join(evidence, "signed-lifecycle.json"));
 const negative = [];
 for (const [name, command, expectedExitCode] of [["unsupported-command", unsupportedCommand, 2], ["invalid-port", invalidPortCommand, 2], ["incompatible-schema", incompatibleSchemaCommand, 1]]) {
@@ -260,6 +291,8 @@ for (const [name, command, expectedExitCode] of [["unsupported-command", unsuppo
   if (observedExitCode !== expectedExitCode) throw new Error(`${name} exit code mismatch`);
   negative.push({ name, command, expectedExitCode, observedExitCode, outputPath: `${name}.log`, output: (await readFile(join(evidence, `${name}.log`), "utf8")).trim() });
 }
+const schemaDiagnostic = await readJson(join(evidence, "incompatible-schema-diagnostic.json"));
+if (schemaDiagnostic.diagnostic !== "job table schema 99, expected 2" || schemaDiagnostic.rejected !== true) throw new Error("incompatible database schema diagnostic mismatch");
 const imageArchiveSha256 = hash(await readFile(join(evidence, "runtime-image.tar")));
 const report = {
   schemaVersion: 2,
@@ -272,25 +305,27 @@ const report = {
     { id: "first", command: firstCommand, installCommand: "pnpm install --filter core-workflow-framework --filter @core/fleet-runner --frozen-lockfile --ignore-scripts", buildCommand: "pnpm --filter @core/fleet-runner build", installExitCode: 0, buildExitCode: 0, outputPath: "install-first-build.log", manifest: firstManifest, dependencies: firstDependencies },
     { id: "second", command: secondCommand, installCommand: "pnpm install --filter core-workflow-framework --filter @core/fleet-runner --frozen-lockfile --ignore-scripts", buildCommand: "pnpm --filter @core/fleet-runner build", installExitCode: 0, buildExitCode: 0, outputPath: "install-second-build.log", manifest: secondManifest, dependencies: secondDependencies },
   ],
+  sourceContextBinding: { matched: true, comparedFiles: firstManifest.source.files.length, excludedRuntimeOnlyFiles: [...excludedFromImage] },
   cleanInstallComparison: comparison,
   portableWorkerArtifacts: artifacts,
   runtimeImage: {
-    command: imageCommand, tag: imageTag, targetPlatform: "linux/amd64", observedPlatform: `${image.Os}/${image.Architecture}`,
+    command: imageCommand, runtimeProbeCommand, tag: imageTag, targetPlatform: "linux/amd64", observedPlatform: `${image.Os}/${image.Architecture}`,
     imageId: image.Id, configUser: image.Config.User, buildxDigest: metadata["containerimage.digest"] ?? null,
+    runtimeManifest,
     baseImage: "node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c",
     archivePath: "runtime-image.tar", archiveSha256: imageArchiveSha256, loadCommand: "docker image load --input runtime-image.tar",
-    inspectPath: "runtime-image-inspect.json", buildMetadataPath: "runtime-build-metadata.json", buildLogPath: "runtime-build.log",
+    manifestPath: "runtime-manifest.json", inspectPath: "runtime-image-inspect.json", buildMetadataPath: "runtime-build-metadata.json", buildLogPath: "runtime-build.log",
   },
-  negativeProbes: negative,
+  negativeProbes: [...negative, { name: "incompatible-schema-diagnostic", expected: "job table schema 99, expected 2", observed: schemaDiagnostic }],
   signedLifecycle: { command: probeCommand, readinessLogPath: "signed-report-readiness.log", outputVolumeMountedReadOnly: true, probeKeysOutsideService: true, observation: smoke },
-  evidenceFiles: ["runtime-image.tar", "runtime-image.tar.sha256", "runtime-image-inspect.json", "runtime-build-metadata.json", "runtime-build.log", "signed-report-readiness.log", "signed-lifecycle.json", "signed-lifecycle.log", "unsupported-command.log", "invalid-port.log", "incompatible-schema.log"],
+  evidenceFiles: ["runtime-image.tar", "runtime-image.tar.sha256", "runtime-manifest.json", "runtime-image-inspect.json", "runtime-build-metadata.json", "runtime-build.log", "signed-report-readiness.log", "signed-lifecycle.json", "signed-lifecycle.log", "unsupported-command.log", "invalid-port.log", "incompatible-schema.log", "incompatible-schema-diagnostic.json", "incompatible-schema-diagnostic.log"],
   claimBoundary: "synthetic container packaging and job lifecycle evidence only; TLS and production/network readiness remain G3 gates",
 };
 if (report.runtimeImage.observedPlatform !== "linux/amd64") throw new Error("image architecture mismatch");
 if (report.runtimeImage.configUser !== "node") throw new Error(`runtime user is ${report.runtimeImage.configUser}`);
 if (smoke.acceptedOutputSha256 !== "f04565eea01f62eeb7149c8609c8a901ca0af5ffb74c37a181ca0955479e7890") throw new Error("accepted output SHA-256 mismatch");
 if (smoke.acceptedBytesMatchFixture !== true || smoke.verifiedAgainstDatabaseDigest !== true || smoke.completedEvents !== 1) throw new Error("signed lifecycle assertions did not pass");
-await writeFile(join(evidence, "evidence-report.json"), `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
+await writeFile(join(evidence, "evidence-report.pending.json"), `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
 console.log(`Evidence saved to ${evidence}`);
 console.log(`Runtime image: ${imageTag} ${image.Id} (${image.Os}/${image.Architecture})`);
 console.log(`Runtime archive SHA-256: ${imageArchiveSha256}`);
@@ -312,3 +347,4 @@ if [[ "$(git rev-parse HEAD)" != "$(cat "$evidence_dir/source-revision.txt")" ]]
   echo "source revision or Docker build context changed during proof" >&2
   exit 1
 fi
+mv "$evidence_dir/evidence-report.pending.json" "$evidence_dir/evidence-report.json"
