@@ -60,7 +60,7 @@ try {
 }
 
 const canvasPath = expand(flags.canvas ?? '~/selfco/canvas/opav-loop-roadmap.canvas');
-const ledgerRoot = expand(flags['ledger-root'] ?? '~/selfco/tracking');
+const ledgerRoot = expand(flags['ledger-root'] ?? '~/.local/state/ojfbot/tracking');
 
 try {
   const { event, canvasUpdated } = await gateEvent({

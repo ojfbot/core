@@ -10,7 +10,7 @@
 //
 // So this compares the two sides:
 //   left  — pushed `teach/*` branches (R3: authoring branches are pushed, never merged)
-//   right — `harness:lesson-deposited` rows in ~/selfco/tracking/teach-sessions.jsonl
+//   right — `harness:lesson-deposited` rows in ~/.local/state/ojfbot/tracking/teach-sessions.jsonl
 // A branch with no matching row is an ORPHAN: authoring that produced no corpus entry.
 //
 // SHADOW-FIRST per adr:control-gated-slices — reports, never blocks, always exits 0.
@@ -26,7 +26,7 @@ import { homedir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 
 const expand = (p) => (p?.startsWith('~') ? p.replace('~', homedir()) : p);
-export const LEDGER = expand('~/selfco/tracking/teach-sessions.jsonl');
+export const LEDGER = expand('~/.local/state/ojfbot/tracking/teach-sessions.jsonl');
 
 /**
  * A teach authoring branch is `teach/<topic-slug>`, optionally remote-qualified. PURE.

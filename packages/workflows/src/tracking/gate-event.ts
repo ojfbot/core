@@ -28,7 +28,7 @@ export interface GateEventArgs {
   opId?: string;
   /** ISO timestamp; defaults to now. */
   ts?: string;
-  /** Ledger root (default ~/selfco/tracking). Injectable for tests. */
+  /** Ledger root (default ~/.local/state/ojfbot/tracking). Injectable for tests. */
   ledgerRoot?: string;
   /** Canvas file to project onto. If omitted, only the ledger is written. */
   canvasPath?: string;

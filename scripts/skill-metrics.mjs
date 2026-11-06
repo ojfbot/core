@@ -28,7 +28,7 @@ const args = parseArgs(process.argv.slice(2));
 // a skill was USED when its disposition record has engaged:true. We keep --skill-telemetry
 // for the historical baseline (its events fall outside the default 30d window → contribute 0).
 const skillPath = expandHome(args["skill-telemetry"] ?? "~/.claude/skill-telemetry.jsonl");
-const dispositionPath = expandHome(args["dispositions"] ?? "~/selfco/tracking/skill-dispositions.jsonl");
+const dispositionPath = expandHome(args["dispositions"] ?? "~/.local/state/ojfbot/tracking/skill-dispositions.jsonl");
 const suggestionPath = expandHome(args["suggestion-telemetry"] ?? "~/.claude/suggestion-telemetry.jsonl");
 const standupPath = expandHome(args["standup-telemetry"] ?? "~/.claude/standup-telemetry.jsonl");
 const baselinePath = args.baseline ? expandHome(args.baseline) : null;
@@ -37,7 +37,7 @@ const pairWindowSec = Number(args["pair-window"] ?? 3600);
 const launchWindowSec = Number(args["launch-window"] ?? 86400); // 24h default per ADR-0054
 const funnelMode = args.funnel === "standup" || args.funnel === true;
 const dispatchFunnelMode = args.funnel === "dispatch";
-const dispatchPath = expandHome(args["dispatch-telemetry"] ?? "~/selfco/tracking/dispatch-sessions.jsonl");
+const dispatchPath = expandHome(args["dispatch-telemetry"] ?? "~/.local/state/ojfbot/tracking/dispatch-sessions.jsonl");
 const since = args.since ? Date.parse(args.since) : Date.now() - 30 * 24 * 60 * 60 * 1000;
 const until = args.until ? Date.parse(args.until) : Date.now();
 

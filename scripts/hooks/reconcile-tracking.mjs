@@ -13,7 +13,7 @@
 // WRITES NOTHING and always exits 0 (non-blocking) — it alarms, it does not enforce.
 //
 // Usage:
-//   node scripts/hooks/reconcile-tracking.mjs                 # audit ~/selfco/tracking/*.jsonl
+//   node scripts/hooks/reconcile-tracking.mjs                 # audit ~/.local/state/ojfbot/tracking/*.jsonl
 //   node scripts/hooks/reconcile-tracking.mjs --canvas=PATH --ledger=PATH
 //   node scripts/hooks/reconcile-tracking.mjs --json          # machine-readable report
 //   node scripts/hooks/reconcile-tracking.mjs --sla=43200000  # staleness SLA ms (default 24h)
@@ -36,7 +36,7 @@ function parseArgs(argv) {
 }
 const args = parseArgs(process.argv.slice(2));
 const asJson = !!args.json;
-const TRACKING_ROOT = expand(args['tracking-root'] ?? '~/selfco/tracking');
+const TRACKING_ROOT = expand(args['tracking-root'] ?? '~/.local/state/ojfbot/tracking');
 const DEFAULT_CANVAS = expand('~/selfco/canvas/opav-loop-roadmap.canvas');
 const slaMs = args.sla ? Number(args.sla) : undefined;
 

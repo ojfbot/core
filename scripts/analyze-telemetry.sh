@@ -18,7 +18,7 @@ TOOL_FILE="${HOME}/.claude/tool-telemetry.jsonl"
 # LEGACY — frozen 2026-06-18 (S11 demoted it); usage sections read the OPAV
 # disposition ledger instead (rm-l2-ojfbot#S24)
 SKILL_FILE="${HOME}/.claude/skill-telemetry.jsonl"
-DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
+DISPOSITIONS_FILE="${HOME}/.local/state/ojfbot/tracking/skill-dispositions.jsonl"
 SESSION_FILE="${HOME}/.claude/session-telemetry.jsonl"
 
 SECTION="all"

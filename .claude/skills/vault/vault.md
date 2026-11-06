@@ -34,6 +34,44 @@ exist yet, only `init` is valid — tell the user to run `/vault init`.
 `{skill}/scripts/`. Karpathy's pattern: **"Obsidian is the IDE; the LLM is the programmer; the wiki is the
 codebase."** You own `wiki/`; the user reads it.
 
+## Production Sync transport takes precedence
+
+The production vault uses Obsidian-hosted Sync. The Git mirror instructions below are historical
+and do not authorize a pull, commit, push, autocommit, or `init` against that vault. Keep legacy
+write modes held until their own identity, version and coordination boundaries are qualified.
+Changing `SELFCO_VAULT` alone does not qualify them. Mini's bridge and unattended jobs have separate
+owners and gates; this procedure does not change their state.
+
+For an explicitly requested, completed capture on an authorized Mac, use the create-only helper:
+
+```sh
+pnpm --dir {skill}/../../.. exec python3 {skill}/scripts/capture-sync.py --config "$HOME/.config/selfco/vault.json" --check
+pnpm --dir {skill}/../../.. exec python3 {skill}/scripts/capture-sync.py --config "$HOME/.config/selfco/vault.json" \
+  --source /absolute/completed-capture.md --path raw/stable-operation-slug.md \
+  --receipt "$HOME/.local/state/selfco/receipts/unique-attempt.json"
+```
+
+The host-local config pins `cli` (installed Obsidian CLI path), `vault_id`, `local_path` and `remote`.
+Resolve and verify those against the running app before installing a config. Do not guess a replica
+from its folder name. Read the accepted replica's schema before authoring. The helper admits only
+UTF-8 Markdown ending in a newline, at an existing real parent directory under `raw/`, `wiki/` or
+`diagrams/`. New notes have stable unique paths. It refuses mismatched identity, unhealthy Sync,
+Git copies, symlinks, path escapes, unsupported attachments and different existing content. An
+identical retry reuses the note. Receipt attempt paths are unique and immutable.
+
+Existing-page edits remain held: shared pages, `wiki/index.md`, and append-only ledgers need an
+explicit owner or cross-host coordination and an expected-version check. A local lock does not
+coordinate another Mac. Keep independent facts at distinct paths. On conflict, preserve both
+versions and stop related writers; do not retry an overwrite.
+
+A local landing is distinct from hosted confirmation and peer receipt. The helper checks the latest
+hosted version and compares its exact bytes after validating the CLI display header. Missing or
+ambiguous hosted receipt remains pending and exits nonzero; different hosted bytes stop the attempt.
+Peer receipt is always unverified until separately checked. Attachment eligibility and Fully synced
+alone are not content receipts. Preserve unsupported attachments and report their incomplete scope.
+Host telemetry defaults to `~/.local/state/ojfbot/tracking`, outside the live vault. Seed and preserve
+existing host history before moving its writer paths; do not concatenate cross-host ledgers blindly.
+
 ## Core principles (see `knowledge/wiki-schema.md` + `$V/CLAUDE.md` for the full schema)
 
 - **`raw/` is append-only and immutable.** You read it; you never edit or delete it. New material is *added*.

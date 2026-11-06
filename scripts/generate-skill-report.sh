@@ -19,7 +19,7 @@ TELEMETRY_DIR="${HOME}/.claude"
 # LEGACY — frozen 2026-06-18 (S11); kept for all-time history only. Live usage
 # comes from the OPAV disposition ledger (rm-l2-ojfbot#S24).
 SKILL_FILE="$TELEMETRY_DIR/skill-telemetry.jsonl"
-DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
+DISPOSITIONS_FILE="${HOME}/.local/state/ojfbot/tracking/skill-dispositions.jsonl"
 TOOL_FILE="$TELEMETRY_DIR/tool-telemetry.jsonl"
 SUGGESTION_FILE="$TELEMETRY_DIR/suggestion-telemetry.jsonl"
 SESSION_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"

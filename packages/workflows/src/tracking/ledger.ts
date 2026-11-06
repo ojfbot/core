@@ -5,7 +5,7 @@
  * the file IS the audit trail. Append is idempotent on op_id (first write wins),
  * so retries and the reconciler can never double-count.
  *
- * Root is injectable (default ~/selfco/tracking) so tests run against a temp dir,
+ * Root is injectable (default ~/.local/state/ojfbot/tracking) so tests run against a temp dir,
  * mirroring FilesystemBeadStore's constructor-root pattern.
  */
 
@@ -15,7 +15,7 @@ import os from 'os';
 import path from 'path';
 import type { TrackingEvent } from './types/tracking-event.js';
 
-export const DEFAULT_TRACKING_ROOT = path.join(os.homedir(), 'selfco', 'tracking');
+export const DEFAULT_TRACKING_ROOT = path.join(os.homedir(), '.local', 'state', 'ojfbot', 'tracking');
 
 export class EventLedger {
   private readonly file: string;

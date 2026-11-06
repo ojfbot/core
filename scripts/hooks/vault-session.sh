@@ -15,6 +15,11 @@ source "$HOOK_DIR/_lib.sh"
 VAULT="${SELFCO_VAULT:-$HOME/selfco}"
 LOG="$VAULT/wiki/log.md"
 
+if [[ ! -e "$VAULT/.git" ]]; then
+  echo '[vault-session] shared Sync ledger writes are held; use guarded create-only capture' >&2
+  exit 0
+fi
+
 # No-op unless the vault wiki/log.md exists
 [[ -f "$LOG" ]] || exit 0
 

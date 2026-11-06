@@ -61,7 +61,7 @@ SESSION_FILE="$TELEMETRY_DIR/session-telemetry.jsonl"
 SUGGESTION_FILE="$TELEMETRY_DIR/suggestion-telemetry.jsonl"
 # OPAV disposition ledger — the live skill-usage stream (SKILL_FILE is legacy,
 # frozen 2026-06-18); synced so CI consumers can read it (rm-l2-ojfbot#S24)
-DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
+DISPOSITIONS_FILE="${HOME}/.local/state/ojfbot/tracking/skill-dispositions.jsonl"
 
 has_data=false
 for f in "$TOOL_FILE" "$SKILL_FILE" "$SESSION_FILE" "$SUGGESTION_FILE" "$DISPOSITIONS_FILE"; do
