@@ -34,6 +34,12 @@ const mutants = [
     title: 'rejects a previously accepted signature after the server and store restart',
   },
 ];
+const mutantFailureMessages = {
+  'owner-authorization': 'AssertionError: expected 200 to be 403',
+  'completion-fence': 'AssertionError: expected true to be false',
+  'output-digest': 'AssertionError: expected 200 to be 400',
+  'durable-replay': 'AssertionError: expected 200 to be 401',
+};
 
 let temporaryRoot;
 
@@ -102,7 +108,7 @@ function fixture() {
       testResults: [
         {
           name: resolve(repoRoot, path),
-          assertionResults: [{ fullName: title, title, status: 'failed', failureMessages: ['expected failure'] }],
+          assertionResults: [{ fullName: title, title, status: 'failed', failureMessages: [mutantFailureMessages[id]] }],
         },
       ],
     };
@@ -233,6 +239,20 @@ it('rejects compile-only mutant failures, successful mutants, and wrong target c
   expect(successResult.valid).toBe(false);
   expect(successResult.errors.join('\n')).toMatch(/success=false/);
   expect(successResult.errors.join('\n')).toMatch(/outside its allowed behavioral test/);
+});
+
+it('rejects a mutant target failure caused by an unrelated assertion', () => {
+  const { bundle, bundlePath: path } = fixture();
+  const owner = bundle.mutants.find(({ id }) => id === 'owner-authorization');
+  const report = JSON.parse(readFileSync(join(temporaryRoot, owner.report.path), 'utf8'));
+  report.testResults[0].assertionResults[0].failureMessages = ['TypeError: cannot read properties of undefined'];
+  refreshArtifact(temporaryRoot, owner.report, report);
+  const updatedPath = refreshBundle(temporaryRoot, bundle);
+
+  const result = validateG1Evidence(updatedPath, { repoRoot });
+
+  expect(result.valid).toBe(false);
+  expect(result.errors.join('\n')).toMatch(/owner-authorization did not fail its named behavioral assertion with the expected comparison/);
 });
 
 it('rejects missing report hashes, bundle path traversal, and duplicate mutant report files', () => {

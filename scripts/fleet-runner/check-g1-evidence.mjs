@@ -80,18 +80,22 @@ const MUTANT_TARGETS = {
   'owner-authorization': {
     path: 'packages/fleet-runner/src/__tests__/server.test.ts',
     title: 'requires a registered signature, rejects replay, and reserves admission for owner',
+    failureMessage: 'AssertionError: expected 200 to be 403',
   },
   'completion-fence': {
     path: 'packages/fleet-runner/src/__tests__/server.test.ts',
     title: 'fences uploads, validates the digest, and records an immutable accepted file',
+    failureMessage: 'AssertionError: expected true to be false',
   },
   'output-digest': {
     path: 'packages/fleet-runner/src/__tests__/server.test.ts',
     title: 'fences uploads, validates the digest, and records an immutable accepted file',
+    failureMessage: 'AssertionError: expected 200 to be 400',
   },
   'durable-replay': {
     path: 'packages/fleet-runner/src/__tests__/server.test.ts',
     title: 'rejects a previously accepted signature after the server and store restart',
+    failureMessage: 'AssertionError: expected 200 to be 401',
   },
 };
 
@@ -204,6 +208,9 @@ function inspectVitestReport(report, label, errors) {
         suiteName: suite.name.replaceAll('\\', '/'),
         fullName: assertion.fullName,
         status: assertion.status,
+        failureMessages: Array.isArray(assertion.failureMessages)
+          ? assertion.failureMessages.filter((message) => typeof message === 'string')
+          : [],
       });
     }
   }
@@ -365,10 +372,15 @@ function checkMutants(bundleRoot, mutants, errors) {
     const targetFailures = matchingAssertions(inspected.assertions, target.path, target.title).filter(
       ({ fullName, status }) =>
         status === 'failed' &&
-        (fullName === mutant.expectedFailureTest || fullName.endsWith(` ${mutant.expectedFailureTest}`)),
+        (fullName === mutant.expectedFailureTest || fullName.endsWith(` ${mutant.expectedFailureTest}`)) &&
+        inspected.assertions.some(
+          (assertion) =>
+            assertion.fullName === fullName &&
+            assertion.failureMessages.some((message) => message.includes(target.failureMessage)),
+        ),
     );
     if (targetFailures.length !== 1) {
-      errors.push(`mutant ${mutant.id} did not fail its named behavioral assertion exactly once`);
+      errors.push(`mutant ${mutant.id} did not fail its named behavioral assertion with the expected comparison exactly once`);
       continue;
     }
     proven += 1;
