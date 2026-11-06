@@ -63,6 +63,7 @@ const mutantDefinitions = [
     id: 'owner-authorization', file: 'server.ts',
     before: '&& id !== "owner"', after: '&& false',
     expectedFailureTest: 'requires a registered signature, rejects replay, and reserves admission for owner',
+    expectedFailureMessage: 'AssertionError: expected 200 to be 403',
   },
   {
     id: 'completion-fence', file: 'jobs.ts',
@@ -70,18 +71,21 @@ const mutantDefinitions = [
     after: 'complete(key: string, fence: number, worker: string, output: JobOutput | (() => JobOutput)): boolean {\n'
       + '    const current = this.get(key);\n    fence = current?.fence ?? fence;\n    worker = current?.worker ?? worker;\n',
     expectedFailureTest: 'fences uploads, validates the digest, and records an immutable accepted file',
+    expectedFailureMessage: 'AssertionError: expected true to be false',
   },
   {
     id: 'output-digest', file: 'server.ts',
     before: 'requireValid(data.toString("base64") === output && digest(data) === sha256);',
     after: 'requireValid(true);',
     expectedFailureTest: 'fences uploads, validates the digest, and records an immutable accepted file',
+    expectedFailureMessage: 'AssertionError: expected 200 to be 400',
   },
   {
     id: 'durable-replay', file: 'auth.ts',
     before: 'return consumeNonce({ identity: id, nonce, now, expiresAt: Number(ts) + WINDOW_MS })',
     after: 'void consumeNonce;\n    return true',
     expectedFailureTest: 'rejects a previously accepted signature after the server and store restart',
+    expectedFailureMessage: 'AssertionError: expected 200 to be 401',
   },
 ];
 const mutants = [];
@@ -108,10 +112,13 @@ for (const mutant of mutantDefinitions) {
     const matching = assertions(data).filter((item) =>
       item.fullName.endsWith(mutant.expectedFailureTest) && item.status === 'failed');
     assert.equal(data.success, false, 'mutant report claimed success: ' + mutant.id);
-    assert.ok(matching.length > 0, 'no named behavioral assertion caught mutant: ' + mutant.id);
+    assert.equal(matching.length, 1, 'mutant must fail its named behavioral test once: ' + mutant.id);
+    assert.ok(matching[0].failureMessages?.some((message) => message.startsWith(mutant.expectedFailureMessage)),
+      'mutant failed for a different reason than the expected guard assertion: ' + mutant.id);
     mutants.push({
       id: mutant.id, report: artifact(reportFile),
       expectedFailureTest: mutant.expectedFailureTest,
+      expectedFailureMessage: mutant.expectedFailureMessage,
       changedSource: 'packages/fleet-runner/src/' + mutant.file,
       mutatedSha256: sha(path),
       failedAssertions: assertions(data).filter((item) => item.status === 'failed').map((item) => item.fullName),
