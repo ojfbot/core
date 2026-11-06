@@ -13,11 +13,12 @@ import { linkSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import type * as SQLite from "node:sqlite";
+import type { RequestNonce } from "./auth.js";
 
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 
-export const JOBS_SCHEMA_VERSION = 2;
+export const JOBS_SCHEMA_VERSION = 3;
 
 const SCHEMA = `
 CREATE TABLE jobs (
@@ -64,6 +65,12 @@ CREATE TRIGGER jobs_writer_insert BEFORE INSERT ON jobs WHEN NEW.rev IS NOT 1
 BEGIN SELECT RAISE(ABORT, 'jobs: write from a pre-v2 client refused'); END;
 CREATE TRIGGER jobs_writer_update BEFORE UPDATE ON jobs WHEN NEW.rev IS NOT OLD.rev + 1
 BEGIN SELECT RAISE(ABORT, 'jobs: write from a pre-v2 client refused'); END;
+CREATE TABLE auth_nonces (
+  identity   TEXT NOT NULL,
+  nonce      TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (identity, nonce)
+) WITHOUT ROWID;
 `;
 
 /**
@@ -74,7 +81,8 @@ BEGIN SELECT RAISE(ABORT, 'jobs: write from a pre-v2 client refused'); END;
  *
  * A v1 worker may still hold a claim when this runs. Its `retired` event carries that worker, fence and
  * lease expiry, so the report closes the attempt; and readmission continues the key's fence from its
- * event history, so the old worker's token can never match a new claim.
+ * event history, so the old worker's token can never match a new claim. The v1 retirement step is
+ * followed by v2 → v3, which adds only the durable request-nonce ledger.
  */
 const MIGRATE_1_TO_2 = `
 ALTER TABLE jobs ADD COLUMN inputs TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(inputs));
@@ -90,6 +98,15 @@ CREATE TRIGGER jobs_writer_insert BEFORE INSERT ON jobs WHEN NEW.rev IS NOT 1
 BEGIN SELECT RAISE(ABORT, 'jobs: write from a pre-v2 client refused'); END;
 CREATE TRIGGER jobs_writer_update BEFORE UPDATE ON jobs WHEN NEW.rev IS NOT OLD.rev + 1
 BEGIN SELECT RAISE(ABORT, 'jobs: write from a pre-v2 client refused'); END;
+`;
+
+const MIGRATE_2_TO_3 = `
+CREATE TABLE auth_nonces (
+  identity   TEXT NOT NULL,
+  nonce      TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  PRIMARY KEY (identity, nonce)
+) WITHOUT ROWID;
 `;
 
 export type JobStatus = "ready" | "claimed" | "done" | "failed";
@@ -274,6 +291,9 @@ export class JobStore {
         for (const r of rows)
           this.#event(r.key, "retired", r.worker, r.fence, `schema-v1:${r.status}${r.lease_expires === null ? "" : `:${r.lease_expires}`}`);
         this.#db.exec("DELETE FROM jobs");
+        this.#db.exec(MIGRATE_2_TO_3);
+      } else if (version === 2) {
+        this.#db.exec(MIGRATE_2_TO_3);
       } else {
         throw new Error(`job table schema ${version}, expected ${JOBS_SCHEMA_VERSION}`);
       }
@@ -283,6 +303,17 @@ export class JobStore {
 
   close(): void {
     this.#db.close();
+  }
+
+  /** Atomically remember a verified request nonce across every process using this database. */
+  consumeNonce(candidate: RequestNonce): boolean {
+    return this.#tx(() => {
+      this.#db.prepare("DELETE FROM auth_nonces WHERE expires_at <= ?").run(candidate.now);
+      const result = this.#db
+        .prepare("INSERT OR IGNORE INTO auth_nonces (identity, nonce, expires_at) VALUES (?, ?, ?)")
+        .run(candidate.identity, candidate.nonce, candidate.expiresAt);
+      return Number(result.changes) === 1;
+    });
   }
 
   /**

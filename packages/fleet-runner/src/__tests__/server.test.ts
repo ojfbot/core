@@ -47,6 +47,24 @@ function request(id: string, target: string, data?: unknown) {
   });
 }
 
+function listen(server: Server): Promise<string> {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      if (!address || typeof address === "string") {
+        reject(new Error("missing listener"));
+        return;
+      }
+      resolve(`http://127.0.0.1:${address.port}`);
+    });
+  });
+}
+
+function close(server: Server): Promise<void> {
+  return new Promise((resolve) => server.close(() => resolve()));
+}
+
 it("requires a registered signature, rejects replay, and reserves admission for owner", async () => {
   expect((await fetch(base + "/report")).status).toBe(401);
   expect((await request("worker", "/enqueue", { kind: "noop", inputs: [] })).status).toBe(403);
@@ -55,6 +73,70 @@ it("requires a registered signature, rejects replay, and reserves admission for 
   expect((await fetch(base + "/events", { headers: { authorization } })).status).toBe(401);
   expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(200);
   expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(401);
+});
+
+it("rejects a previously accepted signature after the server and store restart", async () => {
+  await close(server);
+  store.close();
+
+  const database = join(dir, "replay.sqlite");
+  store = new JobStore(database, { now: () => clock, leaseMs: 100 });
+  server = fleetServer(store, { registry: dir, outDir: dir });
+  base = await listen(server);
+  const authorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
+
+  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(200);
+  await close(server);
+  store.close();
+
+  store = new JobStore(database, { now: () => clock, leaseMs: 100 });
+  server = fleetServer(store, { registry: dir, outDir: dir });
+  base = await listen(server);
+
+  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(401);
+  const freshAuthorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
+  expect(
+    (await fetch(base + "/report", { headers: { authorization: freshAuthorization } })).status,
+  ).toBe(200);
+});
+
+it("serializes one signed nonce across server instances sharing the store", async () => {
+  await close(server);
+  store.close();
+
+  const database = join(dir, "shared-replay.sqlite");
+  store = new JobStore(database, { now: () => clock, leaseMs: 100 });
+  server = fleetServer(store, { registry: dir, outDir: dir });
+  base = await listen(server);
+
+  const secondStore = new JobStore(database, { now: () => clock, leaseMs: 100 });
+  const secondServer = fleetServer(secondStore, { registry: dir, outDir: dir });
+  try {
+    const secondBase = await listen(secondServer);
+    const authorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
+    const responses = await Promise.all([
+      fetch(base + "/report", { headers: { authorization } }),
+      fetch(secondBase + "/report", { headers: { authorization } }),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 401]);
+  } finally {
+    await close(secondServer);
+    secondStore.close();
+  }
+});
+
+it("does not consume a nonce when its signature is invalid", async () => {
+  const authorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
+  const signatureStart = authorization.lastIndexOf(".") + 1;
+  const replacement = authorization.charAt(signatureStart) === "A" ? "B" : "A";
+  const invalidAuthorization =
+    authorization.slice(0, signatureStart) + replacement + authorization.slice(signatureStart + 1);
+
+  expect(
+    (await fetch(base + "/report", { headers: { authorization: invalidAuthorization } })).status,
+  ).toBe(401);
+  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(200);
 });
 
 it("fences uploads, validates the digest, and records an immutable accepted file", async () => {
