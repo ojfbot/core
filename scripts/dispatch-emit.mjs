@@ -13,13 +13,13 @@
  *
  * Honesty contract (same as gate-event.mjs): `skill-used` with no --evidence is rejected,
  * nothing written. Evidence is a scheme:ref (path:..., test:..., pr:...) a reviewer can resolve.
- * Ledger: ~/selfco/tracking/dispatch-sessions.jsonl (append-only).
+ * Ledger: ~/.local/state/ojfbot/tracking/dispatch-sessions.jsonl (append-only).
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-const LEDGER = path.join(homedir(), "selfco", "tracking", "dispatch-sessions.jsonl");
+const LEDGER = path.join(homedir(), ".local", "state", "ojfbot", "tracking", "dispatch-sessions.jsonl");
 
 const [verb, ...rest] = process.argv.slice(2);
 const args = Object.fromEntries(

@@ -78,7 +78,7 @@ if (gate) {
 
 // ---- 2. skill-metrics snapshot (incl. dispatch funnel, adr:pocock-lifecycle-absorption) ----
 const home = os.homedir();
-const dispositions = path.join(home, "selfco", "tracking", "skill-dispositions.jsonl");
+const dispositions = path.join(home, ".local", "state", "ojfbot", "tracking", "skill-dispositions.jsonl");
 const legacy = path.join(home, ".claude", "skill-telemetry.jsonl");
 if (existsSync(dispositions) || existsSync(legacy)) {
   const snap = path.join(CORE, "docs", `skill-metrics-${today}.md`);
@@ -114,7 +114,7 @@ if (existsSync(dispositions) || existsSync(legacy)) {
     console.log(`[2/4] regression surface SKIPPED: ${e.message.split("\n")[0]} (gh unavailable or json parse failed — measurement never blocks)`);
   }
 } else {
-  console.log("[2/4] skill-metrics SKIPPED — no live telemetry on this machine (needs ~/selfco/tracking or ~/.claude streams; run from the Mac)");
+  console.log("[2/4] skill-metrics SKIPPED — no live telemetry on this machine (needs ~/.local/state/ojfbot/tracking or ~/.claude streams; run from the Mac)");
 }
 
 // ---- 3. vault sync age ----

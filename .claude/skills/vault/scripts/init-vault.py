@@ -262,6 +262,10 @@ def main() -> int:
     oj = ojfbot_root()
     today = date.today().isoformat()
 
+    if (v / "CLAUDE.md").exists() and not (v / ".git").exists():
+        print("error: existing non-Git vault; init must not introduce Git transport into a Sync replica", file=sys.stderr)
+        return 1
+
     if not SCHEMA_TEMPLATE.is_file():
         print(f"error: schema template not found at {SCHEMA_TEMPLATE}", file=sys.stderr); return 1
     for t in PAGE_TEMPLATES:

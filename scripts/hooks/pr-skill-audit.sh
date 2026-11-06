@@ -19,7 +19,7 @@ REPORT_FILE="/tmp/skill-audit-report.md"
 # Primary skill-usage source: the OPAV disposition ledger (rm-l2-ojfbot#S24).
 # skill-telemetry.jsonl is LEGACY — frozen 2026-06-18 when S11 demoted it; its
 # hook only fired for Skill-tool calls inside instrumented repos.
-SKILL_DISPOSITIONS_FILE="${HOME}/selfco/tracking/skill-dispositions.jsonl"
+SKILL_DISPOSITIONS_FILE="${HOME}/.local/state/ojfbot/tracking/skill-dispositions.jsonl"
 SKILL_TELEMETRY_FILE="${HOME}/.claude/skill-telemetry.jsonl"
 TOOL_TELEMETRY_FILE="${HOME}/.claude/tool-telemetry.jsonl"
 SESSION_TELEMETRY_FILE="${HOME}/.claude/session-telemetry.jsonl"

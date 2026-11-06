@@ -218,7 +218,7 @@ export function findNotes(start, { levels = 4 } = {}) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const ledgerRoot = expand(args['ledger-root'] ?? '~/selfco/tracking');
+  const ledgerRoot = expand(args['ledger-root'] ?? '~/.local/state/ojfbot/tracking');
   const outPath = expand(args.out ?? join(ledgerRoot, 'deviations.jsonl'));
 
   if (args.recurrence) {

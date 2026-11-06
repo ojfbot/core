@@ -66,7 +66,7 @@ try {
 }
 
 const program = flags.program ? String(flags.program) : 'opav-loop';
-const ledgerRoot = expand(flags['ledger-root'] ?? '~/selfco/tracking');
+const ledgerRoot = expand(flags['ledger-root'] ?? '~/.local/state/ojfbot/tracking');
 const mode = flags.mode ? String(flags.mode) : 'shadow';
 // expected_artifact is part of the honesty target; default to the per-skill map's text.
 const spec = expectedArtifactFor(skill);

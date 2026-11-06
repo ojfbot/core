@@ -330,7 +330,7 @@ async function cliMain() {
     // LOUD in ALL modes + durable health event (gap (a)) — the old path was
     // stderr-in-one-mode-only and left no trace, so a dead ruler read as
     // "no suggestions" for 25 days (RCA d92e3b15 family).
-    const healthPath = expand(args['health-out'] ?? join(expand(args['ledger-root'] ?? '~/selfco/tracking'), 'loop-health.jsonl'));
+    const healthPath = expand(args['health-out'] ?? join(expand(args['ledger-root'] ?? '~/.local/state/ojfbot/tracking'), 'loop-health.jsonl'));
     recordReconcilerDead({ reason: 'dist-unbuilt', detail: String(err?.message ?? err) }, healthPath);
     console.error(
       '[reconcile-skill-acted] DEAD RULER: packages/workflows/dist/tracking not loadable — dispositions are NOT being recorded. ' +
@@ -345,7 +345,7 @@ async function cliMain() {
 
   const suggPath = expand(args['suggestion-telemetry'] ?? '~/.claude/suggestion-telemetry.jsonl');
   const toolPath = expand(args.tool ?? '~/.claude/tool-telemetry.jsonl');
-  const ledgerRoot = expand(args['ledger-root'] ?? '~/selfco/tracking');
+  const ledgerRoot = expand(args['ledger-root'] ?? '~/.local/state/ojfbot/tracking');
   const program = args.program ? String(args.program) : 'opav-loop';
   const outPath = expand(args.out ?? join(ledgerRoot, 'skill-dispositions.jsonl'));
   const authoringOutPath = expand(args['authoring-out'] ?? join(ledgerRoot, 'skill-authoring.jsonl'));

@@ -33,6 +33,10 @@ skill's own directory** (the directory containing this `SKILL.md` and `vault.md`
 
 ## Gotchas
 
+- **Production Sync writes use the qualified create-only path in `vault.md`.** Legacy Git write
+  modes remain held. Verify the host-local identity config with `scripts/capture-sync.py --check`;
+  do not resolve an agent write target merely from `~/selfco` or `SELFCO_VAULT`.
+
 The full set lives in `vault.md` under `## Gotchas` (read it on invocation) — the dispatcher-level traps that bite before you even reach a mode:
 
 - **This `SKILL.md` is a stub, not the procedure — read `vault.md` first.** Acting on the modes from this file alone skips the core principles, the git-mirror rules, and the constraints. The authoritative body is `vault.md`; then read `${SELFCO_VAULT:-$HOME/selfco}/CLAUDE.md`, which wins if it ever disagrees.

@@ -239,7 +239,7 @@ async function readStdin() {
 
 async function main() {
   const args = parseArgs(process.argv);
-  const ledgerRoot = expand(args['ledger-root'] ?? '~/selfco/tracking');
+  const ledgerRoot = expand(args['ledger-root'] ?? '~/.local/state/ojfbot/tracking');
   const outPath = expand(args.out ?? join(ledgerRoot, 'merge-observations.jsonl'));
 
   // --record: written by the /merge-quiz SKILL after the human takes the quiz. The hook
@@ -254,6 +254,11 @@ async function main() {
   // the mechanism they did NOT know plus the explanation that closed it.
   if (args.capture) {
     const vault = expand(process.env.SELFCO_VAULT ?? '~/selfco');
+    if (!existsSync(join(vault, '.git'))) {
+      console.error('[merge-quiz] shared Sync ledger capture is held; use the guarded create-only vault capture workflow');
+      process.exitCode = 1;
+      return;
+    }
     const logPath = join(vault, 'wiki', 'log.md');
     if (!existsSync(logPath)) {
       console.error(`[merge-quiz] no vault ledger at ${logPath} — nothing captured (run /vault init)`);
