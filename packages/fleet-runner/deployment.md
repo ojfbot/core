@@ -137,7 +137,8 @@ manifests and logs, both portable worker tarballs, the runtime image archive and
 SHA-256, image inspection and build metadata, negative-probe outputs, and a
 machine-readable `evidence-report.json`. Restore the image with
 `docker image load --input runtime-image.tar`; install a worker tarball on a Mac
-with pnpm as above. The script refuses to overwrite an existing evidence
-directory and fails if source changes during proof. The report is evidence for
-those exact source/tool/image inputs; it does not assert bit-identical image
-layers or production readiness.
+with pnpm as above. The matching local image tag is retained in Docker as well.
+The script refuses to overwrite an existing evidence directory and fails if
+source changes during proof. The report is evidence for those exact
+source/tool/image inputs; it does not assert bit-identical image layers or
+production readiness.
