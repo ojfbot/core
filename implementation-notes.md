@@ -7,6 +7,8 @@ Log the gap between plan and reality, not routine choices the plan already cover
 The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
+- 2026-11-05 (fleet-runner G0 verifier): the first test placement put live historical-repository qualification in root Vitest discovery, but Core CI runs Node 22 with shallow history and no BookcaseDiscovery checkout. Moved it behind `scripts/fleet-runner/vitest.qualification.config.mjs`, requiring an explicit client repository path while leaving root CI discovery unchanged.
+- 2026-11-05 (fleet-runner packaging proof): the optional host-side artifact pack/install check hit DNS `ENOTFOUND` fetching locked packages, so the final proof packs the tarball and installs it into an isolated consumer inside each pinned Linux/amd64 build; no host dependency install completed.
 - 2026-11-03 (gate-authority tiers, BookcaseDiscovery fork session): the plan was a new ADR plus a new platform wayfinder map. The territory already holds the fleet-runner map (#307), which forbids parallel programs and replacement tickets, and #313 owns authority policy. Filed the schema as a Proposed input document under `decisions/fleet-runner/` plus a dated note on the existing map, with no new ADR, map or tickets.
 - 2026-11-03 (gate-authority tiers, review fixes): the first draft put "merging to the default branch" in I2 and let it become agent-reviewable, and its authority table had gaps (V0 with R1, trust exactly at the threshold, unclassified gates). Territory: §2 already made publishing I3, the progressive-autonomy draft keeps humans merging at gate-0, and an enforcement table must fail closed. Moved remote default-branch merges to I3 (human only), added fail-closed rows, separated eligibility from RIDM promotion, and made the ADR-0109 hold a mandatory transition. Found by independent review on #575.
 - 2026-11-03 (glossary insertion): `GLOSSARY.md` is not strictly alphabetical (backtick and `/`-prefixed entries sit near the end, and some neighbours are out of order), so a sort-based insert misplaced the new entries. Placed the five Proposed terms before hand-checked alphabetical anchors and left existing ordering untouched.
@@ -562,3 +564,6 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
   staging by hash. The pilot combined the N-2 remote-worker and N-3 queue
   transport proof for read-vision. Detection and the remaining N-card exits
   carry forward.
+
+- G0–G2 assumed the configured selfco path was the live vault; inspection found an older dirty Git copy beside the active Sync replica. Preserved the capture bundle and assigned verified Sync cutover/final capture to the user-requested separate fork.
+- G0–G2 assumed the bundled pnpm launcher honored the repository pin; it ran pnpm11, appended an esbuild build-policy placeholder and blocked scripts. Removed only that generated workspace delta and selected actual pnpm9.15.4 instead of changing the lock or approving broader build policy.

@@ -1,0 +1,92 @@
+[
+  {
+    "id": "G0",
+    "title": "Accept the release contract and source baseline",
+    "entry": "Confirmed release-one scope.",
+    "build": "Reconcile the Core and BookcaseDiscovery PR stacks into one reviewed source manifest. Record NAS hosting, stable identity, approved laptop policy, allowed handlers, roles, limits and recovery semantics. Keep HelpDesk coordination separate. Resolve the bounded hosting contract through existing #309/#311; broader development-orchestration policy remains open.",
+    "pass": "Every advertised behavior has a named acceptance case; every component resolves to a reviewed commit, lockfile and protocol/schema version. Zero unknown deployment owners or unresolved source pins.",
+    "attack": "Change a pin; omit a handler case; supply an ambiguous role or a HelpDesk text assertion of approval. The gate must refuse promotion or admission.",
+    "evidence": "Reviewed contract, exact source manifest, issue mapping and test-case inventory.",
+    "vv": "One-time verification plus owner validation of release scope."
+  },
+  {
+    "id": "G1",
+    "title": "Make one job inspectable and prove its invariants",
+    "entry": "G0.",
+    "build": "Reuse the existing queue/server/worker. Build a disposable end-to-end job runner, fixed synthetic transform, independent reference model and evidence checker. Include API admission, execution, durable events, accepted bytes and CLI readback.",
+    "pass": "All named invariants pass across 1,000 seeded operation sequences. Zero duplicate admissions for the same key, accepted stale attempts, digest mismatches or forbidden mutations. Every intentionally broken safeguard is detected by its designated test. Required skips or missing evidence fail.",
+    "attack": "Race claims; reuse worker identity; finish exactly at lease expiry; lose a completion response; retry the same or different bytes; change pins; tamper with a signed request; replay after restart; send malformed/oversized data. The current replay cache is in memory, so restart replay needs an explicit solution.",
+    "evidence": "Seeds, expected/actual transitions, HTTP receipts, queue/events export, artifact hashes, mutation failures and a machine-readable verdict.",
+    "vv": "Verification; finite tests do not establish a formal proof over all executions."
+  },
+  {
+    "id": "G2",
+    "title": "Produce a reproducible Linux release",
+    "entry": "G1.",
+    "build": "Create a pinned linux/amd64 service image, portable worker install and explicit secret/config injection. Add readiness, compatibility and bounded structured logs. Reconcile the vendored Bookcase client with canonical Core.",
+    "pass": "Two clean installs from Git, documented downloads and injected credentials succeed. Software and lockfile manifests agree; fixed jobs match precomputed outputs. Deploy by image digest. No hidden dependency on an agent checkout, /tmp, an author's home path or an existing pnpm cache.",
+    "attack": "Empty caches; missing secret/config; incompatible protocol; wrong permissions; changed vendor source. Each fails clearly instead of reporting a healthy service.",
+    "evidence": "Build provenance, image digest, software manifests, clean-install receipts and version/status readback.",
+    "vv": "Linux verification. This does not claim byte-identical builds unless separately measured."
+  },
+  {
+    "id": "G3",
+    "title": "Qualify NAS hosting in a disposable environment",
+    "entry": "G2 plus the NAS and SSD.",
+    "build": "Deploy under UGOS Docker with local SSD-backed SQLite/artifacts, stable LAN endpoint, encrypted authenticated transport and least privilege. Give the data volume a checked service identity. Keep the pilot coordinator separate during sandbox qualification.",
+    "pass": "10 forced process exits recover readiness within 60 s each. Three NAS reboots recover within five minutes each. Zero lost acknowledged transactions or accepted-output mismatches on healthy storage. Missing/wrong/read-only/full storage is not ready. Invalid or revoked credentials cause zero unauthorized mutations.",
+    "attack": "Kill during admission/completion; start a second writer; remove a sandbox mount; inject disk-full/read-only failures; replay signed requests across restart; force a container memory-limit kill. Check state throughout recovery.",
+    "evidence": "NAS OS/Docker/filesystem versions, deployment manifest, boot/restart timeline, negative readiness/auth receipts and transaction/hash readback.",
+    "vv": "Verification and validation on the actual target; restart policy and healthcheck are distinct."
+  },
+  {
+    "id": "G4",
+    "title": "Join both Macs and remove per-job manual staging",
+    "entry": "G3.",
+    "build": "Install pinned supervised workers. Add authenticated, hash-checked input delivery and result submission. Keep models local and pinned. Report policy/capability/resource reasons. Add authorized pause/drain/resume; use one sequential job per worker in release one.",
+    "pass": "Both Macs install and rejoin without an agent GUI and execute a NAS-admitted job without manual input staging. Every advertised handler passes its deterministic contract on every eligible host. Zero claims in prohibited policy cases; unsupported handlers stay unavailable. Zero simultaneous GPU-job holders per worker resource slot.",
+    "attack": "Interrupt/corrupt an input download; request an unauthorized blob/path; mismatch helper/model pins; simulate battery/unknown power, DST and expired exceptions; mark GPU busy; start a duplicate client.",
+    "evidence": "Per-host install manifest, eligibility/capability matrix, input/result hashes, supervised-service readback and handler receipts.",
+    "vv": "Verification and validation of practical Mac participation."
+  },
+  {
+    "id": "G5",
+    "title": "Inspect one service through API, CLI and browser",
+    "entry": "G3; interaction design can begin after G0.",
+    "build": "Add versioned service status, process heartbeat separate from job lease renewal, event cursors and observer authorization. Provide CLI status/workers/events/logs/doctor and a read-only browser console. Display version, uptime/restarts, readiness, worker freshness/eligibility, queue/lease counts and traces. HelpDesk owns coordination and references, not job authority.",
+    "pass": "Process heartbeat every 10 s; observations older than 30 s display stale/unknown. CLI/GUI agree on the same snapshot revision for every fixture. Changes appear within five seconds on a healthy LAN. Status API p95 <=250 ms over 1,000 reads with 10,000 historical jobs/two workers. Zero injected secret/content canaries in status/logs.",
+    "attack": "Kill the API while the console stays open; reorder/duplicate events; reconnect/replay; serve old snapshots; inject HTML/log text; try writes with observer credentials. Duplicate HelpDesk references cannot enqueue jobs or imply completion.",
+    "evidence": "Contract fixtures, CLI JSON, browser interactions/screenshots, revision/time comparisons, latency samples and redaction checks.",
+    "vv": "Verification plus operator validation: identify why a worker cannot claim within 60 s using this interface alone."
+  },
+  {
+    "id": "G6",
+    "title": "Prove interruption, bounded recovery and isolation",
+    "entry": "G4 and G5.",
+    "build": "Run the fault campaign on NAS and Macs. Exercise stop/drain, resource limits and independent HelpDesk failure. Stage new automatic recovery policies on a synthetic queue, then observe-only, before enabling them for admitted work.",
+    "pass": "Every named deterministic fault case passes 10 repetitions. Pass three actual OS lid-sleep/wake trials and three Wi-Fi disconnect/rejoin trials. Zero duplicate accepted outputs, stale overwrites or silent lost jobs. With another eligible worker and retries remaining, safe reclaim <= L+2P after the last valid renewal; initial L=300 s and P=5 s gives 310 s. HelpDesk outage does not alter admitted-job outcomes; FleetRunner outage does not stop HelpDesk coordination.",
+    "attack": "Lose the completion response after commit; sleep/partition a worker; lose a lease during upload; crash at output/DB boundaries; exhaust retries; make a handler ignore cancellation. Disable fencing/freshness deliberately and require failing tests.",
+    "evidence": "Fault schedules/seeds, OS sleep/wake evidence, network-fault receipts, attempt IDs/fences, exact output hashes, UI transitions and service-isolation checks.",
+    "vv": "Verification plus target-machine validation. Suspension is not evidence of physical sleep."
+  },
+  {
+    "id": "G7",
+    "title": "Restore independent backups and rehearse cutover",
+    "entry": "G6; backup implementation may start at G3.",
+    "build": "Back up a consistent DB, artifact set and recovery manifest to an independent destination. Restore onto an empty volume with a new service generation; begin paused, invalidate previous attempts and reconcile the known recovery point. Rehearse Yojimbo-to-NAS migration with one active writer.",
+    "pass": "Latest successful independent backup <=15 minutes old under qualification load. Three empty-volume restores reach verified paused readiness within 30 minutes from prepared replacement storage. All accepted snapshot results have matching bytes; no dangling result, pre-restore lease reuse or silent schema downgrade. Show the recovery point and any known gap.",
+    "attack": "Omit/corrupt a blob; truncate the manifest; restore old state while an old worker lives; replay old signed traffic; restart the retired coordinator; attempt downgrade on a newer schema. Invalid restores remain paused/unready.",
+    "evidence": "Backup/recovery manifest, independent copy verification, integrity/hash checks, restore times, generation rejection and migration rehearsal.",
+    "vv": "Verification and operational validation. Disaster recovery point differs from zero-loss process-restart targets."
+  },
+  {
+    "id": "G8",
+    "title": "Cut over and accept the working service",
+    "entry": "G7 plus owner-authorized production cutover.",
+    "build": "Freeze old admission, drain or reconcile attempts, snapshot final state, stop/fence the old coordinator and switch workers to the NAS endpoint. Enable only qualified controls. Keep a rollback route that cannot create two queues or downgrade an incompatible DB.",
+    "pass": "48 continuous hours with Claude/Codex GUIs closed. Finish 200 deterministic jobs, at least 50 per Mac under approved availability policy, plus advertised real-handler checks. Zero unauthorized mutations, duplicate accepted outputs, lost acknowledged records on healthy storage or unresolved result mismatches. Fault recoveries and CLI/GUI freshness meet their bounds.",
+    "attack": "Restart the retired coordinator; replay old credentials/cursors/attempts; duplicate admission/completion; stop HelpDesk; restart NAS/workers; exercise the rehearsed rollback.",
+    "evidence": "Exact production image/config/protocol manifest, cutover/rollback receipts, soak counters with denominators, exception ledger and independent acceptance report.",
+    "vv": "Verification plus owner validation that the service can be operated without an agent chat interpreting it. Any missing required proof blocks release."
+  }
+]

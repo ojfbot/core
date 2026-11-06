@@ -4,8 +4,14 @@
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "deployment.md"
+  ],
   "engines": {
-    "node": ">=22.18"
+    "node": ">=24.22.2"
   },
   "exports": {
     ".": "./dist/jobs.js",
@@ -14,7 +20,8 @@
     "./worker": "./dist/worker.js"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "proof:packaging": "bash scripts/proof-packaging.sh"
   },
   "bin": {
     "fleet-runner": "./dist/cli.js"

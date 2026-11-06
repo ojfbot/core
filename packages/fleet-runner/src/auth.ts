@@ -14,6 +14,15 @@ import { join } from "node:path";
 export const ID = /^[a-z][a-z0-9-]{0,62}$/;
 const WINDOW_MS = 60_000;
 
+export interface RequestNonce {
+  identity: string;
+  nonce: string;
+  now: number;
+  expiresAt: number;
+}
+
+export type ConsumeNonce = (candidate: RequestNonce) => boolean;
+
 export function generateToken(file: string): void {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
   writeFileSync(file, privateKey.export({ format: "pem", type: "pkcs8" }), {
@@ -49,8 +58,7 @@ export function signer(id: string, tokenFile: string) {
   };
 }
 
-export function verifier(registry: string) {
-  const seen = new Map<string, number>();
+export function verifier(registry: string, consumeNonce: ConsumeNonce) {
   return (
     authorization: string | undefined,
     method: string,
@@ -71,11 +79,6 @@ export function verifier(registry: string) {
     ];
     const now = Date.now();
     if (Math.abs(now - Number(ts)) >= WINDOW_MS) return undefined;
-    for (const [value, expires] of seen) {
-      if (expires <= now) seen.delete(value);
-    }
-    const replay = `${id}.${nonce}`;
-    if (seen.has(replay)) return undefined;
     let key: KeyObject;
     try {
       key = createPublicKey(readFileSync(join(registry, `${id}.pub`)));
@@ -93,7 +96,8 @@ export function verifier(registry: string) {
     ) {
       return undefined;
     }
-    seen.set(replay, Number(ts) + WINDOW_MS);
-    return id;
+    return consumeNonce({ identity: id, nonce, now, expiresAt: Number(ts) + WINDOW_MS })
+      ? id
+      : undefined;
   };
 }

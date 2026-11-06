@@ -30,3 +30,6 @@ __pycache__/
 
 # Local Browser-pane / dev-server config — machine-specific, never shared.
 .claude/launch.json
+
+# Generated local qualification reports. Scripts and contract remain tracked.
+/.handoff/fleet-runner-g0-g2/evidence/
