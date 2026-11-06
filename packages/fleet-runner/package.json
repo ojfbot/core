@@ -7,7 +7,8 @@
   "files": [
     "dist",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "deployment.md"
   ],
   "engines": {
     "node": ">=24.22.2"

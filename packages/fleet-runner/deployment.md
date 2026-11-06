@@ -57,6 +57,11 @@ docker run --detach --name fleet-runner \
   fleet-runner:local serve
 ```
 
+The published-port command above is G3 preparation only. Do not expose the
+service to a LAN until TLS, network policy, firewall, and production readiness
+qualification are complete. For a local synthetic proof, bind the host port to
+loopback instead.
+
 The volumes retain the SQLite database and outputs across container replacement.
 The container has no private credentials. Restrict the host firewall to the
 worker LAN and use private network interfaces only. A successful TCP connection
@@ -103,17 +108,19 @@ The consumer imports `fleetClient` from `@core/fleet-runner/client` and
 `Record<string, JobHandler>`, capability labels, an output directory, and an
 `AbortSignal`, as required by the worker API. Keep its private token in a
 worker-only directory with mode 0600; transfer only the generated `.pub` file
-to the service owner. Use a private LAN endpoint. The package tarball contains
-compiled output, license, and this README, not the core checkout or service
-secrets.
+to the service owner. Use a private endpoint after the deployment's G3 gates
+are met. The package tarball contains compiled output, license, README, and
+deployment instructions, not the core checkout or service secrets.
 
 ## Repeatable clean-install and container proof
 
 Run from the core repository root on a machine with Docker Desktop or Docker
-Engine and Buildx available:
+Engine and Buildx available. Give each run a new evidence directory, outside
+`packages/fleet-runner` and its Docker build context:
 
 ```sh
-pnpm --dir packages/fleet-runner proof:packaging
+pnpm --dir packages/fleet-runner proof:packaging -- \
+  .handoff/fleet-runner/packaging-evidence-<unique-name>
 ```
 
 The script performs two uncached `linux/amd64` proof-stage builds, each with a
@@ -125,8 +132,12 @@ compiled client and worker exports. It then builds and loads the runnable
 separate probe container holding synthetic credentials to enqueue one fixed
 fixture, execute it through the compiled client/worker loop, verify accepted
 output, and assert exactly one completion event. The service container sees
-only the public-key registry. The report records those observations plus image
-architecture and image ID. It writes
-`packages/fleet-runner/packaging-proof.json` only after the observations are
-collected. The report is evidence for those exact source/tool/image inputs; it
-does not assert bit-identical image layers or production readiness.
+only the public-key registry. The evidence directory preserves both install
+manifests and logs, both portable worker tarballs, the runtime image archive and
+SHA-256, image inspection and build metadata, negative-probe outputs, and a
+machine-readable `evidence-report.json`. Restore the image with
+`docker image load --input runtime-image.tar`; install a worker tarball on a Mac
+with pnpm as above. The script refuses to overwrite an existing evidence
+directory and fails if source changes during proof. The report is evidence for
+those exact source/tool/image inputs; it does not assert bit-identical image
+layers or production readiness.
