@@ -1,0 +1,17 @@
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.base.json
+!packages/
+!packages/fleet-runner/
+packages/fleet-runner/*
+!packages/fleet-runner/package.json
+!packages/fleet-runner/LICENSE
+!packages/fleet-runner/README.md
+!packages/fleet-runner/tsconfig.json
+!packages/fleet-runner/src/
+!packages/fleet-runner/src/**
+!packages/fleet-runner/scripts/
+!packages/fleet-runner/scripts/**
+!packages/fleet-runner/docker-entrypoint.mjs
