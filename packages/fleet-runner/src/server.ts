@@ -88,7 +88,7 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 export function fleetServer(store: JobStore, options: { registry: string; outDir: string }) {
-  const authenticate = verifier(options.registry);
+  const authenticate = verifier(options.registry, (candidate) => store.consumeNonce(candidate));
   return createServer({ requestTimeout: 60_000, headersTimeout: 15_000 }, async (req, res) => {
     try {
       if (!req.headers.authorization) throw new RequestError(401);

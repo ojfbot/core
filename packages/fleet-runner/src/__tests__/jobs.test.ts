@@ -59,6 +59,20 @@ describe("JobStore", () => {
     expect(store.report().now.byKind.noop).toEqual({ ready: 1, claimed: 0, done: 0, failed: 0 });
   });
 
+  it("consumes a verified request nonce once and removes it at expiry", () => {
+    const candidate = { identity: "worker", nonce: "one-use", now: clock, expiresAt: clock + 10 };
+
+    expect(store.consumeNonce(candidate)).toBe(true);
+    expect(store.consumeNonce(candidate)).toBe(false);
+    expect(
+      store.consumeNonce({
+        ...candidate,
+        now: candidate.expiresAt,
+        expiresAt: candidate.expiresAt + 10,
+      }),
+    ).toBe(true);
+  });
+
   it("claims by priority, and only jobs whose capabilities and kind the worker has", () => {
     const low = store.enqueue(spec(1)).key;
     const high = store.enqueue(spec(2, { priority: 5 })).key;
@@ -165,9 +179,43 @@ describe("JobStore", () => {
       { key: "old", detail: "schema-v1:done" },
       { key: "waiting", detail: "schema-v1:ready" },
     ]);
-    expect(retired.prepare("PRAGMA user_version").get()).toEqual({ user_version: 2 });
+    expect(retired.prepare("PRAGMA user_version").get()).toEqual({ user_version: 3 });
     retired.close();
     expect(store.enqueue(spec(1)).created).toBe(true);
+  });
+
+  it("adds the replay nonce ledger to a v2 store and preserves jobs and events", () => {
+    store.close();
+    const path = join(dir, "v2.sqlite");
+    store = new JobStore(path, { now: () => clock, leaseMs: LEASE });
+    const key = store.enqueue(spec(2)).key;
+    expect(store.claim("worker", [])?.key).toBe(key);
+    store.close();
+
+    // A v2 database has the current jobs/events schema but no replay-nonce ledger.
+    const v2 = new DatabaseSync(path);
+    v2.exec("DROP TABLE auth_nonces; PRAGMA user_version = 2;");
+    v2.close();
+
+    store = new JobStore(path, { now: () => clock, leaseMs: LEASE });
+    expect(store.get(key)).toMatchObject({ status: "claimed", worker: "worker", fence: 1 });
+    expect(store.events(0).map(({ type }) => type)).toEqual(["enqueued", "claimed"]);
+    expect(
+      store.consumeNonce({
+        identity: "worker",
+        nonce: "new-store",
+        now: clock,
+        expiresAt: clock + 10,
+      }),
+    ).toBe(true);
+    expect(
+      store.consumeNonce({
+        identity: "worker",
+        nonce: "new-store",
+        now: clock,
+        expiresAt: clock + 10,
+      }),
+    ).toBe(false);
   });
 
   it("retries a retryable failure until max attempts, then fails it with its code", () => {
