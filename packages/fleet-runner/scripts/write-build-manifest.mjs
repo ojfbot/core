@@ -51,6 +51,7 @@ const sourceFiles = [
   join(packageDir, "package.json"),
   join(packageDir, "LICENSE"),
   join(packageDir, "README.md"),
+  join(packageDir, "deployment.md"),
   join(packageDir, "tsconfig.json"),
   ...(await fileHashes(join(packageDir, "src"), "src" )).map((row) => join(workspace, row.path)),
   ...(await fileHashes(join(packageDir, "scripts"), "scripts")).map((row) => join(workspace, row.path)),
