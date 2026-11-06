@@ -18,8 +18,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "../../..");
 const CLI_REL = "scripts/fleet-runner/verify-contract.mjs";
 const CLI = path.join(ROOT, CLI_REL);
-const CLIENT_REPO =
-  process.env.FLEET_RUNNER_CLIENT_REPO ?? path.resolve(ROOT, "../BookcaseDiscovery-fr578-day");
+const CLIENT_REPO = process.env.FLEET_RUNNER_CLIENT_REPO;
 const scratchRoots = [];
 
 afterEach(() => {
