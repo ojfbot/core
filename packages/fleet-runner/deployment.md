@@ -259,6 +259,8 @@ fleet-runner control yuri drain
 fleet-runner control yuri resume
 # Observer credential; opens a local read-only viewer server:
 fleet-runner console
+# Optional stable loopback port for a separately supervised observer process:
+fleet-runner console --port 8790
 ```
 
 `logs` is the bounded structured latest worker diagnostic projection, not raw
@@ -274,6 +276,12 @@ DOM insertion. Refresh is two seconds; failed, old or reordered snapshots clear
 current readiness to unavailable/stale. CLI/browser views use the same snapshot
 revision. The console is an operator client; the NAS service and Mac workers
 continue independently if it or an agent GUI closes.
+To keep the viewer available after an operator session closes, supervise that
+observer command with the host service manager and a stable installed package,
+managed Node executable and local observer configuration. Bind remains
+127.0.0.1 even when a port is supplied. Never put a private signing key in a
+service definition; reference its existing host-local file. This viewer adds
+no queue authority or remote mutation endpoint.
 
 Native latency qualification uses `scripts/fleet-runner/native-g5-benchmark.mjs`
 in a disposable container from the same runtime image. It seeds 10,000 completed
