@@ -1,11 +1,14 @@
 import { signer } from "./auth.js";
 import type { Claim, JobEvent, JobReport, JobSpec } from "./jobs.js";
+import { INPUT_HASH, MAX_INPUT_BYTES, inputHash } from "./inputs.js";
 
 type Lease = Pick<Claim, "key" | "fence">;
 
 export class FleetHttpError extends Error {
-  constructor(readonly status: number) {
+  readonly status: number;
+  constructor(status: number) {
     super(`fleet HTTP ${status}`);
+    this.status = status;
   }
   get retryable(): boolean {
     return this.status === 408 || this.status === 429 || this.status >= 500;
@@ -26,6 +29,27 @@ export function fleetClient(endpoint: string, id: string, tokenFile: string) {
   }
   const authorize = signer(id, tokenFile);
 
+  async function transfer(target: string, body?: Uint8Array, signal?: AbortSignal) {
+    const method = body === undefined ? "GET" : "POST";
+    const res = await fetch(new URL(target, base), {
+      method,
+      ...(body === undefined ? {} : { body: new Uint8Array(body) }),
+      headers: {
+        authorization: authorize(method, target, body ?? Buffer.alloc(0)),
+        "content-type": "application/octet-stream",
+      },
+      redirect: "error",
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(30_000)])
+        : AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) {
+      await res.body?.cancel();
+      throw new FleetHttpError(res.status);
+    }
+    return res;
+  }
+
   async function request<T>(target: string, data?: object): Promise<T> {
     const method = data === undefined ? "GET" : "POST";
     const body = Buffer.from(data === undefined ? "" : JSON.stringify(data));
@@ -45,6 +69,46 @@ export function fleetClient(endpoint: string, id: string, tokenFile: string) {
   }
 
   return {
+    uploadInput: async (bytes: Uint8Array) => {
+      if (bytes.length > MAX_INPUT_BYTES) throw new Error("input-too-large");
+      const hash = inputHash(bytes);
+      const response = await transfer(`/inputs/${hash}`, bytes);
+      await response.body?.cancel();
+      return hash;
+    },
+    downloadInput: async ({ key, fence }: Lease, hash: string, signal?: AbortSignal) => {
+      if (
+        !INPUT_HASH.test(hash) ||
+        !INPUT_HASH.test(key) ||
+        !Number.isSafeInteger(fence) ||
+        fence < 1
+      )
+        throw new Error("invalid-input-request");
+      const response = await transfer(
+        `/inputs/${hash}?key=${key}&fence=${fence}`,
+        undefined,
+        signal,
+      );
+      const chunks: Buffer[] = [];
+      let size = 0;
+      const reader = response.body!.getReader();
+      try {
+        if (Number(response.headers.get("content-length")) > MAX_INPUT_BYTES)
+          throw new Error("input-too-large");
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          size += value.length;
+          if (size > MAX_INPUT_BYTES) throw new Error("input-too-large");
+          chunks.push(Buffer.from(value));
+        }
+        const bytes = Buffer.concat(chunks, size);
+        if (inputHash(bytes) !== hash) throw new Error("input-mismatch");
+        return bytes;
+      } finally {
+        await reader.cancel().catch(() => {});
+      }
+    },
     enqueue: (spec: JobSpec) => request<{ key: string; created: boolean }>("/enqueue", spec),
     claim: async (caps: readonly string[], kinds: readonly string[]) => {
       const job = await request<Claim | null>("/claim", { caps, kinds });

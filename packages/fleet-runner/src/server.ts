@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { ID, prepareAuthorization, verifier } from "./auth.js";
 import { syncOutput, writeOutput } from "./jobs.js";
 import type { JobSpec, JobStore } from "./jobs.js";
+import { INPUT_HASH, MAX_INPUT_BYTES, inputHash, putInput, readInput } from "./inputs.js";
 
 const MAX_BODY = 16 * 1024 * 1024;
 const MAX_CONTROL_BODY = 64 * 1024;
@@ -92,7 +93,7 @@ async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
 
 export function fleetServer(
   store: JobStore,
-  options: { registry: string; outDir: string; tls?: TlsOptions },
+  options: { registry: string; outDir: string; inputDir?: string; tls?: TlsOptions },
 ) {
   mkdirSync(options.outDir, { recursive: true });
   const authenticate = verifier(options.registry, (candidate) => store.consumeNonce(candidate));
@@ -104,12 +105,42 @@ export function fleetServer(
       const target = req.url ?? "";
       const url = new URL(target, "http://fleet.invalid");
       const route = `${method} ${url.pathname}`;
-      const limit = route === "POST /complete" ? MAX_BODY : MAX_CONTROL_BODY;
+      const input = /^\/inputs\/([a-f0-9]{64})$/.exec(url.pathname)?.[1];
+      const limit =
+        input && method === "POST"
+          ? MAX_INPUT_BYTES
+          : route === "POST /complete"
+            ? MAX_BODY
+            : MAX_CONTROL_BODY;
       if (Number(req.headers["content-length"]) > limit) throw new RequestError(413);
       if (req.headers.expect === "100-continue") res.writeContinue();
       const bytes = await readBody(req, limit);
       const id = authenticate(req.headers.authorization, method, target, bytes);
       if (!id) throw new RequestError(401);
+
+      if (input && options.inputDir) {
+        if (method === "POST") {
+          if (id !== "owner") throw new RequestError(403);
+          requireValid(inputHash(bytes) === input);
+          putInput(options.inputDir, input, bytes);
+          return reply(res, 200, { stored: true });
+        }
+        if (method === "GET") {
+          const key = url.searchParams.get("key") ?? "";
+          const fence = Number(url.searchParams.get("fence"));
+          requireValid(INPUT_HASH.test(key) && integer(fence, 1));
+          if (!store.holdsInput(key, fence, id, input)) throw new RequestError(403);
+          const data = readInput(options.inputDir, input);
+          res.writeHead(200, {
+            "content-type": "application/octet-stream",
+            "content-length": data.length,
+            "cache-control": "no-store",
+            connection: "close",
+          });
+          return void res.end(data);
+        }
+        throw new RequestError(404);
+      }
 
       if (["POST /enqueue", "GET /events", "GET /report"].includes(route) && id !== "owner") {
         throw new RequestError(403);
@@ -145,7 +176,20 @@ export function fleetServer(
         throw new RequestError(400);
       }
       requireValid(isObject(body));
-      if (route === "POST /enqueue") return reply(res, 200, store.enqueue(spec(body)));
+      if (route === "POST /enqueue") {
+        const job = spec(body);
+        if (options.inputDir) {
+          for (const hash of job.inputs) {
+            requireValid(INPUT_HASH.test(hash));
+            try {
+              readInput(options.inputDir, hash);
+            } catch {
+              throw new RequestError(400);
+            }
+          }
+        }
+        return reply(res, 200, store.enqueue(job));
+      }
       if (id === "owner") throw new RequestError(403);
       if (route === "POST /claim") {
         requireValid(labels(body.caps) && labels(body.kinds));

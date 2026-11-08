@@ -481,6 +481,13 @@ export class JobStore {
       .get(key) as JobRow | undefined;
   }
 
+  /** Input access is scoped to the requesting worker's current, unexpired attempt. */
+  holdsInput(key: string, fence: number, worker: string, hash: string): boolean {
+    const row = this.#db.prepare("SELECT inputs FROM jobs WHERE key = ? AND status = 'claimed' AND fence = ? AND worker = ? AND lease_expires > ?")
+      .get(key, fence, worker, this.#now()) as { inputs: string } | undefined;
+    return !!row && (JSON.parse(row.inputs) as string[]).includes(hash);
+  }
+
   events(after: number): JobEvent[] {
     return this.#db
       .prepare("SELECT seq, ts, key, type, worker, fence FROM job_events WHERE seq > ? ORDER BY seq LIMIT 1000")

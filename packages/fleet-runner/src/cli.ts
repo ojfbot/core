@@ -72,11 +72,13 @@ async function main(args: string[]): Promise<void> {
   }
   const cert = process.env.FLEET_TLS_CERT;
   const key = process.env.FLEET_TLS_KEY;
+  const inputDir = process.env.FLEET_INPUT_DIR;
   if (!!cert !== !!key) throw new Error("TLS requires both certificate and key");
   const store = new JobStore(db);
   const server = fleetServer(store, {
     registry,
     outDir,
+    ...(inputDir ? { inputDir } : {}),
     ...(cert && key
       ? {
           tls: { cert: readFileSync(cert), key: readFileSync(key), minVersion: "TLSv1.2" as const },
