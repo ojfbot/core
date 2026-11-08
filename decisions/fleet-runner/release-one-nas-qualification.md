@@ -93,3 +93,43 @@ the pre-reboot kernel identity; after-reboot starts the five-minute recovery
 window immediately after the owner command returns/disconnects. The private
 receipt records password/command wait separately. A changed kernel boot and
 all accepted-output checks are still required; a failed command cannot pass.
+
+## Observed qualification — 2026-11-08
+
+The isolated NAS candidate passed the G3 checker. The live coordinator and both
+installed application workers were not changed, and no PR was merged.
+
+| Case | Recorded result |
+| --- | --- |
+| Service process crashes | 10/10 recovered in 2.196–2.527 seconds; replay rejected and accepted data preserved |
+| Appliance reboot 1 | Changed kernel boot; recovery verified within 94.708 seconds; 10/10 output checks passed |
+| Appliance reboot 2 | Changed kernel boot; recovery 70.852 seconds after reboot-command return; 10/10 output checks passed |
+| Appliance reboot 3 | Changed kernel boot; recovery 63.993 seconds after reboot-command return; 10/10 output checks passed |
+| Lifecycle and storage | Graceful stop/start, container replacement, trusted TLS and invalid-storage/configuration checks passed |
+| Independent checker | Valid, 10 crash trials, 3 appliance reboots, 10 completions, no errors |
+
+Measured runtime: Linux kernel 6.18.15, local btrfs service state, Docker 29.4.3
+and Node 24.22.2 in the nonroot Linux/amd64 image. Image source is
+`28eb9eaf83ab08daa9ddedb1162ce0b1e36f35ca`; the image identity is
+`sha256:277b0181b8ea7e0bf924ec75174113dbd6c9415fc0e78e826e0b68211666048e`.
+The first reboot used the earlier controller and a conservative arming-based
+measurement. The remaining two used the corrected controller pinned at
+`d3fc506`, which records owner/password wait separately. Their controller
+source and artifact hashes remain in the private receipts.
+
+One earlier appliance attempt is retained as an uncounted exception: the old
+controller window expired during the interactive password wait before its
+verification began. It was not promoted into a passing trial. The three rows
+above are the separately verified observations.
+
+The owner controller required Apple Terminal on this Mac: its Node process
+reached the LAN there, while the same runtime in iTerm returned EHOSTUNREACH
+even though curl and SSH worked. No network/privacy setting was weakened.
+This does not qualify application LaunchAgent networking or resolve that
+platform-context difference.
+
+Scope remains the isolated service. Mac enrollment and automatic inputs (G4),
+operations controls/projections (G5), worker/physical interruption cases (G6),
+backup and restore (G7), and explicit production cutover/soak (G8) remain open.
+Source review, merging, appliance permission persistence and backup availability
+are separate from this bounded result.
