@@ -575,3 +575,8 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - The old restart test reopened objects in one process. It now recompiles the tested source into two actual child processes, and the replay mutant substitutes a module-global cache rather than removing replay checks entirely.
 - This host has no Docker installation and the NAS has Node 18 with no Buildx plugin. Build tools are task-local on the development Mac; the existing NAS engine executes the pinned amd64 builds through SSH. No global Node, NAS Node or appliance Docker settings are changed.
 - Broad queue indexing, event retention and large-fleet claim/report optimization remain deferred as the review requested; this correction covers bounded pilot resource use and leaves active state on SSD. The appliance backup/power configuration is a separate owner boundary.
+
+## Isolated G3 qualification
+
+- The appliance's SFTP namespace does not resolve shell volume paths. Public-verifier and public-certificate transfer uses legacy SSH SCP; private signing and TLS keys remain on their generating hosts.
+- Actual appliance reboots remain owner actions because they affect the appliance and encrypted-share availability. The runner arms and verifies them; it never substitutes container restarts or invokes a reboot itself.
