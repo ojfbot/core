@@ -580,3 +580,5 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 
 - The appliance's SFTP namespace does not resolve shell volume paths. Public-verifier and public-certificate transfer uses legacy SSH SCP; private signing and TLS keys remain on their generating hosts.
 - Actual appliance reboots remain owner actions because they affect the appliance and encrypted-share availability. The runner arms and verifies them; it never substitutes container restarts or invokes a reboot itself.
+
+- The first fault trial found that Docker kill is a manual stop under unless-stopped on this engine. The injector now kills the server child process and requires Docker's restart counter to increase; the retained fixture is reconciled without readmission.

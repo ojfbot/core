@@ -37,6 +37,7 @@ export function checkG3Evidence(evidence, expected) {
       r.elapsedMs >= 0 &&
       r.elapsedMs < 60_000 &&
       r.acceptedDataPreserved === true &&
+      r.restartCountIncreased === true &&
       r.replayRejectedWithinSignatureWindow === true &&
       validOutput(r, i + 1),
   ), "crash-recovery-and-integrity");

@@ -20,6 +20,7 @@ function fixture() {
       trial: i + 1,
       elapsedMs: 1000,
       acceptedDataPreserved: true,
+      restartCountIncreased: true,
       replayRejectedWithinSignatureWindow: true,
       ...validOutput(i + 1),
     })),
