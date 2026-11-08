@@ -216,3 +216,61 @@ This candidate extends the isolated qualification service. Historical G3 proof
 is bound to its earlier source/image; it is not a G3 rerun of this extension.
 Mac installation and real-handler receipts belong to the application PR linked
 from the existing tracker. No live queue migration is implied.
+
+## G5 operations contract and controls
+
+The status API is version 1. Queue storage migrates atomically from v3 to v4,
+preserving jobs, events and replay nonces while adding process-presence and
+worker-control tables. Older binaries reject v4. A database trigger also blocks
+an already-open older writer from claiming for a paused worker; current leased
+work may drain. Never restart an older image against the migrated database.
+This candidate changes only the isolated service; no live cutover is authorized.
+
+`FLEET_WORKERS` declares the expected public worker labels (default yuri,yojimbo).
+`FLEET_OBSERVERS` declares observer identities (default observer); register their
+public verifiers with service-readable permissions. `FLEET_BUILD_REF` is the
+public source commit shown in status. The process start counter tracks service
+instances since status instrumentation, not the appliance's lifetime reboots.
+
+- Signed `GET /status`: owner/observer only; version/revision/time, readiness,
+  worker freshness/eligibility, queue and lease counts, opaque traces and an
+  explicitly unqualified backup state. No payloads, input IDs, private paths,
+  raw job keys, reader output or arbitrary logs are serialized.
+- Signed `POST /worker-status`: registered expected worker's own observation;
+  strict fixed fields/codes. Presence is independent of lease heartbeat and
+  sent every ten seconds. Older than thirty seconds means stale/unknown.
+- Signed `GET /worker-control`: each expected worker sees only its own gate.
+- Signed `POST /control`: owner only, worker plus pause/drain/resume. The claim
+  transaction and database trigger enforce pause. Active attempts may finish.
+- Signed `GET /status/events?after=N`: bounded opaque replay, stable numeric
+  cursor, at most 100 records. Legacy full-key events/reports remain owner-only.
+
+With explicit local `FLEET_ENDPOINT`, `FLEET_TOKEN_FILE`, and `FLEET_ID`:
+
+```sh
+fleet-runner status --json
+fleet-runner workers --json
+fleet-runner events --after 0 --json
+fleet-runner logs --json
+fleet-runner doctor --json
+# Owner credential only:
+fleet-runner control yuri pause
+fleet-runner control yuri drain
+fleet-runner control yuri resume
+# Observer credential; opens a local read-only viewer server:
+fleet-runner console
+```
+
+`logs` is the bounded structured latest worker diagnostic projection, not raw
+container stdout. `doctor` distinguishes service/freshness from policy gating;
+a deliberately paused fresh worker is observable, and backup qualification
+remains explicitly unknown until G7.
+
+The console prints a loopback URL without a credential. Its process signs
+observer requests over the normal trusted TLS route; the browser never receives
+a signing key or bearer token. The loopback server accepts only literal-local
+Host and same-origin GETs, rejects writes/cross-site requests, and uses text-only
+DOM insertion. Refresh is two seconds; failed, old or reordered snapshots clear
+current readiness to unavailable/stale. CLI/browser views use the same snapshot
+revision. The console is an operator client; the NAS service and Mac workers
+continue independently if it or an agent GUI closes.
