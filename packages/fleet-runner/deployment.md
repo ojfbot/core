@@ -274,3 +274,11 @@ DOM insertion. Refresh is two seconds; failed, old or reordered snapshots clear
 current readiness to unavailable/stale. CLI/browser views use the same snapshot
 revision. The console is an operator client; the NAS service and Mac workers
 continue independently if it or an agent GUI closes.
+
+Native latency qualification uses `scripts/fleet-runner/native-g5-benchmark.mjs`
+in a disposable container from the same runtime image. It seeds 10,000 completed
+fixed synthetic jobs in a new container-local database, declares two synthetic
+process observations, and serves normal signed status over TLS. A separate LAN
+observer records 1,000 request durations, checks the exact denominator, computes
+p95 and rejects values over 250 ms. This fixture never seeds the actual sandbox
+or live queue; its synthetic observations are not real Mac availability evidence.
