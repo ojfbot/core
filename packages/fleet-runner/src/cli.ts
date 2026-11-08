@@ -39,7 +39,7 @@ async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
   if (command === "--help" || command === "help") {
     console.log(
-      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | status|workers|events|logs|doctor [--json] | console | control WORKER pause|drain|resume",
+      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | status|workers|events|logs|doctor [--json] | console [--port PORT] | control WORKER pause|drain|resume",
     );
     return;
   }
@@ -55,11 +55,21 @@ async function main(args: string[]): Promise<void> {
     if (!endpoint || !token) throw Error("missing-configuration");
     const client = fleetClient(endpoint, process.env.FLEET_ID ?? "observer", token);
     if (command === "console") {
-      if (values.length) throw Error("invalid-arguments");
+      const port = values.length === 0 ? 0 : Number(values[1]);
+      if (
+        values.length &&
+        (values.length !== 2 ||
+          values[0] !== "--port" ||
+          !/^[0-9]+$/.test(values[1] ?? "") ||
+          !Number.isInteger(port) ||
+          port < 1 ||
+          port > 65535)
+      )
+        throw Error("invalid-arguments");
       const viewer = consoleServer(client);
       await new Promise<void>((resolve, reject) => {
         viewer.once("error", reject);
-        viewer.listen(0, "127.0.0.1", resolve);
+        viewer.listen(port, "127.0.0.1", resolve);
       });
       const address = viewer.address();
       if (!address || typeof address === "string") throw Error("viewer-unavailable");
