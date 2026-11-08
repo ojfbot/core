@@ -383,7 +383,7 @@ async function run() {
     worker = fleetClient(config.endpoint, "qualification-worker", join(root, "worker"));
   const bytes = Buffer.from("fleet NAS qualification v1\n");
   const input = createHash("sha256").update(bytes).digest("hex");
-  for (let i = 0; i < 10; i++) {
+  for (let i = config.crashes.length; i < 10; i++) {
     phase = "crash-" + (i + 1);
     const { key, created } = await owner.enqueue({
       kind: "proof-fixture",
@@ -393,17 +393,21 @@ async function run() {
       requires: ["nas-qualification"],
       maxAttempts: 1,
     });
-    assert.equal(created, true);
-    assert.equal(
-      await workOnce(worker, {
-        caps: ["nas-qualification"],
-        outDir: join(root, "attempts"),
-        handlers: { "proof-fixture": async (job, ctx) => writeOutput(ctx.outDir, job, bytes) },
-      }),
-      "completed",
-    );
-    config.jobs.push(key);
-    await save();
+    if (created) {
+      assert.equal(
+        await workOnce(worker, {
+          caps: ["nas-qualification"],
+          outDir: join(root, "attempts"),
+          handlers: { "proof-fixture": async (job, ctx) => writeOutput(ctx.outDir, job, bytes) },
+        }),
+        "completed",
+      );
+      config.jobs.push(key);
+      await save();
+    } else {
+      // Reconcile only the already-recorded fixture; never admit replacement work after ambiguity.
+      assert.equal(config.jobs[i], key);
+    }
     await verify(i + 1);
     // Reset Docker's crash backoff so every independent trial has the same initial conditions.
     await delay(10_000);
@@ -413,8 +417,23 @@ async function run() {
       200,
     );
     const started = Date.now();
-    await docker(["kill", "--signal", "KILL", config.container]);
+    const restartsBefore = Number(
+      await docker(["inspect", "--format", "{{.RestartCount}}", config.container]),
+    );
+    const crashCode = `import assert from 'node:assert/strict'; import {readFileSync} from 'node:fs';
+      const children=readFileSync('/proc/1/task/1/children','utf8').trim().split(/\\s+/).filter(Boolean);
+      const pid=children.find(pid=>readFileSync('/proc/'+pid+'/cmdline','utf8').includes('/app/dist/cli.js'));
+      assert.ok(pid); process.kill(Number(pid),'SIGKILL');`;
+    try {
+      await docker(["exec", config.container, "node", "--input-type=module", "-e", crashCode]);
+    } catch (error) {
+      assert.ok([137, 143].includes(error.code));
+    }
     await ready();
+    const restartsAfter = Number(
+      await docker(["inspect", "--format", "{{.RestartCount}}", config.container]),
+    );
+    assert.ok(restartsAfter > restartsBefore);
     const elapsedMs = Date.now() - started;
     assert.ok(elapsedMs < 60_000);
     assert.equal(
@@ -425,6 +444,7 @@ async function run() {
     config.crashes.push({
       trial: i + 1,
       elapsedMs,
+      restartCountIncreased: true,
       acceptedDataPreserved: true,
       replayRejectedWithinSignatureWindow: true,
       ...verified,
