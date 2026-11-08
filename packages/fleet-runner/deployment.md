@@ -46,6 +46,14 @@ on the service host. Put its certificate and key in the `tls` directory with
 permissions readable by the service UID only for the key. The certificate must
 name the LAN address or stable DNS name used by the clients.
 
+After copying each **public** verifier, check that the actual nonroot service
+UID can read it. A source file copied as mode 0600 under a different UID causes
+HTTP 401 even with the correct signing credential. Use service ownership with
+0600, or 0644 for these public files inside the dedicated registry; never apply
+this permission change to private signing or TLS keys, or recursively to a home.
+Verify readability from the running container's service identity before
+starting its worker.
+
 For a private CA, deliver only its public CA certificate to clients and set
 `NODE_EXTRA_CA_CERTS` before starting Node. Both `http:` (historical pilot) and
 `https:` are supported, with standard certificate and hostname verification.
