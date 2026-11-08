@@ -9,6 +9,7 @@ import { join, resolve, posix } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
+import { qualificationDiagnostic } from "./qualification-diagnostic.mjs";
 
 const execFile = promisify(execFileCallback);
 const [mode, rootArg] = process.argv.slice(2);
@@ -553,6 +554,12 @@ async function main() {
       elapsedMs: Date.now() - armedAt,
       bootChanged: true,
       dockerAccessAfterReboot: true,
+      qualifierSource: {
+        commit: (await execFile("git", ["rev-parse", "HEAD"], { cwd: source })).stdout.trim(),
+        sha256: createHash("sha256")
+          .update(await readFile(fileURLToPath(import.meta.url)))
+          .digest("hex"),
+      },
       ...verified,
     });
     delete config.pendingReboot;
@@ -577,6 +584,6 @@ async function main() {
   );
 }
 main().catch((error) => {
-  console.error(JSON.stringify({ status: "blocked", phase, code: errorCode(error) }));
+  console.error(JSON.stringify(qualificationDiagnostic(error, phase, errorCode(error))));
   process.exitCode = 1;
 });

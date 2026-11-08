@@ -582,3 +582,4 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - Actual appliance reboots remain owner actions because they affect the appliance and encrypted-share availability. The runner arms and verifies them; it never substitutes container restarts or invokes a reboot itself.
 
 - The first fault trial found that Docker kill is a manual stop under unless-stopped on this engine. The injector now kills the server child process and requires Docker's restart counter to increase; the retained fixture is reconciled without readmission.
+- The owner’s reboot preflight stopped at status after NAS SSH had been unavailable. Direct trusted verification still passed, but the parent wrapper discarded its child's bounded diagnostic. The qualifier now preserves allowlisted child phase/error codes and classifies SSH/Docker transport failures without printing stderr or paths; no reboot was counted by the failed preflight.
