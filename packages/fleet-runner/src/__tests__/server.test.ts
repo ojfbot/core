@@ -82,7 +82,7 @@ it("requires a registered signature, rejects replay, and reserves admission for 
 
 it("rejects a previously accepted signature after the server and store restart", async () => {
   // Transpile the tested source (including a proof mutant), not a potentially stale dist tree.
-  for (const name of ["auth", "jobs", "inputs", "server"]) {
+  for (const name of ["auth", "jobs", "inputs", "status", "status-server", "server"]) {
     const source = readFileSync(fileURLToPath(new URL(`../${name}.ts`, import.meta.url)), "utf8");
     writeFileSync(
       join(dir, `${name}.js`),

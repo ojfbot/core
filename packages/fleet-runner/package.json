@@ -17,7 +17,9 @@
     ".": "./dist/jobs.js",
     "./auth": "./dist/auth.js",
     "./client": "./dist/client.js",
-    "./worker": "./dist/worker.js"
+    "./worker": "./dist/worker.js",
+    "./status": "./dist/status.js",
+    "./presence": "./dist/presence.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

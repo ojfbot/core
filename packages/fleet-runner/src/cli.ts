@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import { fleetClient } from "./client.js";
+import { consoleServer } from "./console.js";
+import { statusView, currentSnapshot } from "./status.js";
+import type { StatusView } from "./status.js";
 import { isIPv4 } from "node:net";
 import { networkInterfaces } from "node:os";
 import {
@@ -33,8 +37,64 @@ function isLocalLan(address: string): boolean {
 
 async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
+  if (command === "--help" || command === "help") {
+    console.log(
+      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | status|workers|events|logs|doctor [--json] | console | control WORKER pause|drain|resume",
+    );
+    return;
+  }
   if (command === "keygen" && values.length === 1) {
     generateToken(values[0]!);
+    return;
+  }
+  if (
+    ["status", "workers", "events", "logs", "doctor", "console", "control"].includes(command ?? "")
+  ) {
+    const endpoint = process.env.FLEET_ENDPOINT,
+      token = process.env.FLEET_TOKEN_FILE;
+    if (!endpoint || !token) throw Error("missing-configuration");
+    const client = fleetClient(endpoint, process.env.FLEET_ID ?? "observer", token);
+    if (command === "console") {
+      if (values.length) throw Error("invalid-arguments");
+      const viewer = consoleServer(client);
+      await new Promise<void>((resolve, reject) => {
+        viewer.once("error", reject);
+        viewer.listen(0, "127.0.0.1", resolve);
+      });
+      const address = viewer.address();
+      if (!address || typeof address === "string") throw Error("viewer-unavailable");
+      console.log(`Fleet Runner console: http://127.0.0.1:${address.port}`);
+      process.once("SIGTERM", () => viewer.close());
+      process.once("SIGINT", () => viewer.close());
+      return;
+    }
+    if (command === "control") {
+      const [worker, action] = values;
+      if (!worker || !["pause", "drain", "resume"].includes(action ?? "") || values.length !== 2)
+        throw Error("invalid-control");
+      console.log(
+        JSON.stringify(await client.control(worker, action as "pause" | "drain" | "resume")),
+      );
+      return;
+    }
+    if (command === "events" && values.includes("--after")) {
+      const index = values.indexOf("--after");
+      const after = Number(values[index + 1]);
+      if (
+        !Number.isSafeInteger(after) ||
+        after < 0 ||
+        values.filter((_, i) => i !== index && i !== index + 1).some((v) => v !== "--json")
+      )
+        throw Error("invalid-cursor");
+      console.log(JSON.stringify(await client.statusEvents(after)));
+      return;
+    }
+    if (values.some((v) => v !== "--json")) throw Error("invalid-arguments");
+    const snapshot = await client.status();
+    if (!currentSnapshot(snapshot)) throw Error("incompatible-status");
+    console.log(JSON.stringify(statusView(snapshot, command as StatusView)));
+    if (command === "doctor" && !(statusView(snapshot, "doctor") as { healthy: boolean }).healthy)
+      process.exitCode = 1;
     return;
   }
   const [host, portValue, db, outDir, registry] = values;
@@ -79,6 +139,9 @@ async function main(args: string[]): Promise<void> {
     registry,
     outDir,
     ...(inputDir ? { inputDir } : {}),
+    observers: (process.env.FLEET_OBSERVERS ?? "observer").split(",").filter(Boolean),
+    workers: (process.env.FLEET_WORKERS ?? "yuri,yojimbo").split(",").filter(Boolean),
+    build: process.env.FLEET_BUILD_REF ?? "unknown",
     ...(cert && key
       ? {
           tls: { cert: readFileSync(cert), key: readFileSync(key), minVersion: "TLSv1.2" as const },

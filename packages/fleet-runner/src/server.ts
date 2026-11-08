@@ -5,6 +5,7 @@ import { createServer as createTlsServer } from "node:https";
 import type { ServerOptions as TlsOptions } from "node:https";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
+import { statusRoutes } from "./status-server.js";
 import { ID, prepareAuthorization, verifier } from "./auth.js";
 import { syncOutput, writeOutput } from "./jobs.js";
 import type { JobSpec, JobStore } from "./jobs.js";
@@ -93,9 +94,19 @@ async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
 
 export function fleetServer(
   store: JobStore,
-  options: { registry: string; outDir: string; inputDir?: string; tls?: TlsOptions },
+  options: {
+    registry: string;
+    outDir: string;
+    inputDir?: string;
+    tls?: TlsOptions;
+    workers?: string[];
+    observers?: string[];
+    build?: string;
+  },
 ) {
   mkdirSync(options.outDir, { recursive: true });
+  if (options.inputDir) mkdirSync(options.inputDir, { recursive: true });
+  const status = statusRoutes(store, options);
   const authenticate = verifier(options.registry, (candidate) => store.consumeNonce(candidate));
   const handle = async (req: IncomingMessage, res: ServerResponse) => {
     try {
@@ -117,6 +128,9 @@ export function fleetServer(
       const bytes = await readBody(req, limit);
       const id = authenticate(req.headers.authorization, method, target, bytes);
       if (!id) throw new RequestError(401);
+      const projected = status.handle(id, method, url, bytes);
+      if (projected) return reply(res, projected.status, projected.body);
+      if (status.isObserver(id)) throw new RequestError(403);
 
       if (input && options.inputDir) {
         if (method === "POST") {

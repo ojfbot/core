@@ -8,6 +8,7 @@
 // The fencing token guards the artifact as well as the row: each attempt writes its own immutable file
 // (`<key>.<fence>.<ext>`), and only the guarded completion records which file is accepted. A stale worker
 // can still write bytes, but never into the file a consumer reads.
+import type { ServiceInstance, ServiceSnapshot, WorkerControl, WorkerObservation } from "./status.js";
 import { createHash, randomUUID } from "node:crypto";
 import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,7 +19,7 @@ import type { RequestNonce } from "./auth.js";
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 
-export const JOBS_SCHEMA_VERSION = 3;
+export const JOBS_SCHEMA_VERSION = 4;
 
 const SCHEMA = `
 CREATE TABLE jobs (
@@ -315,11 +316,22 @@ export class JobStore {
         this.#db.exec(MIGRATE_2_TO_3);
       } else if (version === 2) {
         this.#db.exec(MIGRATE_2_TO_3);
+      } else if (version === 3) {
+        // Status/control tables are introduced atomically below.
       } else {
         throw new Error(`job table schema ${version}, expected ${JOBS_SCHEMA_VERSION}`);
       }
+    this.#db.exec(`CREATE TABLE IF NOT EXISTS fleet_status_meta (id INTEGER PRIMARY KEY CHECK(id=1), starts INTEGER NOT NULL, revision INTEGER NOT NULL, salt TEXT NOT NULL, tracked_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS fleet_presence (worker TEXT PRIMARY KEY, seen_at INTEGER NOT NULL, data TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS fleet_controls (worker TEXT PRIMARY KEY, paused INTEGER NOT NULL, revision INTEGER NOT NULL, intent TEXT NOT NULL);`);
+    this.#db.prepare("INSERT OR IGNORE INTO fleet_status_meta VALUES (1,0,0,?,?)").run(randomUUID(), this.#now());
+    this.#db.exec(`CREATE TRIGGER IF NOT EXISTS jobs_paused_claim BEFORE UPDATE ON jobs
+      WHEN NEW.status='claimed' AND (OLD.status!='claimed' OR NEW.fence!=OLD.fence)
+      AND EXISTS (SELECT 1 FROM fleet_controls WHERE worker=NEW.worker AND paused=1)
+      BEGIN SELECT RAISE(ABORT,'worker claims paused'); END;`);
       this.#db.exec(`PRAGMA user_version = ${JOBS_SCHEMA_VERSION}`);
     });
+
   }
 
   close(): void {
@@ -378,6 +390,7 @@ export class JobStore {
     const have = new Set(caps);
     const handled = kinds ? new Set(kinds) : undefined;
     return this.#tx(() => {
+      if (this.workerControl(worker).paused) return undefined;
       this.#sweep();
       const rows = this.#db
         .prepare("SELECT key, kind, inputs, params, code, payload, requires, fence FROM jobs WHERE status = 'ready' ORDER BY priority DESC, created, key")
@@ -492,6 +505,81 @@ export class JobStore {
     return this.#db
       .prepare("SELECT seq, ts, key, type, worker, fence FROM job_events WHERE seq > ? ORDER BY seq LIMIT 1000")
       .all(after) as unknown as JobEvent[];
+  }
+
+  startStatusInstance(): ServiceInstance {
+    return this.#tx(() => {
+      this.#db.prepare("UPDATE fleet_status_meta SET starts=starts+1, revision=revision+1 WHERE id=1").run();
+      const meta = this.#db.prepare("SELECT starts, tracked_at FROM fleet_status_meta WHERE id=1").get() as { starts: number; tracked_at: number };
+      return { id: randomUUID(), startedAt: this.#now(), starts: meta.starts, trackedSince: meta.tracked_at };
+    });
+  }
+
+  recordPresence(worker: string, observation: WorkerObservation): void {
+    this.#tx(() => {
+      this.#db.prepare("INSERT INTO fleet_presence VALUES (?,?,?) ON CONFLICT(worker) DO UPDATE SET seen_at=excluded.seen_at, data=excluded.data")
+        .run(worker, this.#now(), JSON.stringify(observation));
+      this.#db.prepare("UPDATE fleet_status_meta SET revision=revision+1 WHERE id=1").run();
+    });
+  }
+
+  workerControl(worker: string): WorkerControl {
+    const row = this.#db.prepare("SELECT paused, revision, intent FROM fleet_controls WHERE worker=?").get(worker) as { paused: number; revision: number; intent: WorkerControl["intent"] } | undefined;
+    return row ? { ...row, paused: !!row.paused } : { paused: false, revision: 0, intent: "resume" };
+  }
+
+  controlWorker(worker: string, intent: WorkerControl["intent"]): WorkerControl {
+    return this.#tx(() => {
+      this.#db.prepare("INSERT INTO fleet_controls VALUES (?,?,1,?) ON CONFLICT(worker) DO UPDATE SET paused=excluded.paused, revision=fleet_controls.revision+1, intent=excluded.intent")
+        .run(worker, intent === "resume" ? 0 : 1, intent);
+      this.#db.prepare("UPDATE fleet_status_meta SET revision=revision+1 WHERE id=1").run();
+      return this.workerControl(worker);
+    });
+  }
+
+  /** One bounded operations projection; never serializes a job, input, path, output or error message. */
+  statusSnapshot(instance: ServiceInstance, workers: readonly string[], reasons: string[], build: string): ServiceSnapshot {
+    return this.#tx(() => {
+    const now = Math.floor(this.#now() / 1000) * 1000;
+    const meta = this.#db.prepare("SELECT revision, salt FROM fleet_status_meta WHERE id=1").get() as { revision: number; salt: string };
+    const cursor = (this.#db.prepare("SELECT COALESCE(MAX(seq),0) AS seq FROM job_events").get() as { seq: number }).seq;
+    const queue = { ready: 0, claimed: 0, done: 0, failed: 0 };
+    for (const row of this.#db.prepare("SELECT status, COUNT(*) AS n FROM jobs GROUP BY status").all() as { status: keyof typeof queue; n: number }[]) queue[row.status] = row.n;
+    const kinds: ServiceSnapshot["kinds"] = [];
+    for (const row of this.#db.prepare("SELECT kind,status,COUNT(*) AS n FROM jobs GROUP BY kind,status").all() as { kind: string; status: keyof typeof queue; n: number }[]) {
+      const kind = ["read-vision","read-qwen","proof-fixture"].includes(row.kind) ? row.kind : "other";
+      let item = kinds.find(k=>k.kind===kind); if (!item) { item={kind,ready:0,claimed:0,done:0,failed:0}; kinds.push(item); } item[row.status]+=row.n;
+    }
+    const held = this.#db.prepare("SELECT worker, COUNT(*) AS n FROM jobs WHERE status='claimed' AND lease_expires>? GROUP BY worker").all(now) as { worker: string; n: number }[];
+    const expired = (this.#db.prepare("SELECT COUNT(*) AS n FROM jobs WHERE status='claimed' AND lease_expires<=?").get(now) as { n: number }).n;
+    const events = (this.#db.prepare("SELECT seq,ts,key,type,worker,fence FROM job_events ORDER BY seq DESC LIMIT 25").all() as unknown as JobEvent[]).reverse().map(e => ({
+      seq: e.seq, at: e.ts, trace: "t_" + createHash("sha256").update(meta.salt + e.key).digest("base64url").slice(0,16), type: e.type,
+      worker: e.worker === null ? null : workers.includes(e.worker) ? e.worker : "other", fence: e.fence,
+    }));
+    return { schemaVersion: 1, revision: `${instance.starts}.${cursor}.${meta.revision}.${now}.${expired}.${workers.map(id=>{const row=this.#db.prepare("SELECT seen_at FROM fleet_presence WHERE worker=?").get(id) as {seen_at:number}|undefined;return row&&this.#now()-row.seen_at<=30000?"f":"s";}).join("")}`, generatedAt: now, cursor,
+      service: { ...instance, version: "0.1.0", build, ready: reasons.length === 0, reasons, uptimeSeconds: Math.max(0, Math.floor((now-instance.startedAt)/1000)) },
+      queue, kinds, leases: { active: held.reduce((n,r) => n+r.n,0), expired }, events,
+      workers: workers.map(id => {
+        const row = this.#db.prepare("SELECT seen_at,data FROM fleet_presence WHERE worker=?").get(id) as { seen_at: number; data: string } | undefined;
+        const fresh = !!row && row.seen_at <= this.#now() && this.#now()-row.seen_at <= 30_000;
+        const data = row ? JSON.parse(row.data) as WorkerObservation : undefined;
+        const control = this.workerControl(id); const heldSlots = held.find(r => r.worker === id)?.n ?? 0;
+        return { id, seenAt: row?.seen_at ?? null, freshness: fresh ? "fresh" : row ? "stale" : "unknown",
+          phase: fresh ? control.paused ? heldSlots ? "draining" : "paused" : data!.phase : "unknown",
+          eligibility: fresh ? control.paused ? "operator-paused" : data!.eligibility : "unknown",
+          handlers: fresh ? data!.handlers : [], busy: fresh ? data!.busy : null, heldSlots, control,
+          ...(fresh && data!.errorCode ? { errorCode: data!.errorCode } : {}), };
+      }), backup: { state: "unqualified", lastVerifiedAt: null }, };
+    });
+  }
+
+  publicEvents(after: number, workers: readonly string[]): { schemaVersion: number; cursor: number; events: ServiceSnapshot["events"]; hasMore: boolean } {
+    const meta=this.#db.prepare("SELECT salt FROM fleet_status_meta WHERE id=1").get() as {salt:string};
+    const rows=this.events(after).slice(0,100);
+    const events=rows.map(e=>({seq:e.seq,at:e.ts,trace:"t_"+createHash("sha256").update(meta.salt+e.key).digest("base64url").slice(0,16),type:e.type,worker:e.worker===null?null:workers.includes(e.worker)?e.worker:"other",fence:e.fence}));
+    const cursor=rows.at(-1)?.seq??after;
+    const latest=(this.#db.prepare("SELECT COALESCE(MAX(seq),0) AS n FROM job_events").get() as {n:number}).n;
+    return {schemaVersion:1,cursor,events,hasMore:latest>cursor};
   }
 
   /** The morning report: aggregates only (kinds, workers, counts, error codes). */
