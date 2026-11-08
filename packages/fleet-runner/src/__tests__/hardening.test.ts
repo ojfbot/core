@@ -107,7 +107,7 @@ it("uses verified HTTPS and rejects an untrusted certificate without bypassing v
   const endpoint = `https://127.0.0.1:${address.port}`;
   try {
     await expect(fetch(endpoint + "/report")).rejects.toThrow();
-    for (const name of ["auth", "client"]) {
+    for (const name of ["auth", "inputs", "client"]) {
       writeFileSync(
         join(dir, `${name}.mjs`),
         ts
@@ -117,7 +117,8 @@ it("uses verified HTTPS and rejects an untrusted certificate without bypassing v
               compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
             },
           )
-          .outputText.replaceAll('"./auth.js"', '"./auth.mjs"'),
+          .outputText.replaceAll('"./auth.js"', '"./auth.mjs"')
+          .replaceAll('"./inputs.js"', '"./inputs.mjs"'),
       );
     }
     // Async spawn lets the parent keep serving while the separately trusted client connects.

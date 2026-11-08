@@ -188,3 +188,23 @@ explicitly enabled Docker Desktop host-network feature). It checks graceful
 stop/start and preserved completion; actual NAS crash/reboot evidence remains
 separate. The auth mutation now substitutes a module-global replay cache: the
 fresh-process test must reject that weaker implementation.
+
+## Automatic input delivery (isolated NAS candidate)
+
+Set `FLEET_INPUT_DIR` to a dedicated server-local writable directory and persist
+it beside state and output. Enabling it requires each input hash to exist and
+verify before admission. Existing pilot deployments without this variable retain
+their protocol. Models and helpers stay host-local; the input limit is 16 MiB.
+
+The owner signs a raw `POST /inputs/<sha256>` before enqueueing a typed job.
+A worker signs `GET /inputs/<sha256>?key=<job>&fence=<attempt>` only after
+claiming. The server checks the active worker, fence, lease and input membership;
+release, completion and expiry revoke access. Neither route accepts a filesystem
+path. Uploads are hash checked and durably published; clients bound and hash
+check downloads before their application publishes to its own content store.
+TLS uses ordinary certificate and hostname validation. Never disable validation.
+
+This candidate extends the isolated qualification service. Historical G3 proof
+is bound to its earlier source/image; it is not a G3 rerun of this extension.
+Mac installation and real-handler receipts belong to the application PR linked
+from the existing tracker. No live queue migration is implied.
