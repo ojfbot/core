@@ -10,6 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { qualificationDiagnostic } from "./qualification-diagnostic.mjs";
+import { rebootRecoveryWindow } from "./reboot-timing.mjs";
 
 const execFile = promisify(execFileCallback);
 const [mode, rootArg] = process.argv.slice(2);
@@ -536,7 +537,7 @@ async function main() {
   if (mode === "after-reboot") {
     assert.ok(config.pendingReboot);
     const { bootId, armedAt } = config.pendingReboot;
-    const deadline = armedAt + 300_000;
+    const { startedAt, deadline, ownerWaitMs } = rebootRecoveryWindow(armedAt, Date.now());
     let changed = false;
     while (Date.now() < deadline) {
       try {
@@ -551,7 +552,9 @@ async function main() {
     assert.ok(Date.now() < deadline);
     config.reboots.push({
       trial: config.reboots.length + 1,
-      elapsedMs: Date.now() - armedAt,
+      elapsedMs: Date.now() - startedAt,
+      ownerWaitMs,
+      timingOrigin: "reboot-command-returned",
       bootChanged: true,
       dockerAccessAfterReboot: true,
       qualifierSource: {

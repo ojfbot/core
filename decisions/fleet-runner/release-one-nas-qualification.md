@@ -69,7 +69,7 @@ pnpm exec node scripts/fleet-runner/qualify-nas.mjs after-reboot "$FLEET_NAS_EVI
 ```
 
 The private manifest records the old kernel boot ID, requires a changed boot,
-checks recovery within five minutes of arming, verifies all ten accepted files
+checks recovery within five minutes of the owner reboot command returning, verifies all ten accepted files
 and confirms the existing Docker access still works. The original queue stays
 on its original host throughout. A missing reboot remains UNTESTED, never PASS.
 
@@ -87,3 +87,9 @@ external attestation that another operator performed the trials. Preserve the
 private raw manifest, source/image identities and G2 bundle for reproduction.
 Public status reports only aggregate counts, integrity verdicts and remaining
 gates. A qualified sandbox is not approval to cut over or claim G4–G8.
+
+Recovery timing excludes the interactive sudo-password wait. Arming still captures
+the pre-reboot kernel identity; after-reboot starts the five-minute recovery
+window immediately after the owner command returns/disconnects. The private
+receipt records password/command wait separately. A changed kernel boot and
+all accepted-output checks are still required; a failed command cannot pass.
