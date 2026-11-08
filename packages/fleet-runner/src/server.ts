@@ -1,13 +1,16 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { accessSync, constants, mkdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
+import { createServer as createTlsServer } from "node:https";
+import type { ServerOptions as TlsOptions } from "node:https";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
-import { ID, verifier } from "./auth.js";
-import { writeOutput } from "./jobs.js";
+import { ID, prepareAuthorization, verifier } from "./auth.js";
+import { syncOutput, writeOutput } from "./jobs.js";
 import type { JobSpec, JobStore } from "./jobs.js";
 
 const MAX_BODY = 16 * 1024 * 1024;
+const MAX_CONTROL_BODY = 64 * 1024;
 const SHA = /^[a-f0-9]{64}$/;
 
 class RequestError extends Error {
@@ -74,31 +77,39 @@ function reply(res: ServerResponse, status: number, data: unknown): void {
   res.end(JSON.stringify(data));
 }
 
-async function readBody(req: IncomingMessage): Promise<Buffer> {
-  if (Number(req.headers["content-length"]) > MAX_BODY) throw new RequestError(413);
+async function readBody(req: IncomingMessage, limit: number): Promise<Buffer> {
+  if (Number(req.headers["content-length"]) > limit) throw new RequestError(413);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req.iterator({ destroyOnReturn: false })) {
     const bytes = chunk as Buffer;
     size += bytes.length;
-    if (size > MAX_BODY) throw new RequestError(413);
+    if (size > limit) throw new RequestError(413);
     chunks.push(bytes);
   }
   return Buffer.concat(chunks, size);
 }
 
-export function fleetServer(store: JobStore, options: { registry: string; outDir: string }) {
+export function fleetServer(
+  store: JobStore,
+  options: { registry: string; outDir: string; tls?: TlsOptions },
+) {
+  mkdirSync(options.outDir, { recursive: true });
   const authenticate = verifier(options.registry, (candidate) => store.consumeNonce(candidate));
-  return createServer({ requestTimeout: 60_000, headersTimeout: 15_000 }, async (req, res) => {
+  const handle = async (req: IncomingMessage, res: ServerResponse) => {
     try {
-      if (!req.headers.authorization) throw new RequestError(401);
+      const candidate = prepareAuthorization(options.registry, req.headers.authorization);
+      if (!candidate) throw new RequestError(401);
       const method = req.method ?? "";
       const target = req.url ?? "";
-      const bytes = await readBody(req);
-      const id = authenticate(req.headers.authorization, method, target, bytes);
-      if (!id) throw new RequestError(401);
       const url = new URL(target, "http://fleet.invalid");
       const route = `${method} ${url.pathname}`;
+      const limit = route === "POST /complete" ? MAX_BODY : MAX_CONTROL_BODY;
+      if (Number(req.headers["content-length"]) > limit) throw new RequestError(413);
+      if (req.headers.expect === "100-continue") res.writeContinue();
+      const bytes = await readBody(req, limit);
+      const id = authenticate(req.headers.authorization, method, target, bytes);
+      if (!id) throw new RequestError(401);
 
       if (["POST /enqueue", "GET /events", "GET /report"].includes(route) && id !== "owner") {
         throw new RequestError(403);
@@ -109,6 +120,8 @@ export function fleetServer(store: JobStore, options: { registry: string; outDir
         return reply(res, 200, store.events(after));
       }
       if (route === "GET /report") {
+        accessSync(options.outDir, constants.R_OK | constants.W_OK | constants.X_OK);
+        accessSync(options.registry, constants.R_OK | constants.X_OK);
         const since = Number(url.searchParams.get("since") ?? "0");
         requireValid(integer(since, 0));
         const key = url.searchParams.get("verify");
@@ -175,6 +188,7 @@ export function fleetServer(store: JobStore, options: { registry: string; outDir
               !matches(options.outDir, file, sha256)
             )
               throw error;
+            syncOutput(options.outDir, file);
             return { file, sha256 };
           }
         });
@@ -187,5 +201,20 @@ export function fleetServer(store: JobStore, options: { registry: string; outDir
         reply(res, status, { error: status === 500 ? "server-error" : "request-rejected" });
       }
     }
-  });
+  };
+  const limits = {
+    requestTimeout: 15_000,
+    headersTimeout: 5_000,
+    connectionsCheckingInterval: 1_000,
+    maxHeaderSize: 8 * 1024,
+  };
+  const server = options.tls
+    ? createTlsServer({ ...options.tls, ...limits }, handle)
+    : createServer(limits, handle);
+  server.maxConnections = 16;
+  server.maxRequestsPerSocket = 1;
+  server.maxHeadersCount = 32;
+  server.setTimeout(15_000, (socket) => socket.destroy());
+  server.on("checkContinue", handle);
+  return server;
 }

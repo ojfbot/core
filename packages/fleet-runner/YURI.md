@@ -1,4 +1,9 @@
-# Yuri read-vision pilot
+# Yuri read-vision pilot (historical Yojimbo endpoint)
+
+For a NAS-hosted candidate, follow [deployment.md](deployment.md): use a separate
+qualification endpoint and generated credential; do not change the installed
+worker or reuse the live queue. The commands below reproduce the historical
+Yojimbo-hosted pilot only.
 
 Use one upright JPEG with readable text. The pilot keeps its SQLite database,
 accepted output, and credentials in a private directory on Yojimbo. Use the
@@ -40,6 +45,7 @@ LAN endpoint from the `endpoint` file in that directory.
    export FLEET_TOKEN_FILE="$BOOKCASE_DATA/yuri"
    export FLEET_ENDPOINT='http://<yojimbo-lan-ip>:8787'
    mkdir -p "$BOOKCASE_DATA"
+   test -f "$BOOKCASE_OCR_VISION"
    chmod 700 "$BOOKCASE_OCR_VISION"
    pnpm exec ./bin/bookcase fleet stage "$BOOKCASE_DATA/pilot.jpg"
    pnpm exec ./bin/bookcase fleet keygen

@@ -82,8 +82,13 @@ const mutantDefinitions = [
   },
   {
     id: 'durable-replay', file: 'auth.ts',
-    before: 'return consumeNonce({ identity: id, nonce, now, expiresAt: Number(ts) + WINDOW_MS })',
-    after: 'void consumeNonce;\n    return true',
+    before: 'export function verifier(registry: string, consumeNonce: ConsumeNonce) {',
+    after: 'const volatileNonces = new Set<string>();\n'
+      + 'export function verifier(registry: string, persistent: ConsumeNonce) {\n'
+      + '  void persistent;\n'
+      + '  const consumeNonce: ConsumeNonce = ({ identity, nonce }) => {\n'
+      + '    const key = identity + nonce; if (volatileNonces.has(key)) return false;\n'
+      + '    volatileNonces.add(key); return true;\n  };',
     expectedFailureTest: 'rejects a previously accepted signature after the server and store restart',
     expectedFailureMessage: 'AssertionError: expected 200 to be 401',
   },

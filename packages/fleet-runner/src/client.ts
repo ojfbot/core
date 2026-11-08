@@ -3,10 +3,19 @@ import type { Claim, JobEvent, JobReport, JobSpec } from "./jobs.js";
 
 type Lease = Pick<Claim, "key" | "fence">;
 
+export class FleetHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`fleet HTTP ${status}`);
+  }
+  get retryable(): boolean {
+    return this.status === 408 || this.status === 429 || this.status >= 500;
+  }
+}
+
 export function fleetClient(endpoint: string, id: string, tokenFile: string) {
   const base = new URL(endpoint);
   if (
-    base.protocol !== "http:" ||
+    !["http:", "https:"].includes(base.protocol) ||
     base.username ||
     base.password ||
     base.pathname !== "/" ||
@@ -30,7 +39,7 @@ export function fleetClient(endpoint: string, id: string, tokenFile: string) {
     });
     if (!res.ok) {
       await res.body?.cancel();
-      throw new Error(`fleet HTTP ${res.status}`);
+      throw new FleetHttpError(res.status);
     }
     return (await res.json()) as T;
   }
@@ -44,7 +53,8 @@ export function fleetClient(endpoint: string, id: string, tokenFile: string) {
         (!/^[a-f0-9]{64}$/.test(job.key) ||
           !Number.isSafeInteger(job.fence) ||
           job.fence < 1 ||
-          !kinds.includes(job.kind))
+          !kinds.includes(job.kind) ||
+          !Number.isSafeInteger(job.leaseExpires))
       ) {
         throw new Error("invalid fleet claim");
       }
