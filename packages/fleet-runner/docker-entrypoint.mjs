@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { networkInterfaces } from "node:os";
+import { createConnection } from "node:net";
 
 function isPrivateIPv4(address) {
   const parts = address.split(".").map(Number);
@@ -10,19 +11,27 @@ function isPrivateIPv4(address) {
   return a === 10 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
 }
 
-function eth0IPv4() {
-  const addresses = networkInterfaces().eth0 ?? [];
+function containerIPv4() {
+  const addresses = Object.values(networkInterfaces()).flatMap((entries) => entries ?? []);
   const match = addresses.find((iface) => iface.family === "IPv4" && !iface.internal && isPrivateIPv4(iface.address));
-  if (!match) throw new Error("no private IPv4 address found on eth0");
+  if (!match) throw new Error("no private IPv4 interface available");
   return match.address;
 }
 
 const [command, ...args] = process.argv.slice(2);
+if (command === "healthcheck") {
+  // Credential-free TCP liveness only. Signed /report is the separate readiness check.
+  const socket = createConnection({ host: process.env.FLEET_BIND_IP ?? containerIPv4(), port: Number(process.env.FLEET_PORT ?? 8787) });
+  socket.setTimeout(2_000, () => process.exit(1));
+  socket.once("error", () => process.exit(1));
+  socket.once("connect", () => { socket.end(); process.exit(0); });
+} else {
+
 let cliArgs;
 if (command === "serve" && args.length === 0) {
   cliArgs = [
     "serve",
-    eth0IPv4(),
+    process.env.FLEET_BIND_IP ?? containerIPv4(),
     process.env.FLEET_PORT ?? "8787",
     process.env.FLEET_DB ?? "/var/lib/fleet-runner/state/fleet.sqlite",
     process.env.FLEET_OUT_DIR ?? "/var/lib/fleet-runner/output",
@@ -39,10 +48,12 @@ const child = spawn(process.execPath, ["/app/dist/cli.js", ...cliArgs], { stdio:
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.once(signal, () => child.kill(signal));
 }
-child.once("error", (error) => {
-  console.error("fleet-runner failed to start", error.message);
+child.once("error", () => {
+  console.error("fleet-runner failed to start: spawn-error");
   process.exitCode = 1;
 });
 child.once("exit", (code, signal) => {
   process.exitCode = code ?? (signal ? 1 : 0);
 });
+
+}

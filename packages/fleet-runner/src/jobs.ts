@@ -9,7 +9,7 @@
 // (`<key>.<fence>.<ext>`), and only the guarded completion records which file is accepted. A stale worker
 // can still write bytes, but never into the file a consumer reads.
 import { createHash, randomUUID } from "node:crypto";
-import { linkSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createRequire } from "node:module";
 import type * as SQLite from "node:sqlite";
@@ -198,13 +198,34 @@ export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data
   mkdirSync(dir, { recursive: true });
   const file = `${job.key}.${job.fence}.${ext}`;
   const tmp = join(dir, `${file}.${process.pid}.${randomUUID()}.tmp`);
-  writeFileSync(tmp, data, { mode: 0o600, flag: "wx" });
   try {
+    const fd = openSync(tmp, "wx", 0o600);
+    try {
+      writeFileSync(fd, data);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
     linkSync(tmp, join(dir, file));
+    syncDirectory(dir);
   } finally {
-    unlinkSync(tmp);
+    try { unlinkSync(tmp); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
   }
   return { file, sha256: createHash("sha256").update(data).digest("hex") };
+}
+
+function syncDirectory(dir: string): void {
+  const fd = openSync(dir, "r");
+  try { fsyncSync(fd); } finally { closeSync(fd); }
+}
+
+/** A retry may find an orphan from an interrupted completion; make it durable before commit. */
+export function syncOutput(dir: string, file: string): void {
+  const fd = openSync(join(dir, file), "r");
+  try { fsyncSync(fd); } finally { closeSync(fd); }
+  syncDirectory(dir);
 }
 
 export interface JobStoreOptions {
@@ -270,7 +291,7 @@ export class JobStore {
     this.#db = new DatabaseSync(path);
     this.#now = options.now ?? Date.now;
     this.#leaseMs = options.leaseMs ?? 5 * 60_000;
-    this.#db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+    this.#db.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL; PRAGMA busy_timeout = 5000;");
     // Read the version and write the new one in the same write transaction as the schema change, so two
     // processes opening a new or old table at once cannot both create or migrate it, and an interrupted
     // upgrade rolls back whole and is retried on the next open.

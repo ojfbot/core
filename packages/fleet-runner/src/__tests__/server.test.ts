@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
+import ts from "typescript";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
@@ -76,29 +81,62 @@ it("requires a registered signature, rejects replay, and reserves admission for 
 });
 
 it("rejects a previously accepted signature after the server and store restart", async () => {
-  await close(server);
-  store.close();
-
-  const database = join(dir, "replay.sqlite");
-  store = new JobStore(database, { now: () => clock, leaseMs: 100 });
-  server = fleetServer(store, { registry: dir, outDir: dir });
-  base = await listen(server);
+  // Transpile the tested source (including a proof mutant), not a potentially stale dist tree.
+  for (const name of ["auth", "jobs", "server"]) {
+    const source = readFileSync(fileURLToPath(new URL(`../${name}.ts`, import.meta.url)), "utf8");
+    writeFileSync(
+      join(dir, `${name}.js`),
+      ts.transpileModule(source, {
+        compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+      }).outputText,
+    );
+  }
+  writeFileSync(join(dir, "package.json"), JSON.stringify({ type: "module" }));
+  const entry = join(dir, "process-proof.mjs");
+  writeFileSync(
+    entry,
+    `
+    import { JobStore } from "./jobs.js";
+    import { fleetServer } from "./server.js";
+    import { dirname, join } from "node:path";
+    const dir = dirname(process.argv[1]);
+    const store = new JobStore(join(dir, "process-replay.sqlite"));
+    const server = fleetServer(store, { registry: dir, outDir: join(dir, "process-output") });
+    server.listen(0, "127.0.0.1", () => console.log(server.address().port));
+    process.once("SIGTERM", () => server.close(() => store.close()));
+  `,
+  );
+  const launch = async () => {
+    const child = spawn(process.execPath, [entry], { stdio: ["ignore", "pipe", "ignore"] });
+    const lines = createInterface({ input: child.stdout! });
+    const [line] = await once(lines, "line");
+    lines.close();
+    return { child, endpoint: `http://127.0.0.1:${Number(line)}` };
+  };
   const authorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
-
-  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(200);
-  await close(server);
-  store.close();
-
-  store = new JobStore(database, { now: () => clock, leaseMs: 100 });
-  server = fleetServer(store, { registry: dir, outDir: dir });
-  base = await listen(server);
-
-  expect((await fetch(base + "/report", { headers: { authorization } })).status).toBe(401);
-  const freshAuthorization = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
-  expect(
-    (await fetch(base + "/report", { headers: { authorization: freshAuthorization } })).status,
-  ).toBe(200);
-});
+  const first = await launch();
+  try {
+    expect((await fetch(first.endpoint + "/report", { headers: { authorization } })).status).toBe(
+      200,
+    );
+  } finally {
+    first.child.kill("SIGTERM");
+    await once(first.child, "exit");
+  }
+  const second = await launch();
+  try {
+    expect((await fetch(second.endpoint + "/report", { headers: { authorization } })).status).toBe(
+      401,
+    );
+    const fresh = signer("owner", join(dir, "owner"))("GET", "/report", Buffer.alloc(0));
+    expect(
+      (await fetch(second.endpoint + "/report", { headers: { authorization: fresh } })).status,
+    ).toBe(200);
+  } finally {
+    second.child.kill("SIGTERM");
+    await once(second.child, "exit");
+  }
+}, 15_000);
 
 it("serializes one signed nonce across server instances sharing the store", async () => {
   await close(server);

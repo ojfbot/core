@@ -177,27 +177,30 @@ docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:
   -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync("/bad-schema/fleet.sqlite"); db.exec("PRAGMA user_version = 99"); db.close();'
 incompatible_schema_command="docker run --rm --platform linux/amd64 --volume $bad_schema_volume:/var/lib/fleet-runner/state $image_tag serve"
 capture_expected_exit incompatible-schema 1 "$evidence_dir/incompatible-schema.log" \
-  "fleet-runner command failed" \
-  docker run --rm --platform linux/amd64 --volume "$bad_schema_volume:/var/lib/fleet-runner/state" "$image_tag" serve
+  "schema-incompatible" \
+  docker run --rm --platform linux/amd64 --volume "$bad_schema_volume:/var/lib/fleet-runner/state" \
+  --volume "$registry_volume:/run/fleet-runner/public-keys:ro" "$image_tag" serve
 schema_diagnostic_code='import assert from "node:assert/strict"; import { JobStore, JOBS_SCHEMA_VERSION } from "/app/dist/jobs.js"; assert.equal(JOBS_SCHEMA_VERSION, 3); let diagnostic = ""; try { new JobStore("/bad-schema/fleet.sqlite"); } catch (error) { diagnostic = error instanceof Error ? error.message : String(error); } assert.equal(diagnostic, "job table schema 99, expected 3"); console.log(JSON.stringify({ schemaVersion: JOBS_SCHEMA_VERSION, observedDatabaseVersion: 99, diagnostic, rejected: true }));'
 docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:/bad-schema" \
   --entrypoint node "$image_tag" --input-type=module -e "$schema_diagnostic_code" \
   > "$evidence_dir/incompatible-schema-diagnostic.json" 2> "$evidence_dir/incompatible-schema-diagnostic.log"
 
 container_id="$(docker run --detach --name "$container_name" --platform linux/amd64 \
-  --publish 127.0.0.1::8787 \
+  --restart unless-stopped --stop-timeout 30 --publish 127.0.0.1::8787 \
   --volume "$state_volume:/var/lib/fleet-runner/state" \
   --volume "$output_volume:/var/lib/fleet-runner/output" \
   --volume "$registry_volume:/run/fleet-runner/public-keys:ro" \
   "$image_tag" serve)"
-container_ip="$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$container_id")"
-probe_command="docker run --rm --platform linux/amd64 --network container:$container_id --volume $probe_volume:/probe:ro --volume $output_volume:/accepted-output:ro --env FLEET_PROBE_ENDPOINT=http://$container_ip:8787 --entrypoint node $image_tag --input-type=module -e <signed-lifecycle-probe>"
+published_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' "$container_id")"
+container_ip="127.0.0.1"
+probe_port="$published_port"
+probe_command="docker run --rm --platform linux/amd64 --network host --volume $probe_volume:/probe:ro --volume $output_volume:/accepted-output:ro --env FLEET_PROBE_ENDPOINT=http://$container_ip:$probe_port --entrypoint node $image_tag --input-type=module -e <signed-lifecycle-probe>"
 probe_code='import assert from "node:assert/strict"; import { createHash } from "node:crypto"; import { readFile } from "node:fs/promises"; import { join } from "node:path"; import { fleetClient } from "/app/dist/client.js"; import { workOnce } from "/app/dist/worker.js"; import { writeOutput } from "/app/dist/jobs.js"; const expectedSha256 = "f04565eea01f62eeb7149c8609c8a901ca0af5ffb74c37a181ca0955479e7890"; const endpoint = process.env.FLEET_PROBE_ENDPOINT; const owner = fleetClient(endpoint, "owner", "/probe/owner"); const worker = fleetClient(endpoint, "worker", "/probe/worker"); const fixture = Buffer.from("fleet-runner packaging fixture v1\n", "utf8"); const inputSha256 = createHash("sha256").update(fixture).digest("hex"); const expectedOutputSha256 = createHash("sha256").update(fixture).digest("hex"); assert.equal(expectedOutputSha256, expectedSha256); const admitted = await owner.enqueue({ kind: "proof-fixture", inputs: [inputSha256], payload: null, requires: ["packaging-proof"] }); assert.equal(admitted.created, true); const workerResult = await workOnce(worker, { caps: ["packaging-proof"], outDir: "/tmp/fleet-runner-proof-output", handlers: { "proof-fixture": async (job, ctx) => writeOutput(ctx.outDir, job, fixture) } }); assert.equal(workerResult, "completed"); const acceptedBytes = await readFile(join("/accepted-output", `${admitted.key}.1.jsonl`)); assert.deepEqual(acceptedBytes, fixture); const acceptedOutputSha256 = createHash("sha256").update(acceptedBytes).digest("hex"); assert.equal(acceptedOutputSha256, expectedSha256); const verification = await owner.verify(admitted.key); assert.equal(verification.verified, true); const completionEvents = (await owner.events()).filter((event) => event.key === admitted.key && event.type === "completed"); assert.equal(completionEvents.length, 1); assert.equal(verification.period.byWorker.worker.completed, 1); console.log(JSON.stringify({ authenticated: true, admitted: admitted.created, inputSha256, workerResult, acceptedBytesMatchFixture: true, expectedOutputSha256, acceptedOutputSha256, verifiedAgainstDatabaseDigest: verification.verified, completedEvents: completionEvents.length, report: verification }));'
 readiness_code='import assert from "node:assert/strict"; import { fleetClient } from "/app/dist/client.js"; const report = await fleetClient(process.env.FLEET_PROBE_ENDPOINT, "owner", "/probe/owner").report(); assert.ok(report && typeof report === "object"); console.log(JSON.stringify({ authenticated: true, route: "GET /report", report }));'
 ready=0
 for attempt in $(seq 1 30); do
-  if docker run --rm --platform linux/amd64 --network "container:$container_id" \
-    --volume "$probe_volume:/probe:ro" --env "FLEET_PROBE_ENDPOINT=http://$container_ip:8787" \
+  if docker run --rm --platform linux/amd64 --network host \
+    --volume "$probe_volume:/probe:ro" --env "FLEET_PROBE_ENDPOINT=http://$container_ip:$probe_port" \
     --entrypoint node "$image_tag" --input-type=module -e "$readiness_code" \
     > "$evidence_dir/signed-report-readiness.log" 2>&1; then
     ready=1
@@ -211,14 +214,32 @@ if [[ "$ready" -ne 1 ]]; then
   echo "signed /report auth/database request did not succeed" >&2
   exit 1
 fi
-if ! docker run --rm --platform linux/amd64 --network "container:$container_id" \
+if ! docker run --rm --platform linux/amd64 --network host \
   --volume "$probe_volume:/probe:ro" --volume "$output_volume:/accepted-output:ro" \
-  --env "FLEET_PROBE_ENDPOINT=http://$container_ip:8787" --entrypoint node "$image_tag" \
+  --env "FLEET_PROBE_ENDPOINT=http://$container_ip:$probe_port" --entrypoint node "$image_tag" \
   --input-type=module -e "$probe_code" > "$evidence_dir/signed-lifecycle.json" 2> "$evidence_dir/signed-lifecycle.log"; then
   cat "$evidence_dir/signed-lifecycle.log" >&2
   docker logs "$container_id" >&2 || true
   exit 1
 fi
+
+# Exercise the published host port and graceful service lifecycle, not just its bridge IP.
+docker stop --time 30 "$container_id" > "$evidence_dir/graceful-stop.log"
+[[ "$(docker inspect --format '{{.State.ExitCode}}' "$container_id")" == 0 ]]
+docker start "$container_id" > "$evidence_dir/service-restart.log"
+for attempt in $(seq 1 30); do
+  if docker run --rm --platform linux/amd64 --network host \
+    --volume "$probe_volume:/probe:ro" --env "FLEET_PROBE_ENDPOINT=http://$container_ip:$probe_port" \
+    --entrypoint node "$image_tag" --input-type=module -e "$readiness_code" \
+    > "$evidence_dir/signed-report-after-restart.json" 2>/dev/null; then break; fi
+  sleep 1
+done
+node --input-type=module - "$evidence_dir/signed-report-after-restart.json" <<'RESTART'
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const observation = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+assert.equal(observation.report.period.byWorker.worker.completed, 1);
+RESTART
 
 node --input-type=module - "$repo_root" "$evidence_dir" "$image_tag" \
   "$first_command" "$second_command" "$image_command" "$unsupported_command" \

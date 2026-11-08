@@ -567,3 +567,11 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 
 - G0–G2 assumed the configured selfco path was the live vault; inspection found an older dirty Git copy beside the active Sync replica. Preserved the capture bundle and assigned verified Sync cutover/final capture to the user-requested separate fork.
 - G0–G2 assumed the bundled pnpm launcher honored the repository pin; it ran pnpm11, appended an esbuild build-policy placeholder and blocked scripts. Removed only that generated workspace delta and selected actual pnpm9.15.4 instead of changing the lock or approving broader build policy.
+
+## Fleet Runner #586 review corrections
+
+- The independent review found that container-private binding did not restrict Docker's host publication. Deployment now requires an explicit host LAN address, TLS, restart/stop policy and separate signed readiness versus TCP liveness.
+- Worker shutdown preserves graceful drain with a bounded deadline, then cancels the handler and releases. Ambiguous completion bytes stay local; only an explicit terminal response permits cleanup.
+- The old restart test reopened objects in one process. It now recompiles the tested source into two actual child processes, and the replay mutant substitutes a module-global cache rather than removing replay checks entirely.
+- This host has no Docker installation and the NAS has Node 18 with no Buildx plugin. Build tools are task-local on the development Mac; the existing NAS engine executes the pinned amd64 builds through SSH. No global Node, NAS Node or appliance Docker settings are changed.
+- Broad queue indexing, event retention and large-fleet claim/report optimization remain deferred as the review requested; this correction covers bounded pilot resource use and leaves active state on SSD. The appliance backup/power configuration is a separate owner boundary.

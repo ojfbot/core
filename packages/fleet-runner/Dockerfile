@@ -42,6 +42,7 @@ RUN mkdir -p /var/lib/fleet-runner/state /var/lib/fleet-runner/output /run/fleet
 COPY --chown=node:node --from=build /workspace/packages/fleet-runner/dist ./dist
 COPY --chown=node:node packages/fleet-runner/docker-entrypoint.mjs ./docker-entrypoint.mjs
 USER node
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 CMD ["node", "/app/docker-entrypoint.mjs", "healthcheck"]
 EXPOSE 8787
 ENTRYPOINT ["node", "/app/docker-entrypoint.mjs"]
 CMD ["serve"]

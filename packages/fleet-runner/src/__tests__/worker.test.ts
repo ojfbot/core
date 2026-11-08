@@ -27,7 +27,7 @@ const job: Claim = {
   params: {},
   code: null,
   payload: null,
-  leaseExpires: 1,
+  leaseExpires: Date.now() + 300_000,
 };
 
 function setup() {
@@ -45,6 +45,7 @@ function setup() {
   const options: ResidentWorkerOptions = {
     signal: controller.signal,
     pollMs: 1,
+    jitterRatio: 0,
     outDir,
     caps: [],
     handlers: { noop: async (job, context) => writeOutput(context.outDir, job, "synthetic") },
@@ -161,12 +162,12 @@ it("bounds request backoff and returns to the normal delay after an idle respons
   });
 
   expect(events).toEqual([
-    { type: "request-error", delayMs: 1 },
-    { type: "request-error", delayMs: 2 },
-    { type: "request-error", delayMs: 3 },
-    { type: "request-error", delayMs: 3 },
+    { type: "request-error", delayMs: 1, code: "unexpected-error" },
+    { type: "request-error", delayMs: 2, code: "unexpected-error" },
+    { type: "request-error", delayMs: 3, code: "unexpected-error" },
+    { type: "request-error", delayMs: 3, code: "unexpected-error" },
     { type: "idle", delayMs: 1 },
-    { type: "request-error", delayMs: 1 },
+    { type: "request-error", delayMs: 1, code: "unexpected-error" },
   ]);
 });
 
@@ -183,4 +184,84 @@ it("cancels a long idle wait when stopped", async () => {
   await running;
 
   expect(client.claim).toHaveBeenCalledTimes(1);
+});
+
+it("retries a transient heartbeat without aborting useful work", async () => {
+  const { client, options } = setup();
+  client.claim.mockResolvedValueOnce({ ...job, leaseExpires: Date.now() + 5_000 });
+  client.heartbeat.mockRejectedValueOnce(new Error("synthetic Wi-Fi roam"));
+  options.heartbeatMs = 2;
+  options.retryMs = 1;
+  options.handlers = {
+    noop: async (claim, context) => {
+      await vi.waitFor(() => expect(client.heartbeat.mock.calls.length).toBeGreaterThanOrEqual(2));
+      expect(context.signal.aborted).toBe(false);
+      return writeOutput(context.outDir, claim, "synthetic");
+    },
+  };
+  await runWorker(client, {
+    ...options,
+    onEvent(e) {
+      if (e.type === "completed") controller.abort();
+    },
+  });
+  expect(client.complete).toHaveBeenCalledOnce();
+});
+
+it("cancels a handler and releases its claim after the shutdown drain deadline", async () => {
+  const { client, options } = setup();
+  client.claim.mockResolvedValueOnce(job);
+  client.release.mockResolvedValueOnce(true);
+  options.handlers = {
+    noop: async (_claim, context) => {
+      controller.abort();
+      await new Promise<void>((resolve) =>
+        context.signal.addEventListener("abort", () => resolve(), { once: true }),
+      );
+      throw new Error("synthetic cancellation");
+    },
+  };
+  await runWorker(client, { ...options, shutdownGraceMs: 1 });
+  expect(client.release).toHaveBeenCalledOnce();
+  expect(client.complete).not.toHaveBeenCalled();
+});
+
+it("retains an uncertain upload when the service is unavailable until lease expiry", async () => {
+  const { workOnce } = await import("../worker.js");
+  const { readdir } = await import("node:fs/promises");
+  const { client, options } = setup();
+  client.claim.mockResolvedValueOnce({ ...job, leaseExpires: Date.now() + 100 });
+  client.complete.mockRejectedValue(new Error("synthetic unavailable server"));
+  client.heartbeat.mockRejectedValue(new Error("synthetic unavailable server"));
+  expect(await workOnce(client, { ...options, heartbeatMs: 10, retryMs: 2 })).toBe("lease-lost");
+  expect(await readdir(outDir)).toContain(`${job.key}.1.jsonl`);
+  expect(client.complete.mock.calls.length).toBeGreaterThan(1);
+});
+
+it("fails a permanent output rejection rather than retrying until lease expiry", async () => {
+  const { workOnce } = await import("../worker.js");
+  const { FleetHttpError } = await import("../client.js");
+  const { client, options } = setup();
+  client.claim.mockResolvedValueOnce(job);
+  client.complete.mockRejectedValueOnce(new FleetHttpError(413));
+  client.fail.mockResolvedValueOnce(true);
+  expect(await workOnce(client, options)).toBe("failed");
+  expect(client.fail).toHaveBeenCalledWith(job, "output-rejected", false);
+  expect(client.complete).toHaveBeenCalledOnce();
+});
+
+it("keeps pulling when an observation callback throws", async () => {
+  const { client, options } = setup();
+  client.claim.mockResolvedValueOnce(job).mockImplementationOnce(async () => {
+    controller.abort();
+    return null;
+  });
+  await runWorker(client, {
+    ...options,
+    onEvent() {
+      throw new Error("synthetic observer error");
+    },
+  });
+  expect(client.complete).toHaveBeenCalledOnce();
+  expect(client.claim).toHaveBeenCalledTimes(2);
 });

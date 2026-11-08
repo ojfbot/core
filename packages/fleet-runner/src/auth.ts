@@ -6,7 +6,6 @@ import {
   sign,
   verify,
 } from "node:crypto";
-import type { KeyObject } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -22,6 +21,24 @@ export interface RequestNonce {
 }
 
 export type ConsumeNonce = (candidate: RequestNonce) => boolean;
+
+/** Reject unknown identities and stale/malformed headers before allocating an upload. */
+export function prepareAuthorization(registry: string, authorization: string | undefined) {
+  const match =
+    /^Fleet ([a-z][a-z0-9-]{0,62})\.([0-9]{13})\.([a-f0-9-]{36})\.([A-Za-z0-9_-]{86})$/.exec(
+      authorization ?? "",
+    );
+  if (!match) return undefined;
+  const [, id, ts, nonce, signature] = match as unknown as [string, string, string, string, string];
+  if (Math.abs(Date.now() - Number(ts)) >= WINDOW_MS) return undefined;
+  try {
+    const key = createPublicKey(readFileSync(join(registry, `${id}.pub`)));
+    if (key.asymmetricKeyType === "ed25519") return { id, ts, nonce, signature, key };
+  } catch {
+    /* Unknown or invalid public key. Never expose a registry path. */
+  }
+  return undefined;
+}
 
 export function generateToken(file: string): void {
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -65,26 +82,11 @@ export function verifier(registry: string, consumeNonce: ConsumeNonce) {
     target: string,
     body: Uint8Array,
   ): string | undefined => {
-    const match =
-      /^Fleet ([a-z][a-z0-9-]{0,62})\.([0-9]{13})\.([a-f0-9-]{36})\.([A-Za-z0-9_-]{86})$/.exec(
-        authorization ?? "",
-      );
-    if (!match) return undefined;
-    const [, id, ts, nonce, signature] = match as unknown as [
-      string,
-      string,
-      string,
-      string,
-      string,
-    ];
+    const candidate = prepareAuthorization(registry, authorization);
+    if (!candidate) return undefined;
+    const { id, ts, nonce, signature, key } = candidate;
     const now = Date.now();
     if (Math.abs(now - Number(ts)) >= WINDOW_MS) return undefined;
-    let key: KeyObject;
-    try {
-      key = createPublicKey(readFileSync(join(registry, `${id}.pub`)));
-    } catch {
-      return undefined;
-    }
     if (
       key.asymmetricKeyType !== "ed25519" ||
       !verify(

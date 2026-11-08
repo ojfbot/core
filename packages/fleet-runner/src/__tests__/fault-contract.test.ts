@@ -109,6 +109,7 @@ describe("public signed fault contracts", () => {
 
     await expect(
       workOnce(worker, {
+        now: () => clock,
         caps: [],
         outDir: join(dir, "attempts"),
         handlers: {
