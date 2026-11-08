@@ -175,7 +175,7 @@ capture_expected_exit invalid-port 2 "$evidence_dir/invalid-port.log" \
 docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:/bad-schema" \
   --entrypoint node "$image_tag" --input-type=module \
   -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync("/bad-schema/fleet.sqlite"); db.exec("PRAGMA user_version = 99"); db.close();'
-incompatible_schema_command="docker run --rm --platform linux/amd64 --volume $bad_schema_volume:/var/lib/fleet-runner/state $image_tag serve"
+incompatible_schema_command="docker run --rm --platform linux/amd64 --volume $bad_schema_volume:/var/lib/fleet-runner/state --volume $registry_volume:/run/fleet-runner/public-keys:ro $image_tag serve"
 capture_expected_exit incompatible-schema 1 "$evidence_dir/incompatible-schema.log" \
   "schema-incompatible" \
   docker run --rm --platform linux/amd64 --volume "$bad_schema_volume:/var/lib/fleet-runner/state" \
@@ -227,13 +227,20 @@ fi
 docker stop --time 30 "$container_id" > "$evidence_dir/graceful-stop.log"
 [[ "$(docker inspect --format '{{.State.ExitCode}}' "$container_id")" == 0 ]]
 docker start "$container_id" > "$evidence_dir/service-restart.log"
+published_port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "8787/tcp") 0).HostPort}}' "$container_id")"
+probe_port="$published_port"
+ready=0
 for attempt in $(seq 1 30); do
   if docker run --rm --platform linux/amd64 --network host \
     --volume "$probe_volume:/probe:ro" --env "FLEET_PROBE_ENDPOINT=http://$container_ip:$probe_port" \
     --entrypoint node "$image_tag" --input-type=module -e "$readiness_code" \
-    > "$evidence_dir/signed-report-after-restart.json" 2>/dev/null; then break; fi
+    > "$evidence_dir/signed-report-after-restart.json" 2> "$evidence_dir/signed-report-after-restart.log"; then ready=1; break; fi
   sleep 1
 done
+if [[ "$ready" != 1 ]]; then
+  echo "signed readiness failed after restart; inspect retained restart logs" >&2
+  exit 1
+fi
 node --input-type=module - "$evidence_dir/signed-report-after-restart.json" <<'RESTART'
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
