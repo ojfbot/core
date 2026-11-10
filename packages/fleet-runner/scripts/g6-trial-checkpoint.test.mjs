@@ -17,15 +17,16 @@ test("creates one active unique trial, resumes it, records fences and finishes o
   try {
     assert.equal(invoke(["begin", "lid-1", "worker-a", checkpoint]).status, 0);
     assert.notEqual(invoke(["begin", "wifi-1", "worker-b", join(dir, "wifi-1.json")]).status, 0);
-    assert.equal(invoke(["arm", checkpoint, key, "1"]).status, 0);
-    assert.equal(invoke(["attempt", checkpoint, "worker-b", key, "2"]).status, 0);
+    assert.equal(invoke(["arm", checkpoint, key, "5"]).status, 0);
+    assert.notEqual(invoke(["attempt", checkpoint, "worker-b", key, "4"]).status, 0);
+    assert.equal(invoke(["attempt", checkpoint, "worker-b", key, "6"]).status, 0);
     const resume = invoke(["resume", checkpoint]);
     assert.equal(resume.status, 0, resume.stderr);
     const state = JSON.parse(resume.stdout);
     assert.equal(state.trial_id, "lid-1");
     assert.equal(state.status, "armed");
-    assert.deepEqual(state.attempts.map((item) => item.fence), [1, 2]);
-    assert.notEqual(invoke(["attempt", checkpoint, "worker-b", key, "2"]).status, 0);
+    assert.deepEqual(state.attempts.map((item) => item.fence), [5, 6]);
+    assert.notEqual(invoke(["attempt", checkpoint, "worker-b", key, "6"]).status, 0);
     assert.equal(invoke(["finish", checkpoint, "pass", "private/os-receipt"]).status, 0);
     const finalState = JSON.parse(readFileSync(checkpoint, "utf8"));
     assert.equal(finalState.status, "passed");

@@ -1,13 +1,19 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { request as httpRequest, type IncomingMessage } from "node:http";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import ts from "typescript";
 import { expect, it } from "vitest";
-import { generateToken } from "../src/auth.js";
-import { fleetClient, type FleetClient } from "../src/client.js";
+import { generateToken, signer } from "../src/auth.js";
+import { fleetClient } from "../src/client.js";
+import type { FleetClient } from "../src/client.js";
 import { JobStore, writeOutput } from "../src/jobs.js";
-import type { Claim } from "../src/jobs.js";
+import type { Claim, JobStore as JobStoreType } from "../src/jobs.js";
 import { fleetServer } from "../src/server.js";
+import type { Server } from "node:http";
 import { workOnce } from "../src/worker.js";
 
 const CASES = [
@@ -21,248 +27,334 @@ const CASES = [
   "stale-fence-rejection",
 ] as const;
 const repetitions = 10;
+const LEASE_MS = 300_000;
+const POLL_MS = 5_000;
+const startAt = 10_000;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
 
+type CaseId = (typeof CASES)[number];
+type AttemptEvidence = { worker_id: string; fence: number; claim_at_ms: number; lease_expires_at_ms: number };
+type ReclaimEvidence = {
+  applicable: true;
+  last_valid_renewal_at_ms: number;
+  lease_expiry_at_ms: number;
+  reclaim_claim_at_ms: number;
+  lease_ms: number;
+  poll_interval_ms: number;
+};
 type Evidence = {
-  case_id: string;
+  case_id: CaseId;
   repetition: number;
+  source_commit: string;
+  source_tree: string;
   started_at: string;
   finished_at: string;
   synthetic: true;
-  fault_evidence: string;
-  attempts: { worker_id: string; fence: number }[];
+  fault: { type: string; observed: Record<string, unknown> };
+  attempts: AttemptEvidence[];
   accepted_output_count: number;
   accepted_output_sha256: string | null;
-  reclaim_applicable: boolean;
-  reclaim_elapsed_ms?: number;
-  reclaim_bound_ms?: number;
-  result: "pass";
+  accepted_fence: number | null;
+  reclaim: ReclaimEvidence | null;
+  result: "pass" | "UNTESTED";
 };
 
-async function runCase(caseId: (typeof CASES)[number], repetition: number): Promise<Evidence> {
+async function fixture(caseId: string) {
+  const dir = mkdtempSync(join(tmpdir(), "fleet-g6-http-"));
+  const outputDir = join(dir, "accepted");
+  const now = { value: startAt };
+  const dbPath = join(dir, "jobs.sqlite");
+  for (const id of ["owner", "worker-a", "worker-b"]) generateToken(join(dir, id));
+  let store: JobStoreType = new JobStore(dbPath, { now: () => now.value, leaseMs: LEASE_MS });
+  let server: Server = fleetServer(store, { registry: dir, outDir: outputDir });
+  let serverClosed = false;
+  let storeClosed = false;
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("missing synthetic listener");
+  const endpoint = `http://127.0.0.1:${address.port}`;
+  const owner = fleetClient(endpoint, "owner", join(dir, "owner"));
+  const workerA = fleetClient(endpoint, "worker-a", join(dir, "worker-a"));
+  const workerB = fleetClient(endpoint, "worker-b", join(dir, "worker-b"));
+  const attempts: AttemptEvidence[] = [];
+  const close = async () => {
+    if (!serverClosed) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      serverClosed = true;
+    }
+    if (!storeClosed) { store.close(); storeClosed = true; }
+  };
+  const reopenStore = () => {
+    store = new JobStore(dbPath, { now: () => now.value, leaseMs: LEASE_MS });
+    storeClosed = false;
+    return store;
+  };
+  const claim = async (client: FleetClient, workerId: string, kinds = ["noop"]) => {
+    const job = await client.claim([], kinds);
+    if (!job) throw new Error(`expected claim by ${workerId}`);
+    attempts.push({ worker_id: workerId, fence: job.fence, claim_at_ms: now.value, lease_expires_at_ms: job.leaseExpires });
+    return job;
+  };
+  const enqueue = async (id: string, maxAttempts = 3) => {
+    const result = await owner.enqueue({ kind: "noop", inputs: [`${caseId}-${id}`], payload: null, maxAttempts });
+    return result.key;
+  };
+  const recordRenewal = async (client: FleetClient, job: Claim) => {
+    if (!(await client.heartbeat(job))) throw new Error("expected accepted heartbeat");
+    return now.value;
+  };
+  const reclaimAfterPoll = async (key: string, renewalAt: number) => {
+    const expiry = renewalAt + LEASE_MS;
+    now.value = expiry + POLL_MS;
+    const job = await claim(workerB, "worker-b");
+    if (job.key !== key) throw new Error("worker claimed unexpected key");
+    return {
+      job,
+      evidence: {
+        applicable: true as const,
+        last_valid_renewal_at_ms: renewalAt,
+        lease_expiry_at_ms: expiry,
+        reclaim_claim_at_ms: now.value,
+        lease_ms: LEASE_MS,
+        poll_interval_ms: POLL_MS,
+      },
+    };
+  };
+  return { dir, outputDir, dbPath, now, get store() { return store; }, set store(value: JobStoreType) { store = value; }, server, owner, workerA, workerB, attempts, close, reopenStore, claim, enqueue, recordRenewal, reclaimAfterPoll };
+}
+
+function childKillSource(modulePath: string, key: string, fence: number, outDir: string, bytes: Buffer) {
+  return `import { JobStore, writeOutput } from ${JSON.stringify(pathToFileURL(modulePath).href)};
+const [dbPath, at, outputDir, jobKey, fence, worker, data] = process.argv.slice(1);
+const store = new JobStore(dbPath, { now: () => Number(at), leaseMs: ${LEASE_MS} });
+const bytes = Buffer.from(data, "base64");
+store.complete(jobKey, Number(fence), worker, () => {
+  writeOutput(outputDir, { key: jobKey, fence: Number(fence) }, bytes);
+  ${"__KILL_POINT__"}
+  return { file: jobKey + "." + fence + ".jsonl", sha256: ${JSON.stringify(sha(bytes))} };
+});
+store.close();
+`;
+}
+
+function generateJobsModule(dir: string, killAfterDbUpdate: boolean) {
+  let source = readFileSync(new URL("../src/jobs.ts", import.meta.url), "utf8");
+  if (killAfterDbUpdate) {
+    const anchor = "        .run(accepted.sha256, accepted.file, now, key, fence, worker, now);\n      const ok = Number(res.changes) === 1;";
+    if (source.split(anchor).length !== 2) throw new Error("DB-boundary mutation anchor drift");
+    source = source.replace(anchor, `        .run(accepted.sha256, accepted.file, now, key, fence, worker, now);\n      process.kill(process.pid, "SIGKILL");\n      const ok = Number(res.changes) === 1;`);
+  }
+  const modulePath = join(dir, "jobs.mjs");
+  writeFileSync(modulePath, ts.transpileModule(source, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+  }).outputText, { mode: 0o600 });
+  return modulePath;
+}
+
+function killChild(f, key: string, job: Claim, bytes: Buffer, killPoint: "after_output_before_db_update" | "after_db_update_before_transaction_commit") {
+  const modulePath = generateJobsModule(f.dir, killPoint === "after_db_update_before_transaction_commit");
+  const script = childKillSource(modulePath, key, job.fence, f.outputDir, bytes)
+    .replace("__KILL_POINT__", killPoint === "after_output_before_db_update" ? 'process.kill(process.pid, "SIGKILL");' : "");
+  const child = spawnSync(process.execPath, ["--input-type=module", "-e", script,
+    f.dbPath, String(f.now.value), f.outputDir, key, String(job.fence), "worker-a", bytes.toString("base64")],
+  { encoding: "utf8", stdio: "ignore", timeout: 15_000 });
+  return child.signal;
+}
+
+async function caseEvidence(caseId: CaseId, repetition: number, source: { commit: string; tree: string }): Promise<Evidence> {
   const started = new Date().toISOString();
-  const dir = mkdtempSync(join(tmpdir(), "fleet-g6-"));
-  const outputDir = join(dir, "outputs");
-  let now = 10_000;
-  const store = new JobStore(":memory:", { now: () => now, leaseMs: 300_000 });
-  const attempts: Evidence["attempts"] = [];
-  let faultEvidence = "";
-  let acceptedHash: string | null = null;
-  let reclaimApplicable = false;
-  let reclaimElapsed: number | undefined;
+  const f = await fixture(caseId);
   const payload = Buffer.from(`${caseId}:${repetition}:synthetic-output\n`);
-  const enqueue = (maxAttempts = 3) => store.enqueue({ kind: "noop", inputs: [caseId], payload: null, maxAttempts });
-  const claim = (worker: string, key: string) => {
-    const value = store.claim(worker, [], ["noop"]);
-    if (!value || value.key !== key) throw new Error(`expected claim for ${key}`);
-    attempts.push({ worker_id: worker, fence: value.fence });
-    return value;
-  };
-  const accept = (job: Claim, worker: string, bytes = payload) => {
-    const accepted = store.complete(job.key, job.fence, worker, () => writeOutput(outputDir, job, bytes));
-    if (!accepted) throw new Error(`attempt ${job.fence} was not accepted`);
-    acceptedHash = sha(bytes);
-  };
+  let key = "";
+  let faultType = "";
+  let observed: Record<string, unknown> = {};
+  let reclaim: ReclaimEvidence | null = null;
+  let acceptedHash: string | null = null;
+  let acceptedFence: number | null = null;
   try {
-    const { key } = enqueue(caseId === "retry-exhaustion" ? 2 : 3);
-    const first = claim("worker-a", key);
-    let completed = false;
+    key = await f.enqueue(`${repetition}`, caseId === "retry-exhaustion" ? 2 : 3);
 
     if (caseId === "completion-response-lost-after-commit") {
-      expect(store.release(key, first.fence, "worker-a")).toBe(true);
-      for (const id of ["owner", "worker-a"]) generateToken(join(dir, id));
-      const server = fleetServer(store, { registry: dir, outDir: outputDir });
-      const workerOutputDir = join(dir, "worker-output");
-      await new Promise<void>((resolve, reject) => {
-        server.once("error", reject);
-        server.listen(0, "127.0.0.1", resolve);
-      });
-      const address = server.address();
-      if (!address || typeof address === "string") throw new Error("missing synthetic listener");
-      const endpoint = `http://127.0.0.1:${address.port}`;
-      const owner = fleetClient(endpoint, "owner", join(dir, "owner"));
-      const worker = fleetClient(endpoint, "worker-a", join(dir, "worker-a"));
-      const keyFromOwner = await owner.enqueue({ kind: "noop", inputs: [caseId], payload: null });
-      expect(keyFromOwner.key).toBe(key);
+      faultType = "commit_response_loss";
+      const first = await f.claim(f.workerA, "worker-a");
       const originalFetch = globalThis.fetch;
-      let completionPosts = 0;
+      let requests = 0;
       globalThis.fetch = async (input, init) => {
         const response = await originalFetch(input, init);
-        if (new URL(String(input)).pathname === "/complete" && completionPosts++ === 0) {
+        if (new URL(String(input)).pathname === "/complete" && requests++ === 0) {
           await response.arrayBuffer();
-          throw new Error("synthetic response lost after local service commit");
+          throw new Error("synthetic response dropped after service commit");
         }
         return response;
       };
-      try {
-        expect(await workOnce(worker, {
-          now: () => now,
-          caps: [],
-          outDir: workerOutputDir,
-          handlers: { noop: async (job, context) => writeOutput(context.outDir, job, payload) },
-        })).toBe("completed");
-        expect(completionPosts).toBe(2);
-        const verification = await owner.verify(key);
-        expect(verification.verified, JSON.stringify({ row: store.get(key), files: readdirSync(outputDir) })).toBe(true);
-        const completedEvent = store.events(0).filter((event) => event.type === "completed");
-        expect(completedEvent).toHaveLength(1);
-        attempts.push({ worker_id: "worker-a", fence: 2 });
-        acceptedHash = sha(payload);
-        faultEvidence = "localhost service committed fence=2, first completion response was dropped, retry produced one accepted completion";
-      } finally {
-        globalThis.fetch = originalFetch;
-        await new Promise<void>((resolve) => server.close(() => resolve()));
-      }
-      completed = true;
+      let dropped = false;
+      try { await f.workerA.complete(first, payload, sha(payload)); } catch { dropped = true; }
+      const retryAccepted = await f.workerA.complete(first, payload, sha(payload));
+      globalThis.fetch = originalFetch;
+      const events = await f.owner.events();
+      observed = { server_commit_observed: f.store.get(key)?.status === "done", first_response_dropped: dropped, completion_request_count: requests, completed_event_count: events.filter((e) => e.key === key && e.type === "completed").length };
+      expect(retryAccepted).toBe(true);
+      expect(observed).toMatchObject({ server_commit_observed: true, first_response_dropped: true, completion_request_count: 2, completed_event_count: 1 });
+      acceptedHash = sha(payload); acceptedFence = first.fence;
     } else if (caseId === "worker-sleep-or-partition") {
-      // Deterministic clock advance represents the interruption; this is not physical sleep or network evidence.
-      now += 300_001;
-      store.sweep();
-      const second = claim("worker-b", key);
-      expect(store.complete(key, first.fence, "worker-a", () => writeOutput(outputDir, first, payload))).toBe(false);
-      accept(second, "worker-b");
-      reclaimApplicable = true;
-      reclaimElapsed = now - 10_000;
-      completed = true;
-      faultEvidence = "synthetic lease expiry after clocked partition; stale fence rejected";
-    } else if (caseId === "handler-ignores-cancellation") {
-      expect(store.release(key, first.fence, "worker-a")).toBe(true);
-      const oldAttempt = claim("worker-a", key);
-      let handlerStarted!: () => void;
-      let releaseHandler!: () => void;
-      const started = new Promise<void>((resolve) => { handlerStarted = resolve; });
-      const holdHandler = new Promise<void>((resolve) => { releaseHandler = resolve; });
-      const abort = new AbortController();
-      const localClient = {
-        claim: async () => oldAttempt,
-        complete: async (job: Claim, bytes: Buffer, digest: string) => {
-          expect(sha(bytes)).toBe(digest);
-          return store.complete(job.key, job.fence, "worker-a", () => writeOutput(outputDir, job, bytes));
-        },
-        heartbeat: async (job: Claim) => store.heartbeat(job.key, job.fence, "worker-a"),
-        release: async (job: Claim) => store.release(job.key, job.fence, "worker-a"),
-        fail: async (job: Claim, code: string, retryable: boolean) => store.fail(job.key, job.fence, "worker-a", code, retryable),
-      } as unknown as FleetClient;
-      const running = workOnce(localClient, {
-        now: () => now,
-        signal: abort.signal,
-        caps: [],
-        outDir: outputDir,
-        heartbeatMs: 100_000,
-        handlers: { noop: async (job) => {
-          handlerStarted();
-          await holdHandler; // Deliberately ignores AbortSignal.
-          return writeOutput(outputDir, job, payload);
-        } },
+      faultType = "clocked_partition";
+      const first = await f.claim(f.workerA, "worker-a");
+      const renewalAt = await f.recordRenewal(f.workerA, first);
+      const { job: second, evidence } = await f.reclaimAfterPoll(key, renewalAt);
+      const staleAccepted = await f.workerA.complete(first, payload, sha(payload));
+      const accepted = await f.workerB.complete(second, payload, sha(payload));
+      reclaim = evidence;
+      observed = { heartbeat_accepted_before_partition: true, partition_clocked: true, stale_attempt_rejected: staleAccepted === false };
+      expect(accepted).toBe(true); expect(staleAccepted).toBe(false);
+      acceptedHash = sha(payload); acceptedFence = second.fence;
+    } else if (caseId === "lease-lost-during-upload") {
+      faultType = "in_flight_signed_upload";
+      const first = await f.claim(f.workerA, "worker-a");
+      const renewalAt = await f.recordRenewal(f.workerA, first);
+      const staleBytes = Buffer.from(`stale-upload:${repetition}`);
+      const staleHash = sha(staleBytes);
+      const body = Buffer.from(JSON.stringify({ key, fence: first.fence, sha256: staleHash, output: staleBytes.toString("base64") }));
+      const authorization = signer("worker-a", join(f.dir, "worker-a"))("POST", "/complete", body);
+      let sawBody!: () => void;
+      const bodyStarted = new Promise<void>((resolve) => { sawBody = resolve; });
+      const request = httpRequest(`${"http://127.0.0.1"}:${(f.server.address() as { port: number }).port}/complete`, {
+        method: "POST", headers: { authorization, "content-type": "application/json", "content-length": String(body.length) },
       });
-      await started;
-      now += 300_001;
-      store.sweep();
-      const second = claim("worker-b", key);
+      const responsePromise = new Promise<{ status: number; json: unknown }>((resolve, reject) => {
+        request.once("response", (response: IncomingMessage) => {
+          const chunks: Buffer[] = [];
+          response.on("data", (chunk: Buffer) => chunks.push(chunk));
+          response.on("end", () => resolve({ status: response.statusCode ?? 0, json: JSON.parse(Buffer.concat(chunks).toString("utf8")) }));
+        });
+        request.once("error", reject);
+      });
+      const onRequest = (incoming: IncomingMessage) => {
+        if (incoming.url === "/complete") { f.server.off("request", onRequest); incoming.once("data", () => sawBody()); }
+      };
+      f.server.on("request", onRequest);
+      const split = Math.max(1, Math.floor(body.length / 2));
+      request.write(body.subarray(0, split));
+      await bodyStarted;
+      const { job: second, evidence } = await f.reclaimAfterPoll(key, renewalAt);
+      request.end(body.subarray(split));
+      const staleResponse = await responsePromise;
+      const accepted = await f.workerB.complete(second, payload, sha(payload));
+      reclaim = evidence;
+      observed = { signed_request: true, upload_body_started: true, newer_claim_before_old_body_finished: second.fence > first.fence, old_response_rejected: staleResponse.status === 200 && staleResponse.json === false, old_upload_response: staleResponse.json };
+      expect(accepted).toBe(true); expect(staleResponse).toMatchObject({ status: 200, json: false });
+      acceptedHash = sha(payload); acceptedFence = second.fence;
+    } else if (caseId === "crash-output-before-db-commit" || caseId === "crash-db-boundary") {
+      faultType = caseId === "crash-output-before-db-commit" ? "process_kill_after_output" : "process_kill_after_db_update";
+      const first = await f.claim(f.workerA, "worker-a");
+      const renewalAt = await f.recordRenewal(f.workerA, first);
+      await f.close();
+      const signal = killChild(f, key, first, payload, caseId === "crash-output-before-db-commit" ? "after_output_before_db_update" : "after_db_update_before_transaction_commit");
+      expect(signal).toBe("SIGKILL");
+      f.now.value = renewalAt + LEASE_MS + POLL_MS;
+      f.store = f.reopenStore();
+      const afterRestart = f.store.get(key);
+      const completedBeforeRecovery = f.store.events(0).filter((e) => e.key === key && e.type === "completed").length;
+      expect(afterRestart).toMatchObject({ status: "claimed", output: null });
+      expect(completedBeforeRecovery).toBe(0);
+      const second = f.store.claim("worker-b", [], ["noop"]);
+      if (!second) throw new Error("expected post-restart claim");
+      const claimAt = f.now.value;
+      f.attempts.push({ worker_id: "worker-b", fence: second.fence, claim_at_ms: claimAt, lease_expires_at_ms: second.leaseExpires });
+      const accepted = f.store.complete(key, second.fence, "worker-b", () => writeOutput(f.outputDir, second, payload));
+      expect(accepted).toBe(true);
+      reclaim = { applicable: true, last_valid_renewal_at_ms: renewalAt, lease_expiry_at_ms: renewalAt + LEASE_MS, reclaim_claim_at_ms: claimAt, lease_ms: LEASE_MS, poll_interval_ms: POLL_MS };
+      observed = { child_signal: signal, kill_point: caseId === "crash-output-before-db-commit" ? "after_output_before_db_update" : "after_db_update_before_transaction_commit", persistent_store_reopened: true, row_after_restart: afterRestart?.status, completed_events_after_restart: completedBeforeRecovery };
+      acceptedHash = sha(payload); acceptedFence = second.fence;
+    } else if (caseId === "retry-exhaustion") {
+      faultType = "retry_budget_exhausted";
+      const first = await f.claim(f.workerA, "worker-a");
+      expect(await f.workerA.fail(first, "synthetic-retry", true)).toBe(true);
+      f.now.value += 1;
+      const second = await f.claim(f.workerB, "worker-b");
+      expect(await f.workerB.fail(second, "synthetic-retry", true)).toBe(true);
+      const events = await f.owner.events();
+      observed = { retry_events: events.filter((e) => e.key === key && e.type === "retry").length, terminal_status: f.store.get(key)?.status, max_attempts: 2 };
+      expect(f.store.get(key)).toMatchObject({ status: "failed", output: null, attempts: 2 });
+    } else if (caseId === "handler-ignores-cancellation") {
+      faultType = "non_cooperative_handler";
+      const abort = new AbortController();
+      let startedHandler!: () => void;
+      let releaseHandler!: () => void;
+      const handlerStarted = new Promise<void>((resolve) => { startedHandler = resolve; });
+      const held = new Promise<void>((resolve) => { releaseHandler = resolve; });
+      let claimSeen: Claim | undefined;
+      const running = workOnce(f.workerA, {
+        now: () => f.now.value, signal: abort.signal, caps: [], outDir: join(f.dir, "worker-a-out"), heartbeatMs: 100_000,
+        handlers: { noop: async (job, context) => { claimSeen = job; startedHandler(); await held; expect(context.signal.aborted).toBe(true); return writeOutput(context.outDir, job, payload); } },
+      });
+      await handlerStarted;
+      if (!claimSeen) throw new Error("handler claim was not captured");
+      f.attempts.push({ worker_id: "worker-a", fence: claimSeen.fence, claim_at_ms: startAt, lease_expires_at_ms: claimSeen.leaseExpires });
+      const renewalAt = await f.recordRenewal(f.workerA, claimSeen);
+      const { job: second, evidence } = await f.reclaimAfterPoll(key, renewalAt);
       abort.abort();
       releaseHandler();
-      expect(await running).toBe("lease-lost");
-      accept(second, "worker-b");
-      reclaimApplicable = true;
-      reclaimElapsed = now - 10_000;
-      completed = true;
-      faultEvidence = "handler ignored AbortSignal; late fence=2 output remained unaccepted and fence=3 completed";
-    } else if (caseId === "lease-lost-during-upload") {
-      const staleBytes = Buffer.from("stale upload bytes\n");
-      expect(store.complete(key, first.fence, "worker-a", () => {
-        const output = writeOutput(outputDir, first, staleBytes);
-        now += 300_001;
-        return output;
-      })).toBe(false);
-      store.sweep();
-      const second = claim("worker-b", key);
-      accept(second, "worker-b");
-      reclaimApplicable = true;
-      reclaimElapsed = now - 10_000;
-      completed = true;
-      faultEvidence = "lease expired during output callback; stale upload fenced before acceptance";
-    } else if (caseId === "crash-output-before-db-commit") {
-      expect(() => store.complete(key, first.fence, "worker-a", () => {
-        writeOutput(outputDir, first, payload);
-        throw new Error("synthetic crash before database commit");
-      })).toThrow("synthetic crash before database commit");
-      expect(store.get(key)).toMatchObject({ status: "claimed", output: null });
-      now += 300_001;
-      store.sweep();
-      const second = claim("worker-b", key);
-      accept(second, "worker-b");
-      reclaimApplicable = true;
-      reclaimElapsed = now - 10_000;
-      completed = true;
-      faultEvidence = "attempt file written, database transaction rolled back, later fence accepted";
-    } else if (caseId === "crash-db-boundary") {
-      expect(store.complete(key, first.fence, "worker-a", () => {
-        const output = writeOutput(outputDir, first, payload);
-        // Deterministically cross lease expiry after durable file creation but before the DB update.
-        now += 300_001;
-        return output;
-      })).toBe(false);
-      expect(store.get(key)).toMatchObject({ status: "claimed", output: null });
-      store.sweep();
-      const second = claim("worker-b", key);
-      accept(second, "worker-b");
-      reclaimApplicable = true;
-      reclaimElapsed = now - 10_000;
-      completed = true;
-      faultEvidence = "durable artifact preceded expired-lease DB update; stale completion rejected and newer fence accepted";
-    } else if (caseId === "retry-exhaustion") {
-      expect(store.fail(key, first.fence, "worker-a", "synthetic-retry", true)).toBe(true);
-      now += 1;
-      const second = claim("worker-b", key);
-      expect(store.fail(key, second.fence, "worker-b", "synthetic-retry", true)).toBe(true);
-      expect(store.get(key)).toMatchObject({ status: "failed", output: null, attempts: 2 });
-      faultEvidence = "retryable failure exhausted maxAttempts=2; terminal failed with no output";
+      const result = await running;
+      const accepted = await f.workerB.complete(second, payload, sha(payload));
+      reclaim = evidence;
+      observed = { handler_ignored_abort: true, abort_signal_observed: true, worker_result: result, later_worker_accepted: accepted };
+      expect(result).toBe("lease-lost"); expect(accepted).toBe(true);
+      acceptedHash = sha(payload); acceptedFence = second.fence;
     } else {
-      now += 300_001;
-      store.sweep();
-      const second = claim("worker-b", key);
-      expect(store.complete(key, first.fence, "worker-a", () => writeOutput(outputDir, first, payload))).toBe(false);
-      accept(second, "worker-b");
-      completed = true;
-      faultEvidence = "baseline rejected stale attempt after reclaim; newer fence accepted";
+      faultType = "stale_fence";
+      const first = await f.claim(f.workerA, "worker-a");
+      const renewalAt = await f.recordRenewal(f.workerA, first);
+      const { job: second, evidence } = await f.reclaimAfterPoll(key, renewalAt);
+      const staleAccepted = await f.workerA.complete(first, Buffer.from("stale"), sha(Buffer.from("stale")));
+      const newerAccepted = await f.workerB.complete(second, payload, sha(payload));
+      reclaim = evidence;
+      observed = { stale_attempt_submitted_after_reclaim: true, stale_attempt_rejected: staleAccepted === false, newer_fence_accepted: newerAccepted && second.fence > first.fence };
+      expect(staleAccepted).toBe(false); expect(newerAccepted).toBe(true);
+      acceptedHash = sha(payload); acceptedFence = second.fence;
     }
 
-    const row = store.get(key);
-    expect(row?.status).toBe(completed ? "done" : "failed");
-    const acceptedCount = row?.status === "done" ? 1 : 0;
-    expect(acceptedCount).toBe(completed ? 1 : 0);
-    expect(store.events(0).filter((event) => event.type === "completed")).toHaveLength(acceptedCount);
+    const finalRow = f.store.get(key);
+    const acceptedCount = finalRow?.status === "done" ? 1 : 0;
+    expect(acceptedCount).toBe(caseId === "retry-exhaustion" ? 0 : 1);
     if (acceptedCount) {
-      expect(row?.output).toBe(acceptedHash);
-      expect(row?.outputFile).toBeTruthy();
-      expect(sha(readFileSync(join(outputDir, row!.outputFile!))).toString()).toBe(acceptedHash);
+      expect(finalRow?.output).toBe(acceptedHash);
+      expect(finalRow?.fence).toBe(acceptedFence);
+      expect(finalRow?.outputFile).toBeTruthy();
+      expect(sha(readFileSync(join(f.outputDir, finalRow!.outputFile!)))).toBe(acceptedHash);
     }
     return {
       case_id: caseId,
       repetition,
+      source_commit: source.commit,
+      source_tree: source.tree,
       started_at: started,
       finished_at: new Date().toISOString(),
       synthetic: true,
-      fault_evidence: faultEvidence,
-      attempts,
+      fault: { type: faultType, observed },
+      attempts: f.attempts,
       accepted_output_count: acceptedCount,
       accepted_output_sha256: acceptedHash,
-      reclaim_applicable: reclaimApplicable,
-      ...(reclaimElapsed === undefined ? {} : { reclaim_elapsed_ms: reclaimElapsed, reclaim_bound_ms: 310_000 }),
+      accepted_fence: acceptedFence,
+      reclaim,
       result: "pass",
     };
   } finally {
-    store.close();
-    rmSync(dir, { recursive: true, force: true });
+    try { await f.close(); } catch {}
+    rmSync(f.dir, { recursive: true, force: true });
   }
 }
 
-it("runs each named synthetic G6 fault ten times and writes raw attempt evidence", async () => {
+it("runs each named synthetic G6 fault ten times and writes case-specific raw evidence", async () => {
   const evidencePath = process.env.G6_RESULTS;
-  if (!evidencePath) throw new Error("set G6_RESULTS to a private JSONL output path");
+  const commit = process.env.G6_SOURCE_COMMIT;
+  const tree = process.env.G6_SOURCE_TREE;
+  if (!evidencePath || !commit || !tree) throw new Error("G6_RESULTS, G6_SOURCE_COMMIT and G6_SOURCE_TREE are required");
   const rows: Evidence[] = [];
   for (const caseId of CASES) for (let repetition = 1; repetition <= repetitions; repetition++)
-    rows.push(await runCase(caseId, repetition));
-    writeFileSync(evidencePath, rows.map((row) => JSON.stringify(row)).join("\n") + "\n", { mode: 0o600 });
+    rows.push(await caseEvidence(caseId, repetition, { commit, tree }));
+  writeFileSync(evidencePath, rows.map((row) => JSON.stringify(row)).join("\n") + "\n", { mode: 0o600, flag: "wx" });
   expect(rows).toHaveLength(CASES.length * repetitions);
 });

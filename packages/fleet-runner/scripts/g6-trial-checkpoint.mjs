@@ -94,7 +94,7 @@ if (command === "begin") {
   const fence = Number(fenceText);
   if (state.status !== "armed" || !aliasPattern.test(workerAlias) || jobKey !== state.job_key || !Number.isSafeInteger(fence) || fence < 1)
     die("attempt requires the armed job key and a valid worker/fence");
-  if (state.attempts.some((item) => item.fence === fence)) die("fence already recorded; preserve the existing receipt");
+  if (fence <= state.attempts.at(-1).fence) die("fences must strictly increase; preserve the existing receipt");
   state.attempts.push({ fence, worker_alias: workerAlias, observed_at: new Date().toISOString() });
   write(path, state);
   console.log(JSON.stringify({ trial_id: state.trial_id, recorded_fence: fence }));
