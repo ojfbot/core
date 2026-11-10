@@ -16,16 +16,20 @@ BCD PR #37 is an opt-in `read-vision` worker rehearsal. Its own report says the 
 
 ## Deterministic campaign
 
-Run only with a disposable local synthetic service/state and synthetic job payloads. No NAS endpoint, production token, real job admission, or external coordinator is in scope. Use a fresh evidence file for this correlation and preserve every raw JSONL row.
+Run only with a disposable local synthetic service/state and synthetic job payloads. No NAS endpoint, production token, real job admission, or external coordinator is in scope. Use a fresh evidence file for this correlation and preserve every raw JSONL row. The runner requires Node `24.22.2`, pnpm `9.15.4`, a clean committed source tree, and an evidence path that does not already exist.
 
 From the reviewed core checkout with the pinned Node/pnpm environment active, run the 80-row deterministic harness. `G6_RESULTS` should be a new private file path; the runner replaces that one file and validates it after the campaign:
 
 ```sh
-G6_RESULTS=/private/path/g6-results.jsonl \
+G6_RESULTS=/private/path/g6-results-<source-commit>.jsonl \
   node packages/fleet-runner/scripts/g6-interruption-run.mjs
 ```
 
-The campaign uses local `JobStore` state, synthetic outputs, injected clock changes, and a localhost signed HTTP service for the dropped-completion-response case. It writes raw attempt/fence/output receipts for 80 repetitions. The deterministic sleep/partition and non-cooperative-handler cases are clocked simulations; the physical sleep and Wi-Fi trials below remain separate.
+The campaign uses local persistent SQLite state, synthetic outputs, a signed localhost HTTP service, and an injected clock. The upload-loss case holds a signed `/complete` request after part of its body has arrived, advances the model through lease expiry and a five-second eligible-worker poll, then lets the newer worker claim before the old request finishes. Both crash cases use child processes killed with `SIGKILL`: one after output-file creation and before the database update, and one after the SQL update but before transaction commit. Each case runs ten times and writes a raw JSONL attempt/fence/output receipt for all 80 runs.
+
+Each row names its source commit and tree and includes case-specific observed fault data. The runner creates a sibling `.manifest.json` that binds the JSONL digest to the exact source tree, pinned tool versions, and hashes of the campaign, checker, runner, checkpoint, gate, package documentation, lockfile, and Vitest configuration. The checker verifies those pins, row semantics, and artifact hashes. Synthetic sleep/partition and non-cooperative-handler cases remain model simulations. They do not count as physical sleep or Wi-Fi trials.
+
+For synthetic reclaim rows, the model records a successful heartbeat at `t=10,000 ms`, `L=300,000 ms`, expiry at `t=310,000 ms`, and an eligible worker poll/claim at `t=315,000 ms`. Thus the observed elapsed time from renewal is `305,000 ms` and the poll delay after expiry is `5,000 ms`, within `L+2P=310,000 ms`. These are explicitly synthetic schedule measurements; they do not claim a physical machine or external queue was observed.
 
 The existing focused tests also exercise the public signed HTTP seam and extra one-off contracts. Run those separately:
 
@@ -44,20 +48,20 @@ The harness produces exactly ten rows for each of these stable IDs:
 |---|---|---|
 | `completion-response-lost-after-commit` | Lose the first completion response after server commit; retry via normal client | request/retry counts, same attempt fence, one accepted completion, output SHA-256 |
 | `worker-sleep-or-partition` | Synthetic local partition or clocked lease expiry; label as simulated | renewal/claim timeline, worker attempt IDs and fences, accepted output SHA-256 |
-| `lease-lost-during-upload` | Let a newer fence claim while old upload is in flight | stale rejection, newer accepted fence, output SHA-256, accepted count |
-| `crash-output-before-db-commit` | Throw after durable attempt file write and before DB commit; reopen and reclaim | orphan and accepted file names, DB state, both fences, accepted SHA-256 |
-| `crash-db-boundary` | Inject DB/output durability boundary fault | transaction/event state, attempt fences, final output hash or explicit no-output terminal state |
+| `lease-lost-during-upload` | Hold a signed HTTP upload after its body starts; let the newer fence claim before the old upload finishes | request signature/body-start observations, both worker claims and increasing fences, exact `L/P` schedule, old response `false`, one accepted newer output and SHA-256 |
+| `crash-output-before-db-commit` | Child process receives `SIGKILL` after output creation and before DB update; reopen persistent SQLite and reclaim | kill signal/point, reopened claimed row with no completion event, both fences, one recovered output and SHA-256 |
+| `crash-db-boundary` | Child process receives `SIGKILL` after SQL update but before transaction commit; reopen persistent SQLite and reclaim | kill signal/point, transaction rollback to claimed row with no completion event, both fences, one recovered output and SHA-256 |
 | `retry-exhaustion` | Exhaust configured retry budget | each claim/fence, retry count, terminal status, accepted output count `0` |
-| `handler-ignores-cancellation` | Deterministic non-cooperative handler cancellation case | stop/drain deadline, lease/attempt state, whether later work was admitted, no stale accepted output |
+| `handler-ignores-cancellation` | Deterministic non-cooperative handler observes abort but remains held until a newer worker reclaims | both worker claims and increasing fences, reclaim schedule, worker reports lease lost, later worker accepts one output |
 | `stale-fence-rejection` | Stale attempt is submitted after reclaim; the baseline must reject it | stale rejection plus newer accepted fence |
 
-Each JSONL row must use `case_id`, `repetition` (1–10), ISO `started_at` and `finished_at`, `synthetic: true`, `fault_evidence`, `attempts: [{worker_id,fence}]`, `accepted_output_count` (0 or 1), `accepted_output_sha256` (64 lowercase hex or `null`), `reclaim_applicable` (boolean), `reclaim_elapsed_ms` and `reclaim_bound_ms` when applicable, and `result: "pass"`. Do not invent evidence for values a test did not observe. Check the completed file with:
+Each JSONL row uses `case_id`, `repetition` (1–10), source commit/tree, ISO `started_at` and `finished_at`, `synthetic: true`, typed `fault: {type, observed}`, ordered `attempts` with worker, fence, claim time, and lease expiry, accepted-output count/hash/fence, applicable renewal/expiry/claim schedule, and `result: "pass"`. The checker rejects `UNTESTED`, contradictory observations, missing/extra attempts, non-increasing fences, wrong output counts, and schedule values outside `L+2P`. Check the completed file and sibling manifest with:
 
 ```sh
-node packages/fleet-runner/scripts/g6-interruption-check.mjs /path/to/private/g6-results.jsonl
+node packages/fleet-runner/scripts/g6-interruption-check.mjs /path/to/private/g6-results.jsonl /path/to/private/g6-results.jsonl.manifest.json /path/to/source-checkout
 ```
 
-The checker rejects missing/duplicate repetitions, malformed attempts/fences, a missed applicable reclaim bound, missing hashes for accepted outputs, and synthetic/non-synthetic ambiguity. Its success is only the deterministic denominator; it does not assert the physical campaign passed.
+The checker rejects missing/duplicate repetitions, unsupported or contradictory case evidence, unbound source/artifacts, malformed attempts/fences, a missed applicable reclaim bound, missing hashes for accepted outputs, and synthetic/non-synthetic ambiguity. Its success is only the deterministic denominator; it does not assert the physical campaign passed.
 
 The checker contract itself has a dependency-free test:
 
@@ -135,4 +139,17 @@ Before arming, write a private checkpoint containing correlation, trial ID, sing
 
 Initial release values in the gate are `L=300 s` and `P=5 s`, so safe reclaim is bounded by `L + 2P = 310 s` after the last valid renewal when another eligible worker exists and retries remain. Preserve exact monotonic timestamps needed to assess that bound. Record the no-other-worker and exhausted-retry cases separately; they do not satisfy the conditional reclaim bound. Check that stopping HelpDesk does not alter admitted-job outcomes and FleetRunner outage does not stop HelpDesk coordination, using disposable isolated fixtures only.
 
-This package creates a procedure and checker. Until the deterministic harness emits its 80 raw repetitions and the six real OS/network receipts are attached, G6 remains unqualified. No NAS, live queue, deployment, HelpDesk write, or physical trial is run by this package.
+## Trial packet and status
+
+Use the following unique IDs exactly once each. Record the owner alias, private checkpoint path, job key, initial and subsequent fences, timestamped OS/network evidence reference, private receipt reference, and final `pass` or `invalid` status in each checkpoint. The checkpoint helper serializes trials with an active-trial lock and refuses a non-increasing fence sequence.
+
+| Trial ID | Fault | Owner alias | Private checkpoint | Receipt reference | Status |
+|---|---|---|---|---|---|
+| `lid-1` | Actual lid sleep/wake | pending | pending | pending | `UNTESTED` |
+| `lid-2` | Actual lid sleep/wake | pending | pending | pending | `UNTESTED` |
+| `lid-3` | Actual lid sleep/wake | pending | pending | pending | `UNTESTED` |
+| `wifi-1` | Actual Wi-Fi disconnect/rejoin | pending | pending | pending | `UNTESTED` |
+| `wifi-2` | Actual Wi-Fi disconnect/rejoin | pending | pending | pending | `UNTESTED` |
+| `wifi-3` | Actual Wi-Fi disconnect/rejoin | pending | pending | pending | `UNTESTED` |
+
+HelpDesk failure isolation and FleetRunner failure isolation are also `PENDING`. Until the deterministic harness emits its 80 source-bound raw repetitions and all six real OS/network receipts and both isolation results are attached, G6 remains unqualified. No NAS, live queue, deployment, HelpDesk write, or physical trial is run by this package.
