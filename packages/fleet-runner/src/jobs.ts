@@ -199,6 +199,8 @@ export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data
   mkdirSync(dir, { recursive: true });
   const file = `${job.key}.${job.fence}.${ext}`;
   const tmp = join(dir, `${file}.${process.pid}.${randomUUID()}.tmp`);
+  let failed = false;
+  let failure: unknown;
   try {
     const fd = openSync(tmp, "wx", 0o600);
     try {
@@ -209,11 +211,17 @@ export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data
     }
     linkSync(tmp, join(dir, file));
     syncDirectory(dir);
-  } finally {
-    try { unlinkSync(tmp); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  } catch (error) {
+    failed = true;
+    failure = error;
+  }
+  try { unlinkSync(tmp); } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !failed) {
+      failed = true;
+      failure = error;
     }
   }
+  if (failed) throw failure;
   return { file, sha256: createHash("sha256").update(data).digest("hex") };
 }
 
