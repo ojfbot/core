@@ -125,8 +125,8 @@ describe("fleet-runner G0 contract verifier", () => {
     writeFileSync(
       sourcePath,
       readFileSync(sourcePath, "utf8").replace(
-        "JOBS_SCHEMA_VERSION = 3",
-        "JOBS_SCHEMA_VERSION = 4",
+        "JOBS_SCHEMA_VERSION = 5",
+        "JOBS_SCHEMA_VERSION = 6",
       ),
     );
     const result = runFixture(fixture);

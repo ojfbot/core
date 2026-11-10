@@ -179,7 +179,7 @@ describe("JobStore", () => {
       { key: "old", detail: "schema-v1:done" },
       { key: "waiting", detail: "schema-v1:ready" },
     ]);
-    expect(retired.prepare("PRAGMA user_version").get()).toEqual({ user_version: 4 });
+    expect(retired.prepare("PRAGMA user_version").get()).toEqual({ user_version: 5 });
     retired.close();
     expect(store.enqueue(spec(1)).created).toBe(true);
   });
