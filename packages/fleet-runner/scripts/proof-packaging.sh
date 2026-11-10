@@ -180,7 +180,7 @@ capture_expected_exit incompatible-schema 1 "$evidence_dir/incompatible-schema.l
   "schema-incompatible" \
   docker run --rm --platform linux/amd64 --volume "$bad_schema_volume:/var/lib/fleet-runner/state" \
   --volume "$registry_volume:/run/fleet-runner/public-keys:ro" "$image_tag" serve
-schema_diagnostic_code='import assert from "node:assert/strict"; import { JobStore, JOBS_SCHEMA_VERSION } from "/app/dist/jobs.js"; assert.equal(JOBS_SCHEMA_VERSION, 4); let diagnostic = ""; try { new JobStore("/bad-schema/fleet.sqlite"); } catch (error) { diagnostic = error instanceof Error ? error.message : String(error); } assert.equal(diagnostic, "job table schema 99, expected 4"); console.log(JSON.stringify({ schemaVersion: JOBS_SCHEMA_VERSION, observedDatabaseVersion: 99, diagnostic, rejected: true }));'
+schema_diagnostic_code='import assert from "node:assert/strict"; import { JobStore, JOBS_SCHEMA_VERSION } from "/app/dist/jobs.js"; assert.equal(JOBS_SCHEMA_VERSION, 5); let diagnostic = ""; try { new JobStore("/bad-schema/fleet.sqlite"); } catch (error) { diagnostic = error instanceof Error ? error.message : String(error); } assert.equal(diagnostic, "job table schema 99, expected 5"); console.log(JSON.stringify({ schemaVersion: JOBS_SCHEMA_VERSION, observedDatabaseVersion: 99, diagnostic, rejected: true }));'
 docker run --rm --platform linux/amd64 --user node --volume "$bad_schema_volume:/bad-schema" \
   --entrypoint node "$image_tag" --input-type=module -e "$schema_diagnostic_code" \
   > "$evidence_dir/incompatible-schema-diagnostic.json" 2> "$evidence_dir/incompatible-schema-diagnostic.log"
@@ -320,7 +320,7 @@ for (const [name, command, expectedExitCode] of [["unsupported-command", unsuppo
   negative.push({ name, command, expectedExitCode, observedExitCode, outputPath: `${name}.log`, output: (await readFile(join(evidence, `${name}.log`), "utf8")).trim() });
 }
 const schemaDiagnostic = await readJson(join(evidence, "incompatible-schema-diagnostic.json"));
-if (schemaDiagnostic.diagnostic !== "job table schema 99, expected 4" || schemaDiagnostic.rejected !== true) throw new Error("incompatible database schema diagnostic mismatch");
+if (schemaDiagnostic.diagnostic !== "job table schema 99, expected 5" || schemaDiagnostic.rejected !== true) throw new Error("incompatible database schema diagnostic mismatch");
 const imageArchiveSha256 = hash(await readFile(join(evidence, "runtime-image.tar")));
 const report = {
   schemaVersion: 2,
@@ -344,7 +344,7 @@ const report = {
     archivePath: "runtime-image.tar", archiveSha256: imageArchiveSha256, loadCommand: "docker image load --input runtime-image.tar",
     manifestPath: "runtime-manifest.json", inspectPath: "runtime-image-inspect.json", buildMetadataPath: "runtime-build-metadata.json", buildLogPath: "runtime-build.log",
   },
-  negativeProbes: [...negative, { name: "incompatible-schema-diagnostic", expected: "job table schema 99, expected 4", observed: schemaDiagnostic }],
+  negativeProbes: [...negative, { name: "incompatible-schema-diagnostic", expected: "job table schema 99, expected 5", observed: schemaDiagnostic }],
   signedLifecycle: { command: probeCommand, readinessLogPath: "signed-report-readiness.log", outputVolumeMountedReadOnly: true, probeKeysOutsideService: true, observation: smoke },
   evidenceFiles: ["runtime-image.tar", "runtime-image.tar.sha256", "runtime-manifest.json", "runtime-image-inspect.json", "runtime-build-metadata.json", "runtime-build.log", "signed-report-readiness.log", "signed-lifecycle.json", "signed-lifecycle.log", "unsupported-command.log", "invalid-port.log", "incompatible-schema.log", "incompatible-schema-diagnostic.json", "incompatible-schema-diagnostic.log"],
   claimBoundary: "synthetic container packaging and job lifecycle evidence only; TLS and production/network readiness remain G3 gates",
