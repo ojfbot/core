@@ -81,59 +81,101 @@ The trial checkpoint helper also has dependency-free transition/locking tests:
 node --test packages/fleet-runner/scripts/g6-trial-checkpoint.test.mjs
 ```
 
-## Physical trials: one owner at a time
+## Physical trials: frozen BookcaseDiscovery HTTPS packet
 
-Use one designated coordinator and one worker owner per trial. Serialize the six trials. Keep output local and private; report only correlation, trial ID, time window, fault type, evidence references, attempt/fence sequence, output hash, and verdict. Do not copy OCR text, photos, tokens, private endpoints, or host identities into a public artifact.
+The physical adapter is frozen in BookcaseDiscovery commit `5a6ab63af430367e8d5f9fd4df95c55037770f55`, a clean single child of app main `ed3f01e5e7d5369beda01b5a2c1c567cec691d66`. Its companion procedure is `docs/g6-physical-proof-fixture.md` at that commit. This replaces the previously documented BCD #37 draft procedure; #37 is historical context only and is not the physical runner.
 
-### Unique trial IDs and resumable checkpoints
+| Pin | Required value |
+|---|---|
+| App main parent | `ed3f01e5e7d5369beda01b5a2c1c567cec691d66` |
+| Frozen app drill source | `5a6ab63af430367e8d5f9fd4df95c55037770f55` (clean, one parent above) |
+| App vendored FleetRunner client/worker | `dad1d204bb2e01c691aa69de3ce3f0b218f7de21` |
+| Intended refreshed NAS Core source | `78c71e9a7f085c092425fdbe99193a06c06e9e3f` |
+| Intended signed service build | `78c71e9` |
+| Intended NAS image ID | `sha256:704a311810e999f7cfc24f26a8c22a6cd8090cc63017fc66dc13706fa9865066` |
+| Application runtime | Node `24.22.2` |
+| Synthetic fixture | `fleet-runner packaging fixture v1\n`; SHA-256 `f04565eea01f62eeb7149c8609c8a901ca0af5ffb74c37a181ca0955479e7890` |
 
-Use six distinct IDs: `lid-1`, `lid-2`, `lid-3`, `wifi-1`, `wifi-2`, `wifi-3`. From one private evidence directory, the worker owner runs:
+These NAS values identify the intended candidate; they do not prove the running service has those values. Before every trial, the owner must confirm the service/image receipt using the existing approved operator channel, then run the adapter's signed HTTPS status preflight. Stop if image/source/build, TLS identity, readiness, queue state, or historical counts differ. No NAS effect was performed while preparing this procedure.
 
-```sh
-node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs begin lid-1 <private-worker-alias> "$G6_EVIDENCE_DIR/lid-1.json"
-node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs arm "$G6_EVIDENCE_DIR/lid-1.json" <job-key-from-events> <fence-from-events>
-node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs attempt "$G6_EVIDENCE_DIR/lid-1.json" <worker-alias> <job-key-from-events> <next-fence>
-node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs resume "$G6_EVIDENCE_DIR/lid-1.json"
-node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs finish "$G6_EVIDENCE_DIR/lid-1.json" pass <private-receipt-reference>
-```
+The adapter submits only a deterministic synthetic `proof-fixture` job with no inputs or payload and a random per-trial capability. Resident workers do not advertise that capability. It does not invoke OCR, use a model/GPU, read NAS filesystem paths, replace resident handlers, or copy the Yojimbo pilot authority. It requires existing local owner/worker tokens and the existing public CA; TLS certificate and hostname verification remain enabled. `FLEET_GENERATION` must be unset for this schema-4 candidate. Never copy tokens, private keys, private endpoints, or service-local paths.
 
-The checkpoint tool creates a mode-0600 file and directory-wide exclusive active-trial lock. `arm` records the first observed claim; use `attempt` for each subsequent claim/fence from `fleet-runner events --after <cursor> --json`. Do not start another trial while the lock exists. On a pause or restart, run `resume` on the same checkpoint and reconcile the server state before continuing. `finish` records `pass` or `invalid` only after evidence review, then releases the lock. A crash leaves the lock and armed checkpoint in place; do not remove it by hand until the owner reconciles the exact job/attempt.
+The preserved baseline is exactly 10 completed historical `proof-fixture` jobs and 4 completed historical `read-vision` jobs, plus one additional fixture per earlier passed trial. All other jobs must be idle with no ready, claimed, or failed work. Use the six IDs once, in this order: `lid-1`, `lid-2`, `lid-3`, `wifi-1`, `wifi-2`, `wifi-3`; the second `prepare` argument is the count of earlier passed trials (0–5). A private local `G6_EVIDENCE_DIR` must be absolute and mode `0700`; the adapter rejects relative paths, symlinks, and group/world permissions. Each trial has one exclusive `.g6-physical-active.json` lock and a mode-0600 packet. A failed or interrupted run keeps its lock and packet for owner reconciliation; do not delete or reuse them manually.
 
-The draft BCD #37 script currently uses `const drillId = "lid-close-drill"`. Before running the six trials, the BCD owner should patch that line locally to require a unique trial ID:
-
-```ts
-const trialId = process.env.FLEET_G6_TRIAL_ID;
-if (!/^(lid|wifi)-[1-3]$/.test(trialId ?? "")) throw new Error("invalid G6 trial ID");
-const drillId = `g6-${trialId}`;
-```
-
-Use the same `FLEET_G6_TRIAL_ID=lid-1` (or the matching unique Wi-Fi ID) for coordinator enqueue and worker execution. This is a precise local setup change to the draft drill; it does not import or alter the live FleetRunner app.
-
-### Three actual lid-sleep/wake trials
-
-Use the BCD #37 opt-in drill as a model for holding one real result before upload, but note that #37 is an open draft PR, not a merged core feature. Run each trial only from its owner-approved BCD setup after the operator confirms the host configuration and the job is explicitly identified as a disposable drill. The operator must confirm the lid action actually put macOS to sleep. Capture the worker's local sleep/wake log using the already available macOS tool, for example `pmset -g log | rg -i 'Entering Sleep|Wake from'`; retain timestamps covering sleep and wake. Record the armed time, close/open cue times, worker rejoin, server claim/fence sequence, stale rejection or recovery path, exactly one accepted completion, and accepted output SHA-256. If the OS evidence shows the laptop remained awake, label the trial `not-run/invalid`; never substitute worker suspension.
-
-In the BookcaseDiscovery #37 PR branch/setup, the proposed drill entry points are:
+On the owner coordinator and both designated workers, use the clean frozen app checkout and each host's existing local identity/token/trust configuration. Do not place secrets in shell history or this document. In each shell, populate the endpoint/CA/token values from that host's approved private configuration, set a new local evidence directory, and verify the source/runtime pins:
 
 ```sh
-# Coordinator, with the already approved pilot environment loaded:
-pnpm exec node scripts/fleet-lid-drill.ts enqueue "$BOOKCASE_DATA/pilot.jpg"
-
-# Worker, once per serialized trial, with its existing approved helper/credential setup:
-pnpm exec node scripts/fleet-lid-drill.ts work
+export FLEET_ENDPOINT='https://<existing-approved-nas-endpoint>/'
+export NODE_EXTRA_CA_CERTS='<existing-public-CA-certificate-path>'
+export FLEET_TOKEN_FILE='<existing-local-token-path>'
+export G6_EVIDENCE_DIR='<new-private-local-evidence-directory>'
+unset FLEET_GENERATION
+umask 077
+mkdir -p "$G6_EVIDENCE_DIR"
+chmod 700 "$G6_EVIDENCE_DIR"
+node --version                                  # require v24.22.2
+git rev-parse HEAD                              # record full frozen drill commit
+git status --porcelain=v1                       # require empty
+cat src/run/vendor/fleet-runner/core-revision.txt # require dad1d204…
 ```
 
-These commands are manual and run only from the owner-approved BCD PR setup. The coordinator and worker each remain the sole owner of their step; no concurrent trial. Do not copy the drill into FleetRunner's live app or substitute its private job input with a real user image. The published BCD #37 report is not a passing sleep receipt; it explicitly records that the lid-close left the laptop awake.
+Yuri additionally must pass the app's existing NAS eligibility policy: AC power, the existing pause/resource/helper gates, and 20:00–07:00 America/Chicago. A daytime run requires an owner-created, existing same-day exception of at most 15 minutes; the adapter reads but never creates or extends it. Battery or unknown power blocks. Yojimbo must pass its local eligibility and remote pause gate before every claim. The owner does not create or change those gates as part of this packet.
 
-The draft script hardcodes one drill request ID, so it is a one-job rehearsal as written. Before a three-trial campaign, the BCD owner must provision a fresh, unique disposable job identity and prove the expected server queue for each trial. Never enqueue over or reinterpret a completed job as a new repetition.
+### One serialized trial
 
-### Three actual Wi-Fi disconnect/rejoin trials
+Use `FLEET_ID=owner` on the coordinator, `FLEET_ID=yuri` on Yuri, and `FLEET_ID=yojimbo` on Yojimbo. The owner first rechecks the approved image/source receipt and runs the baseline preflight/admission. TLS validation and signed status/baseline checks happen before the lock is created; only after they pass does the command write the private packet and enqueue one synthetic fixture:
 
-Use the same drill owner and one active trial. The operator must physically disconnect the worker from Wi-Fi using the approved manual procedure, verify actual loss of the network route in local OS/network evidence (for example, capture `route -n get default` and `networksetup -getairportnetwork <approved-interface>` before and after), leave it disconnected across the planned lease/reclaim boundary, then manually rejoin. Retain local disconnect/rejoin timestamps plus worker/server attempt and fence sequence, stale upload/reclaim outcome, accepted output SHA-256, and exactly one accepted completion. If the route remains available or only a fetch is stubbed to fail, label it simulated/invalid, not a Wi-Fi pass.
+```sh
+node src/run/g6-physical-drill.ts prepare lid-1 0
+```
 
-### Safe checkpoints and resume
+Pass the returned `jobKey` and `capability` to Yuri and Yojimbo through the existing approved channel. They are queue selectors, not authentication credentials. On Yuri, start the one-shot worker; it can handle only the fixture and holds its deterministic output for 12 minutes:
 
-Before arming, write a private checkpoint containing correlation, trial ID, single owner, job key, current attempt/fence, evidence directory, and `armed=false`. Set `armed=true` only after confirming the disposable queue and worker. After any interruption, stop before issuing another drill; inspect server status/events and the job/output hash first. Resume only the same trial after the owner reconciles whether an attempt is still active, expired, or accepted. A completed trial is immutable; a rerun gets a new trial ID and a new denominator entry. No simultaneous physical trials.
+```sh
+export FLEET_ID=yuri
+node src/run/g6-physical-drill.ts hold lid-1 '<jobKey>' '<capability>'
+```
+
+While Yuri holds the job, the owner records the signed first claim (maximum wait 120 seconds):
+
+```sh
+export FLEET_ID=owner
+node src/run/g6-physical-drill.ts observe lid-1 yuri 120000
+```
+
+Then perform one manual interruption. For `lid-*`, verify AC power, close the lid to cause actual macOS sleep, and retain `pmset -g log` evidence covering sleep and wake. For `wifi-*`, retain before/after route and associated-network evidence, physically disconnect Wi-Fi across expiry/reclaim, and manually rejoin only after Yojimbo reports accepted completion. Do not substitute worker suspension, a fetch stub, or another simulation. Do not begin the interruption until the hold process started and the owner observed Yuri's claim.
+
+Once the physical interruption begins, Yojimbo runs the bounded reclaimer. It polls every five seconds for at most 320 seconds and remains subject to local eligibility and remote pause checks:
+
+```sh
+export FLEET_ID=yojimbo
+node src/run/g6-physical-drill.ts reclaim lid-1 '<jobKey>' '<capability>'
+```
+
+The owner records the second claim (maximum wait 320 seconds):
+
+```sh
+export FLEET_ID=owner
+node src/run/g6-physical-drill.ts observe lid-1 yojimbo 320000
+```
+
+For lid trials, open the lid after Yojimbo reports accepted completion. For Wi-Fi trials, rejoin only then. Let Yuri's bounded one-shot finish; it must report `lease-lost`, and its stale completion must be rejected. Never kill or restart the resident worker. Transfer only Yuri's and Yojimbo's local worker receipt files plus OS/network evidence references to the owner through the established approved channel; do not transfer credentials. The owner performs signed event, output, baseline, and schedule readback:
+
+```sh
+export FLEET_ID=owner
+node src/run/g6-physical-drill.ts verify lid-1
+```
+
+`verify` requires Yuri claim → lease expiry → increasing Yojimbo fence → exactly one Yojimbo completion → rejected stale Yuri completion, matching worker receipts and fixture hashes, signed accepted-output verification, preserved 10 historical proof fixtures and 4 historical read-vision outputs, and a reclaim schedule within `L=300,000 ms`, `P=5,000 ms`, `L+2P=310,000 ms` with observed renewal-request duration included as uncertainty. Compare host/server clock evidence; if clocks are not synchronized, mark invalid. Only a complete successful verification records `passed` and releases the lock.
+
+If the physical evidence or sequence is invalid, stop and reconcile the exact queue event, active lease, and local receipts before the owner marks the packet invalid. The bounded reason is required; this does not delete or rerun the job:
+
+```sh
+export FLEET_ID=owner
+node src/run/g6-physical-drill.ts finish-invalid lid-1 lid-not-slept
+```
+
+Repeat the same sequence for each remaining unique trial ID, changing only the ID and prior-passed count. A failed, invalid, or interrupted trial is immutable; reconcile it before another ID. Preserve packets, worker receipts, OS/network evidence references, timestamped attempt/fence sequence, and accepted-output SHA-256 in the private evidence directory. Public notes may include only correlation, trial ID, time window, fault type, private evidence references, fence sequence, output hash, and verdict.
 
 ## G6 bounds and limits
 
