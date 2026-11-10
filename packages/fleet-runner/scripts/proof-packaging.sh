@@ -265,7 +265,7 @@ const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const contextFiles = [
   "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json",
   "packages/fleet-runner/package.json", "packages/fleet-runner/LICENSE", "packages/fleet-runner/README.md",
-  "packages/fleet-runner/deployment.md", "packages/fleet-runner/tsconfig.json",
+  "packages/fleet-runner/deployment.md", "packages/fleet-runner/recovery.md", "packages/fleet-runner/tsconfig.json",
   "packages/fleet-runner/Dockerfile", "packages/fleet-runner/Dockerfile.dockerignore",
   "packages/fleet-runner/docker-entrypoint.mjs",
 ];
@@ -300,7 +300,7 @@ const artifacts = [];
 for (const id of ["install-first", "install-second"]) {
   const archive = join(evidence, id, "core-fleet-runner-0.1.0.tgz");
   const files = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" }).trim().split("\n").sort();
-  for (const required of ["package/package.json", "package/LICENSE", "package/README.md", "package/deployment.md"]) {
+  for (const required of ["package/package.json", "package/LICENSE", "package/README.md", "package/deployment.md", "package/recovery.md"]) {
     if (!files.includes(required)) throw new Error(`${id} artifact is missing ${required}`);
   }
   if (!files.some((file) => file.startsWith("package/dist/"))) throw new Error(`${id} artifact has no compiled files`);
@@ -370,7 +370,7 @@ if [[ "$(git rev-parse HEAD)" != "$(cat "$evidence_dir/source-revision.txt")" ]]
   || [[ -n "$(git ls-files --others --exclude-standard -- \
     package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json \
     packages/fleet-runner/src packages/fleet-runner/scripts packages/fleet-runner/package.json \
-    packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/deployment.md \
+    packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/deployment.md packages/fleet-runner/recovery.md \
     packages/fleet-runner/tsconfig.json packages/fleet-runner/Dockerfile \
     packages/fleet-runner/Dockerfile.dockerignore packages/fleet-runner/docker-entrypoint.mjs)" ]]; then
   echo "source revision or Docker build context changed during proof" >&2
