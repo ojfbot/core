@@ -7,8 +7,10 @@ import {
   existsSync,
   mkdtempSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -86,6 +88,68 @@ it("snapshots exact accepted bytes and required inputs, then restores paused und
   expect(store.workerControl("old-worker").paused).toBe(true);
   store.close();
   expect(oldClaim.fence).toBe(1);
+});
+
+it("restores a read-only bundle without changing its database", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-readonly-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite"),
+    outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  new JobStore(db).close();
+
+  const bundle = join(root, "readonly-copy");
+  createRecoveryBundle(db, outputs, undefined, bundle);
+  const bundleDb = join(bundle, "fleet.sqlite");
+  const sourceBytes = readFileSync(bundleDb);
+  chmodSync(bundleDb, 0o400);
+  for (const dir of [
+    bundle,
+    ...readdirSync(bundle, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => join(bundle, entry.name)),
+  ]) {
+    chmodSync(dir, 0o500);
+  }
+  for (const file of [
+    bundleDb,
+    join(bundle, "recovery-manifest.json"),
+    ...readdirSync(bundle, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) =>
+        readdirSync(join(bundle, entry.name)).map((name) => join(bundle, entry.name, name)),
+      ),
+  ]) {
+    chmodSync(file, 0o400);
+  }
+
+  try {
+    const restored = restoreRecoveryBundle(bundle, join(root, "restored"));
+    expect(verifyRecoveryBundle(bundle).database.sha256).toBe(
+      createHash("sha256").update(sourceBytes).digest("hex"),
+    );
+    expect(readFileSync(bundleDb)).toEqual(sourceBytes);
+    expect(statSync(bundleDb).mode & 0o777).toBe(0o400);
+
+    const restoredDb = join(root, "restored", "fleet.sqlite");
+    expect(statSync(restoredDb).mode & 0o777).toBe(0o600);
+    const store = new JobStore(restoredDb);
+    expect(store.recoveryState()).toMatchObject({ generation: restored.generation, hold: true });
+    store.close();
+  } finally {
+    for (const entry of readdirSync(bundle, { withFileTypes: true })) {
+      const path = join(bundle, entry.name);
+      if (entry.isDirectory()) {
+        for (const child of readdirSync(path)) chmodSync(join(path, child), 0o600);
+        chmodSync(path, 0o700);
+      } else {
+        chmodSync(path, 0o600);
+      }
+    }
+    chmodSync(bundle, 0o700);
+  }
 });
 
 it("fails closed on missing, corrupt, truncated and newer-schema backup material", () => {

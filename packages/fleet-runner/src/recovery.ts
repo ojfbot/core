@@ -374,6 +374,8 @@ export function restoreRecoveryBundle(
   const generation = randomUUID();
   try {
     copyFileSync(join(bundle, "fleet.sqlite"), join(stage, "fleet.sqlite"));
+    // copyFileSync preserves the bundle DB's read-only mode. Restore needs a private writable copy.
+    chmodSync(join(stage, "fleet.sqlite"), 0o600);
     copyFileSync(join(bundle, "recovery-manifest.json"), join(stage, "recovery-manifest.json"));
     chmodSync(join(stage, "recovery-manifest.json"), 0o600);
     for (const [kind, entries] of [
