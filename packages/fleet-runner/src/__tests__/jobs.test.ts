@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import type * as SQLite from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { JOBS_SCHEMA_VERSION, JobError, JobStore, canonicalJson, jobKey, runWorker, writeOutput } from "../jobs.js";
+import { JOBS_SCHEMA_VERSION, JobError, JobStore, canonicalJson, jobKey, runWorker, syncOutput, writeOutput } from "../jobs.js";
 import type { JobHandler, JobOutput, JobSpec } from "../jobs.js";
 
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
@@ -51,6 +51,43 @@ describe("writeOutput cleanup", () => {
       fileSystem.unlinkSync = originalUnlink;
       syncBuiltinESMExports();
     }
+  });
+
+  it("preserves fsync errors when descriptor close also fails", () => {
+    const originalFsync = fileSystem.fsyncSync;
+    const originalClose = fileSystem.closeSync;
+
+    const expectPrimaryFsyncError = (shouldFail: (fd: number) => boolean, run: () => unknown) => {
+      const failedFds = new Set<number>();
+      fileSystem.fsyncSync = ((fd: number) => {
+        if (shouldFail(fd)) {
+          failedFds.add(fd);
+          throw Object.assign(new Error("synthetic fsync failure"), { code: "EIO" });
+        }
+        return originalFsync(fd);
+      }) as typeof fileSystem.fsyncSync;
+      fileSystem.closeSync = ((fd: number) => {
+        const result = originalClose(fd);
+        if (failedFds.has(fd)) {
+          throw Object.assign(new Error("synthetic close failure"), { code: "EBADF" });
+        }
+        return result;
+      }) as typeof fileSystem.closeSync;
+      syncBuiltinESMExports();
+      try {
+        expect(run).toThrow(expect.objectContaining({ code: "EIO", message: "synthetic fsync failure" }));
+      } finally {
+        fileSystem.fsyncSync = originalFsync;
+        fileSystem.closeSync = originalClose;
+        syncBuiltinESMExports();
+      }
+    };
+
+    const isDirectory = (fd: number) => fileSystem.fstatSync(fd).isDirectory();
+    expectPrimaryFsyncError((fd) => !isDirectory(fd), () => writeOutput(dir, { key: "b".repeat(64), fence: 1 }, "data"));
+    expectPrimaryFsyncError(isDirectory, () => writeOutput(dir, { key: "c".repeat(64), fence: 1 }, "data"));
+    const output = writeOutput(dir, { key: "d".repeat(64), fence: 1 }, "data");
+    expectPrimaryFsyncError((fd) => !isDirectory(fd), () => syncOutput(dir, output.file));
   });
 });
 
