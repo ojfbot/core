@@ -7,7 +7,7 @@ WORKDIR /workspace
 
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY packages/fleet-runner/package.json packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/deployment.md packages/fleet-runner/tsconfig.json ./packages/fleet-runner/
+COPY packages/fleet-runner/package.json packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/deployment.md packages/fleet-runner/recovery.md packages/fleet-runner/tsconfig.json ./packages/fleet-runner/
 COPY packages/fleet-runner/src/ ./packages/fleet-runner/src/
 COPY packages/fleet-runner/scripts/ ./packages/fleet-runner/scripts/
 

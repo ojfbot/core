@@ -198,7 +198,7 @@ it("migrates v3 without losing records and blocks a pre-upgrade open writer from
       .run(key),
   ).toThrow("worker claims paused");
   expect(current.get(key)!.status).toBe("ready");
-  expect(old.prepare("PRAGMA user_version").get()).toEqual({ user_version: 4 });
+  expect(old.prepare("PRAGMA user_version").get()).toEqual({ user_version: 5 });
   current.close();
   old.close();
 });

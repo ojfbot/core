@@ -19,7 +19,7 @@ import type { RequestNonce } from "./auth.js";
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 
-export const JOBS_SCHEMA_VERSION = 4;
+export const JOBS_SCHEMA_VERSION = 5;
 
 const SCHEMA = `
 CREATE TABLE jobs (
@@ -345,19 +345,25 @@ export class JobStore {
         this.#db.exec(MIGRATE_2_TO_3);
       } else if (version === 2) {
         this.#db.exec(MIGRATE_2_TO_3);
-      } else if (version === 3) {
+      } else if (version === 3 || version === 4) {
         // Status/control tables are introduced atomically below.
       } else {
         throw new Error(`job table schema ${version}, expected ${JOBS_SCHEMA_VERSION}`);
       }
     this.#db.exec(`CREATE TABLE IF NOT EXISTS fleet_status_meta (id INTEGER PRIMARY KEY CHECK(id=1), starts INTEGER NOT NULL, revision INTEGER NOT NULL, salt TEXT NOT NULL, tracked_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS fleet_presence (worker TEXT PRIMARY KEY, seen_at INTEGER NOT NULL, data TEXT NOT NULL);
-      CREATE TABLE IF NOT EXISTS fleet_controls (worker TEXT PRIMARY KEY, paused INTEGER NOT NULL, revision INTEGER NOT NULL, intent TEXT NOT NULL);`);
+      CREATE TABLE IF NOT EXISTS fleet_controls (worker TEXT PRIMARY KEY, paused INTEGER NOT NULL, revision INTEGER NOT NULL, intent TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS fleet_recovery (id INTEGER PRIMARY KEY CHECK(id=1), generation TEXT NOT NULL, hold INTEGER NOT NULL CHECK(hold IN (0,1)), recovery_point TEXT NOT NULL);`);
+    this.#db.prepare("INSERT OR IGNORE INTO fleet_recovery VALUES (1,'legacy',0,'')").run();
     this.#db.prepare("INSERT OR IGNORE INTO fleet_status_meta VALUES (1,0,0,?,?)").run(randomUUID(), this.#now());
     this.#db.exec(`CREATE TRIGGER IF NOT EXISTS jobs_paused_claim BEFORE UPDATE ON jobs
       WHEN NEW.status='claimed' AND (OLD.status!='claimed' OR NEW.fence!=OLD.fence)
       AND EXISTS (SELECT 1 FROM fleet_controls WHERE worker=NEW.worker AND paused=1)
       BEGIN SELECT RAISE(ABORT,'worker claims paused'); END;`);
+      this.#db.exec(`CREATE TRIGGER IF NOT EXISTS jobs_recovery_hold_claim BEFORE UPDATE ON jobs
+      WHEN NEW.status='claimed' AND (OLD.status!='claimed' OR NEW.fence!=OLD.fence)
+      AND EXISTS (SELECT 1 FROM fleet_recovery WHERE id=1 AND hold=1)
+      BEGIN SELECT RAISE(ABORT,'fleet recovery hold is active'); END;`);
       this.#db.exec(`PRAGMA user_version = ${JOBS_SCHEMA_VERSION}`);
     });
 
@@ -419,7 +425,7 @@ export class JobStore {
     const have = new Set(caps);
     const handled = kinds ? new Set(kinds) : undefined;
     return this.#tx(() => {
-      if (this.workerControl(worker).paused) return undefined;
+      if (this.isRecoveryHeld() || this.workerControl(worker).paused) return undefined;
       this.#sweep();
       const rows = this.#db
         .prepare("SELECT key, kind, inputs, params, code, payload, requires, fence FROM jobs WHERE status = 'ready' ORDER BY priority DESC, created, key")
@@ -554,11 +560,52 @@ export class JobStore {
 
   workerControl(worker: string): WorkerControl {
     const row = this.#db.prepare("SELECT paused, revision, intent FROM fleet_controls WHERE worker=?").get(worker) as { paused: number; revision: number; intent: WorkerControl["intent"] } | undefined;
-    return row ? { ...row, paused: !!row.paused } : { paused: false, revision: 0, intent: "resume" };
+    const recovery = this.recoveryState();
+    const held = recovery.hold;
+    const restoredPauseRequired = recovery.generation !== "legacy" && !row;
+    return row
+      ? { ...row, paused: !!row.paused || held, revision: row.revision + (held ? 1 : 0), intent: held ? "pause" : row.intent }
+      : { paused: held || restoredPauseRequired, revision: held || restoredPauseRequired ? 1 : 0, intent: held || restoredPauseRequired ? "pause" : "resume" };
+  }
+
+  recoveryState(): { generation: string; hold: boolean; recoveryPoint: string } {
+    const row = this.#db.prepare("SELECT generation, hold, recovery_point AS recoveryPoint FROM fleet_recovery WHERE id=1").get() as { generation: string; hold: number; recoveryPoint: string };
+    return { ...row, hold: row.hold === 1 };
+  }
+
+  isRecoveryHeld(): boolean {
+    return (this.#db.prepare("SELECT hold FROM fleet_recovery WHERE id=1").get() as { hold: number }).hold === 1;
+  }
+
+  /** A restored service starts paused. No worker control route can clear this hold. */
+  establishRecoveryHold(generation: string, recoveryPoint: string): void {
+    this.#tx(() => {
+      this.#db.prepare("UPDATE fleet_recovery SET generation=?, hold=1, recovery_point=? WHERE id=1").run(generation, recoveryPoint);
+      const claimed = this.#db.prepare("SELECT key,worker,fence FROM jobs WHERE status='claimed'").all() as { key:string; worker:string|null; fence:number }[];
+      for (const row of claimed) this.#event(row.key,"retired",row.worker,row.fence,`restore:${generation}`);
+      this.#db.prepare("UPDATE jobs SET status='ready', worker=NULL, lease_expires=NULL, updated=?, rev=rev+1 WHERE status='claimed'").run(this.#now());
+      this.#db.prepare("UPDATE fleet_controls SET paused=1, revision=revision+1, intent='pause'").run();
+    });
+  }
+
+  releaseRecoveryHold(generation: string, recoveryPoint: string): boolean {
+    return this.#tx(() => {
+      const state = this.recoveryState();
+      if (!state.hold || state.generation !== generation || state.recoveryPoint !== recoveryPoint) return false;
+      this.#db.prepare("UPDATE fleet_recovery SET hold=0 WHERE id=1").run();
+      this.#db.prepare("UPDATE fleet_status_meta SET revision=revision+1 WHERE id=1").run();
+      return true;
+    });
   }
 
   controlWorker(worker: string, intent: WorkerControl["intent"]): WorkerControl {
     return this.#tx(() => {
+      if (intent === "resume" && this.isRecoveryHeld()) {
+        this.#db.prepare("INSERT INTO fleet_controls VALUES (?,?,1,?) ON CONFLICT(worker) DO UPDATE SET paused=1, revision=fleet_controls.revision+1, intent='pause'")
+          .run(worker, 1, "pause");
+        this.#db.prepare("UPDATE fleet_status_meta SET revision=revision+1 WHERE id=1").run();
+        return this.workerControl(worker);
+      }
       this.#db.prepare("INSERT INTO fleet_controls VALUES (?,?,1,?) ON CONFLICT(worker) DO UPDATE SET paused=excluded.paused, revision=fleet_controls.revision+1, intent=excluded.intent")
         .run(worker, intent === "resume" ? 0 : 1, intent);
       this.#db.prepare("UPDATE fleet_status_meta SET revision=revision+1 WHERE id=1").run();

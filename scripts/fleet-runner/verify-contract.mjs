@@ -280,8 +280,8 @@ function verifyContract({ root, clientRepo }) {
   assert.equal(baselineSchema, 2, "the approved pilot baseline uses SQLite schema 2");
   assert.equal(
     candidateSchema,
-    4,
-    "the reviewed candidate must include durable nonce and G5 status/control migrations",
+    5,
+    "the reviewed candidate must include durable nonce, G5 status/control, and G7 restore fencing migrations",
   );
 
   const actualTools = {

@@ -8,7 +8,8 @@
     "dist",
     "LICENSE",
     "README.md",
-    "deployment.md"
+    "deployment.md",
+    "recovery.md"
   ],
   "engines": {
     "node": ">=24.22.2"
@@ -19,7 +20,8 @@
     "./client": "./dist/client.js",
     "./worker": "./dist/worker.js",
     "./status": "./dist/status.js",
-    "./presence": "./dist/presence.js"
+    "./presence": "./dist/presence.js",
+    "./recovery": "./dist/recovery.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

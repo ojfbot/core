@@ -22,6 +22,7 @@ import { errorCode } from "./diagnostics.js";
 import { generateToken } from "./auth.js";
 import { JobStore } from "./jobs.js";
 import { fleetServer } from "./server.js";
+import { createRecoveryBundle, restoreRecoveryBundle, verifyRecoveryBundle } from "./recovery.js";
 
 function isLocalLan(address: string): boolean {
   if (!isIPv4(address)) return false;
@@ -39,7 +40,7 @@ async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
   if (command === "--help" || command === "help") {
     console.log(
-      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | status|workers|events|logs|doctor [--json] | console [--port PORT] | control WORKER pause|drain|resume",
+      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | backup DB OUTPUT_DIR INPUT_DIR|- NEW_DEST | verify-backup BUNDLE | restore BUNDLE NEW_STATE_DIR | status|workers|events|logs|doctor [--json] | console [--port PORT] | control WORKER pause|drain|resume",
     );
     return;
   }
@@ -47,13 +48,75 @@ async function main(args: string[]): Promise<void> {
     generateToken(values[0]!);
     return;
   }
+  if (command === "backup" && values.length === 4) {
+    const manifest = createRecoveryBundle(
+      values[0]!,
+      values[1]!,
+      values[2] === "-" ? undefined : values[2]!,
+      values[3]!,
+    );
+    console.log(
+      JSON.stringify({
+        verified: true,
+        capturedAt: manifest.capturedAt,
+        recoveryPoint: manifest.recoveryPoint,
+        manifest: join(values[3]!, "recovery-manifest.json"),
+      }),
+    );
+    return;
+  }
+  if (command === "verify-backup" && values.length === 1) {
+    const manifest = verifyRecoveryBundle(values[0]!);
+    console.log(
+      JSON.stringify({
+        verified: true,
+        capturedAt: manifest.capturedAt,
+        recoveryPoint: manifest.recoveryPoint,
+      }),
+    );
+    return;
+  }
+  if (command === "restore" && values.length === 2) {
+    const restored = restoreRecoveryBundle(values[0]!, values[1]!);
+    console.log(
+      JSON.stringify({
+        restored: true,
+        paused: true,
+        generation: restored.generation,
+        recoveryPoint: restored.recoveryPoint,
+        holdToken: restored.holdToken,
+        setFLEET_GENERATION: restored.generation,
+      }),
+    );
+    return;
+  }
   if (
-    ["status", "workers", "events", "logs", "doctor", "console", "control"].includes(command ?? "")
+    [
+      "status",
+      "workers",
+      "events",
+      "logs",
+      "doctor",
+      "console",
+      "control",
+      "release-recovery",
+    ].includes(command ?? "")
   ) {
     const endpoint = process.env.FLEET_ENDPOINT,
       token = process.env.FLEET_TOKEN_FILE;
     if (!endpoint || !token) throw Error("missing-configuration");
-    const client = fleetClient(endpoint, process.env.FLEET_ID ?? "observer", token);
+    const client = fleetClient(
+      endpoint,
+      process.env.FLEET_ID ?? "observer",
+      token,
+      process.env.FLEET_GENERATION,
+    );
+    if (command === "release-recovery") {
+      if (values.length !== 1 || process.env.FLEET_ID !== "owner")
+        throw Error("invalid-recovery-release");
+      console.log(JSON.stringify(await client.releaseRecoveryHold(values[0]!)));
+      return;
+    }
     if (command === "console") {
       const port = values.length === 0 ? 0 : Number(values[1]);
       if (
