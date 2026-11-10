@@ -190,6 +190,29 @@ export function jobKey(spec: Pick<JobSpec, "kind" | "inputs"> & Partial<JobSpec>
   return createHash("sha256").update(canonicalJson(basis)).digest("hex");
 }
 
+/** Preserve the operation error if closing its descriptor also fails. */
+function withClosedDescriptor<T>(fd: number, operation: () => T): T {
+  let failed = false;
+  let failure: unknown;
+  let result!: T;
+  try {
+    result = operation();
+  } catch (error) {
+    failed = true;
+    failure = error;
+  }
+  try {
+    closeSync(fd);
+  } catch (error) {
+    if (!failed) {
+      failed = true;
+      failure = error;
+    }
+  }
+  if (failed) throw failure;
+  return result;
+}
+
 /**
  * Write one attempt's output to `<dir>/<key>.<fence>.<ext>`. The file is complete before it appears (written
  * to a temporary file, then hard-linked into place) and is never overwritten: linking fails if the name
@@ -203,12 +226,10 @@ export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data
   let failure: unknown;
   try {
     const fd = openSync(tmp, "wx", 0o600);
-    try {
+    withClosedDescriptor(fd, () => {
       writeFileSync(fd, data);
       fsyncSync(fd);
-    } finally {
-      closeSync(fd);
-    }
+    });
     linkSync(tmp, join(dir, file));
     syncDirectory(dir);
   } catch (error) {
@@ -227,13 +248,13 @@ export function writeOutput(dir: string, job: Pick<Claim, "key" | "fence">, data
 
 function syncDirectory(dir: string): void {
   const fd = openSync(dir, "r");
-  try { fsyncSync(fd); } finally { closeSync(fd); }
+  withClosedDescriptor(fd, () => fsyncSync(fd));
 }
 
 /** A retry may find an orphan from an interrupted completion; make it durable before commit. */
 export function syncOutput(dir: string, file: string): void {
   const fd = openSync(join(dir, file), "r");
-  try { fsyncSync(fd); } finally { closeSync(fd); }
+  withClosedDescriptor(fd, () => fsyncSync(fd));
   syncDirectory(dir);
 }
 
