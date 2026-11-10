@@ -4,14 +4,15 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createRequire } from "node:module";
+import { createRequire, syncBuiltinESMExports } from "node:module";
 import type * as SQLite from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { JobError, JobStore, canonicalJson, jobKey, runWorker, writeOutput } from "../jobs.js";
+import { JOBS_SCHEMA_VERSION, JobError, JobStore, canonicalJson, jobKey, runWorker, writeOutput } from "../jobs.js";
 import type { JobHandler, JobOutput, JobSpec } from "../jobs.js";
 
 // Vite 5 does not recognize the node:sqlite builtin. Load it through Node.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
+const fileSystem = createRequire(import.meta.url)("node:fs") as typeof import("node:fs");
 
 const LEASE = 60_000;
 let dir: string;
@@ -28,6 +29,29 @@ const spec = (n: number, extra: Partial<JobSpec> = {}): JobSpec => ({
   code: "c1",
   payload: { n },
   ...extra,
+});
+
+describe("writeOutput cleanup", () => {
+  it("preserves the output-link error if temporary-file cleanup also fails", () => {
+    const key = "a".repeat(64);
+    writeFileSync(join(dir, `${key}.1.jsonl`), "already exists");
+    const originalUnlink = fileSystem.unlinkSync;
+    fileSystem.unlinkSync = ((path: string | Buffer | URL) => {
+      if (String(path).endsWith(".tmp")) {
+        throw Object.assign(new Error("synthetic cleanup failure"), { code: "EACCES" });
+      }
+      return originalUnlink(path);
+    }) as typeof fileSystem.unlinkSync;
+    syncBuiltinESMExports();
+    try {
+      expect(() => writeOutput(dir, { key, fence: 1 }, "new output")).toThrow(
+        expect.objectContaining({ code: "EEXIST" }),
+      );
+    } finally {
+      fileSystem.unlinkSync = originalUnlink;
+      syncBuiltinESMExports();
+    }
+  });
 });
 
 beforeEach(() => {
@@ -53,6 +77,17 @@ describe("job key", () => {
 });
 
 describe("JobStore", () => {
+  it("rejects a future database schema using the current schema version", () => {
+    const file = join(dir, "future-schema.sqlite");
+    const future = new DatabaseSync(file);
+    future.exec("PRAGMA user_version = 99");
+    future.close();
+
+    expect(() => new JobStore(file)).toThrow(
+      `job table schema 99, expected ${JOBS_SCHEMA_VERSION}`,
+    );
+  });
+
   it("admits a key once", () => {
     expect(store.enqueue(spec(1)).created).toBe(true);
     expect(store.enqueue(spec(1)).created).toBe(false);

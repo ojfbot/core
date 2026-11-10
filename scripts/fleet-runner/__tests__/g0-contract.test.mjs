@@ -101,7 +101,7 @@ describe("fleet-runner G0 contract verifier", () => {
       actualTools: { node: "24.22.2", pnpm: "9.15.4", typescript: "5.9.3", vitest: "2.1.9" },
       coreBaseline: { commit: "973dcfdfc43129353b0ec37fc1a27fcbe97a2f85", sqliteSchema: 2 },
       clientBaseline: { commit: "ff321c6963aa77d10990d71bbf7a7607e887f910" },
-      candidate: { sqliteSchema: 3 },
+      candidate: { sqliteSchema: 4 },
       requiredCaseMappingsChecked: 20,
       gateDefinitionsChecked: 9,
       laterGateExecutionChecked: false,
@@ -125,8 +125,8 @@ describe("fleet-runner G0 contract verifier", () => {
     writeFileSync(
       sourcePath,
       readFileSync(sourcePath, "utf8").replace(
-        "JOBS_SCHEMA_VERSION = 3",
         "JOBS_SCHEMA_VERSION = 4",
+        "JOBS_SCHEMA_VERSION = 5",
       ),
     );
     const result = runFixture(fixture);
@@ -134,6 +134,16 @@ describe("fleet-runner G0 contract verifier", () => {
     expect(result.stderr).toContain(
       "packages/fleet-runner/src/jobs.ts differs from its committed HEAD blob",
     );
+  });
+
+  it("pins the native G2 schema mismatch probe to the reviewed v4 candidate", () => {
+    const proof = readFileSync(
+      path.join(ROOT, "packages/fleet-runner/scripts/proof-packaging.sh"),
+      "utf8",
+    );
+    expect(proof).toContain("assert.equal(JOBS_SCHEMA_VERSION, 4)");
+    expect(proof).toContain("job table schema 99, expected 4");
+    expect(proof).not.toContain("job table schema 99, expected 3");
   });
 
   it("rejects a committed source-pin substitution", () => {
