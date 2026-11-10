@@ -6,8 +6,9 @@ if (!output || process.argv.length !== 2) {
   console.error("usage: G6_RESULTS=/private/path/results.jsonl node packages/fleet-runner/scripts/g6-interruption-run.mjs");
   process.exit(2);
 }
-const testPath = "packages/fleet-runner/src/__tests__/g6-interruption-campaign.test.ts";
-const run = spawnSync("pnpm", ["exec", "vitest", "run", testPath], {
+const testPath = "packages/fleet-runner/scripts/g6-interruption-campaign.test.ts";
+const config = "packages/fleet-runner/scripts/vitest.g6.config.ts";
+const run = spawnSync("pnpm", ["exec", "vitest", "run", "--config", config, testPath], {
   env: process.env,
   stdio: "inherit",
 });

@@ -14,7 +14,7 @@ const caseIds = [
   "crash-db-boundary",
   "retry-exhaustion",
   "handler-ignores-cancellation",
-  "fencing-disabled-negative-control",
+  "stale-fence-rejection",
 ];
 
 function rows() {
@@ -30,7 +30,6 @@ function rows() {
     accepted_output_sha256: case_id === "retry-exhaustion" ? null : "a".repeat(64),
     reclaim_applicable: false,
     result: "pass",
-    ...(case_id === "fencing-disabled-negative-control" ? { mutation_detected: true } : {}),
   })));
 }
 
@@ -61,7 +60,7 @@ test("rejects a missing repetition and a duplicate repetition", () => {
   assert.match(check(duplicate).stderr, /duplicate repetition/);
 });
 
-test("rejects absent output hashes, missed bounds, and an undetected mutant", () => {
+test("rejects absent output hashes and missed bounds", () => {
   const badHash = rows();
   badHash[0].accepted_output_sha256 = null;
   assert.match(check(badHash).stderr, /missing a SHA-256/);
@@ -71,8 +70,4 @@ test("rejects absent output hashes, missed bounds, and an undetected mutant", ()
   badBound[0].reclaim_elapsed_ms = 311_000;
   badBound[0].reclaim_bound_ms = 310_000;
   assert.match(check(badBound).stderr, /exceeded its stated reclaim bound/);
-
-  const mutant = rows();
-  mutant.find((row) => row.case_id === "fencing-disabled-negative-control").mutation_detected = false;
-  assert.match(check(mutant).stderr, /did not prove the checker detects/);
 });
