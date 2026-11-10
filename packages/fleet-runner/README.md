@@ -7,3 +7,6 @@ Workers install this library and provide their own job handlers.
 
 See [deployment and worker setup](./deployment.md) for the container service,
 the portable package artifact flow, and the clean-build proof command.
+
+See [backup and restore](./recovery.md) for the isolated G7 recovery commands,
+generation fencing, persisted restore hold, and qualification boundary.

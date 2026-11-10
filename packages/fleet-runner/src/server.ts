@@ -128,7 +128,20 @@ export function fleetServer(
       const bytes = await readBody(req, limit);
       const id = authenticate(req.headers.authorization, method, target, bytes);
       if (!id) throw new RequestError(401);
-      const projected = status.handle(id, method, url, bytes);
+      const recovery = store.recoveryState();
+      const suppliedGeneration = url.searchParams.getAll("generation");
+      if (
+        recovery.generation !== "legacy" &&
+        (suppliedGeneration.length !== 1 ||
+          suppliedGeneration[0] !== recovery.generation ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+            suppliedGeneration[0],
+          ))
+      )
+        throw new RequestError(401);
+      const statusUrl = new URL(url);
+      statusUrl.searchParams.delete("generation");
+      const projected = status.handle(id, method, statusUrl, bytes);
       if (projected) return reply(res, projected.status, projected.body);
       if (status.isObserver(id)) throw new RequestError(403);
 
@@ -190,6 +203,13 @@ export function fleetServer(
         throw new RequestError(400);
       }
       requireValid(isObject(body));
+      if (route === "POST /recovery/release") {
+        if (id !== "owner") throw new RequestError(403);
+        requireValid(typeof body.generation === "string" && typeof body.recoveryPoint === "string");
+        return reply(res, 200, {
+          released: store.releaseRecoveryHold(body.generation, body.recoveryPoint),
+        });
+      }
       if (route === "POST /enqueue") {
         const job = spec(body);
         if (options.inputDir) {

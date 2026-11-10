@@ -46,6 +46,7 @@ export function statusRoutes(
         reasons.push(`verifier-${id}-unavailable`);
       }
     }
+    if (store.isRecoveryHeld()) reasons.push("recovery-hold");
     const build =
       options.build && /^[a-f0-9]{7,40}$/.test(options.build) ? options.build : "unknown";
     return store.statusSnapshot(instance, workers, reasons, build);
