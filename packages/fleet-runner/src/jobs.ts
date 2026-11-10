@@ -539,8 +539,12 @@ export class JobStore {
 
   workerControl(worker: string): WorkerControl {
     const row = this.#db.prepare("SELECT paused, revision, intent FROM fleet_controls WHERE worker=?").get(worker) as { paused: number; revision: number; intent: WorkerControl["intent"] } | undefined;
-    const held = this.isRecoveryHeld();
-    return row ? { ...row, paused: !!row.paused || held, revision: row.revision + (held ? 1 : 0), intent: held ? "pause" : row.intent } : { paused: held, revision: held ? 1 : 0, intent: held ? "pause" : "resume" };
+    const recovery = this.recoveryState();
+    const held = recovery.hold;
+    const restoredPauseRequired = recovery.generation !== "legacy" && !row;
+    return row
+      ? { ...row, paused: !!row.paused || held, revision: row.revision + (held ? 1 : 0), intent: held ? "pause" : row.intent }
+      : { paused: held || restoredPauseRequired, revision: held || restoredPauseRequired ? 1 : 0, intent: held || restoredPauseRequired ? "pause" : "resume" };
   }
 
   recoveryState(): { generation: string; hold: boolean; recoveryPoint: string } {

@@ -2,7 +2,16 @@ import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import type * as SQLite from "node:sqlite";
-import { chmodSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -146,6 +155,139 @@ it("rejects a missing or corrupt accepted result before publishing a restore", (
   chmodSync(join(corrupt, "outputs", result.file), 0o600);
   writeFileSync(join(corrupt, "outputs", result.file), "changed synthetic result");
   expect(() => verifyRecoveryBundle(corrupt)).toThrow("recovery-output-hash-mismatch");
+});
+
+it("rejects duplicate accepted-result entries instead of treating one file as two results", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-duplicate-results-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite");
+  const outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  const store = new JobStore(db);
+  for (const index of [1, 2]) {
+    const { key } = store.enqueue({
+      kind: "synthetic",
+      inputs: [],
+      params: { index },
+      payload: null,
+    });
+    const claim = store.claim("worker", [], ["synthetic"])!;
+    const result = writeOutput(outputs, claim, `result-${index}`);
+    expect(store.complete(key, claim.fence, "worker", result)).toBe(true);
+  }
+  store.close();
+
+  const bundle = join(root, "duplicate-backup");
+  createRecoveryBundle(db, outputs, undefined, bundle);
+  const manifest = JSON.parse(readFileSync(join(bundle, "recovery-manifest.json"), "utf8"));
+  manifest.outputs = [manifest.outputs[0], manifest.outputs[0]];
+  writeFileSync(join(bundle, "recovery-manifest.json"), JSON.stringify(manifest));
+  expect(() => verifyRecoveryBundle(bundle)).toThrow("recovery-output-set-mismatch");
+  const target = join(root, "must-not-publish");
+  expect(() => restoreRecoveryBundle(bundle, target)).toThrow("recovery-output-set-mismatch");
+  expect(existsSync(target)).toBe(false);
+});
+
+it("rejects symlink aliases and restore destinations nested inside source paths", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-paths-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite");
+  const outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  new JobStore(db).close();
+
+  const alias = join(root, "outputs-alias");
+  symlinkSync(outputs, alias, "dir");
+  expect(() => createRecoveryBundle(db, outputs, undefined, join(alias, "backup"))).toThrow(
+    "recovery-destination-not-independent",
+  );
+  expect(existsSync(join(outputs, "backup"))).toBe(false);
+
+  const bundle = join(root, "independent-backup");
+  createRecoveryBundle(db, outputs, undefined, bundle);
+  expect(() => restoreRecoveryBundle(bundle, join(bundle, "restored-state"))).toThrow(
+    "restore-destination-not-independent",
+  );
+  const bundleAlias = join(root, "backup-alias");
+  symlinkSync(bundle, bundleAlias, "dir");
+  expect(() => restoreRecoveryBundle(bundle, join(bundleAlias, "restored-through-alias"))).toThrow(
+    "restore-destination-not-independent",
+  );
+  expect(verifyRecoveryBundle(bundle).format).toBe("fleet-runner-recovery-v1");
+});
+
+it("requires an explicit resume after hold release for workers without saved controls", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-worker-pause-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite");
+  const outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  const source = new JobStore(db);
+  source.enqueue({ kind: "synthetic", inputs: [], payload: null });
+  source.close();
+  const bundle = join(root, "backup");
+  createRecoveryBundle(db, outputs, undefined, bundle);
+  const target = join(root, "restored");
+  const restored = restoreRecoveryBundle(bundle, target);
+  const store = new JobStore(join(target, "fleet.sqlite"));
+  const worker = "configured-but-no-control-row";
+  expect(store.workerControl(worker)).toMatchObject({ paused: true });
+  expect(store.releaseRecoveryHold(restored.generation, restored.holdToken)).toBe(true);
+  expect(store.workerControl(worker)).toMatchObject({ paused: true });
+  expect(store.claim(worker, [], ["synthetic"])).toBeUndefined();
+  expect(store.controlWorker(worker, "resume")).toMatchObject({ paused: false });
+  expect(store.claim(worker, [], ["synthetic"])).toBeDefined();
+  store.close();
+});
+
+it("timestamps freshness from snapshot start even when copying takes longer", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-snapshot-time-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite");
+  const outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  new JobStore(db).close();
+  const timestamps = ["2026-11-10T18:00:00.000Z", "2026-11-10T18:17:00.000Z"];
+  const manifest = createRecoveryBundle(db, outputs, undefined, join(root, "backup"), {
+    now: () => new Date(timestamps.shift()!),
+  });
+  expect(manifest.capturedAt).toBe("2026-11-10T18:00:00.000Z");
+  expect(manifest.copyCompletedAt).toBe("2026-11-10T18:17:00.000Z");
+  expect(Date.parse(manifest.copyCompletedAt) - Date.parse(manifest.capturedAt)).toBe(17 * 60_000);
+});
+
+it("checks exact bundle directory contents and derives recovery-point metadata from SQLite", () => {
+  const root = mkdtempSync(join(tmpdir(), "fleet-recovery-metadata-"));
+  dirs.push(root);
+  const live = join(root, "live");
+  mkdirSync(live);
+  const db = join(live, "queue.sqlite");
+  const outputs = join(live, "outputs");
+  mkdirSync(outputs);
+  const source = new JobStore(db);
+  source.enqueue({ kind: "synthetic", inputs: [], payload: null });
+  source.close();
+
+  const extra = join(root, "extra-material");
+  createRecoveryBundle(db, outputs, undefined, extra);
+  mkdirSync(join(extra, "outputs"));
+  writeFileSync(join(extra, "outputs", "orphan.jsonl"), "unreferenced");
+  expect(() => verifyRecoveryBundle(extra)).toThrow("recovery-directory-contents-mismatch");
+
+  const forged = join(root, "forged-point");
+  createRecoveryBundle(db, outputs, undefined, forged);
+  const manifest = JSON.parse(readFileSync(join(forged, "recovery-manifest.json"), "utf8"));
+  manifest.recoveryPoint = { eventCursor: 0, jobs: 999, acceptedResults: 999 };
+  writeFileSync(join(forged, "recovery-manifest.json"), JSON.stringify(manifest));
+  expect(() => verifyRecoveryBundle(forged)).toThrow("recovery-point-mismatch");
 });
 
 it("rejects pre-restore signed traffic and old claimed attempts at the HTTP seam", async () => {

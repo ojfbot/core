@@ -7,6 +7,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   renameSync,
   rmSync,
@@ -14,7 +15,7 @@ import {
   fsyncSync,
   closeSync,
 } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { createRequire } from "node:module";
 import type * as SQLite from "node:sqlite";
 import { JOBS_SCHEMA_VERSION, JobStore } from "./jobs.js";
@@ -29,6 +30,7 @@ export interface RecoveryManifest {
   format: "fleet-runner-recovery-v1";
   source: "fleet-runner";
   capturedAt: string;
+  copyCompletedAt: string;
   schemaVersion: number;
   recoveryPoint: { eventCursor: number; jobs: number; acceptedResults: number };
   database: { file: "fleet.sqlite"; sha256: string; size: number };
@@ -65,13 +67,60 @@ function syncTree(path: string): void {
   }
   syncDir(path);
 }
-function ensureDistinct(destination: string, sources: string[]): void {
-  const dest = resolve(destination);
-  for (const source of sources) {
-    const src = resolve(source);
-    if (dest === src || dest.startsWith(`${src}/`) || src.startsWith(`${dest}/`))
-      throw new Error("recovery-destination-not-independent");
+function canonicalPath(path: string): string {
+  let cursor = resolve(path);
+  const suffix: string[] = [];
+  for (;;) {
+    try {
+      lstatSync(cursor);
+      return resolve(realpathSync(cursor), ...suffix.reverse());
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const parent = dirname(cursor);
+      if (parent === cursor) throw new Error("recovery-path-unresolvable");
+      suffix.push(basename(cursor));
+      cursor = parent;
+    }
   }
+}
+
+function containsOrSame(parent: string, candidate: string): boolean {
+  const rel = relative(parent, candidate);
+  return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
+function ensureDistinct(
+  destination: string,
+  sources: string[],
+  errorCode = "recovery-destination-not-independent",
+): void {
+  const dest = canonicalPath(destination);
+  for (const source of sources) {
+    const src = canonicalPath(source);
+    if (containsOrSame(src, dest) || containsOrSame(dest, src)) throw new Error(errorCode);
+  }
+}
+
+function assertExactDirectoryFiles(
+  bundle: string,
+  name: "inputs" | "outputs",
+  expected: string[],
+): void {
+  const path = join(bundle, name);
+  let entries: string[];
+  try {
+    if (!lstatSync(path).isDirectory()) throw new Error("recovery-directory-invalid");
+    entries = readdirSync(path).sort();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT" && expected.length === 0) return;
+    throw error;
+  }
+  const sortedExpected = [...expected].sort();
+  if (
+    entries.length !== sortedExpected.length ||
+    entries.some((file, index) => file !== sortedExpected[index])
+  )
+    throw new Error("recovery-directory-contents-mismatch");
 }
 
 /** Create one immutable bundle from an SQLite-consistent snapshot and hash-addressed files. */
@@ -80,6 +129,7 @@ export function createRecoveryBundle(
   outputDir: string,
   inputDir: string | undefined,
   destination: string,
+  options: { now?: () => Date } = {},
 ): RecoveryManifest {
   if (dbPath === ":memory:" || !existsSync(dbPath))
     throw new Error("recovery-source-database-missing");
@@ -90,10 +140,13 @@ export function createRecoveryBundle(
   mkdirSync(parent, { recursive: true });
   const stage = join(parent, `.${basename(destination)}.${randomUUID()}.tmp`);
   mkdirSync(stage, { mode: 0o700 });
+  const now = options.now ?? (() => new Date());
+  let snapshotCapturedAt: string;
   try {
     const dbTarget = join(stage, "fleet.sqlite");
     const live = new DatabaseSync(dbPath);
     try {
+      snapshotCapturedAt = now().toISOString();
       live.exec(`VACUUM INTO '${dbTarget.replaceAll("'", "''")}'`);
     } finally {
       live.close();
@@ -145,10 +198,12 @@ export function createRecoveryBundle(
       snap.close();
     }
     const dbBytes = regularBytes(dbTarget);
+    const copyCompletedAt = now().toISOString();
     const manifest: RecoveryManifest = {
       format: "fleet-runner-recovery-v1",
       source: "fleet-runner",
-      capturedAt: new Date().toISOString(),
+      capturedAt: snapshotCapturedAt,
+      copyCompletedAt,
       schemaVersion: JOBS_SCHEMA_VERSION,
       recoveryPoint,
       database: { file: "fleet.sqlite", sha256: sha(dbBytes), size: dbBytes.length },
@@ -191,10 +246,27 @@ export function verifyRecoveryBundle(bundle: string): RecoveryManifest {
   if (
     !m.database.sha256 ||
     !Number.isSafeInteger(m.database.size) ||
+    m.database.size < 0 ||
     !m.recoveryPoint ||
-    !Number.isSafeInteger(m.recoveryPoint.eventCursor)
+    !Number.isSafeInteger(m.recoveryPoint.eventCursor) ||
+    m.recoveryPoint.eventCursor < 0 ||
+    !Number.isSafeInteger(m.recoveryPoint.jobs) ||
+    m.recoveryPoint.jobs < 0 ||
+    !Number.isSafeInteger(m.recoveryPoint.acceptedResults) ||
+    m.recoveryPoint.acceptedResults < 0
   )
     throw new Error("recovery-manifest-invalid");
+  const capturedMs = Date.parse(m.capturedAt);
+  const completedMs = Date.parse(m.copyCompletedAt);
+  if (
+    !Number.isFinite(capturedMs) ||
+    new Date(capturedMs).toISOString() !== m.capturedAt ||
+    !Number.isFinite(completedMs) ||
+    new Date(completedMs).toISOString() !== m.copyCompletedAt ||
+    completedMs < capturedMs
+  )
+    throw new Error("recovery-manifest-invalid");
+  if (!lstatSync(bundle).isDirectory()) throw new Error("recovery-bundle-not-directory");
   const db = regularBytes(join(bundle, "fleet.sqlite"));
   if (db.length !== m.database.size || sha(db) !== m.database.sha256)
     throw new Error("recovery-database-hash-mismatch");
@@ -213,14 +285,51 @@ export function verifyRecoveryBundle(bundle: string): RecoveryManifest {
       output_file: string | null;
       inputs: string;
     }[];
+    const eventCursor = (
+      check.prepare("SELECT COALESCE(MAX(seq),0) AS n FROM job_events").get() as { n: number }
+    ).n;
     const requiredInputs = new Set(rows.flatMap((r) => JSON.parse(r.inputs) as string[]));
     const accepted = new Map(rows.filter((r) => r.status === "done").map((r) => [r.key, r]));
     if (
+      m.recoveryPoint.eventCursor !== eventCursor ||
+      m.recoveryPoint.jobs !== rows.length ||
+      m.recoveryPoint.acceptedResults !== accepted.size
+    )
+      throw new Error("recovery-point-mismatch");
+    const manifestInputHashes = new Set(m.inputs.map((i) => i.hash));
+    if (
+      manifestInputHashes.size !== m.inputs.length ||
       requiredInputs.size !== m.inputs.length ||
       m.inputs.some((i) => !requiredInputs.has(i.hash) || !HASH.test(i.hash))
     )
       throw new Error("recovery-input-set-mismatch");
-    if (accepted.size !== m.outputs.length) throw new Error("recovery-output-set-mismatch");
+    const outputKeys = new Set(m.outputs.map((o) => o.key));
+    const outputFiles = new Set(m.outputs.map((o) => o.file));
+    if (
+      accepted.size !== m.outputs.length ||
+      outputKeys.size !== m.outputs.length ||
+      outputFiles.size !== m.outputs.length ||
+      [...accepted.keys()].some((key) => !outputKeys.has(key)) ||
+      m.outputs.some(
+        (o) =>
+          !HASH.test(o.key) ||
+          !HASH.test(o.sha256) ||
+          !Number.isSafeInteger(o.size) ||
+          o.size < 0 ||
+          !OUTPUT.test(o.file),
+      )
+    )
+      throw new Error("recovery-output-set-mismatch");
+    assertExactDirectoryFiles(
+      bundle,
+      "inputs",
+      m.inputs.map((i) => i.hash),
+    );
+    assertExactDirectoryFiles(
+      bundle,
+      "outputs",
+      m.outputs.map((o) => o.file),
+    );
     for (const i of m.inputs) {
       const bytes = regularBytes(join(bundle, "inputs", i.hash));
       if (bytes.length !== i.size || sha(bytes) !== i.hash)
@@ -237,8 +346,15 @@ export function verifyRecoveryBundle(bundle: string): RecoveryManifest {
   } finally {
     check.close();
   }
-  const allowed = new Set(["fleet.sqlite", "recovery-manifest.json", "inputs", "outputs"]);
-  if (readdirSync(bundle).some((name) => !allowed.has(name)))
+  const expectedTopLevel = ["fleet.sqlite", "recovery-manifest.json"];
+  if (m.inputs.length) expectedTopLevel.push("inputs");
+  if (m.outputs.length) expectedTopLevel.push("outputs");
+  const actualTopLevel = readdirSync(bundle).sort();
+  expectedTopLevel.sort();
+  if (
+    actualTopLevel.length !== expectedTopLevel.length ||
+    actualTopLevel.some((name, index) => name !== expectedTopLevel[index])
+  )
     throw new Error("recovery-unexpected-material");
   return m;
 }
@@ -248,6 +364,7 @@ export function restoreRecoveryBundle(
   bundle: string,
   destination: string,
 ): { generation: string; recoveryPoint: RecoveryManifest["recoveryPoint"]; holdToken: string } {
+  ensureDistinct(destination, [bundle], "restore-destination-not-independent");
   const manifest = verifyRecoveryBundle(bundle);
   if (existsSync(destination)) throw new Error("restore-destination-must-be-empty-new-state");
   const parent = dirname(resolve(destination));
