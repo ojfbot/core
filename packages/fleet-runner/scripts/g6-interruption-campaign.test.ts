@@ -1,15 +1,14 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { generateToken } from "../auth.js";
-import { fleetClient } from "../client.js";
-import { JobStore, writeOutput } from "../jobs.js";
-import type { Claim } from "../jobs.js";
-import { fleetServer } from "../server.js";
-import { workOnce } from "../worker.js";
-import type { FleetClient } from "../client.js";
+import { generateToken } from "../src/auth.js";
+import { fleetClient, type FleetClient } from "../src/client.js";
+import { JobStore, writeOutput } from "../src/jobs.js";
+import type { Claim } from "../src/jobs.js";
+import { fleetServer } from "../src/server.js";
+import { workOnce } from "../src/worker.js";
 
 const CASES = [
   "completion-response-lost-after-commit",
@@ -19,7 +18,7 @@ const CASES = [
   "crash-db-boundary",
   "retry-exhaustion",
   "handler-ignores-cancellation",
-  "fencing-disabled-negative-control",
+  "stale-fence-rejection",
 ] as const;
 const repetitions = 10;
 const sha = (bytes: Buffer) => createHash("sha256").update(bytes).digest("hex");
@@ -37,7 +36,6 @@ type Evidence = {
   reclaim_applicable: boolean;
   reclaim_elapsed_ms?: number;
   reclaim_bound_ms?: number;
-  mutation_detected?: boolean;
   result: "pass";
 };
 
@@ -52,7 +50,6 @@ async function runCase(caseId: (typeof CASES)[number], repetition: number): Prom
   let acceptedHash: string | null = null;
   let reclaimApplicable = false;
   let reclaimElapsed: number | undefined;
-  let mutationDetected: boolean | undefined;
   const payload = Buffer.from(`${caseId}:${repetition}:synthetic-output\n`);
   const enqueue = (maxAttempts = 3) => store.enqueue({ kind: "noop", inputs: [caseId], payload: null, maxAttempts });
   const claim = (worker: string, key: string) => {
@@ -75,6 +72,7 @@ async function runCase(caseId: (typeof CASES)[number], repetition: number): Prom
       expect(store.release(key, first.fence, "worker-a")).toBe(true);
       for (const id of ["owner", "worker-a"]) generateToken(join(dir, id));
       const server = fleetServer(store, { registry: dir, outDir: outputDir });
+      const workerOutputDir = join(dir, "worker-output");
       await new Promise<void>((resolve, reject) => {
         server.once("error", reject);
         server.listen(0, "127.0.0.1", resolve);
@@ -100,11 +98,12 @@ async function runCase(caseId: (typeof CASES)[number], repetition: number): Prom
         expect(await workOnce(worker, {
           now: () => now,
           caps: [],
-          outDir: outputDir,
+          outDir: workerOutputDir,
           handlers: { noop: async (job, context) => writeOutput(context.outDir, job, payload) },
         })).toBe("completed");
         expect(completionPosts).toBe(2);
-        expect(await owner.verify(key)).toMatchObject({ verified: true });
+        const verification = await owner.verify(key);
+        expect(verification.verified, JSON.stringify({ row: store.get(key), files: readdirSync(outputDir) })).toBe(true);
         const completedEvent = store.events(0).filter((event) => event.type === "completed");
         expect(completedEvent).toHaveLength(1);
         attempts.push({ worker_id: "worker-a", fence: 2 });
@@ -224,9 +223,8 @@ async function runCase(caseId: (typeof CASES)[number], repetition: number): Prom
       const second = claim("worker-b", key);
       expect(store.complete(key, first.fence, "worker-a", () => writeOutput(outputDir, first, payload))).toBe(false);
       accept(second, "worker-b");
-      mutationDetected = true;
       completed = true;
-      faultEvidence = "baseline rejected stale fence; checker mutation fixture separately requires undetected mutant to fail";
+      faultEvidence = "baseline rejected stale attempt after reclaim; newer fence accepted";
     }
 
     const row = store.get(key);
@@ -251,7 +249,6 @@ async function runCase(caseId: (typeof CASES)[number], repetition: number): Prom
       accepted_output_sha256: acceptedHash,
       reclaim_applicable: reclaimApplicable,
       ...(reclaimElapsed === undefined ? {} : { reclaim_elapsed_ms: reclaimElapsed, reclaim_bound_ms: 310_000 }),
-      ...(mutationDetected === undefined ? {} : { mutation_detected: mutationDetected }),
       result: "pass",
     };
   } finally {

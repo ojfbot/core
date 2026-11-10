@@ -9,7 +9,7 @@ const REQUIRED = [
   "crash-db-boundary",
   "retry-exhaustion",
   "handler-ignores-cancellation",
-  "fencing-disabled-negative-control",
+  "stale-fence-rejection",
 ];
 const REPETITIONS = 10;
 
@@ -66,8 +66,6 @@ for (const row of rows) {
   } else if (row.reclaim_applicable !== false) {
     fail(`${key} must state whether the conditional reclaim bound applies`);
   }
-  if (row.case_id === "fencing-disabled-negative-control" && row.mutation_detected !== true)
-    fail(`${key} did not prove the checker detects a fencing-disabled mutant`);
   if (row.synthetic !== true) fail(`${key} must identify synthetic-only evidence`);
 }
 for (const key of expected) if (!seen.has(key)) fail(`missing repetition ${key}`);

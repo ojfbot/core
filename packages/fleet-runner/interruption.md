@@ -49,15 +49,15 @@ The harness produces exactly ten rows for each of these stable IDs:
 | `crash-db-boundary` | Inject DB/output durability boundary fault | transaction/event state, attempt fences, final output hash or explicit no-output terminal state |
 | `retry-exhaustion` | Exhaust configured retry budget | each claim/fence, retry count, terminal status, accepted output count `0` |
 | `handler-ignores-cancellation` | Deterministic non-cooperative handler cancellation case | stop/drain deadline, lease/attempt state, whether later work was admitted, no stale accepted output |
-| `fencing-disabled-negative-control` | Stale attempt is submitted after reclaim; the baseline must reject it | stale rejection plus newer accepted fence; checker mutation test rejects an `undetected` result |
+| `stale-fence-rejection` | Stale attempt is submitted after reclaim; the baseline must reject it | stale rejection plus newer accepted fence |
 
-Each JSONL row must use `case_id`, `repetition` (1–10), ISO `started_at` and `finished_at`, `synthetic: true`, `fault_evidence`, `attempts: [{worker_id,fence}]`, `accepted_output_count` (0 or 1), `accepted_output_sha256` (64 lowercase hex or `null`), `reclaim_applicable` (boolean), `reclaim_elapsed_ms` and `reclaim_bound_ms` when applicable, and `result: "pass"`. The negative-control row requires `mutation_detected: true` for the stale-fence assertion. The checker contract tests also verify an undetected-mutant row fails. This is a targeted mutation signal, not a formal mutation score. Do not invent evidence for values a test did not observe. Check the completed file with:
+Each JSONL row must use `case_id`, `repetition` (1–10), ISO `started_at` and `finished_at`, `synthetic: true`, `fault_evidence`, `attempts: [{worker_id,fence}]`, `accepted_output_count` (0 or 1), `accepted_output_sha256` (64 lowercase hex or `null`), `reclaim_applicable` (boolean), `reclaim_elapsed_ms` and `reclaim_bound_ms` when applicable, and `result: "pass"`. Do not invent evidence for values a test did not observe. Check the completed file with:
 
 ```sh
 node packages/fleet-runner/scripts/g6-interruption-check.mjs /path/to/private/g6-results.jsonl
 ```
 
-The checker rejects missing/duplicate repetitions, malformed attempts/fences, a missed applicable reclaim bound, missing hashes for accepted outputs, an undetected fencing mutant, and synthetic/non-synthetic ambiguity. Its success is only the deterministic denominator; it does not assert the physical campaign passed.
+The checker rejects missing/duplicate repetitions, malformed attempts/fences, a missed applicable reclaim bound, missing hashes for accepted outputs, and synthetic/non-synthetic ambiguity. Its success is only the deterministic denominator; it does not assert the physical campaign passed.
 
 The checker contract itself has a dependency-free test:
 
@@ -65,9 +65,45 @@ The checker contract itself has a dependency-free test:
 node --test packages/fleet-runner/scripts/g6-interruption-check.test.mjs
 ```
 
+Run the independent source-bound G1 mutation proof as a separate negative control. It includes the existing `completion-fence` mutant and requires the named public upload-fencing assertion to fail. Its output is not included in the G6 80-row denominator:
+
+```sh
+node scripts/fleet-runner/run-g1-proof.mjs /private/path/g1-evidence
+```
+
+The trial checkpoint helper also has dependency-free transition/locking tests:
+
+```sh
+node --test packages/fleet-runner/scripts/g6-trial-checkpoint.test.mjs
+```
+
 ## Physical trials: one owner at a time
 
 Use one designated coordinator and one worker owner per trial. Serialize the six trials. Keep output local and private; report only correlation, trial ID, time window, fault type, evidence references, attempt/fence sequence, output hash, and verdict. Do not copy OCR text, photos, tokens, private endpoints, or host identities into a public artifact.
+
+### Unique trial IDs and resumable checkpoints
+
+Use six distinct IDs: `lid-1`, `lid-2`, `lid-3`, `wifi-1`, `wifi-2`, `wifi-3`. From one private evidence directory, the worker owner runs:
+
+```sh
+node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs begin lid-1 <private-worker-alias> "$G6_EVIDENCE_DIR/lid-1.json"
+node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs arm "$G6_EVIDENCE_DIR/lid-1.json" <job-key-from-events> <fence-from-events>
+node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs attempt "$G6_EVIDENCE_DIR/lid-1.json" <worker-alias> <job-key-from-events> <next-fence>
+node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs resume "$G6_EVIDENCE_DIR/lid-1.json"
+node packages/fleet-runner/scripts/g6-trial-checkpoint.mjs finish "$G6_EVIDENCE_DIR/lid-1.json" pass <private-receipt-reference>
+```
+
+The checkpoint tool creates a mode-0600 file and directory-wide exclusive active-trial lock. `arm` records the first observed claim; use `attempt` for each subsequent claim/fence from `fleet-runner events --after <cursor> --json`. Do not start another trial while the lock exists. On a pause or restart, run `resume` on the same checkpoint and reconcile the server state before continuing. `finish` records `pass` or `invalid` only after evidence review, then releases the lock. A crash leaves the lock and armed checkpoint in place; do not remove it by hand until the owner reconciles the exact job/attempt.
+
+The draft BCD #37 script currently uses `const drillId = "lid-close-drill"`. Before running the six trials, the BCD owner should patch that line locally to require a unique trial ID:
+
+```ts
+const trialId = process.env.FLEET_G6_TRIAL_ID;
+if (!/^(lid|wifi)-[1-3]$/.test(trialId ?? "")) throw new Error("invalid G6 trial ID");
+const drillId = `g6-${trialId}`;
+```
+
+Use the same `FLEET_G6_TRIAL_ID=lid-1` (or the matching unique Wi-Fi ID) for coordinator enqueue and worker execution. This is a precise local setup change to the draft drill; it does not import or alter the live FleetRunner app.
 
 ### Three actual lid-sleep/wake trials
 
