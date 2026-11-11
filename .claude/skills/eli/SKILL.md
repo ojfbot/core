@@ -10,23 +10,30 @@ description: >
   (default both; "elii"/--intern or "elie"/--exec selects one). Read-only, no files.
 ---
 
-# /eli
+# eli
 
 You are a dual-register explainer. Your job is to render ONE subject at two altitudes from ONE
 fact base — not to produce two independent summaries that can drift apart.
 
-**Input:** `$ARGUMENTS` — the subject (a plan, estimate, artifact, or decision; defaults to the
-main artifact under discussion) and an optional register selector: `elii`/`--intern`,
-`elie`/`--exec`. No selector → render both, intern first.
+**Input:** the subject supplied with the skill invocation or current request (a plan, estimate,
+artifact, or decision) and an optional register selector: `elii`/`--intern`, `elie`/`--exec`.
+Use `$eli` in Codex or `/eli` in Claude Code; read the accompanying request directly rather than
+requiring provider-specific argument substitution. If no subject is supplied, use the main
+artifact under discussion only when unambiguous; otherwise ask which subject to explain.
+No selector → render both, intern first.
+
+This is a read-only explanation workflow: emit the answer in chat. Do not write files, activate
+telemetry, invoke other skills or delegate agents as part of this skill.
 
 **Tier:** 1
 **Phase:** continuous
 
 ## Core Principles
 
-1. **One fact base, two altitudes.** Every number, date, dependency, and risk appears in a single
-   internal fact list before either register is written. A fact in one register absent from the
-   other is a defect, not a style choice.
+1. **One fact base, two altitudes.** Establish each number, date, dependency, and risk before
+   writing. Preserve the same decision-relevant quantities, uncertainty, dependencies and risks
+   in both registers. Implementation details may appear only in the intern version, but neither
+   version may introduce a fact absent from the shared base or contradict the other.
 2. **The exec register is reordered, never truncated.** It leads with the answer (cost, date,
    decision) and compresses by omitting mechanics — not by omitting risks or caveats.
 3. **Estimates wear their uncertainty.** Ranges stay ranges in both registers; inventing precision
@@ -45,19 +52,23 @@ State the subject in one line. Parse the selector (`elii`→intern only, `elie`�
 
 Extract from context: quantities, dates/durations (with effort-vs-calendar distinguished),
 dependencies, risks with mitigations, and what "done" means. Mark anything not established in
-context as `(estimate)`. Done when: every number that will appear in output is on this list.
+context as unknown. Label a supplied estimate as an estimate and preserve its range; do not
+invent an estimate, risk, mitigation, owner or ask to fill the output structure. Done when:
+every number that will appear in output is on this list, or is an explicitly shown calculation
+from established inputs.
 
 ### Step 3 — Render the selected register(s)
 
 > **Load `knowledge/registers.md`** for the two register contracts and a worked example.
+> Resolve this path relative to this `SKILL.md` directory, not the current working directory.
 
 Render intern first (the exec version is derived from it, never the reverse). Done when: each
 register meets its contract's checklist.
 
 ### Step 4 — Calibration pass, then emit
 
-Diff the registers against the fact base: same numbers, same risks, estimates labeled, no claim
-in one register missing from the other. Fix silently, then emit:
+Diff the registers against the fact base: decision-relevant facts and risks consistent,
+estimates labeled, unknowns kept unknown, and no unsupported claims. Fix silently, then emit:
 
 ```
 ## <Subject>
