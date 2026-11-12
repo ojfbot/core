@@ -1,0 +1,28 @@
+---
+title: Both harnesses and local runners on both Macs
+---
+flowchart TB
+  accTitle: Symmetric cross-harness topology
+  accDescr: Both Macs support multiple Codex and Claude Code sessions through local controlled runners. Both runners use the same fleet contract and HelpDesk correspondence.
+  P["Fleet contract and authority<br/>Core / FleetRunner"]
+  H["HelpDesk NAS<br/>Journal and addressed relay"]
+  subgraph Y["Yuri"]
+    direction TB
+    RY["Local controlled runner<br/>Adapters, grants, per-call checks"]
+    CY["Codex<br/>sessions × N"]
+    AY["Claude Code<br/>sessions × N"]
+    RY <--> CY
+    RY <--> AY
+  end
+  subgraph J["Yojimbo"]
+    direction TB
+    RJ["Local controlled runner<br/>Adapters, grants, per-call checks"]
+    CJ["Codex<br/>sessions × N"]
+    AJ["Claude Code<br/>sessions × N"]
+    RJ <--> CJ
+    RJ <--> AJ
+  end
+  P -->|"contract and grants"| RY
+  P -->|"contract and grants"| RJ
+  H <-->|"messages and receipts"| RY
+  H <-->|"messages and receipts"| RJ

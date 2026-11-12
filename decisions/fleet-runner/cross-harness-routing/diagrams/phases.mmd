@@ -1,0 +1,21 @@
+---
+title: Cross-harness delivery — zero-model proof before live inference
+---
+flowchart TB
+  accTitle: Proposed delivery dependencies and owner boundaries
+  accDescr: Contracts and controls precede the full zero-model qualification, independent acceptance and owner authorization. OpenCode and governed development acceptance come later.
+  A["A — Contract and fixtures<br/>This session analysis, Core/HelpDesk review"]
+  B["B — Four bindings and two runners<br/>Native, access and per-call controls<br/>Implementation leads unassigned"]
+  C["C — Zero-model qualification<br/>16 coordinates, R01–R25, 8 mutations<br/>Implementers + independent verifier"]
+  D["D — Independent acceptance + owner GO<br/>Then a bounded live advisory pilot"]
+  E["E — Production hardening<br/>Isolation, rotation and delegation"]
+  O["Later — OpenCode<br/>Same conformance contract"]
+  S["Existing G6 → G7 → G8<br/>FleetRunner / recovery owners"]
+  F["Later governed development dispatch<br/>Accepted policy and owner authority"]
+  A --> B
+  B --> C
+  C --> D
+  D --> E
+  E --> O
+  E --> F
+  S --> F

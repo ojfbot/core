@@ -1,0 +1,22 @@
+---
+title: Proposed architecture — deterministic control around every model call
+---
+flowchart TB
+  accTitle: Deterministic control with bounded stochastic work
+  accDescr: Code routes classical work to classical handlers and admits declared judgment work through native adapters and an enforced model-call boundary. Models return proposals.
+  H["HelpDesk journal — EXISTS<br/>Addressed correspondence and replay"]
+  R["Deterministic runner — REQUIRED<br/>Schema, identity, grants, pins, limits"]
+  D["Classical handler<br/>Zero model calls"]
+  A["Harness adapter<br/>Fleet contract to native primitives"]
+  C["Per-call enforcement — REQUIRED<br/>Protected credentials and egress control"]
+  M["LLM<br/>Bounded proposal only"]
+  V["Code validation and independent evidence<br/>Human judges unresolved semantics"]
+  E["Authorized effect or receipt<br/>FleetRunner / resource owner"]
+  H --> R
+  R -->|"classical work"| D
+  R -->|"declared judgment step"| A
+  A --> C
+  C --> M
+  M --> V
+  D --> V
+  V --> E
