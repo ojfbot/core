@@ -1,0 +1,1188 @@
+{
+  "schemaVersion": 1,
+  "artifactKind": "PROPOSED_ACCEPTANCE_CATALOG",
+  "planId": "fleet-runner-cross-harness-routing",
+  "asOf": "2026-11-12",
+  "parent": "https://github.com/ojfbot/core/issues/307",
+  "status": "PROPOSED",
+  "authority": {
+    "planningCaptureAndSanitizedDraftPublicationAuthorized": true,
+    "implementationAuthorized": false,
+    "liveInferenceAuthorized": false,
+    "peerMessagingAuthorized": false,
+    "runtimeChangesAuthorized": false,
+    "gatePromotionAuthorized": false,
+    "scopedPlanningRevisionShareAuthorized": true
+  },
+  "sourceSnapshot": {
+    "core": "321a44637b8fc406b8823a192c1194511007e6c0",
+    "localHelp": "9f27db3f02c6b1bf97a6f4e0f5e45245f29988c8",
+    "switchboard": "57926bb314de4da21a8be9c267acc06d9e548af1",
+    "legacyDuplexReviewOnly": "efb28e309a41b18af1852111191536447a44be52",
+    "peerReviewOnly": "ab56df95ecea25d6ce7a54c582bef448c674925a",
+    "sourceIsNotRuntimeProof": true,
+    "originalPlanRevision": "24ff95edeba140067d486bcff7bf9d5e1f005a2c",
+    "localHelpDesignBaseline": {
+      "pullRequest": "https://github.com/ojfbot/LocalHelp/pull/29",
+      "head": "1629a1e8db2e526590a33b857848e2f70edf240d",
+      "observedState": "OPEN_DRAFT_UNMERGED",
+      "servedApiSource": "78c71e9a7f085c092425fdbe99193a06c06e9e3f",
+      "scope": "DESIGN_BASELINE_ONLY",
+      "runtimeAcceptance": false
+    }
+  },
+  "bindings": [
+    {
+      "id": "yuri-codex",
+      "device": "yuri",
+      "harnessFamily": "codex",
+      "nativeSurface": null,
+      "nativeVersion": null,
+      "nativeSessionRef": null,
+      "workloadInstanceRef": null,
+      "credentialRef": null,
+      "grantRef": null,
+      "executionStatus": "NOT_RUN",
+      "liveInferenceEligible": false
+    },
+    {
+      "id": "yuri-claude-code",
+      "device": "yuri",
+      "harnessFamily": "claude-code",
+      "nativeSurface": null,
+      "nativeVersion": null,
+      "nativeSessionRef": null,
+      "workloadInstanceRef": null,
+      "credentialRef": null,
+      "grantRef": null,
+      "executionStatus": "NOT_RUN",
+      "liveInferenceEligible": false
+    },
+    {
+      "id": "yojimbo-codex",
+      "device": "yojimbo",
+      "harnessFamily": "codex",
+      "nativeSurface": null,
+      "nativeVersion": null,
+      "nativeSessionRef": null,
+      "workloadInstanceRef": null,
+      "credentialRef": null,
+      "grantRef": null,
+      "executionStatus": "NOT_RUN",
+      "liveInferenceEligible": false
+    },
+    {
+      "id": "yojimbo-claude-code",
+      "device": "yojimbo",
+      "harnessFamily": "claude-code",
+      "nativeSurface": null,
+      "nativeVersion": null,
+      "nativeSessionRef": null,
+      "workloadInstanceRef": null,
+      "credentialRef": null,
+      "grantRef": null,
+      "executionStatus": "NOT_RUN",
+      "liveInferenceEligible": false
+    }
+  ],
+  "runners": [
+    {
+      "id": "runner-yuri",
+      "device": "yuri",
+      "executionStatus": "NOT_RUN"
+    },
+    {
+      "id": "runner-yojimbo",
+      "device": "yojimbo",
+      "executionStatus": "NOT_RUN"
+    }
+  ],
+  "routingCoordinates": [
+    {
+      "id": "yuri-codex__to__yuri-codex",
+      "from": "yuri-codex",
+      "to": "yuri-codex",
+      "mode": "DISTINCT_SESSIONS_WITHIN_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-codex__to__yuri-claude-code",
+      "from": "yuri-codex",
+      "to": "yuri-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-codex__to__yojimbo-codex",
+      "from": "yuri-codex",
+      "to": "yojimbo-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-codex__to__yojimbo-claude-code",
+      "from": "yuri-codex",
+      "to": "yojimbo-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-claude-code__to__yuri-codex",
+      "from": "yuri-claude-code",
+      "to": "yuri-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-claude-code__to__yuri-claude-code",
+      "from": "yuri-claude-code",
+      "to": "yuri-claude-code",
+      "mode": "DISTINCT_SESSIONS_WITHIN_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-claude-code__to__yojimbo-codex",
+      "from": "yuri-claude-code",
+      "to": "yojimbo-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yuri-claude-code__to__yojimbo-claude-code",
+      "from": "yuri-claude-code",
+      "to": "yojimbo-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-codex__to__yuri-codex",
+      "from": "yojimbo-codex",
+      "to": "yuri-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-codex__to__yuri-claude-code",
+      "from": "yojimbo-codex",
+      "to": "yuri-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-codex__to__yojimbo-codex",
+      "from": "yojimbo-codex",
+      "to": "yojimbo-codex",
+      "mode": "DISTINCT_SESSIONS_WITHIN_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-codex__to__yojimbo-claude-code",
+      "from": "yojimbo-codex",
+      "to": "yojimbo-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-claude-code__to__yuri-codex",
+      "from": "yojimbo-claude-code",
+      "to": "yuri-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-claude-code__to__yuri-claude-code",
+      "from": "yojimbo-claude-code",
+      "to": "yuri-claude-code",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-claude-code__to__yojimbo-codex",
+      "from": "yojimbo-claude-code",
+      "to": "yojimbo-codex",
+      "mode": "DIRECTED_CROSS_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "yojimbo-claude-code__to__yojimbo-claude-code",
+      "from": "yojimbo-claude-code",
+      "to": "yojimbo-claude-code",
+      "mode": "DISTINCT_SESSIONS_WITHIN_BINDING",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    }
+  ],
+  "coverageSets": {
+    "all_bindings": [
+      "yuri-codex",
+      "yuri-claude-code",
+      "yojimbo-codex",
+      "yojimbo-claude-code"
+    ],
+    "all_routing_coordinates": "the 16 routingCoordinates",
+    "both_sending_runners": [
+      "runner-yuri",
+      "runner-yojimbo"
+    ],
+    "both_runners": [
+      "runner-yuri",
+      "runner-yojimbo"
+    ],
+    "both_consumers": [
+      "runner-yuri",
+      "runner-yojimbo"
+    ],
+    "both_hosts": [
+      "yuri",
+      "yojimbo"
+    ],
+    "both_runners_and_cross_host_races": [
+      "runner-yuri",
+      "runner-yojimbo",
+      "concurrent cross-host schedules"
+    ],
+    "independent_checker": "reader of raw source-bound evidence, not the router reducer"
+  },
+  "testSeams": {
+    "status": "PROPOSED_PENDING_IMPLEMENTATION_OWNER_REVIEW",
+    "seams": [
+      "canonical correspondence submission/replay and externally observed journal/receipt outcomes",
+      "native adapter invocation/response evidence and forbidden-dispatch absence",
+      "protected inference boundary and independent network/call accounting"
+    ]
+  },
+  "owners": {
+    "analysis": {
+      "owner": "originating code-codex conductor session",
+      "scope": "planning capture and acceptance analysis only"
+    },
+    "transport": {
+      "owner": "LocalHelp / HelpDesk and existing Yojimbo HelpDesk peer",
+      "scope": "service and device correspondence"
+    },
+    "monitoring": {
+      "owner": "Yojimbo Setup delivery coordinator",
+      "scope": "separately owned route and cursor; no restart or recruitment is authorized by this plan"
+    },
+    "nativeAdapters": {
+      "owner": null,
+      "status": "UNASSIGNED",
+      "scope": "four separately qualified native bindings"
+    },
+    "localRunners": {
+      "owner": null,
+      "status": "UNASSIGNED",
+      "coordination": "existing FleetRunner/execution owner"
+    },
+    "callBoundary": {
+      "owner": null,
+      "status": "UNASSIGNED",
+      "componentToAssess": "Switchboard",
+      "scope": "native compatibility, protected credentials, accounting and bypass controls"
+    },
+    "sharedPolicy": {
+      "owner": "existing Core #307 decision venues",
+      "references": [
+        "https://github.com/ojfbot/core/issues/311",
+        "https://github.com/ojfbot/core/issues/313",
+        "https://github.com/ojfbot/core/issues/318",
+        "https://github.com/ojfbot/core/issues/511"
+      ]
+    },
+    "legacy": {
+      "owner": "earlier Yuri–Mini duplex protocol pilot owners",
+      "status": "PAUSED",
+      "authorityTransferred": false
+    },
+    "openCode": {
+      "owner": null,
+      "status": "LATER_UNASSIGNED"
+    },
+    "consumption": {
+      "owner": "existing #316 consumption, #313 authority, #318 supervision and application/service owners",
+      "scope": "producer/evidence contract review; exact assignments unresolved"
+    },
+    "consumerEffects": {
+      "owner": "existing selfco-inbox and vault owners",
+      "scope": "future consumer write qualification only; no pipeline implementation assignment or standing write permission"
+    },
+    "operatorContact": {
+      "owner": "MorningCockpit delivery, #313/#511 and affected resource owners",
+      "scope": "human-intent contract and first control verb remain unresolved"
+    }
+  },
+  "cases": [
+    {
+      "id": "R01",
+      "title": "Exact target",
+      "coverage": "all_routing_coordinates",
+      "fault": "Two sessions share a harness, host and repository; select the non-recent target.",
+      "expected": "Deliver only to the registered native target; sibling gets no invocation.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R02",
+      "title": "Stale binding",
+      "coverage": "all_bindings",
+      "fault": "Fork, restart, rename or replace a target while an older binding remains cached.",
+      "expected": "Reject or hold the stale binding; preserve historical attribution and do not silently retarget.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R03",
+      "title": "Authentication and workload binding",
+      "coverage": "all_bindings",
+      "fault": "Use unknown/revoked keys, wrong audience, an unsupported asserted session identity, or a valid workload credential with a missing/expired grant or disallowed operation/resource.",
+      "expected": "Refuse native dispatch; a device signature does not prove a logical agent or operator.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R04",
+      "title": "Provenance and authority laundering",
+      "coverage": "all_bindings",
+      "fault": "Peer content claims owner approval or arrives through a native user-role delivery API.",
+      "expected": "Preserve peer provenance; issue no human grant or expanded permission.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R04-peer_user_role",
+          "fault": "A peer message arrives through a native user-role turn.",
+          "expected": "Preserve authenticated publisher and peer provenance; the native role or self-label creates no human grant.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R04-human_intent_binding",
+          "fault": "Claim operator approval with a missing principal/grant, wrong resource or stale subject revision.",
+          "expected": "Deny privilege expansion under the pilot profile; a future positive Cockpit command needs separate consumer qualification.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R05",
+      "title": "Submission idempotency",
+      "coverage": "both_sending_runners",
+      "fault": "Discard a response after journal commit; retry the same command and then alter its content.",
+      "expected": "Return original IDs for identical content; changed content under the used identity conflicts.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R05-same_occurrence_new_command",
+          "fault": "Repeat a synthetic registered occurrence/effect with a fresh transport command ID.",
+          "expected": "The intended effect remains deduplicated; distinct command identities do not grant a second effect.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R06",
+      "title": "Competing dispatchers",
+      "coverage": "both_runners_and_cross_host_races",
+      "fault": "Race two dispatchers or resume an old dispatcher after apparent ownership expiry.",
+      "expected": "Prevent competing invocation; uncertain previous dispatch blocks automatic reassignment.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R07",
+      "title": "Crash after durable import",
+      "coverage": "both_runners",
+      "fault": "Terminate after durable recipient import but before native dispatch.",
+      "expected": "Recover exactly the pending delivery; cursor progress does not erase it.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R08",
+      "title": "Uncertain native invocation",
+      "coverage": "all_bindings",
+      "fault": "Terminate after native invocation but before a durable dispatch receipt.",
+      "expected": "Resolve from native evidence or hold; do not invoke again merely because the response is absent.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R09",
+      "title": "Lost target acknowledgement",
+      "coverage": "all_bindings",
+      "fault": "Target accepts but its acknowledgement is lost.",
+      "expected": "Recover linked native acceptance evidence without repeating the requested work to obtain a new ACK.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R09-ack_without_inference",
+          "fault": "Lose the acceptance receipt after the admitted task starts.",
+          "expected": "Recover native evidence or hold without invoking another model merely to produce an ACK.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R10",
+      "title": "Incomplete or malformed replay",
+      "coverage": "both_consumers",
+      "fault": "Reach the replay page cap; stall/backtrack the cursor; omit or corrupt pagination fields.",
+      "expected": "Fail closed with no caught-up/delivery success verdict over unread history.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R11",
+      "title": "Notification and stream recovery",
+      "coverage": "both_consumers",
+      "fault": "Duplicate/reorder/drop notices or change journal stream identity.",
+      "expected": "Reconcile through authorized replay; imported historical requests do not automatically execute.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R12",
+      "title": "Busy or unavailable target",
+      "coverage": "all_bindings",
+      "fault": "Make the exact target busy, asleep, offline or approval-blocked.",
+      "expected": "Persist a bounded pending/blocked disposition; no substitute, silent fork or automatic approval.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R12-deterministic_pending",
+          "fault": "Persist a wake hint while the exact native binding is busy, asleep or approval-blocked.",
+          "expected": "Code reports import/invocation/acceptance separately and enforces the declared pending deadline without a substitute target.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R13",
+      "title": "Boundary and injection handling",
+      "coverage": "all_routing_coordinates",
+      "fault": "Send malformed envelopes, shell syntax, unauthorized tools or a corrupt referenced artifact.",
+      "expected": "Reject invalid data; payload text cannot become an executable command or native lifecycle instruction.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R14",
+      "title": "Canonical work ownership",
+      "coverage": "both_runners_and_cross_host_races",
+      "fault": "Two recipients acknowledge correspondence about the same work/revision.",
+      "expected": "Existing work authority resolves execution ownership; routing ACKs cannot create conflicting grants.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R14-wrong_settlement_producer",
+          "fault": "A recipient declares the original work settled without the original-work owner's evidence.",
+          "expected": "Keep it an attributed claim; no work authority or successful settlement is created.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R15",
+      "title": "Unknown outward effect",
+      "coverage": "both_runners",
+      "fault": "Lose an effect response when the effect may already have occurred.",
+      "expected": "Hold affected work until reconciliation; timeout does not permit conflicting retry/publication.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R16",
+      "title": "Time, fairness and recursion",
+      "coverage": "both_runners",
+      "fault": "Jump clocks, leave the journal quiet, flood background traffic or generate recursive replies.",
+      "expected": "Code enforces declared deadlines/queue/loop limits and reports due work; no model evaluates these terms.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R16-timestamp_meanings",
+          "fault": "Use a source/event date before capture and replay an older source in a newer capture.",
+          "expected": "Accept valid declared timestamp relationships; keep currency bound to authoritative revision/supersession, not capture order.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R17",
+      "title": "Resource privacy and direct API access",
+      "coverage": "all_routing_coordinates",
+      "fault": "Request another principal's bodies, attachments, replay or notifications; try the API without the adapter.",
+      "expected": "Enforce service-side denial under the strict profile; no secret canaries in wake/status/log output; no device-key fallback.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R17-enumerated_inputs",
+          "fault": "A workload requests an unlisted input or broad vault/history access directly through the resource API.",
+          "expected": "Enforce the enumerated resource grant; adapter-only restrictions and broad device fallback do not pass.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R18",
+      "title": "Forged completion and proof verdict",
+      "coverage": "independent_checker",
+      "fault": "Claim completion with missing/wrong native or artifact evidence, or substitute a model-authored PASS.",
+      "expected": "Keep it an attributed claim; independent code refuses verified success; semantic quality remains separately assessed.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R18-readback_not_consumption",
+          "fault": "Present retrieval or a readback without a concrete receiving-task use/disposition.",
+          "expected": "Do not mark consumed; require the named producer, exact revision and concrete use or reasoned rejection.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R18-wrong_revision_use",
+          "fault": "Present a consumption record that cites a different source/output revision.",
+          "expected": "Refuse verified consumption of the claimed subject.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R18-deferred_not_success",
+          "fault": "Present rejection, cancellation or deferral as successful original-work settlement.",
+          "expected": "Preserve the original-work owner's distinct disposition; no successful-delivery promotion.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R18-same_task_not_reuse",
+          "fault": "Present the same task's read or a later retrieval without resulting decision/output as reuse.",
+          "expected": "Do not verify reuse or causal productivity improvement.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R19",
+      "title": "Revocation, stop and expiry",
+      "coverage": "all_bindings",
+      "fault": "Revoke/stop/expire a grant before dispatch or between admitted steps; submit a late result.",
+      "expected": "Prevent newly unauthorized work; preserve late evidence without reopening authority; meet the declared connection reauthorization bound.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R19-revoked_control_connection",
+          "fault": "Revoke authority while a connection or queued control request remains open; receive a late result.",
+          "expected": "Enforce the declared reauthorization bound and step boundaries; retain late evidence without reopening authority.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R20",
+      "title": "Unsupported native capability",
+      "coverage": "all_bindings",
+      "fault": "Remove required APIs/MCP configuration or use an unqualified native version/surface.",
+      "expected": "Return explicit unsupported/blocked outcome; no session/provider/permission downgrade or CLI-for-Desktop substitution.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R21",
+      "title": "Classical workflow has no inference",
+      "coverage": "both_runners",
+      "fault": "Run a classical task or request a model to decide a schema/hash/grant/count/deadline/test condition.",
+      "expected": "Record zero inference attempts; unknown workflow classification is held instead of inferred by a model.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R21-fixture_facts_by_code",
+          "fault": "Ask a model to grade pinned expected fields, hashes, counts, dates or source references.",
+          "expected": "Code decides the classical oracle with zero inference attempts; semantic triage is separately admitted.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R21-idle_and_receipts_by_code",
+          "fault": "Leave an inbox quiet, reach an ACK deadline or repeat a trigger hint.",
+          "expected": "Code handles polling, receipts, deadlines and duplicate disposition with zero inference attempts.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R22",
+      "title": "Every internal inference is governed",
+      "coverage": "all_bindings",
+      "fault": "Have the native runtime retry, compact, spawn a subagent or request an evaluator model.",
+      "expected": "Every inference-shaped request is admitted/accounted or refused at the same boundary; none escapes the profile.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R23",
+      "title": "Egress and credential bypass",
+      "coverage": "both_hosts",
+      "fault": "Bypass the gateway via a forbidden network canary or reuse sibling/parent/provider credentials.",
+      "expected": "Deny bypass and credential reuse under the declared isolation boundary; record evidence without any real inference.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "R24",
+      "title": "Atomic cross-runner budget",
+      "coverage": "both_runners_and_cross_host_races",
+      "fault": "Race requests from both Macs and attempt to reset consumption using a new request ID.",
+      "expected": "Enforce grant/exchange-wide limits atomically; uncertainty does not reset reserved/consumed authority.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R24-aggregate_and_grant_caps",
+          "fault": "Race both runners with fixtures where one declared cap is exhausted while another has capacity.",
+          "expected": "Independently enforce aggregate loop and grant/exchange ceilings with atomic reservations.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R24-fresh_identity_no_reset",
+          "fault": "Issue fresh request, grant or exchange IDs against an exhausted declared parent budget.",
+          "expected": "The exhausted aggregate budget is not replenished by identifiers.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        },
+        {
+          "id": "R24-uncertain_reservation",
+          "fault": "Lose a dispatch/charge response and attempt another reservation.",
+          "expected": "Preserve consumed/reserved uncertainty until reconciliation; do not spend the same budget twice.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "R25",
+      "title": "Harness portability",
+      "coverage": "all_bindings",
+      "fault": "Run the same deterministic canonical fixtures through every qualified adapter.",
+      "expected": "Canonical receipts match after declared normalization; native statuses do not redefine meaning and live text reproducibility is not assumed.",
+      "testKind": "behavioral integration/adversarial",
+      "executionStatus": "NOT_RUN",
+      "evidence": [],
+      "additionalRequiredVariants": [
+        {
+          "id": "R25-normalization_preserves_evidence",
+          "fault": "Run identical canonical receipt fixtures through all four bindings with different native roles/statuses and timestamp formatting.",
+          "expected": "Normalization preserves producer, authority, subject revision, timestamp meaning and unknowns; no adapter promotes a claim.",
+          "executionStatus": "NOT_RUN",
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "mutations": [
+    {
+      "id": "M01",
+      "change": "Remove exact-target binding enforcement",
+      "designatedCase": "R01",
+      "requiredBehavioralFailure": "An unintended/sibling native target receives an invocation.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M02",
+      "change": "Remove scoped grant enforcement",
+      "designatedCase": "R03",
+      "requiredBehavioralFailure": "A disallowed principal or operation dispatches.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M03",
+      "change": "Remove stable-command deduplication",
+      "designatedCase": "R05",
+      "requiredBehavioralFailure": "A repeated identical command creates another message/work submission.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M04",
+      "change": "Retry an uncertain native invocation automatically",
+      "designatedCase": "R08",
+      "requiredBehavioralFailure": "A second invocation starts without reconciliation.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M05",
+      "change": "Treat a capped/incomplete replay as complete",
+      "designatedCase": "R10",
+      "requiredBehavioralFailure": "The consumer reports caught-up/success with unread history.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M06",
+      "change": "Remove the declared aggregate inference cap while individual grant limits still allow another request",
+      "designatedCase": "R24",
+      "requiredBehavioralFailure": "A request beyond the aggregate ceiling reaches the emulator while the individual grant still has capacity.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M07",
+      "change": "Remove the egress restriction",
+      "designatedCase": "R23",
+      "requiredBehavioralFailure": "A forbidden network canary is reached.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    },
+    {
+      "id": "M08",
+      "change": "Convert a relayed user-role turn into human authority",
+      "designatedCase": "R04",
+      "requiredBehavioralFailure": "Peer text acquires a human grant or expanded permissions.",
+      "executionStatus": "NOT_RUN",
+      "evidence": []
+    }
+  ],
+  "counterDefinitions": {
+    "inferenceAttempts": "inference-shaped requests observed at the controlled boundary; emulator requests are explicitly labelled",
+    "realProviderInferenceRequests": "requests issued to a real model provider for inference, excluding emulators",
+    "classicalWorkflowExpectedInferenceAttempts": 0,
+    "qualificationExpectedRealProviderInferenceRequests": 0,
+    "noInferenceFor": [
+      "routing",
+      "authentication",
+      "authorization",
+      "receipt processing",
+      "state/counters/freshness/deadlines",
+      "classical computation",
+      "mechanical proof verdicts"
+    ]
+  },
+  "liveGate": {
+    "status": "NOT_ELIGIBLE",
+    "catalogIsNotExecutableChecker": true,
+    "required": {
+      "qualifiedBindings": 4,
+      "qualifiedRunners": 2,
+      "passedRoutingCoordinates": 16,
+      "requiredCaseDefinitions": 25,
+      "passedRequiredCaseVariants": "all parent faults and named additions of R01–R25 across their coverage sets; owner-reviewed frozen manifest and exact execution counts required",
+      "detectedDesignatedMutations": 8,
+      "requiredSkips": 0,
+      "realProviderInferenceRequestsDuringMechanicalQualification": 0,
+      "completeSourceProfileGrantEvidence": true,
+      "independentAcceptance": true,
+      "separateExactProfileOwnerAuthorization": true,
+      "namedAdditionalRequiredVariants": 19
+    },
+    "missing": [
+      "implementation assignments",
+      "exact native profiles",
+      "accepted grant/isolation mechanism",
+      "approved test seams and finite operating bounds",
+      "executed proof and independent acceptance",
+      "separate live-pilot approval",
+      "owner-reviewed producer/evidence, timestamp and aggregate budget contracts"
+    ],
+    "consumerWriteProofsIncluded": false,
+    "consumerDecisionsNotPrerequisites": [
+      "ledger withdrawal",
+      "standing wiki-write permission",
+      "first positive Cockpit control verb",
+      "real wiki application or later application reuse"
+    ]
+  },
+  "proposedPilotBounds": {
+    "status": "PROPOSED_NOT_APPROVED",
+    "maxInferenceRequestsPerGrantExchange": 2,
+    "maxInferenceRequestsPerRole": 1,
+    "maxOutputTokensPerInference": 512,
+    "requestTimeoutSeconds": 120,
+    "exchangeDeadlineSeconds": 300,
+    "grantLifetimeSeconds": 600,
+    "approvedMonetaryCeiling": null,
+    "automaticModelRepair": false,
+    "automaticModelRetry": false,
+    "automaticProviderFailover": false,
+    "modelTools": [],
+    "delegationAllowed": false,
+    "extraRecipientsAllowed": false,
+    "budgetScope": "one grant/exchange globally across both runners; new request IDs do not reset it"
+  },
+  "receiptSemantics": [
+    "journal persisted",
+    "receiver durably imported",
+    "native invocation observed",
+    "target acceptance evidenced",
+    "result reported",
+    "independently verified",
+    "consumed",
+    "settled",
+    "reused"
+  ],
+  "phases": [
+    {
+      "id": "A",
+      "goal": "reconcile producer/authority contracts, O1–O9 and deterministic fixtures",
+      "status": "PLANNING_ONLY"
+    },
+    {
+      "id": "B",
+      "goal": "build and qualify four native bindings, two runners and strict call/access boundary",
+      "status": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "C",
+      "goal": "execute zero-model routing/adversarial campaign and independent acceptance",
+      "status": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "D",
+      "goal": "separate exact-profile owner GO, then bounded live advisory pilot",
+      "status": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "E",
+      "goal": "extend production isolation, rotation, delegation and operational hardening",
+      "status": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "LATER",
+      "goal": "OpenCode against the same conformance contract",
+      "status": "NOT_AUTHORIZED"
+    }
+  ],
+  "evidenceRules": {
+    "noRequiredSkips": true,
+    "noSilentExclusions": true,
+    "partialPaginationCannotPass": true,
+    "syntaxOrImportFailureCannotKillMutant": true,
+    "modelVerdictCannotPassMechanicalGate": true,
+    "processExitAloneCannotProveAcceptance": true,
+    "changedSourceNeedsCoverageReassessment": true,
+    "proposalValidityIsNotSemanticTruth": true,
+    "transportAtLeastOnceIsNotExactlyOnceEffects": true,
+    "uncertainEffectsRemainHeld": true,
+    "readbackIsNotConsumption": true,
+    "reportedResultIsNotSettlement": true,
+    "deferralIsNotSuccessfulDelivery": true,
+    "retrievalAloneIsNotReuse": true,
+    "projectionDoesNotCreateAuthority": true,
+    "newestCaptureDoesNotEstablishSourceCurrency": true,
+    "timestampMeaningsMustBeDeclared": true,
+    "consumerWriteProofsSeparateFromAdvisoryGate": true,
+    "reviewExchangeIsNotQualification": true
+  },
+  "qualificationResults": [],
+  "g6g8PromotionFromThisCapture": false,
+  "planRevision": 2,
+  "previousPlanRevision": "24ff95edeba140067d486bcff7bf9d5e1f005a2c",
+  "authorityScope": "The catalog grants no modeled runtime authority. Separate owner instructions authorize this planning revision, draft publication and scoped sharing.",
+  "reviewBasis": {
+    "kind": "ATTRIBUTED_PLANNING_REVIEWS",
+    "reviewedPlanRevision": "24ff95edeba140067d486bcff7bf9d5e1f005a2c",
+    "fullCatalogReview": true,
+    "secondReviewDetailedCases": 8,
+    "secondReviewOtherCaseMetadataOnly": true,
+    "privateEvidenceAccess": "report/archive/member hashes checked against original source archive",
+    "historicalCompilationGate": {
+      "scope": "LOCAL_COMPILATION_NOT_RUNTIME_QUALIFICATION",
+      "passed": false,
+      "unchangedPreexistingBlockers": 5,
+      "newBlockers": 0,
+      "overrideUsed": false
+    },
+    "qualificationExecuted": false,
+    "privateOperationalEvidencePublished": false
+  },
+  "variantPolicy": {
+    "status": "PROPOSED_PENDING_OWNER_REVIEW",
+    "namedAdditionalRequiredVariants": 19,
+    "allNamedVariantsRequired": true,
+    "parentCoverageApplies": true,
+    "completeRunManifestRequired": true,
+    "note": "Named additions do not replace the parent faults or the frozen execution manifest. Freeze every required variant and exact denominators before qualification. No consumer write proof is silently added to the advisory live gate."
+  },
+  "receiptContracts": {
+    "status": "PROPOSED_PENDING_PRODUCER_AND_OWNER_DECISION",
+    "ordering": "Distinct observations; not a universal linear state machine.",
+    "commonMinimumEvidence": [
+      "attributable producer identity",
+      "original work/request/evidence references",
+      "subject/source/output revision as applicable",
+      "recorded time",
+      "observed time",
+      "explicit disposition where applicable"
+    ],
+    "observations": [
+      {
+        "name": "retrieved/read back",
+        "producer": "receiving consumer",
+        "minimumEvidence": [
+          "exact source/output reference and revision",
+          "reader identity",
+          "observation time"
+        ],
+        "doesNotProve": [
+          "consumed",
+          "settled",
+          "reused"
+        ]
+      },
+      {
+        "name": "consumed",
+        "producer": "named receiving task/session",
+        "minimumEvidence": [
+          "exact source/output revision",
+          "concrete use or reasoned rejection",
+          "resulting draft/decision/action reference",
+          "attributable disposition"
+        ]
+      },
+      {
+        "name": "settled",
+        "producer": "original-work owner",
+        "meaning": "original-work disposition",
+        "minimumEvidence": [
+          "original item and subject revision",
+          "supporting accepted evidence",
+          "distinct success/rejection/cancellation/deferral disposition"
+        ],
+        "deferralIsSuccessfulDelivery": false
+      },
+      {
+        "name": "reused",
+        "producer": "later distinct task",
+        "minimumEvidence": [
+          "prior learning reference and revision",
+          "later task identity",
+          "resulting decision/output"
+        ],
+        "retrievalAloneProvesReuse": false,
+        "causalImprovementNeedsComparison": true
+      }
+    ],
+    "sourceOwnership": {
+      "helpDesk": "transports or links records",
+      "fleetRunner": "execution acceptance",
+      "applicationWorkOwner": "original-work settlement",
+      "projection": "carries checkable evidence with provenance; creates no authority"
+    },
+    "standaloneLedger": {
+      "status": "UNADOPTED_RESEARCH_PROPOSAL",
+      "recommendation": "existing source-owned records and derived view",
+      "withdrawalDecision": "UNRESOLVED_OWNER_DECISION"
+    }
+  },
+  "operatorIntent": {
+    "status": "PROPOSED_PENDING_IDENTITY_AND_CONTROL_VERB_DECISION",
+    "minimumEvidence": [
+      "authenticated human principal",
+      "exact operation/resource",
+      "expected subject revision",
+      "finite scope/expiry",
+      "stable command/effect identity",
+      "owning-service authority/state check",
+      "authoritative service receipt"
+    ],
+    "insufficientAlone": [
+      "UI click",
+      "device signature",
+      "native user-role turn",
+      "signed peer text"
+    ],
+    "connectionRevocationBound": "UNRESOLVED_O3",
+    "globalHoldResumeSemantics": "UNRESOLVED",
+    "cockpitImplementationRequiredForAdvisoryPilot": false
+  },
+  "triggerContract": {
+    "status": "PROPOSED_PENDING_EXISTING_LOOP_OWNER_REVIEW",
+    "hintFields": [
+      "registered-loop reference",
+      "occurrence/effect identity"
+    ],
+    "owningServiceChecks": [
+      "versioned definition",
+      "occurrence/effect deduplication",
+      "current grant and hold",
+      "shared budget reservation",
+      "recorded refusal/admission"
+    ],
+    "classicalLifecycle": [
+      "wake routing",
+      "durable import",
+      "receipts",
+      "deadlines",
+      "idle polling"
+    ],
+    "ackRequiresAdditionalInference": false,
+    "unknownInvocation": "RECONCILE_OR_HOLD",
+    "productionSchedulerDeploymentRequiredForAdvisoryPilot": false
+  },
+  "budgetPolicy": {
+    "status": "PROPOSED_PENDING_O4_O5",
+    "requiredScopes": [
+      "declared aggregate loop cap/window",
+      "grant/exchange reservation across both runners"
+    ],
+    "scopesCoexist": true,
+    "identifierChangeResetsBudget": false,
+    "uncertaintyReleasesBudget": false,
+    "aggregateLimitsAndWindows": null
+  },
+  "fixturePolicy": {
+    "status": "PROPOSED_PENDING_O6_O8",
+    "finiteFactsOracle": "code against pinned machine-comparable expected fields",
+    "timestampMeaningRequired": true,
+    "sourceEventMayPrecedeCapture": true,
+    "currencyFrom": "authoritative source revision/supersession",
+    "insufficientForCurrency": [
+      "equal titles",
+      "newest capture time"
+    ],
+    "semanticJudgment": "separately admitted bounded proposal; human resolves pilot quality",
+    "failedClassicalCheckCanBeOverridden": false
+  },
+  "consumerExamples": [
+    {
+      "id": "selfco-filing",
+      "status": "DESIGN_ONLY_NOT_AUTHORIZED",
+      "owner": "existing selfco-inbox and vault owners",
+      "includedInAdvisoryLiveGate": false,
+      "effectClasses": [
+        "raw capture",
+        "new wiki page",
+        "existing-page/index/log edit"
+      ],
+      "proposedChangesetEvidence": [
+        "enumerated read inputs",
+        "allowed output paths",
+        "per-path base revisions",
+        "exact proposed changes",
+        "apply owner",
+        "effect-class grant"
+      ],
+      "requiredFutureProofs": [
+        "base mismatch holds",
+        "another replica is not fenced merely by a worker lock",
+        "scoped access including direct API",
+        "partial-apply/recovery evidence",
+        "rollback evidence",
+        "replica readback"
+      ],
+      "decisionsStillRequired": [
+        "standing unattended wiki-write permission",
+        "exact applier and change protocol",
+        "index/log changes",
+        "implementation ownership confirmation"
+      ],
+      "atomicMultiFileApplyClaimRequiresProof": true,
+      "currentCaptureQualifiesWikiWrites": false
+    }
+  ],
+  "openDecisions": {
+    "O1": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "existing device/HelpDesk owners",
+      "question": "exact native profiles and adapter implementation leads"
+    },
+    "O2": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "Core identity/authority and host owners",
+      "question": "workload binding issuer, credential protection and OS/broker trust boundary"
+    },
+    "O3": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "Core authority, LocalHelp/resource owners",
+      "question": "grants, attributable human intent, revision-bound effects, revocation and strict-resource migration"
+    },
+    "O4": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "existing gateway/execution owners; lead unassigned",
+      "question": "native call interception, reservations/accounting and egress enforcement"
+    },
+    "O5": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "owner under existing authority decision",
+      "question": "finite bounds, monetary ceiling, aggregate scopes/windows, deadlines, backpressure and stop policy"
+    },
+    "O6": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "supervision/portability and #316 consumption owners",
+      "question": "producer/evidence contracts, independent checker/custody, timestamp meanings and normalization"
+    },
+    "O7": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "existing client/contract owners and owner review",
+      "question": "identity/output disclosure and submitted/accepted/consumed/disposition distinctions"
+    },
+    "O8": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "implementation owners, verifier and owner",
+      "question": "public seams, full variant manifest, classical expected fields and one genuine judgment task"
+    },
+    "O9": {
+      "status": "UNRESOLVED",
+      "ownerVenue": "existing FleetRunner/HelpDesk conductors and affected owners",
+      "question": "design-only #29, #7/#12 lifecycle/implementation holds and disjoint work; ledger withdrawal and standing wiki-write decisions"
+    }
+  }
+}
