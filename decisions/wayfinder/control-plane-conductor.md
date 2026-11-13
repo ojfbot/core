@@ -81,8 +81,7 @@ manner of the 2026-11-12 Gate 2.
    standard-library runtime and pnpm wrappers, and its tests run in core. Its configuration
    moves to the package's own untracked `.env` and settings module (adr:package-env-files,
    #598); secrets that live in the workstation keychain today get a server-side home under
-   #313. Merge or carry its
-   open PRs first. Afterwards the old repository becomes read-only.
+   #313. Merge or carry its open PRs first. Afterwards the old repository becomes read-only.
 2. **Repoint the running workstation job at the core checkout**, attended. The state and
    configuration stay the same; the job stops through its fenced stop and makes one verified
    pass.
