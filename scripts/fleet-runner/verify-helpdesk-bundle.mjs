@@ -34,11 +34,8 @@ assert.equal(
   expectedDigest,
   "The saved #599 bundle differs from its recorded digest",
 );
-assert.equal(
-  process.env.HELPDESK_DEVICE_WRITER,
-  "yuri",
-  "This bounded run uses Yuri's existing enrollment",
-);
+const operator = process.env.HELPDESK_DEVICE_WRITER;
+assert.ok(["yuri", "yojimbo"].includes(operator), "Use this host's existing fleet enrollment");
 const { clientFromEnvironment } = await import(
   pathToFileURL(join(helpdeskRoot, "packages/helpdesk-device/dist/config.js")).href
 );
@@ -125,7 +122,7 @@ try {
     code_revision: code,
     operator_script_sha256: sha256(readFileSync(fileURLToPath(import.meta.url))),
     source_base: "324711ba76b249b266753aa23486c36a9227a767",
-    requester_and_operator: "yuri",
+    requester_and_operator: operator,
     worker: "bundle-worker",
     request_body: requestBody,
     job,
@@ -139,9 +136,9 @@ try {
   const execute = async (selected) => {
     const thread = await helpdesk.readThread(selected.thread_id);
     const original = thread.messages.find((message) => message.message_id === selected.message_id);
-    assert.equal(original?.sender.device_id, "yuri", "Wrong request author");
+    assert.equal(original?.sender.device_id, operator, "Wrong request author");
     assert.equal(original.body, requestBody, "Request differs from the operator-approved contents");
-    assert.ok(original.recipients.some((address) => address.device_id === "yuri"));
+    assert.ok(original.recipients.some((address) => address.device_id === operator));
     const admission = await owner.enqueue(job);
     assert.equal(admission.key, jobKey(job));
     const workerResult = await workOnce(worker, {

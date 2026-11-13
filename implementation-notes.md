@@ -8,6 +8,9 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-13 (Yojimbo independent replay, HelpDesk #3033): the command assumed the operator was Yuri, but replay must use Yojimbo's own enrollment; bound startup, sender verification, recipient verification and the manifest to the current host's existing writer, retaining the fixed fleet recipients and all verification checks.
+- 2026-11-13 (bundle transfer, HelpDesk #3033): the first NAS staging folder was outside Yojimbo's permitted service folders; paused that copy and requested an existing permitted transfer location, retaining the exact bundle without changing access or service settings.
+
 - 2026-11-13 (live HelpDesk bundle verification): the work reference was assumed to fit a session ID, but HelpDesk refused its length before creating a message or job; shortened the label to 24 characters, retained the refusal and cleanup evidence, and reran only the requested slice.
 - 2026-11-10 (Fleet Runner G7 independent review): targeted bundle mutations exposed gaps in exact manifest-set checks, canonical path separation, post-release worker pause defaults, and snapshot-start freshness time; add fail-closed checks and public-seam regressions before freezing the candidate.
 - 2026-11-10 (Fleet Runner G7): restore safety needs a persisted schema5 generation/hold because schema4 has no restore epoch; this advances the store schema while the existing contract verifier has a separately assigned schema-version drift fix, so G7 does not edit that verifier and release evidence must reconcile the two commits.

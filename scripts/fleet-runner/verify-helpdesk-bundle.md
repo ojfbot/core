@@ -1,6 +1,7 @@
 # Verify the #599 evidence bundle through live HelpDesk
 
-This operator command posts one real signed HelpDesk request using Yuri's existing enrollment.
+This operator command posts one real signed HelpDesk request using the host's existing enrollment
+on Yuri or Yojimbo. The host remains both requester and operator; signing keys stay on that host.
 A temporary FleetRunner worker verifies the saved #599 bundle and writes a JSON receipt.
 The operator checks the accepted bytes against the canonical job record before replying.
 The command repeats the identical request once, checks that no second execution occurs, and exits.
