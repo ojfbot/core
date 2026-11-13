@@ -31,6 +31,23 @@ jobs:
       - name: Launcher registrations test (ADR-0058)
         run: pnpm --filter @core/launcher-tests test
 
+  env-files:
+    name: Env files stay untracked (adr:package-env-files)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.2'
+
+      - name: env-files-check (fails on tracked env files or real-looking example values)
+        run: node scripts/env-files-check.mjs --check
+
+      - name: Python settings template tests (the TypeScript twin runs under pnpm test)
+        run: python3 -I -B -m unittest discover -s scripts/templates/package-settings -p 'test_*.py' -v
+
   check-provenance:
     name: Check ADR Provenance (ADR-0065)
     runs-on: ubuntu-latest
