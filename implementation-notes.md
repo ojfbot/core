@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-13 (one-file replay delivery, HelpDesk #3047): the two enrolled hosts had no configured attachment route and separate NAS account access blocked the approved bundle read; chose one signed inline transfer of this 37,000-byte non-secret evidence bundle with its frozen SHA-256, without adding a reusable file protocol or changing access settings.
+
 - 2026-11-13 (Yojimbo independent replay, HelpDesk #3033): the command assumed the operator was Yuri, but replay must use Yojimbo's own enrollment; bound startup, sender verification, recipient verification and the manifest to the current host's existing writer, retaining the fixed fleet recipients and all verification checks.
 - 2026-11-13 (bundle transfer, HelpDesk #3033): the first NAS staging folder was outside Yojimbo's permitted service folders; paused that copy and requested an existing permitted transfer location, retaining the exact bundle without changing access or service settings.
 
