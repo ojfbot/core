@@ -25,9 +25,13 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "bundle": "pnpm exec node scripts/bundle.mjs",
     "proof:packaging": "bash scripts/proof-packaging.sh"
   },
   "bin": {
     "fleet-runner": "./dist/cli.js"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5"
   }
 }

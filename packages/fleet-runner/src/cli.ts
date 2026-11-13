@@ -23,6 +23,11 @@ import { generateToken } from "./auth.js";
 import { JobStore } from "./jobs.js";
 import { fleetServer } from "./server.js";
 import { createRecoveryBundle, restoreRecoveryBundle, verifyRecoveryBundle } from "./recovery.js";
+import { loadWorkerSettings } from "./worker-settings.js";
+import { runDeclaredWorker } from "./declared-worker.js";
+import { proofCommand, workerPlist } from "./proof-command.js";
+import { releaseInfo } from "./version.js";
+import { spawn } from "node:child_process";
 
 function isLocalLan(address: string): boolean {
   if (!isIPv4(address)) return false;
@@ -38,9 +43,61 @@ function isLocalLan(address: string): boolean {
 
 async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
+  if (command === "version" && values.length === 0) {
+    console.log(JSON.stringify(releaseInfo, null, 2));
+    return;
+  }
+  if (command === "worker" && values.length === 2 && values[0] === "--settings") {
+    process.umask(0o077);
+    const settings = loadWorkerSettings(values[1]!);
+    if (settings.caFile && process.env.NODE_EXTRA_CA_CERTS !== settings.caFile) {
+      // Node reads extra CA trust at process startup. Relaunch only this installed binary/bundle.
+      const child = spawn(process.execPath, process.argv.slice(1), {
+        env: { ...process.env, NODE_EXTRA_CA_CERTS: settings.caFile },
+        stdio: "inherit",
+      });
+      const term = () => child.kill("SIGTERM");
+      const interrupt = () => child.kill("SIGINT");
+      process.once("SIGTERM", term);
+      process.once("SIGINT", interrupt);
+      try {
+        await new Promise<void>((ok, fail) => {
+          child.once("error", fail);
+          child.once("close", (code) => {
+            process.exitCode = code ?? 1;
+            ok();
+          });
+        });
+      } finally {
+        process.off("SIGTERM", term);
+        process.off("SIGINT", interrupt);
+      }
+      return;
+    }
+    const stop = new AbortController();
+    const cancel = () => stop.abort();
+    process.once("SIGINT", cancel);
+    process.once("SIGTERM", cancel);
+    try {
+      await runDeclaredWorker(settings, stop.signal);
+    } finally {
+      process.off("SIGINT", cancel);
+      process.off("SIGTERM", cancel);
+    }
+    return;
+  }
+  if (command === "proof-fixture" && values.length === 0) {
+    process.umask(0o077);
+    console.log(JSON.stringify(proofCommand(JSON.parse(readFileSync(0, "utf8")))));
+    return;
+  }
+  if (command === "worker-plist" && values.length === 2) {
+    process.stdout.write(workerPlist(values[0]!, values[1]!));
+    return;
+  }
   if (command === "--help" || command === "help") {
     console.log(
-      "fleet-runner keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | backup DB OUTPUT_DIR INPUT_DIR|- NEW_DEST | verify-backup BUNDLE | restore BUNDLE NEW_STATE_DIR | status|workers|events|logs|doctor [--json] | console [--port PORT] | control WORKER pause|drain|resume",
+      "fleet-runner worker --settings FILE | worker-plist ROOT EXISTING_LABEL | proof-fixture | version | keygen FILE | serve LAN_IP PORT DB OUTPUT REGISTRY | backup DB OUTPUT_DIR INPUT_DIR|- NEW_DEST | verify-backup BUNDLE | restore BUNDLE NEW_STATE_DIR | status|workers|events|logs|doctor [--json] | console [--port PORT] | control WORKER pause|drain|resume",
     );
     return;
   }
