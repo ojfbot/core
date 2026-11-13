@@ -7,6 +7,13 @@ Log the gap between plan and reality, not routine choices the plan already cover
 The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
+
+- 2026-11-13 (one-file replay delivery, HelpDesk #3047): the two enrolled hosts had no configured attachment route and separate NAS account access blocked the approved bundle read; chose one signed inline transfer of this 37,000-byte non-secret evidence bundle with its frozen SHA-256, without adding a reusable file protocol or changing access settings.
+
+- 2026-11-13 (Yojimbo independent replay, HelpDesk #3033): the command assumed the operator was Yuri, but replay must use Yojimbo's own enrollment; bound startup, sender verification, recipient verification and the manifest to the current host's existing writer, retaining the fixed fleet recipients and all verification checks.
+- 2026-11-13 (bundle transfer, HelpDesk #3033): the first NAS staging folder was outside Yojimbo's permitted service folders; paused that copy and requested an existing permitted transfer location, retaining the exact bundle without changing access or service settings.
+
+- 2026-11-13 (live HelpDesk bundle verification): the work reference was assumed to fit a session ID, but HelpDesk refused its length before creating a message or job; shortened the label to 24 characters, retained the refusal and cleanup evidence, and reran only the requested slice.
 - 2026-11-10 (Fleet Runner G7 independent review): targeted bundle mutations exposed gaps in exact manifest-set checks, canonical path separation, post-release worker pause defaults, and snapshot-start freshness time; add fail-closed checks and public-seam regressions before freezing the candidate.
 - 2026-11-10 (Fleet Runner G7): restore safety needs a persisted schema5 generation/hold because schema4 has no restore epoch; this advances the store schema while the existing contract verifier has a separately assigned schema-version drift fix, so G7 does not edit that verifier and release evidence must reconcile the two commits.
 - 2026-11-05 (fleet-runner G0 verifier): the first test placement put live historical-repository qualification in root Vitest discovery, but Core CI runs Node 22 with shallow history and no BookcaseDiscovery checkout. Moved it behind `scripts/fleet-runner/vitest.qualification.config.mjs`, requiring an explicit client repository path while leaving root CI discovery unchanged.
