@@ -349,3 +349,8 @@
 {"ts":"2026-11-13T16:10:18Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
 {"ts":"2026-11-13T16:10:18Z","event":"tool:used","tool_name":"mcp__ccd_turn__update_plan","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
 {"ts":"2026-11-13T16:10:31Z","event":"tool:used","tool_name":"mcp__ccd_turn__wrap_up","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
+{"ts":"2026-11-13T16:48:55Z","event":"tool:used","tool_name":"mcp__helpdesk__helpdesk_read_thread","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
+{"ts":"2026-11-13T16:48:55Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
+{"ts":"2026-11-13T16:48:56Z","event":"tool:used","tool_name":"mcp__ccd_turn__update_plan","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
+{"ts":"2026-11-13T16:49:13Z","event":"tool:used","tool_name":"mcp__helpdesk__helpdesk_replay","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
+{"ts":"2026-11-13T16:49:21Z","event":"tool:used","tool_name":"mcp__ccd_turn__wrap_up","file_path":"","skill":"","repo":"yuri","cwd":"/Users/yuri","session_id":"deb2f65b-9fcb-41b6-b941-d329b10347a5"}
