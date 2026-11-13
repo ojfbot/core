@@ -15,6 +15,14 @@ with its own deployment boundary; owns admitted work and attempts under the shar
 authorization and correspondence contracts, and inherits the conductor's loop oversight remit.
 → deeper: `decisions/adr/0108-fleet-runner-in-core.md`
 
+**Selfco workers**:
+The deterministic, LLM-free services that keep the Selfco vault current and clean: the capture
+worker (Notion inbox → vault → Sync → replica proof → confirmed row) plus the vault-hygiene workers
+(wikilink wiring, usage and staleness tracking, and later ones). They form one core service with its own
+deployment. They are not fleet-runner work orders.
+_Avoid_: selfco-inbox for the whole service. That name is the Notion database and the original repo.
+→ deeper: `decisions/wayfinder/control-plane-conductor.md` ("Selfco workers as a core service")
+
 **Bead**:
 A small, dated markdown file in `.handoff/` carrying inter-session context — a brief,
 report, or decision. Self-report, not ground truth: verify against git + tracker before

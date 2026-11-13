@@ -33,6 +33,68 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ## Notes
 
+### Selfco workers as a core service, 2026-11-13
+
+The operator directed that the Selfco capture worker's code leave its own repository
+(`ojfbot/selfco-inbox`) and join core as **its own service with its own deployment**: not a
+fleet-runner work order. Today the worker is an LLM-free scheduled job that runs from a
+workstation login session:
+- it moves `ready` rows from the Notion `selfco-inbox` database into the vault;
+- it runs a guarded Sync;
+- it proves the copy reached the Pi's pull-only replica;
+- it confirms the row.
+
+Its destination is full-clock, headless operation on a deployed local-network host, under
+the same deployment profile as the fleet's other services.
+
+The service is the home for **all Selfco workers**, not just capture: wikilink wiring,
+usage and staleness tracking, and any later vault-hygiene workers. Hygiene workers should
+wrap the existing `/vault` scripts (`lint.py`, `semantic-suggest.py`) rather than fork them.
+They must keep the vault's rules: `raw/` and past `log.md` entries are append-only, and
+only one writer at a time.
+
+This partly resolves the fog item *whether selfco is conducted by the same loop or a
+federated peer*. **Placement** is decided (core, a separate service). **Supervision**
+stays with #318. The direction grants no permission to move code, deploy, migrate state or
+change the running worker.
+
+**Why its own service.** Fleet-runner executes model-driven development work. The Selfco
+workers are deterministic data services with their own single-writer and proof
+obligations. They borrow fleet-runner's deployment, census and supervision rules, the same
+way HelpDesk deploys itself, and do not become admitted work orders.
+
+| Existing venue | What the Selfco workers need from it |
+| --- | --- |
+| Where the conductor runs (#309) | Which always-on host: the NAS `applications` profile or the Pi. Either way the host needs a writable vault copy, a headless Sync client and a reachable replica check. Today the Pi is a pull-only peer, so writing from it changes its role. |
+| What authority the conductor holds (#313) | Custody, on a server, of the Notion token, the Sync login, the vault encryption key and the backup repository key. A process never inherits deployment credentials. |
+| The portability seam (#311) | The queue, page bindings, sync baseline and worker lock move without re-capturing or dropping a note. |
+| Census the control plane (#315) | List the capture worker, the scheduled-backup job (selfco-inbox PR #22), the Pi replica peer, the Pi capacity-status timer, and a dormant Pi `selfco-box` transport unit. That unit duplicates the capture path, so it needs a disposition. |
+| Who watches the conductor (#318) | An independent watchdog, which the capture worker lacks today, plus detection of an unloaded job. The backup job's freshness alert cannot see its own removal. |
+| NAS applications-account planning (#595, #590) | The deployment account and storage layout. |
+| Direct Sync capture (#587) | Reconcile its capture paths and telemetry roots with the service, so there is one capture writer. |
+
+**Ordered delivery outline (not registered slices; no movement values).** Each step is one
+session and needs owner approval. The runtime steps also need a qualification gate in the
+manner of the 2026-11-12 Gate 2.
+
+1. **Move the code with its history** into `packages/selfco-workers`. It keeps its Python
+   standard-library runtime and pnpm wrappers, and its tests run in core. Merge or carry its
+   open PRs first. Afterwards the old repository becomes read-only.
+2. **Repoint the running workstation job at the core checkout**, attended. The state and
+   configuration stay the same; the job stops through its fenced stop and makes one verified
+   pass.
+3. **Decide the host** through #309, against the constraints above, and record the decision.
+4. **Deploy the profile and the secret custody** that #313 decides.
+5. **Shadow run on the host, read-only.** It never writes to the vault or Notion while the
+   workstation worker is live.
+6. **Cut over:** a fenced stop on the workstation, the state move, a start on the host, the
+   qualification gate, and a rehearsed rollback.
+7. **Supervise:** add the watchdog and the backup-freshness check. The workstation jobs retire.
+8. **Add the hygiene workers** one at a time, each with its own design, gate and single-writer proof.
+
+No step is dispatchable from this note. It closes no ticket and creates no replacement
+program.
+
 ### Skill observation extension, 2026-10-02
 
 The operator confirmed that skill observation covers all Claude and Codex sessions,
@@ -519,7 +581,9 @@ In-scope fog — belongs to the Destination, question not yet statable precisely
 - **What the conductor's surface actually is.** Cockpit pane, committed report, standup input,
   issues/beads, or several. Not askable until *What authority the conductor holds* and *What
   "consumed" means* settle what it emits and to whom.
-- **Whether selfco is conducted by the same loop or a federated peer.** selfco has its own vault
+- **Whether selfco is conducted by the same loop or a federated peer.** *(2026-11-13: the placement is
+  decided. The Selfco workers become their own core service; see "Selfco workers as a core service".
+  Supervision is still open under #318.)* selfco has its own vault
   semantics, its own disabled rails, and a different write posture. One conductor across both vs a
   conductor per domain sharing a schema is a real fork — but which is right depends on the census's
   overlap findings.
