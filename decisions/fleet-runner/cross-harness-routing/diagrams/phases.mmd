@@ -1,21 +1,23 @@
 ---
-title: Cross-harness delivery — zero-model proof before live inference
+title: Proposed delivery gates after planning reconciliation
 ---
 flowchart TB
-  accTitle: Proposed delivery dependencies and owner boundaries
-  accDescr: Contracts and controls precede the full zero-model qualification, independent acceptance and owner authorization. OpenCode and governed development acceptance come later.
-  A["A — Contract and fixtures<br/>This session analysis, Core/HelpDesk review"]
-  B["B — Four bindings and two runners<br/>Native, access and per-call controls<br/>Implementation leads unassigned"]
-  C["C — Zero-model qualification<br/>16 coordinates, R01–R25, 8 mutations<br/>Implementers + independent verifier"]
-  D["D — Independent acceptance + owner GO<br/>Then a bounded live advisory pilot"]
-  E["E — Production hardening<br/>Isolation, rotation and delegation"]
-  O["Later — OpenCode<br/>Same conformance contract"]
-  S["Existing G6 → G7 → G8<br/>FleetRunner / recovery owners"]
-  F["Later governed development dispatch<br/>Accepted policy and owner authority"]
-  A --> B
-  B --> C
-  C --> D
-  D --> E
-  E --> O
-  E --> F
-  S --> F
+  accTitle: Reconciled contract and proof gates with separate consumer qualification
+  accDescr: Owner-reviewed contracts precede native controls and zero-model qualification. The bounded advisory pilot needs independent acceptance and a separate GO. Wiki writes are a separate future consumer qualification. Existing service gates remain unchanged.
+  A(["A: Review contracts and fixtures<br/>O1 to O9, producer evidence<br/>Core / HelpDesk / consumption owners"])
+  B(["B: Build four bindings and two runners<br/>Strict identity and every-call controls<br/>Implementation leads unassigned"])
+  C(["C: Zero-model qualification<br/>25 cases, 19 named additions, 8 mutations<br/>Implementers and independent verifier"])
+  D(["D: Independent acceptance and owner GO<br/>Then bounded advisory pilot"])
+  E(["E: Additional production hardening<br/>Rotation, delegation and operations<br/>Service / host owners"])
+  K(["Separate future Selfco write qualification<br/>Capture, new page, existing edits<br/>Pipeline / vault owners; authority open"])
+  O(["Later: OpenCode<br/>Same conformance; owner unassigned"])
+  S(["Existing G6 to G7 to G8<br/>FleetRunner / recovery owners"])
+  F(["Later governed development dispatch<br/>Accepted policy and owner authority"])
+  A -->|"is required by"| B
+  B -->|"is required by"| C
+  C -->|"is required by"| D
+  D -->|"precedes"| E
+  A -->|"informs separate consumer"| K
+  E -->|"precedes"| O
+  E -->|"is required by"| F
+  S -->|"is required by"| F

@@ -1,8 +1,22 @@
 # FleetRunner and HelpDesk cross-harness routing plan
 
 Date: 2026-11-12. Status: Proposed. Parent initiative: [Core #307](https://github.com/ojfbot/core/issues/307).
-Capture scope: persist the conversation's plan and publish a sanitized draft PR. No runtime or implementation authority follows.
+Revision 2 reconciles the two planning reviews of the original package at 24ff95edeba140067d486bcff7bf9d5e1f005a2c.
+The owner authorizes planning edits, draft publication and scoped revision sharing. The package grants no runtime or implementation authority.
 The public record captures user directions and attributed proposals; it is not independent authentication of human authority.
+
+## Reconciled review basis
+
+Both addressed research sessions returned planning readbacks. Their pinned README, plan and catalog digests match this package's original revision.
+One review read the complete catalog. The other reviewed eight cases in detail and the remaining case metadata.
+The conductor verified the private report and archive hashes, the member manifest and three JSON members against the original source archive.
+That closes receiver access for the review. It does not qualify native adapters, managed inference or service operation.
+The historical compilation receipt records a failed full-vault gate with five unchanged pre-existing blockers, zero new blockers and no override.
+Its local-compilation checks are separate from this routing catalog.
+
+The changes below retain existing owners and the advisory first slice. Producer assignments, ledger withdrawal,
+standing wiki-write permission, exact native profiles and mechanisms remain unresolved.
+Private session IDs, reports and operational evidence are not reproduced in this public package.
 
 ## Problem and governing directions
 
@@ -102,6 +116,20 @@ Record both endpoints, public credential identifiers, policy/binding revisions, 
 Never log secret values. A connection permits only its authorized operations.
 For privileged dispatch, persist authorization evidence before starting; a later uncertain outcome remains held.
 
+### Human intent and operator contact
+
+MorningCockpit is an intended authenticated operator contact. A proposed control command names the human principal,
+exact operation and resource, expected subject revision, finite scope and expiry, and stable command/effect identity.
+The service owning the effect checks the grant and current state, then emits its authoritative receipt.
+The cockpit displays submission, acceptance, refusal, uncertainty and freshness separately.
+A click, device signature, native user-role turn or signed peer message alone cannot prove human approval.
+A connection must obey the declared revocation bound.
+
+The identity mechanism and first control verb remain owner decisions under O2/O3/O7.
+"Hold/resume everything" needs explicit resource scope and partial-failure rules.
+This future consumer contract does not add a cockpit implementation dependency to the advisory pilot.
+LCARS and ClassicSpaceVenue remain readers of permitted evidence projections, without execution credentials.
+
 ### Deterministic runner and call boundary
 
 A reviewed workflow registration fixes model necessity, allowed actors/resources, inputs, schemas, tools, checks, bounds and deciding authority.
@@ -110,11 +138,27 @@ Every inference attempt uses the call boundary, including internal retries/compa
 Provider credentials are outside agent reach and egress cannot bypass enforcement. Missing call coverage blocks the live pilot.
 Native inference-shaped requests to an emulator are recorded separately from real-provider inference requests.
 Uncertain charges/dispatch are not silently reset. A new request ID cannot reset a grant's consumed budget.
+Declared aggregate loop caps coexist with atomic grant/exchange reservations across both runners.
+Fresh grants or exchange IDs cannot replenish an exhausted aggregate budget. O5 must define scopes, windows and limits before qualification.
 
 Model output is stored as an attributed proposal. Code validates structure, references and classical invariants.
 Schema validity is not semantic truth or usefulness. Human assessment resolves the pilot's wording quality.
 A model challenger may perform an explicitly admitted judgment task, but cannot decide classical proof results.
 There is no automatic recursive model-review chain or model repair call.
+
+### Owned triggers and deterministic lifecycle handling
+
+A native trigger is a hint with a registered-loop reference and an occurrence/effect identity.
+The owning service resolves the versioned definition, deduplicates the intended occurrence or effect,
+checks current permission and holds, reserves budget, and records refusal or admission.
+A new transport command does not make the same intended effect new work.
+
+Code handles wake routing, durable import, receipts, deadlines and idle polling.
+It records pending, busy, unsupported and approval-blocked outcomes without asking a model to classify classical conditions.
+Native invocation and target acceptance remain separate observations. No additional inference request is needed merely to obtain an ACK.
+An uncertain invocation stays held for reconciliation. In-flight boundaries and late evidence obey the declared stop/revocation policy.
+Mechanisms, deadline values and connector migrations remain unresolved under O1/O4/O5/O9.
+The first slice may use synthetic trigger fixtures; it does not deploy a scheduler or migrate an existing loop.
 
 ### Correspondence, replay and state semantics
 
@@ -124,7 +168,8 @@ Each consumer owns a stream-aware checkpoint; advance after durable import and t
 Transport can repeat. Operation/effect idempotency is distinct from command deduplication.
 
 Required observations are separate: journal persistence, durable receiver import, native invocation, target-agent acceptance,
-reported result, independent verification and original-work disposition. Adapter claims are labelled as claims.
+reported result, independent verification, concrete consumption, original-work disposition and later reuse.
+These are distinct observations, not a universal linear state machine. Adapter claims are labelled as claims.
 Acceptance requires matching request/revision evidence attributable to the intended native session.
 Unknown dispatch is reconciled from native evidence or held, not automatically repeated.
 One verified active dispatcher serves a native session. Lease expiry does not resolve a possibly completed external effect.
@@ -133,6 +178,43 @@ Correspondence acceptance does not create a FleetRunner execution lease.
 
 On a stream change, history may be replayed for reconciliation; imported historical requests must not be automatically re-executed.
 Notification hints never substitute for authorized replay. Incomplete pages cannot produce caught-up or successful verdicts.
+
+### Consumption, settlement and reuse
+
+The following producer roles and minimum evidence are proposed for the existing contracts under #316/#313/#318.
+They are not implementation assignments or a newly adopted record schema.
+
+| Observation | Proposed producer | Minimum evidence |
+| --- | --- | --- |
+| Retrieved/read back | Receiving consumer | Exact source/output reference and revision, reader identity and observation time |
+| Consumed | Named receiving task/session | Exact revision, concrete use or reasoned rejection, resulting draft/decision/action reference and attributable disposition |
+| Settled | Original-work owner | Original item and subject revision, disposition and supporting accepted evidence. Success, rejection, cancellation and deferral stay distinct |
+| Reused | Later distinct task | Prior learning reference and revision, later task identity and resulting decision/output. Retrieval alone does not prove reuse or a causal improvement |
+
+Each record retains producer identity, original work/request/evidence references, subject revision,
+recorded time, observed time and disposition where applicable. The original-work disposition in the earlier package is the proposed settled observation.
+A deferred item is not successful delivery. A successful compute artifact or PR does not settle the original work by itself.
+
+HelpDesk transports or links records. FleetRunner owns execution acceptance. Application/work owners own settlement.
+A projection may carry checkable evidence, but cannot manufacture authority or replace the required source evidence.
+Missing or stale sources remain explicit. The independent checker must inspect the relevant original evidence.
+
+The Part 06 independent decision/outcome ledger remains an unadopted research proposal.
+This plan recommends preserving existing records and a derived view. Its withdrawal is still an owner decision.
+The smallest next planning decision is who records consumed, settled and reused, with which existing identifiers and minimum evidence.
+
+### Selfco as a consumer example
+
+The filing brief is a future consumer of these contracts, not part of the first advisory workflow.
+Its raw capture, new wiki page and existing-page/index/log effects need separate permissions and proofs.
+Capture qualification does not qualify wiki writes. A single worker lock does not fence another replica.
+
+A proposed changeset enumerates read inputs, allowed output paths, per-path base revisions, exact changes,
+the apply owner and the applicable effect-class grant. The applier checks every touched path and holds on a base mismatch.
+Partial application and recovery require evidence. Do not claim an atomic multi-file operation without proving it.
+Scoped apply authority, rollback proof and replica readback remain prerequisites for that consumer's delivery acceptance.
+The pipeline/vault owners retain this work. "Yojimbo owns, Yuri reviews" does not assign the research chat as an implementation lead.
+Standing unattended wiki-write permission, index/log changes and applier design remain unresolved.
 
 ## First vertical slice
 
@@ -189,30 +271,48 @@ Proposed public seams, pending implementation-owner confirmation:
 3. Observe the protected provider-call boundary and independent egress/call accounting.
 
 These are behavioral seams, not prescriptions for internal module decomposition.
+The reconciled catalog adds named required variants to existing cases without claiming execution.
+Consumer write examples are separate future qualifications and are excluded from the advisory live gate.
+
+Finite fixture facts use pinned expected fields and code checks before any admitted semantic judgment.
+Code evaluates hashes, counts, schemas, grants, field references and mechanical outcomes.
+Declare each timestamp's meaning. Source/event dates can precede capture; validate only the ordering relationships the contract defines.
+Equal titles and newest capture time do not establish an authoritative source revision or supersession.
+Semantic triage remains an attributed, bounded proposal with human resolution. It cannot override a failed classical check.
 R01–R25 and their coverage coordinates live in acceptance.json. The eight named semantic mutations each need their designated failing oracle.
 Syntax/import failures, unexecuted tests, model-authored verdicts and missing evidence cannot kill a mutant or pass a gate.
 Required variants and exclusions are enumerated before execution; no silent denominator or required skip is permitted.
-The independent checker consumes raw native/journal/auth/network evidence, not the router's decision reducer.
+The independent checker consumes relevant raw native/journal/auth/network evidence, not a router's self-reported decision reducer.
+A view can transport that evidence only with its provenance, revision, freshness and missing-source limits intact.
 Native-emulator conformance does not imply live deployment or semantic quality; live text is not expected to reproduce byte-for-byte.
 
 ## Delivery order and existing owners
 
 | Phase | Work / owner boundary | Entrance / proof gate |
 | --- | --- | --- |
-| A | This session: analysis/catalog. Core shared-contract venues and existing HelpDesk peers: review | Confirm unresolved choices and public test seams; fixtures reject unknown/classical model dispatch |
+| A | This session: reconciled analysis/catalog. Existing contract, consumption and HelpDesk owners: review | Confirm producer/evidence contracts, applicable O1–O9 choices and public test seams; fixtures reject unknown/classical model dispatch |
 | B | LocalHelp/device owners, existing execution owner and Switchboard component review; adapter/runner/gateway implementation leads UNASSIGNED | Four exact native profiles, two runners, isolated policy resources and enforced call boundary |
 | C | Named implementers execute; independent verifier accepts | All 16 routing coordinates, R01–R25 variants and eight mutations; zero real inference requests |
 | D | Existing owner makes a separate bounded live-pilot decision | Exact source/profiles/grants/budget and independent zero-model proof; no permission inferred from this document |
 | E | Service/host owners and verifier extend operational hardening | Isolation, rotation, constrained delegation, concurrency/recovery and production controls qualified |
 | Later | OpenCode adapter owner UNASSIGNED | Same canonical conformance suite; no forked authorization model |
 
+Resolve the choices applicable to the advisory profile before its qualification.
+Ledger withdrawal, standing wiki-write permission and the first Cockpit control verb remain separate consumer decisions.
+They do not block an otherwise qualified advisory profile. Fixture tests of receipt claims require no real wiki write or later application reuse.
+
 LocalHelp / HelpDesk and its existing Yojimbo peer retain service/transport operations.
-Yojimbo Setup delivery coordinator retains its current monitoring route and separate cursor; it is not the production implementation owner for a general router.
+Yojimbo Setup delivery coordinator retains its separate ownership, monitor lifecycle and cursor. This plan does not recruit or restart that coordinator as a general router.
 Earlier Yuri–Mini duplex protocol pilot owners remain paused; consult their artifacts without resuming or dispatching them.
 This session owns analysis and can provide independent acceptance review, not silent implementation authority.
 
 Shared ownership stays with Core under #307 and its existing #311 portability, #313 authority, #318 supervision and #511 identity input.
-LocalHelp #7/#12 retain compute-record/wiring questions. Their older API/R5 prerequisites need owner reconciliation, not automatic hold removal.
+LocalHelp #7/#12 retain compute-record/wiring questions.
+Draft LocalHelp #29 at 1629a1e8db2e526590a33b857848e2f70edf240d records the isolated served FleetRunner API profile
+at 78c71e9a7f085c092425fdbe99193a06c06e9e3f as a design baseline only.
+That record is open and unmerged at reconciliation. It does not qualify a native harness profile,
+answer #7's lifecycle/handover question, release #12's implementation hold or accept R5/R6/G6–G8.
+Existing conductors reconcile these records before assigning disjoint implementation work.
 No new program, scheduler, general work queue, duplicate issue or ready-for-agent designation is created.
 
 ### Parallel compute-service gates
@@ -228,13 +328,13 @@ Later governed development dispatch needs accepted routing/authority policy and 
 | --- | --- | --- |
 | O1 | Exact native Codex/Claude surface, version, session binding and supported lifecycle on each Mac | Existing device/HelpDesk owners; native adapter leads to be named |
 | O2 | Workload binding issuer, credential protection and same-user/host-administrator threat boundary | Core identity/authority with host owners |
-| O3 | Grant representation, resource policy enforcement, revocation/connection bounds and strict-resource migration | Core authority + LocalHelp/resource owners |
+| O3 | Grant representation, resource policy, attributable human intent, revision-bound effects, revocation/connection bounds and strict-resource migration | Core authority + LocalHelp/resource owners |
 | O4 | Native inference interception, Switchboard reuse/extension, pricing/reservation/accounting and egress proof | Existing gateway/execution owners; implementation lead to be named |
-| O5 | Proposed numerical bounds, cost ceiling, deadlines, backpressure and stop policy | Owner under existing authority decision |
-| O6 | Independent checker/evidence custody, retention/export and allowed normalization | Supervision/portability owners |
-| O7 | User-facing disclosure of reported versus verified identity and advisory versus accepted output | Existing client/contract owners and owner review |
-| O8 | Public test seams and the single useful judgment task to use after zero-model proof | Implementation owners + independent verifier + owner |
-| O9 | Reconcile current work and legacy holds before assigning disjoint implementation work | Existing FleetRunner/HelpDesk conductors |
+| O5 | Proposed bounds, monetary ceiling, aggregate loop scopes/windows, grant reservations, deadlines, backpressure and stop policy | Owner under existing authority decision |
+| O6 | Independent checker, evidence custody, timestamp semantics, producer contracts for consumed/settled/reused, retention/export and allowed normalization | Supervision/portability and #316 consumption owners |
+| O7 | Disclosure of reported/verified identity, submitted/accepted controls, advisory/accepted output and distinct consumption/disposition claims | Existing client/contract owners and owner review |
+| O8 | Public seams, machine-comparable fixture facts, full variant manifest and the single useful judgment task after zero-model proof. Future wiki effects stay separately qualified | Implementation owners + independent verifier + owner |
+| O9 | Reconcile design-only LocalHelp #29, #7/#12 lifecycle and implementation holds, current service receipts and disjoint work. Ledger withdrawal and standing wiki-write authority remain owner decisions | Existing FleetRunner/HelpDesk conductors with affected application/vault owners |
 
 No numeric revision forecasts or calendar delivery promises are inferred from this capture.
 These open choices prevent treating the captured plan as an implementation-ready, operative contract.
@@ -262,19 +362,23 @@ unsupported native capabilities remain blocked instead of weakening policy. Mech
 
 ## Out of scope and authority boundary
 
-This capture changes planning artifacts only. It does not implement a router, alter service/auth/network configuration,
-enrol identities, issue grants, invoke a model, start workers, send peer messages, advance cursors, merge code, migrate NAS storage,
+This revision changes planning artifacts and shares their source revision under the owner's separate instruction.
+It does not implement a router, alter service/auth/network configuration,
+enrol identities, issue runtime grants, invoke managed inference, start workers, authorize general peer dispatch, advance cursors, merge code, migrate NAS storage,
 resume Selfco/duplex work, or promote any gate. Existing consumer applications and service work remain with their owners.
 The live-pilot proposal concerns an isolated advisory workflow, not autonomous governed development or automatic publication.
 Selfco can be a later knowledge pointer if requested; the Core package remains the canonical plan.
 
 ## Source snapshot and references
 
-Source checked 2026-11-12. These pins establish source lineage, not current runtime proof.
+Source checked 2026-11-12, America/Chicago. The reconciliation's metadata observations occurred on 2026-11-13 UTC.
+These pins establish source lineage, not current runtime proof.
 
 | Source | Pin / role |
 | --- | --- |
-| Core main | 321a44637b8fc406b8823a192c1194511007e6c0; capture base |
+| Core main | 321a44637b8fc406b8823a192c1194511007e6c0; original capture base |
+| Original #596 package | 24ff95edeba140067d486bcff7bf9d5e1f005a2c; reviewed narrative/catalog baseline |
+| LocalHelp #29 | 1629a1e8db2e526590a33b857848e2f70edf240d; open draft design-baseline record, not runtime acceptance |
 | LocalHelp main | 9f27db3f02c6b1bf97a6f4e0f5e45245f29988c8; transport, auth seam, device-participant repository access |
 | Switchboard main | 57926bb314de4da21a8be9c267acc06d9e548af1; initial proxy; later budgets/provider slices remain separate |
 | workstation-yuri #8 | efb28e309a41b18af1852111191536447a44be52; review-only historical duplex source |
@@ -284,7 +388,8 @@ Source checked 2026-11-12. These pins establish source lineage, not current runt
 - [Accepted ownership ADR](https://github.com/ojfbot/core/blob/321a44637b8fc406b8823a192c1194511007e6c0/decisions/adr/0108-fleet-runner-in-core.md)
 - [Proposed stochastic-step/gate-authority input](https://github.com/ojfbot/core/blob/321a44637b8fc406b8823a192c1194511007e6c0/decisions/fleet-runner/gate-authority-tiers.md)
 - [Identity input #511](https://github.com/ojfbot/core/issues/511), [authority #313](https://github.com/ojfbot/core/issues/313), [portability #311](https://github.com/ojfbot/core/issues/311), [supervision #318](https://github.com/ojfbot/core/issues/318)
-- [LocalHelp #7](https://github.com/ojfbot/LocalHelp/issues/7), [LocalHelp #12](https://github.com/ojfbot/LocalHelp/issues/12)
+- [Consumption #316](https://github.com/ojfbot/core/issues/316)
+- [LocalHelp #7](https://github.com/ojfbot/LocalHelp/issues/7), [LocalHelp #12](https://github.com/ojfbot/LocalHelp/issues/12), [design-only baseline #29](https://github.com/ojfbot/LocalHelp/pull/29)
 - [LocalHelp auth source](https://github.com/ojfbot/LocalHelp/blob/9f27db3f02c6b1bf97a6f4e0f5e45245f29988c8/packages/helpdesk/src/auth.ts)
 - [LocalHelp repository source](https://github.com/ojfbot/LocalHelp/blob/9f27db3f02c6b1bf97a6f4e0f5e45245f29988c8/packages/helpdesk/src/repository.ts)
 - [Switchboard roadmap](https://github.com/ojfbot/switchboard/blob/57926bb314de4da21a8be9c267acc06d9e548af1/.claude/roadmap.md)

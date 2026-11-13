@@ -1,22 +1,36 @@
 ---
-title: Proposed architecture — deterministic control around every model call
+title: Proposed deterministic controls and distinct evidence producers
 ---
 flowchart TB
-  accTitle: Deterministic control with bounded stochastic work
-  accDescr: Code routes classical work to classical handlers and admits declared judgment work through native adapters and an enforced model-call boundary. Models return proposals.
-  H["HelpDesk journal — EXISTS<br/>Addressed correspondence and replay"]
-  R["Deterministic runner — REQUIRED<br/>Schema, identity, grants, pins, limits"]
-  D["Classical handler<br/>Zero model calls"]
-  A["Harness adapter<br/>Fleet contract to native primitives"]
-  C["Per-call enforcement — REQUIRED<br/>Protected credentials and egress control"]
-  M["LLM<br/>Bounded proposal only"]
-  V["Code validation and independent evidence<br/>Human judges unresolved semantics"]
-  E["Authorized effect or receipt<br/>FleetRunner / resource owner"]
-  H --> R
-  R -->|"classical work"| D
-  R -->|"declared judgment step"| A
-  A --> C
-  C --> M
-  M --> V
-  D --> V
-  V --> E
+  accTitle: Deterministic controls around models and source-owned evidence
+  accDescr: Triggers are hints. Code admits work under grants, holds and both budget scopes. Classical work makes no model call. Native model work uses a per-call boundary. Source owners record effects, consumption, settlement and later reuse independently.
+  I["Trigger hint / correspondence<br/>Registered occurrence and effect"]
+  R(["Code admission<br/>Grants, pins, holds, both budget scopes"])
+  D(["Classical handling<br/>Zero inference"])
+  A(["Native adapter<br/>Exact qualified profile"])
+  C(["Per-call enforcement<br/>Credentials, egress, accounting"])
+  M["Bounded model proposal"]
+  V(["Code checks independent evidence<br/>Human only for admitted judgment"])
+  U["Human-intent command<br/>MorningCockpit proposal"]
+  E(["Owning service<br/>Checks authority; commits effect/receipt"])
+  X(["Receiving task<br/>Records concrete consumption"])
+  W(["Original-work owner<br/>Records distinct disposition"])
+  L(["Later distinct task<br/>Records cited reuse and result"])
+  P["Evidence projection<br/>Source refs, revisions, freshness"]
+  I -->|"feeds"| R
+  R -->|"handles classical work"| D
+  R -->|"admits judgment"| A
+  A -->|"requires"| C
+  C -->|"yields request for"| M
+  M -->|"yields proposal to"| V
+  D -->|"yields result to"| V
+  R -->|"yields refusal or hold to"| E
+  V -->|"permits checked step at"| E
+  U -->|"requests revision-bound control"| E
+  E -->|"supplies output evidence to"| X
+  E -->|"supports disposition at"| W
+  X -->|"supplies prior learning to"| L
+  E -->|"yields source record to"| P
+  X -->|"yields consumption record to"| P
+  W -->|"yields disposition record to"| P
+  L -->|"yields reuse record to"| P

@@ -1,17 +1,30 @@
 # Cross-harness routing: plan and resume entry point
 
-Status: Proposed planning capture, 2026-11-12. Parent: [Core #307](https://github.com/ojfbot/core/issues/307).
-This package authorizes no implementation, test deployment, inference, credential issuance, messaging, merge or cutover.
+Status: Proposed planning capture, revision 2, reconciled 2026-11-12 America/Chicago. Parent: [Core #307](https://github.com/ojfbot/core/issues/307).
+This package grants no implementation, test deployment, managed inference, credential, general dispatch, merge or cutover authority.
+The owner separately authorized this planning revision, draft publication and scoped sharing.
 
 ## Read in this order
 
 1. [Plan](plan.md): user directions, architecture, first slice, owners, gaps and unresolved decisions.
-2. [Acceptance catalog](acceptance.json): four bindings, 16 routing coordinates, R01–R25, eight required mutations and proposed live-call entrance criteria.
+2. [Acceptance catalog](acceptance.json): four bindings, 16 routing coordinates, R01–R25 with 19 named required additions, eight required mutations and proposed live-call entrance criteria.
 3. [Diagram preview](preview.html): self-contained rendered view; open locally in a browser.
-4. [Resume bead](../../../.handoff/20261112-2345-brief-resume-cross-harness-routing-plan.md): the session stopping point. Check the ledger for a newer cross-harness-routing brief on later revisions.
+4. [Reconciliation report](../../../.handoff/20261113-0344-report-reconcile-cross-harness-planning-reviews.md): completed planning scope and remaining decisions.
+5. [Original resume brief](../../../.handoff/20261112-2345-brief-resume-cross-harness-routing-plan.md): earlier source snapshot and resume boundaries. Check the ledger for later records.
 
 The plan is canonical narrative. The catalog is canonical for case IDs, coverage coordinates and named mutations.
 The diagrams are explanatory projections. The bead references this package; it must not become another plan.
+
+## Revision 2
+
+The peer reviews of 24ff95edeba140067d486bcff7bf9d5e1f005a2c now inform the proposed producer contracts,
+operator-intent fields, trigger/effect identity, aggregate and grant budgets, timestamp semantics and consumer boundaries.
+All 25 cases, 19 named required additions and eight mutations remain NOT_RUN. The full run manifest is still an owner-reviewed entrance requirement.
+
+The first advisory wording-review slice is unchanged. Selfco writes are a separate future consumer qualification.
+Exact producer assignments, ledger withdrawal, standing wiki-write permission, O1–O9 and implementation leads remain unresolved.
+LocalHelp #29 is a draft design-only baseline record and clears no implementation or runtime gate.
+Private review receipts stay in private custody. This public package contains the reconciled proposals.
 
 ## Resume safely
 
@@ -43,9 +56,11 @@ Selfco may later carry a pointer if requested; it is not a second execution or p
 
 ## Files and integrity
 
-- [Topology](diagrams/topology.mmd) / [render](diagrams/topology.svg)
-- [Deterministic control](diagrams/control.mmd) / [render](diagrams/control.svg)
-- [Delivery phases](diagrams/phases.mmd) / [render](diagrams/phases.svg)
+**Caption:** Both harnesses remain on both Macs. Local runners require the shared Core contract and HelpDesk correspondence. [Topology source](diagrams/topology.mmd) and [render](diagrams/topology.svg).
+
+**Caption:** Services check human intent and model admission. Separate source owners record consumption, disposition and later reuse. [Control source](diagrams/control.mmd) and [render](diagrams/control.svg).
+
+**Caption:** Reconciled contracts precede zero-model qualification and separate owner GO. Future wiki writes have their own qualification. [Delivery source](diagrams/phases.mmd) and [render](diagrams/phases.svg).
 - [SHA256SUMS](SHA256SUMS) covers the package payload; it excludes itself.
 
 On a Mac, verify the package from this directory with:
