@@ -44,6 +44,15 @@ export function errorCode(error: unknown): string {
       "invalid-cursor",
       "invalid-control",
       "invalid-status-roles",
+      "invalid-worker-settings",
+      "invalid-worker-path",
+      "invalid-worker-interval",
+      "invalid-worker-endpoint",
+      "invalid-declared-command",
+      "agent-or-shell-command-refused",
+      "invalid-command-executable",
+      "invalid-proof-request",
+      "invalid-worker-plist",
     ].includes(error.message)
   )
     return error.message;
