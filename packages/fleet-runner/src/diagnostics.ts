@@ -45,6 +45,7 @@ export function errorCode(error: unknown): string {
       "invalid-control",
       "invalid-status-roles",
       "invalid-worker-settings",
+      "unsafe-worker-file",
       "invalid-worker-path",
       "invalid-worker-interval",
       "invalid-worker-endpoint",

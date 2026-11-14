@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { mkdirSync, lstatSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+import { performance } from "node:perf_hooks";
 import type { FleetClient } from "./client.js";
 import { fleetClient } from "./client.js";
 import { JobError, type JobHandler, type JobOutput } from "./jobs.js";
@@ -29,7 +31,16 @@ export function commandHandler(declared: DeclaredCommand): JobHandler {
       });
       let output = "";
       let failure: string | undefined;
-      let killTimer: ReturnType<typeof setTimeout> | undefined;
+      let stopping: Promise<void> | undefined;
+      const groupAlive = () => {
+        if (!child.pid) return false;
+        try {
+          process.kill(process.platform === "win32" ? child.pid : -child.pid, 0);
+          return true;
+        } catch (error) {
+          return !(error && typeof error === "object" && "code" in error && error.code === "ESRCH");
+        }
+      };
       const kill = (signal: NodeJS.Signals) => {
         try {
           if (child.pid && process.platform !== "win32") process.kill(-child.pid, signal);
@@ -40,15 +51,24 @@ export function commandHandler(declared: DeclaredCommand): JobHandler {
       };
       const stop = (code: string) => {
         failure ??= code;
+        if (stopping) return;
         kill("SIGTERM");
-        killTimer ??= setTimeout(() => kill("SIGKILL"), 5_000);
+        stopping = (async () => {
+          const termDeadline = performance.now() + 5_000;
+          while (groupAlive() && performance.now() < termDeadline) await delay(20);
+          if (!groupAlive()) return;
+          kill("SIGKILL");
+          const reapDeadline = performance.now() + 500;
+          while (groupAlive() && performance.now() < reapDeadline) await delay(10);
+          if (groupAlive()) failure = "command-cleanup-failed";
+        })();
       };
       const abort = () => stop("interrupted");
       const timer = setTimeout(() => stop("command-timeout"), declared.timeoutMs);
-      const cleanup = () => {
+      const cleanup = async () => {
         clearTimeout(timer);
-        if (killTimer) clearTimeout(killTimer);
         context.signal.removeEventListener("abort", abort);
+        await stopping;
       };
       context.signal.addEventListener("abort", abort, { once: true });
       child.stdin.on("error", () => {});
@@ -58,12 +78,12 @@ export function commandHandler(declared: DeclaredCommand): JobHandler {
           stop("invalid-command-output");
         else output += chunk;
       });
-      child.once("error", () => {
-        cleanup();
+      child.once("error", async () => {
+        await cleanup();
         reject(new JobError("command-start-failed", false));
       });
-      child.once("close", (code) => {
-        cleanup();
+      child.once("close", async (code) => {
+        await cleanup();
         if (failure || code !== 0) {
           reject(new JobError(failure ?? "command-failed", false));
           return;

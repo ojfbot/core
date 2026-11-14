@@ -3,6 +3,7 @@ import { once } from "node:events";
 import { createHash } from "node:crypto";
 import {
   accessSync,
+  chmodSync,
   constants,
   existsSync,
   mkdtempSync,
@@ -23,7 +24,7 @@ import { generateToken } from "../auth.js";
 import { commandHandler } from "../declared-worker.js";
 import { JobStore, type Claim } from "../jobs.js";
 import { fleetServer } from "../server.js";
-import { parseWorkerSettings } from "../worker-settings.js";
+import { loadWorkerSettings, parseWorkerSettings } from "../worker-settings.js";
 
 const pkg = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 let releaseDir: string;
@@ -303,6 +304,135 @@ it("refuses unlisted agent and shell launchers in local settings", () => {
   }
 });
 
+it("requires HTTPS except for loopback proofs", () => {
+  for (const host of ["127.0.0.1", "[::1]", "localhost"]) {
+    expect(parseWorkerSettings({ ...settings(), endpoint: `http://${host}:8080` }).endpoint).toBe(
+      `http://${host}:8080`,
+    );
+  }
+  expect(
+    parseWorkerSettings({ ...settings(), endpoint: "https://fleet.internal:8443" }).endpoint,
+  ).toBe("https://fleet.internal:8443");
+  for (const host of ["192.168.1.2", "fleet.internal", "localhost.example", "0.0.0.0"]) {
+    expect(() => parseWorkerSettings({ ...settings(), endpoint: `http://${host}:8080` })).toThrow(
+      "invalid-worker-endpoint",
+    );
+  }
+});
+
+it.each([
+  ["settings", 0o660],
+  ["settings", 0o606],
+  ["token", 0o660],
+  ["token", 0o606],
+])("refuses group/other writable %s files (mode %i)", (target, mode) => {
+  const cfg = settings();
+  const file = join(dir, "worker.json");
+  writeFileSync(file, JSON.stringify(cfg), { mode: 0o600 });
+  expect(loadWorkerSettings(file)).toMatchObject({ worker: "worker" });
+  chmodSync(target === "settings" ? file : cfg.tokenFile, mode);
+  expect(() => loadWorkerSettings(file)).toThrow("unsafe-worker-file");
+});
+
+it.each([false, true])(
+  "drains through repeated TERM and INT signals (CA relaunch: %s)",
+  async (ca) => {
+    if (ca) {
+      await new Promise<void>((ok) => server.close(() => ok()));
+      server = fleetServer(store, {
+        registry: dir,
+        outDir: join(dir, "accepted"),
+        workers: ["worker"],
+        tls: { key: readFileSync(tlsKey), cert: readFileSync(tlsCert), minVersion: "TLSv1.2" },
+      });
+      await new Promise<void>((ok, fail) => {
+        server.once("error", fail);
+        server.listen(0, "127.0.0.1", ok);
+      });
+      const address = server.address();
+      if (!address || typeof address === "string") throw Error("no TLS listener");
+      endpoint = `https://127.0.0.1:${address.port}`;
+    }
+    const command = join(dir, "held-command.mjs");
+    const pidFile = join(dir, "command.pid");
+    const releaseFile = join(dir, "release");
+    writeFileSync(
+      command,
+      `
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+const { job, outDir } = JSON.parse(readFileSync(0, 'utf8'));
+writeFileSync(process.argv[2], String(process.pid));
+const timer = setInterval(() => {
+  if (!existsSync(process.argv[3])) return;
+  clearInterval(timer);
+  const bytes = Buffer.from('drained proof\\n');
+  const file = job.key + '.' + job.fence + '.jsonl';
+  writeFileSync(join(outDir, file), bytes);
+  console.log(JSON.stringify({file, sha256:createHash('sha256').update(bytes).digest('hex')}));
+}, 10);
+`,
+    );
+    const current = join(installed, "worker/current");
+    const cfg = {
+      ...settings(),
+      ...(ca ? { caFile: tlsCert } : {}),
+      kinds: {
+        "proof-fixture": {
+          capabilities: [],
+          command: [join(current, "node"), command, pidFile, releaseFile],
+        },
+      },
+    };
+    const configFile = join(dir, "worker.json");
+    writeFileSync(configFile, JSON.stringify(cfg));
+    const queued = store.enqueue({ kind: "proof-fixture", inputs: [], params: {}, payload: null });
+    running = spawn(
+      join(current, "node"),
+      [join(current, "fleet-runner.mjs"), "worker", "--settings", configFile],
+      {
+        env: { PATH: "/no-global-runtime" },
+        stdio: "ignore",
+        detached: true,
+      },
+    );
+    const worker = running;
+    const closed = once(worker, "close");
+    let commandPid: number | undefined;
+    try {
+      await waitFor(() => existsSync(pidFile));
+      commandPid = Number(readFileSync(pidFile, "utf8"));
+      for (const signal of ["SIGTERM", "SIGTERM", "SIGINT", "SIGINT"] as const) {
+        worker.kill(signal);
+        await delay(75);
+      }
+      expect(worker.exitCode).toBeNull();
+      expect(worker.signalCode).toBeNull();
+      expect(store.get(queued.key)?.status).toBe("claimed");
+      writeFileSync(releaseFile, "release");
+      await waitFor(() => worker.exitCode !== null || worker.signalCode !== null);
+      await closed;
+      expect(worker.exitCode).toBe(0);
+      expect(store.get(queued.key)?.status).toBe("done");
+      expect(JSON.parse(readFileSync(cfg.statusFile, "utf8")).state).toBe("stopped");
+      expect(() => process.kill(commandPid!, 0)).toThrow();
+    } finally {
+      writeFileSync(releaseFile, "release");
+      for (const pid of [commandPid, worker.pid]) {
+        if (!pid) continue;
+        try {
+          process.kill(-pid, "SIGKILL");
+        } catch {
+          /* Owned fixture group already exited. */
+        }
+      }
+      await closed;
+    }
+  },
+  15_000,
+);
+
 it("rejects a command result outside the fenced output path", async () => {
   const command = join(dir, "bad-output.mjs");
   writeFileSync(
@@ -357,6 +487,74 @@ it("cancels the installed command rather than leaving it running", async () => {
   await rejected;
   expect(() => process.kill(pid, 0)).toThrow();
 });
+
+it("waits for a TERM-resistant helper after the command root exits", async () => {
+  const command = join(dir, "root-with-helper.mjs");
+  const pidFile = join(dir, "helper.pid");
+  writeFileSync(
+    command,
+    `
+import { spawn } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+process.on('SIGTERM', () => process.exit(0));
+const helper = spawn(process.execPath, ['-e',
+  'process.on("SIGTERM",()=>{});setInterval(()=>{},1000);process.send("ready");'],
+  { stdio: ['ignore','ignore','ignore','ipc'] });
+helper.on('message', () => writeFileSync(process.argv[2], String(helper.pid)));
+setInterval(()=>{},1000);
+`,
+  );
+  const job: Claim = {
+    key: "c".repeat(64),
+    fence: 1,
+    kind: "proof-fixture",
+    inputs: [],
+    params: {},
+    code: null,
+    payload: null,
+    leaseExpires: Date.now() + 300_000,
+  };
+  const stop = new AbortController();
+  let helperPid: number | undefined;
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const alive = (pid: number) => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  try {
+    const result = commandHandler({
+      capabilities: [],
+      command: [process.execPath, command, pidFile],
+      timeoutMs: 30_000,
+    })(job, { signal: stop.signal, outDir: dir }).then(
+      () => "resolved",
+      (error: unknown) =>
+        error && typeof error === "object" && "code" in error ? error.code : "unknown",
+    );
+    await waitFor(() => existsSync(pidFile));
+    helperPid = Number(readFileSync(pidFile, "utf8"));
+    const started = Date.now();
+    stop.abort();
+    const disposition = await Promise.race([
+      result,
+      new Promise((_, fail) => {
+        deadline = setTimeout(() => fail(Error("command cleanup exceeded its bound")), 7_000);
+      }),
+    ]);
+    if (deadline) clearTimeout(deadline);
+    await delay(Math.max(0, 5_500 - (Date.now() - started)));
+    expect(disposition).toBe("interrupted");
+    expect(alive(helperPid)).toBe(false);
+  } finally {
+    stop.abort();
+    if (deadline) clearTimeout(deadline);
+    if (helperPid && alive(helperPid)) process.kill(helperPid, "SIGKILL");
+  }
+}, 15_000);
 
 it("checks the Node signature before executing a supplied shell", () => {
   const fake = join(dir, "fake-node"),
