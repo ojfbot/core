@@ -13,6 +13,10 @@ Convention: `adr:context-md-glossary-pointer-convention` (draft) /
 Core's deterministic admission and durable invocation safety for an explicitly bound native duty session.
 → deeper: `packages/native-dispatch/README.md`
 
+**Subscription canary**:
+A bounded advisory test on explicitly pinned subscription-backed duty bindings, with runtime authority separate from preparation.
+→ deeper: `packages/native-dispatch/CANARY.md`
+
 **Fleet-runner**:
 Core's development-work executor and successor to the control-plane conductor initiative,
 with its own deployment boundary; owns admitted work and attempts under the shared

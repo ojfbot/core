@@ -16,3 +16,23 @@ export type {
   NativeEvidence,
   DispatcherStatus,
 } from "./types.js";
+export {
+  prepareSubscriptionCanary,
+  canaryGrantRevision,
+  openCanaryQualification,
+  openApprovedSubscriptionCanary,
+  subscriptionCanaryCommand,
+  SUBSCRIPTION_CANARY_FIXTURE,
+  SUBSCRIPTION_CANARY_FIXTURE_SHA256,
+} from "./canary.js";
+export { parseCanaryProposal, ADVISORY_OUTPUT_SCHEMA } from "./advisory.js";
+export type { RelayedCanaryProposal } from "./advisory.js";
+export type {
+  SubscriptionCanaryProfile,
+  SubscriptionCanaryBinding,
+  SubscriptionCanaryPlan,
+  CanaryRuntimeApproval,
+  CanaryHold,
+  PreparedSubscriptionCanary,
+  CanaryQualification,
+} from "./canary-types.js";

@@ -13,6 +13,7 @@ import {
 import type { DispatchConfiguration } from "./admission.js";
 import { isQualificationTransport } from "./native.js";
 import type { QualificationTransport } from "./native.js";
+import type { RelayedCanaryProposal } from "./advisory.js";
 import type {
   DispatchDisposition,
   DispatcherStatus,
@@ -34,6 +35,7 @@ export interface Dispatcher {
   dispatch(request: unknown, options?: { signal?: AbortSignal }): Promise<DispatchDisposition>;
   reconcile(evidence: NativeEvidence): DispatchDisposition;
   lookup(deliveryId: string): DispatchDisposition | undefined;
+  agentProposal(deliveryId: string): RelayedCanaryProposal | undefined;
   status(): DispatcherStatus;
   close(): void;
 }
@@ -93,7 +95,8 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
       admitted_at INTEGER NOT NULL, observed_at INTEGER);
     CREATE TABLE IF NOT EXISTS controllers(session_key TEXT PRIMARY KEY,dispatch_id TEXT UNIQUE NOT NULL);
     CREATE TABLE IF NOT EXISTS budgets(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);
-    CREATE TABLE IF NOT EXISTS grant_usage(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS grant_usage(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);
+    CREATE TABLE IF NOT EXISTS advisory_proposals(dispatch_id TEXT PRIMARY KEY,proposal TEXT NOT NULL);`);
   } catch (error) {
     db.close();
     throw error;
@@ -292,14 +295,20 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
         });
         const outcome = observation.outcome;
         if (outcome !== "unknown")
-          return transaction(() =>
-            observe({
+          return transaction(() => {
+            const result = observe({
               dispatchId,
               nativeSessionId: observation.nativeSessionId,
               nativeTurnId: observation.nativeTurnId,
               outcome,
-            }),
-          );
+            });
+            if (observation.agentProposal && outcome === "completed")
+              db.prepare("INSERT OR IGNORE INTO advisory_proposals VALUES(?,?)").run(
+                dispatchId,
+                JSON.stringify(observation.agentProposal),
+              );
+            return result;
+          });
       } catch {
         // Once an effect intent is durable, a lost response is held, even if the process exited zero.
       } finally {
@@ -319,6 +328,17 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
     lookup: (deliveryId) => {
       const row = db.prepare("SELECT * FROM invocations WHERE delivery_id=?").get(deliveryId);
       return row ? disposition(row) : undefined;
+    },
+    agentProposal: (deliveryId) => {
+      const row = db
+        .prepare(
+          "SELECT proposal FROM advisory_proposals JOIN invocations USING(dispatch_id) WHERE delivery_id=? AND state='observed'",
+        )
+        .get(deliveryId);
+      if (!row) return undefined;
+      if (typeof row.proposal !== "string") throw Error("invalid-advisory-state");
+      // This owner-private record is written only after parseCanaryProposal accepts the native data.
+      return JSON.parse(row.proposal) as RelayedCanaryProposal;
     },
     status: () => {
       const count = db
