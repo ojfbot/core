@@ -8,6 +8,10 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (native dispatch review): parsed JSON keys did not constrain Claude's raw stdin bytes, admission could age before effect, and default SQLite creation/sync settings were weaker than the journal claim; rebuild native pointers from validated identifiers, check expiry after the transaction, create mode 0600 before SQLite, and enable both macOS full-sync settings. Four focused regressions failed before these corrections.
+
+- 2026-11-14 (native dispatch review): the active-invocation guard was process-local, and another open journal handle could reconcile a live owner's row; the journal now retains SQLite's exclusive OS lock for the dispatcher's lifetime, refusing a second open and preserving unresolved invocation holds after a crashed owner is replaced.
+
 - 2026-11-14 (native profile fixture): the binding's temporary directory used macOS's `/var` alias while the subprocess reported `/private/var`; strict native cwd comparison exposed the mismatch, so existing working directories are canonicalized before authorization and launch instead of weakening the fixture's target check.
 
 - 2026-11-14 (HelpDesk pickup build): provider help and exit status do not establish the required subscription call, token or monetary limits; this library has only built-in local qualification subprocesses and explicitly leaves live dispatch ineligible rather than treating a timeout as budget enforcement.

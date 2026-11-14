@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, lstatSync, mkdirSync, realpathSync } from "node:fs";
+import { closeSync, lstatSync, mkdirSync, openSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute } from "node:path";
 import type { DatabaseSync as Database } from "node:sqlite";
@@ -59,14 +59,30 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
   const transport = options.transport,
     now = options.now ?? Date.now;
   mkdirSync(dirname(options.stateFile), { recursive: true, mode: 0o700 });
-  if (existsSync(options.stateFile)) {
-    const info = lstatSync(options.stateFile);
-    if (!info.isFile() || info.isSymbolicLink() || info.mode & 0o077)
-      throw Error("unsafe-state-file");
+  try {
+    const fd = openSync(options.stateFile, "wx", 0o600);
+    closeSync(fd);
+  } catch (error) {
+    if (!(object(error) && error.code === "EEXIST")) throw error;
   }
+  const info = lstatSync(options.stateFile);
+  if (!info.isFile() || info.isSymbolicLink() || info.mode & 0o077)
+    throw Error("unsafe-state-file");
   const db = new DatabaseSync(options.stateFile);
-  chmodSync(options.stateFile, 0o600);
-  db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
+  try {
+    if (process.platform === "darwin")
+      db.exec("PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON;");
+    // SQLite retains the OS lock until close, including between transactions.
+    // A crashed process releases the lock without resolving its external invocation.
+    db.exec("PRAGMA busy_timeout=0; PRAGMA locking_mode=EXCLUSIVE; BEGIN EXCLUSIVE; COMMIT;");
+  } catch (error) {
+    db.close();
+    if (object(error) && (error.errcode === 5 || error.errcode === 6))
+      throw Error("dispatcher-already-open");
+    throw error;
+  }
+  try {
+    db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
     CREATE TABLE IF NOT EXISTS invocation_meta(version INTEGER NOT NULL CHECK(version=1));
     INSERT INTO invocation_meta SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM invocation_meta);
     CREATE TABLE IF NOT EXISTS invocations(
@@ -78,6 +94,10 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
     CREATE TABLE IF NOT EXISTS controllers(session_key TEXT PRIMARY KEY,dispatch_id TEXT UNIQUE NOT NULL);
     CREATE TABLE IF NOT EXISTS budgets(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS grant_usage(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);`);
+  } catch (error) {
+    db.close();
+    throw error;
+  }
   const active = new Set<string>(),
     controller = randomUUID();
   const transaction = <T>(run: () => T): T => {
@@ -144,7 +164,6 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
         return { kind: "refused", reason: "invalid-request" };
       }
       if (settings.signal?.aborted) return { kind: "refused", reason: "held" };
-      const admission = decide(request, config, now());
       const requestDigest = digest(JSON.stringify(request));
       const prepared = transaction(() => {
         const prior = db
@@ -158,6 +177,8 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
                 ? disposition(prior)
                 : { kind: "refused" as const, reason: "delivery-conflict" as const },
           };
+        const admittedAt = now();
+        const admission = decide(request, config, admittedAt);
         if (admission.kind === "refused") return { kind: "prior" as const, result: admission };
         const { binding, grant, profile } = admission;
         const sessionKey = JSON.stringify([
@@ -223,7 +244,7 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
           JSON.stringify(result),
           JSON.stringify({ binding, grant, profile }),
           controller,
-          now(),
+          admittedAt,
         );
         db.prepare("INSERT INTO controllers VALUES(?,?)").run(sessionKey, dispatchId);
         db.prepare("UPDATE budgets SET used=used+1 WHERE scope=?").run(grant.budgetScope);
@@ -232,6 +253,17 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
       });
       if (prepared.kind === "prior") return prepared.result;
       const { dispatchId, binding, grant, profile } = prepared;
+      const remainingMs = grant.expiresAtMs - now();
+      if (remainingMs <= 0)
+        return transaction(() => {
+          // No native effect occurred. Keep the reservation spent and release only this controller.
+          const result: DispatchDisposition = { kind: "refused", reason: "expired" };
+          db.prepare(
+            "UPDATE invocations SET state='observed',disposition=? WHERE dispatch_id=?",
+          ).run(JSON.stringify(result), dispatchId);
+          db.prepare("DELETE FROM controllers WHERE dispatch_id=?").run(dispatchId);
+          return result;
+        });
       active.add(dispatchId);
       try {
         const observation = await transport.resume({
@@ -240,7 +272,7 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
           request,
           dispatchId,
           signal: settings.signal ?? new AbortController().signal,
-          timeoutMs: Math.max(1, Math.min(5_000, grant.expiresAtMs - now())),
+          timeoutMs: Math.min(5_000, remainingMs),
           onStarted: (turnId) => {
             const result: DispatchDisposition = {
               kind: "unknown",
