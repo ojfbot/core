@@ -8,6 +8,11 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (native profile fixture): the binding's temporary directory used macOS's `/var` alias while the subprocess reported `/private/var`; strict native cwd comparison exposed the mismatch, so existing working directories are canonicalized before authorization and launch instead of weakening the fixture's target check.
+
+- 2026-11-14 (HelpDesk pickup build): provider help and exit status do not establish the required subscription call, token or monetary limits; this library has only built-in local qualification subprocesses and explicitly leaves live dispatch ineligible rather than treating a timeout as budget enforcement.
+- 2026-11-14 (native dispatch boundary): the pure admission proposal left one-controller and unknown-invocation safety to the receiver; both builders agreed Core owns a separate invocation journal keyed by the receiver's existing delivery ID, with no additional delivery queue or shared receiver schema.
+
 - 2026-11-13 (worker review): command-root close was assumed to end cancellation, but a same-group helper could ignore TERM after detaching stdio; cleanup now outlives root close, waits for the bounded group stop and records failure if removal cannot be confirmed. The owned-process regression fails before the fix and passes after it.
 - 2026-11-13 (worker review): local configuration trust and a single stop signal were assumed; review reproduced writable settings/keys, nonloopback HTTP and a second signal killing the drain. Refuse the two writable files and remote HTTP, and retain both signal handlers through shutdown in the worker and CA parent; each regression fails before the fix.
 
