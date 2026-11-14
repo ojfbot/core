@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (native dispatch delta check): keeping a known pre-launch expiry spent could exhaust a one-invocation grant without a native effect; the coordinator selected an atomic refund for only that proven-no-effect path, retaining the terminal refusal and all unknown/started reservations.
+
 - 2026-11-14 (native dispatch review): parsed JSON keys did not constrain Claude's raw stdin bytes, admission could age before effect, and default SQLite creation/sync settings were weaker than the journal claim; rebuild native pointers from validated identifiers, check expiry after the transaction, create mode 0600 before SQLite, and enable both macOS full-sync settings. Four focused regressions failed before these corrections.
 
 - 2026-11-14 (native dispatch review): the active-invocation guard was process-local, and another open journal handle could reconcile a live owner's row; the journal now retains SQLite's exclusive OS lock for the dispatcher's lifetime, refusing a second open and preserving unresolved invocation holds after a crashed owner is replaced.

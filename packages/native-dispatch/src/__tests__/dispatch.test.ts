@@ -332,6 +332,28 @@ it("does not spawn when expiry passes between admission and the native effect", 
   expect(cfg.transport.snapshot().processes).toBe(0);
 });
 
+it("refunds a reservation proven to expire before launch so a renewed grant can run", async () => {
+  const cfg = configuration();
+  let clock = 999;
+  cfg.now = () => ++clock;
+  cfg.grants[0]!.expiresAtMs = 1001;
+  cfg.grants[0]!.maxInvocations = 1;
+  cfg.grants[0]!.scopeMaxInvocations = 1;
+  const expired = open(cfg),
+    original = request();
+  expect(await expired.dispatch(original)).toEqual({ kind: "refused", reason: "expired" });
+  expect(cfg.transport.snapshot().processes).toBe(0);
+  close(expired);
+  cfg.now = () => 1002;
+  cfg.grants = cfg.grants.map((g) => ({ ...g, revision: "renewed", expiresAtMs: 5000 }));
+  const renewed = open(cfg);
+  expect(
+    await renewed.dispatch({ ...request("fresh-delivery"), grantRevision: "renewed" }),
+  ).toMatchObject({ kind: "observed", outcome: "completed" });
+  expect(await renewed.dispatch(original)).toEqual({ kind: "refused", reason: "expired" });
+  expect(cfg.transport.snapshot().processes).toBe(1);
+});
+
 function inspectCreation() {
   const entry = new URL("../../dist/index.js", import.meta.url).href;
   const cfg = configuration();

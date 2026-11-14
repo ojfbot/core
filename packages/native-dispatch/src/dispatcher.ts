@@ -256,12 +256,16 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
       const remainingMs = grant.expiresAtMs - now();
       if (remainingMs <= 0)
         return transaction(() => {
-          // No native effect occurred. Keep the reservation spent and release only this controller.
+          // No native effect occurred. Refund this reservation atomically with its terminal refusal.
           const result: DispatchDisposition = { kind: "refused", reason: "expired" };
           db.prepare(
             "UPDATE invocations SET state='observed',disposition=? WHERE dispatch_id=?",
           ).run(JSON.stringify(result), dispatchId);
           db.prepare("DELETE FROM controllers WHERE dispatch_id=?").run(dispatchId);
+          db.prepare("UPDATE budgets SET used=used-1 WHERE scope=?").run(grant.budgetScope);
+          db.prepare("UPDATE grant_usage SET used=used-1 WHERE scope=?").run(
+            JSON.stringify([grant.charterId, grant.bindingAlias]),
+          );
           return result;
         });
       active.add(dispatchId);
