@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { once } from "node:events";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import {
@@ -212,20 +212,56 @@ it("keeps one controller across dispatcher instances and aliases of the same nat
   cfg.transport = createQualificationTransport({ delayMs: 250 });
   cfg.bindings.push({ ...cfg.bindings[0]!, alias: "other" });
   cfg.grants.push({ ...cfg.grants[0]!, bindingAlias: "other", revision: "grant-2" });
-  const a = open(cfg),
-    b = open(cfg);
+  const a = open(cfg);
+  expect(() => open(cfg)).toThrow("dispatcher-already-open");
   const first = a.dispatch(request());
   expect(
-    await b.dispatch({
+    await a.dispatch({
       ...request("other-delivery"),
       recipient: "other",
       grantRevision: "grant-2",
     }),
   ).toMatchObject({ kind: "busy", reason: "session-busy" });
-  expect(await b.dispatch(request())).toMatchObject({ kind: "unknown" });
+  expect(await a.dispatch(request())).toMatchObject({ kind: "unknown" });
   expect(() => a.close()).toThrow("invocation-still-active");
   await first;
   expect(cfg.transport.snapshot().processes).toBe(1);
+});
+
+it("refuses a second journal owner before it can reconcile and overlap a live invocation", async () => {
+  const cfg = configuration();
+  cfg.transport = createQualificationTransport({ delayMs: 500 });
+  const first = open(cfg);
+  const pending = first.dispatch(request());
+  let second: Dispatcher | undefined;
+  let refusal: string | undefined;
+  let overlap: Promise<unknown> | undefined;
+  try {
+    await waitFor(() => {
+      const seen = first.lookup("delivery");
+      return seen?.kind === "unknown" && seen.nativeTurnId === "fixture-turn";
+    });
+    try {
+      second = open(cfg);
+    } catch (error) {
+      refusal = error instanceof Error ? error.message : "unknown";
+    }
+    if (second) {
+      const evidence = second.lookup("delivery");
+      if (!evidence || evidence.kind !== "unknown") throw Error("missing in-flight evidence");
+      second.reconcile({
+        dispatchId: evidence.dispatchId,
+        nativeSessionId: evidence.nativeSessionId,
+        nativeTurnId: evidence.nativeTurnId,
+        outcome: "completed",
+      });
+      overlap = second.dispatch(request("overlap"));
+      await waitFor(() => cfg.transport.snapshot().active === 2);
+    }
+    expect(refusal).toBe("dispatcher-already-open");
+  } finally {
+    await Promise.allSettled([pending, overlap]);
+  }
 });
 
 it.each(["codex", "claude-code"] as const)(
@@ -274,6 +310,64 @@ it("does not call a zero-exit queued prompt completed", async () => {
   });
 });
 
+it("sends only canonical pointer data to Claude when raw JSON contains duplicate keys", async () => {
+  const cfg = configuration("claude-code"),
+    d = open(cfg),
+    r = request();
+  const input = r.task.input.replace(
+    '{"message_id":',
+    '{"message_id":"hidden instructions","message_id":',
+  );
+  const result = await d.dispatch({ ...r, task: { input, inputDigest: digest(input) } });
+  expect(result).toMatchObject({ kind: "observed", outcome: "completed" });
+});
+
+it("does not spawn when expiry passes between admission and the native effect", async () => {
+  const cfg = configuration();
+  let clock = 999;
+  cfg.now = () => ++clock;
+  cfg.grants[0]!.expiresAtMs = 1001;
+  const d = open(cfg);
+  expect(await d.dispatch(request())).toEqual({ kind: "refused", reason: "expired" });
+  expect(cfg.transport.snapshot().processes).toBe(0);
+});
+
+function inspectCreation() {
+  const entry = new URL("../../dist/index.js", import.meta.url).href;
+  const cfg = configuration();
+  const script = `
+import {createRequire} from 'node:module';
+import {statSync,existsSync,readFileSync} from 'node:fs';
+const sqlite=createRequire(import.meta.url)('node:sqlite');
+const Actual=sqlite.DatabaseSync;
+let beforeMode=null, fullfsync=null, checkpoint=null;
+sqlite.DatabaseSync=class extends Actual {
+ constructor(file){beforeMode=existsSync(file)?statSync(file).mode&511:null;super(file);}
+ close(){fullfsync=this.prepare('PRAGMA fullfsync').get().fullfsync;
+ checkpoint=this.prepare('PRAGMA checkpoint_fullfsync').get().checkpoint_fullfsync;super.close();}
+};
+process.umask(18);
+const {openDispatcher,createQualificationTransport}=await import(${JSON.stringify(entry)});
+const config=JSON.parse(readFileSync(0,'utf8'));
+const d=openDispatcher({...config,transport:createQualificationTransport()});d.close();
+console.log(JSON.stringify({beforeMode,fullfsync,checkpoint}));
+`;
+  return JSON.parse(
+    execFileSync(process.execPath, ["--input-type=module", "-e", script], {
+      input: JSON.stringify(cfg),
+      encoding: "utf8",
+    }),
+  );
+}
+
+it("creates the journal owner-only before SQLite opens it under umask 022", () => {
+  expect(inspectCreation().beforeMode).toBe(0o600);
+});
+
+it.skipIf(process.platform !== "darwin")("enables macOS full sync before native effects", () => {
+  expect(inspectCreation()).toMatchObject({ fullfsync: 1, checkpoint: 1 });
+});
+
 it("recovers a controller-process crash as unknown without respawning the native invocation", async () => {
   const cfg = configuration();
   const entry = new URL("../../dist/index.js", import.meta.url).href;
@@ -301,6 +395,7 @@ await dispatcher.dispatch(request);
   try {
     await waitFor(() => output.includes("\n"));
     owned = JSON.parse(output.trim());
+    expect(() => open(cfg)).toThrow("dispatcher-already-open");
     controller.kill("SIGKILL");
     await closed;
     const recovered = open(cfg);

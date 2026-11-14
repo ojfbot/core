@@ -46,6 +46,8 @@ grant and profile revisions, the workflow, resource references, and `task: { inp
 
 The five values must match the surrounding request. `inputDigest` is the SHA-256 of the exact UTF-8
 pointer bytes. Message bodies, command arguments and executable paths are not pointer fields.
+Both native interfaces reconstruct the pointer from validated fields. Duplicate JSON keys or
+ignored raw text cannot reach a session.
 The native input identifies peer data. Native APIs accepting that input as a user turn do not make
 the peer an operator or grant issuer.
 
@@ -65,10 +67,21 @@ The receiver first commits its addressed import, then calls Core with the same d
 budget reservation, invocation ID and native-session controller before any subprocess effect.
 The invocation ID is deterministic from the delivery ID. A retry returns the persisted disposition;
 reusing an ID with changed request bytes is refused.
+Admission takes its time snapshot inside the transaction and checks expiry again immediately before
+the native effect. If commit time exhausts the grant, Core records an expired refusal, starts no
+process and retains the spent reservation.
 
-One controller serves each device/provider/native-session tuple, including aliases that name the
-same session. A second controller is busy. Core uses a SQLite immediate transaction to arbitrate
-between processes, with a full-synchronous, owner-private journal. There is no expiry-based unlock.
+Only one dispatcher opens a journal at a time. SQLite retains an exclusive OS lock for that
+connection's lifetime. Another open fails with `dispatcher-already-open`; process death releases
+the OS lock. The next owner still finds the unresolved invocation and cannot repeat it.
+Within that owner, one controller serves each device/provider/native-session tuple, including
+aliases that name the same session. A second invocation is busy. Core reserves it in an immediate
+transaction with a full-synchronous, owner-private journal. There is no expiry-based unlock.
+Core creates the journal with mode `0600` before SQLite opens it. On macOS, both `fullfsync` and
+`checkpoint_fullfsync` are enabled before effects. These are verified connection settings, not a
+hardware power-loss qualification. SQLite documents the
+[exclusive lock](https://www.sqlite.org/pragma.html#pragma_locking_mode) and
+[full sync](https://www.sqlite.org/pragma.html#pragma_fullfsync) behavior.
 Process death, a queued prompt followed by exit zero, a lost completion, a timeout and cancellation
 leave an unknown invocation and retain the controller. Restarting does not repeat the invocation.
 
@@ -82,7 +95,7 @@ not refund budget. A controller must not be reconciled while its local invocatio
 
 | Kind       | Meaning                                                                 |
 | ---------- | ----------------------------------------------------------------------- |
-| `refused`  | No new invocation admitted; a reason identifies the failed check.       |
+| `refused`  | No new native invocation started; a reason identifies the failed check. |
 | `busy`     | Another unresolved invocation owns this native session.                 |
 | `unknown`  | An invocation intent exists; native effect or completion is unresolved. |
 | `observed` | Matching terminal native evidence was persisted.                        |

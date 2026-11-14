@@ -24,6 +24,7 @@ process.stdin.on('data', chunk => {
   while ((end=input.indexOf('\n')) >= 0) {
     const line=input.slice(0,end); input=input.slice(end+1);
     if (provider !== 'codex') {
+      if (JSON.stringify(JSON.parse(line))!==line) process.exit(90);
       output({type:'system',subtype:'init',session_id:scenario==='wrong-session'?'wrong':session,model,tools:[],mcp_servers:[]});
       if (scenario==='auth') { output({type:'result',session_id:session,is_error:true,subtype:'error_during_execution',error:'authentication_required'}); process.exit(1); }
       else if (scenario==='approval') { output({type:'result',session_id:session,is_error:true,subtype:'error_during_execution',error:'permission_denied'}); process.exit(1); }

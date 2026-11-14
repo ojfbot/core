@@ -100,6 +100,13 @@ export function createQualificationTransport(
           nativeTurnId: null,
           outcome: "interrupted",
         };
+      const pointer = {
+        message_id: request.messageId,
+        thread_id: request.threadId,
+        sequence: request.sequence,
+        stream_id: request.streamId,
+        bindingRevision: request.bindingRevision,
+      };
       const child = spawn(
         process.execPath,
         [
@@ -217,7 +224,7 @@ export function createQualificationTransport(
                         text: JSON.stringify({
                           kind: "peer-data-pointer",
                           dispatchId,
-                          pointer: JSON.parse(request.task.input),
+                          pointer,
                         }),
                       },
                     ],
@@ -304,7 +311,7 @@ export function createQualificationTransport(
             });
           else {
             inferenceShapedRequests += 1;
-            child.stdin.end(`${request.task.input}\n`);
+            child.stdin.end(`${JSON.stringify(pointer)}\n`);
           }
         });
       } finally {
