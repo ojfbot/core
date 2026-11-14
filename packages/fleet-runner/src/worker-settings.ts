@@ -58,6 +58,8 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
   const endpoint = new URL(value.endpoint);
   if (
     !["http:", "https:"].includes(endpoint.protocol) ||
+    (endpoint.protocol === "http:" &&
+      !["127.0.0.1", "[::1]", "localhost"].includes(endpoint.hostname)) ||
     endpoint.username ||
     endpoint.password ||
     endpoint.pathname !== "/" ||
@@ -118,7 +120,9 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
 }
 
 export function loadWorkerSettings(file: string): WorkerSettings {
+  if (statSync(file).mode & 0o022) throw Error("unsafe-worker-file");
   const settings = parseWorkerSettings(JSON.parse(readFileSync(file, "utf8")));
+  if (statSync(settings.tokenFile).mode & 0o022) throw Error("unsafe-worker-file");
   if (settings.statusFile === resolve(file)) throw Error("invalid-worker-settings");
   if (settings.caFile) accessSync(settings.caFile, constants.R_OK);
   return settings;

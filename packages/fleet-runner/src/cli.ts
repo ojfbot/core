@@ -58,8 +58,8 @@ async function main(args: string[]): Promise<void> {
       });
       const term = () => child.kill("SIGTERM");
       const interrupt = () => child.kill("SIGINT");
-      process.once("SIGTERM", term);
-      process.once("SIGINT", interrupt);
+      process.on("SIGTERM", term);
+      process.on("SIGINT", interrupt);
       try {
         await new Promise<void>((ok, fail) => {
           child.once("error", fail);
@@ -76,8 +76,8 @@ async function main(args: string[]): Promise<void> {
     }
     const stop = new AbortController();
     const cancel = () => stop.abort();
-    process.once("SIGINT", cancel);
-    process.once("SIGTERM", cancel);
+    process.on("SIGINT", cancel);
+    process.on("SIGTERM", cancel);
     try {
       await runDeclaredWorker(settings, stop.signal);
     } finally {

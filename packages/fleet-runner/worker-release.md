@@ -40,6 +40,8 @@ link target for rollback. The installer refuses an uncommitted bundle or a shell
 
 Create `fleet-runner.json` with this shape, substituting absolute local paths and existing
 worker credentials. Do not replace or copy another device's signing key.
+The settings and token files must not be writable by group or others; mode `0600` is suitable.
+The worker refuses either file when `mode & 0022` is nonzero.
 
 ```json
 {
@@ -69,9 +71,11 @@ array directly, without a shell. Direct Claude, Codex and shell launchers are re
 commands are trusted local programs, not a sandbox. Only listed kinds are claimed, with that kind's
 own capabilities. One attempt runs at a time; server pause and drain stop new claims.
 
-`caFile` is optional for a local HTTP proof. For the NAS, use the existing trusted CA certificate.
+HTTP is accepted only for `127.0.0.1`, `::1` or `localhost` proofs. All other endpoints require HTTPS.
+`caFile` is optional for a loopback HTTP proof. For the NAS, use the existing trusted CA certificate.
 Node reads extra CA trust only at startup, so the command relaunches its own installed Node and
 bundle once with that certificate, forwards shutdown signals, and starts no other worker runtime.
+Repeated TERM or INT signals continue the same bounded drain, including in the CA parent.
 If the existing NAS worker uses a recovery generation, preserve it in the optional `generation`
 setting. Settings, keys, certificate paths and job content never appear in the status file.
 
@@ -79,8 +83,10 @@ An installed command reads one JSON envelope `{ "job": <claimed job>, "outDir": 
 from stdin. It writes `<job.key>.<job.fence>.jsonl` in that folder and returns exactly
 `{ "file": "<job.key>.<job.fence>.jsonl", "sha256": "<64 hex characters>" }` on stdout, then exits zero.
 Stderr is discarded. The worker validates the result and the normal fenced completion checks the
-actual bytes. Cancellation stops the command's process group; a five-second limit follows TERM
-with KILL. The built-in proof command writes `fleet NAS qualification v1` plus a newline.
+actual bytes. Cancellation waits for the command's process group, even if the command root exits
+first. A five-second grace follows TERM with KILL, then allows at most half a second to confirm
+the group is gone. Unconfirmed cleanup is an error. The built-in proof command writes
+`fleet NAS qualification v1` plus a newline.
 
 ## Replace one login job
 

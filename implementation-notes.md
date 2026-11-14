@@ -8,6 +8,9 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-13 (worker review): command-root close was assumed to end cancellation, but a same-group helper could ignore TERM after detaching stdio; cleanup now outlives root close, waits for the bounded group stop and records failure if removal cannot be confirmed. The owned-process regression fails before the fix and passes after it.
+- 2026-11-13 (worker review): local configuration trust and a single stop signal were assumed; review reproduced writable settings/keys, nonloopback HTTP and a second signal killing the drain. Refuse the two writable files and remote HTTP, and retain both signal handlers through shutdown in the worker and CA parent; each regression fails before the fix.
+
 - 2026-11-13 (declared worker): the existing HTTP client reads extra CA trust at Node startup; the settings-led worker relaunches only its own installed Node and bundle once with the existing CA, preserving verification without rewriting the client.
 - 2026-11-13 (worker validation): concurrent local build changed the unchanged user-scope hook suite's pre-build assumptions; all nine cases pass in CI's pre-build layout, and the compiled output was restored. G1's existing source-drift check requires the final suite to run after committing FleetRunner source; neither check was changed or waived.
 - 2026-11-10 (Fleet Runner G7 independent review): targeted bundle mutations exposed gaps in exact manifest-set checks, canonical path separation, post-release worker pause defaults, and snapshot-start freshness time; add fail-closed checks and public-seam regressions before freezing the candidate.
