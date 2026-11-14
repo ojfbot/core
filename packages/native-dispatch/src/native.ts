@@ -3,6 +3,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { performance } from "node:perf_hooks";
 import { EMULATOR_PROGRAM } from "./emulator.js";
 import { object } from "./admission.js";
+import { parseCanaryProposal } from "./advisory.js";
+import type { RelayedCanaryProposal } from "./advisory.js";
 import type { DispatchRequest, DutyBinding, NativeOutcome, NativeProfile } from "./types.js";
 
 export type QualificationScenario =
@@ -18,6 +20,7 @@ export interface NativeObservation {
   nativeSessionId: string;
   nativeTurnId: string | null;
   outcome: NativeOutcome | "unknown";
+  agentProposal?: RelayedCanaryProposal;
 }
 export interface QualificationTransport {
   readonly mode: "qualification";
@@ -67,6 +70,25 @@ export function claudeResumeArgs(binding: DutyBinding, profile: NativeProfile): 
 export function createQualificationTransport(
   options: { scenario?: QualificationScenario; delayMs?: number } = {},
 ): QualificationTransport {
+  return protocolQualificationTransport(options);
+}
+
+/** Internal trusted-plan adapter; always executes the same builtin Node emulator. */
+export function createAdvisoryQualificationTransport(
+  advisory: { utf8: string; sha256: string },
+  options: {
+    scenario?: QualificationScenario;
+    delayMs?: number;
+    initialClaudeSession?: boolean;
+  } = {},
+): QualificationTransport {
+  return protocolQualificationTransport(options, { ...advisory });
+}
+
+function protocolQualificationTransport(
+  options: { scenario?: QualificationScenario; delayMs?: number; initialClaudeSession?: boolean },
+  advisory?: { utf8: string; sha256: string },
+): QualificationTransport {
   const scenario = options.scenario ?? "complete",
     delayMs = options.delayMs ?? 0;
   if (
@@ -107,6 +129,8 @@ export function createQualificationTransport(
         stream_id: request.streamId,
         bindingRevision: request.bindingRevision,
       };
+      const claudeArgs = claudeResumeArgs(binding, profile);
+      if (advisory && options.initialClaudeSession) claudeArgs[1] = "--session-id";
       const child = spawn(
         process.execPath,
         [
@@ -120,7 +144,8 @@ export function createQualificationTransport(
           profile.nativeVersion,
           profile.model,
           String(delayMs),
-          ...(binding.provider === "claude-code" ? claudeResumeArgs(binding, profile) : []),
+          JSON.stringify(advisory ?? null),
+          ...(binding.provider === "claude-code" ? claudeArgs : []),
         ],
         { cwd: binding.cwd, env: {}, detached: true, stdio: ["pipe", "pipe", "ignore"] },
       );
@@ -129,6 +154,13 @@ export function createQualificationTransport(
       if (child.pid) pids.add(child.pid);
       let nativeTurnId: string | null = null,
         outcome: NativeObservation["outcome"] = "unknown";
+      let agentProposal: RelayedCanaryProposal | undefined;
+      const nativeInput = {
+        kind: advisory ? "advisory-fixture" : "peer-data-pointer",
+        dispatchId,
+        pointer,
+        ...(advisory ? { advisoryFixture: advisory } : {}),
+      };
       let invalid = false;
       let buffer = "",
         total = 0,
@@ -222,9 +254,7 @@ export function createQualificationTransport(
                       {
                         type: "text",
                         text: JSON.stringify({
-                          kind: "peer-data-pointer",
-                          dispatchId,
-                          pointer,
+                          ...nativeInput,
                         }),
                       },
                     ],
@@ -244,6 +274,29 @@ export function createQualificationTransport(
               } else if (typeof m.method === "string" && m.method.endsWith("/requestApproval")) {
                 approval = true;
                 send({ id: m.id, result: { decision: "decline" } });
+              } else if (
+                advisory &&
+                m.method === "item/completed" &&
+                object(m.params) &&
+                m.params.threadId === binding.nativeSessionId &&
+                m.params.turnId === nativeTurnId &&
+                object(m.params.item) &&
+                m.params.item.type === "agentMessage"
+              ) {
+                try {
+                  if (
+                    typeof m.params.item.text !== "string" ||
+                    Buffer.byteLength(m.params.item.text) > 8192
+                  )
+                    throw Error("invalid-agent-proposal");
+                  agentProposal = parseCanaryProposal(
+                    JSON.parse(m.params.item.text),
+                    request,
+                    advisory.sha256,
+                  );
+                } catch {
+                  agentProposal = undefined;
+                }
               } else if (m.method === "turn/completed") {
                 if (
                   !object(m.params) ||
@@ -285,6 +338,17 @@ export function createQualificationTransport(
                       : m.is_error === false
                         ? "completed"
                         : "failed";
+                if (advisory && outcome === "completed") {
+                  try {
+                    agentProposal = parseCanaryProposal(
+                      m.structured_output,
+                      request,
+                      advisory.sha256,
+                    );
+                  } catch {
+                    agentProposal = undefined;
+                  }
+                }
               }
             }
           } catch {
@@ -311,7 +375,7 @@ export function createQualificationTransport(
             });
           else {
             inferenceShapedRequests += 1;
-            child.stdin.end(`${JSON.stringify(pointer)}\n`);
+            child.stdin.end(`${JSON.stringify(advisory ? nativeInput : pointer)}\n`);
           }
         });
       } finally {
@@ -321,7 +385,12 @@ export function createQualificationTransport(
         active -= 1;
         if (child.pid) pids.delete(child.pid);
       }
-      return { nativeSessionId: binding.nativeSessionId, nativeTurnId, outcome };
+      return {
+        nativeSessionId: binding.nativeSessionId,
+        nativeTurnId,
+        outcome,
+        ...(agentProposal ? { agentProposal } : {}),
+      };
     },
   });
   qualificationTransports.add(transport);

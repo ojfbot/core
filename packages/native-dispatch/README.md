@@ -1,10 +1,13 @@
 # Native dispatch contract
 
-`@core/native-dispatch` 0.1.0 supplies admission and durable invocation safety to the HelpDesk
+`@core/native-dispatch` 0.2.0 supplies admission and durable invocation safety to the HelpDesk
 device receiver. LocalHelp owns replay, the receiver inbox, checkpoints and correspondence receipts.
 Core owns the invocation journal. The package adds no delivery queue or scheduler and changes no
 FleetRunner compute behavior. It implements the applicable semantics of
 [Core 596](https://github.com/ojfbot/core/pull/596) under the separate 14 November build charter.
+
+Version 0.2 adds [disabled subscription-canary preparation](./CANARY.md). No real-provider launcher
+is added. The existing mechanical contract and its controller/recovery rules remain in force.
 
 This release has no real-provider launch path. `createQualificationTransport()` runs fixed local
 emulators with the current Node executable and an empty environment. There is no executable option,

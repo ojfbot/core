@@ -8,6 +8,9 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (subscription canary preparation): version-pinned native schemas and documented feature controls did not establish a complete empty-tool Codex profile, and Claude managed hooks remain unqualified; prepare the exact disabled contract, candidate command data and four-turn fake proof, with no real launcher, rather than hide the unsupported capability behind an arm flag.
+- 2026-11-14 (canary grant composition): two bindings cannot share one charter/revision grant identity in the existing engine; derive a revision from plan digest plus binding alias while retaining one shared device/window budget, without changing the proven admission/controller rules.
+
 - 2026-11-14 (native dispatch delta check): keeping a known pre-launch expiry spent could exhaust a one-invocation grant without a native effect; the coordinator selected an atomic refund for only that proven-no-effect path, retaining the terminal refusal and all unknown/started reservations.
 
 - 2026-11-14 (native dispatch review): parsed JSON keys did not constrain Claude's raw stdin bytes, admission could age before effect, and default SQLite creation/sync settings were weaker than the journal claim; rebuild native pointers from validated identifiers, check expiry after the transaction, create mode 0600 before SQLite, and enable both macOS full-sync settings. Four focused regressions failed before these corrections.
