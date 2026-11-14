@@ -69,7 +69,8 @@ The invocation ID is deterministic from the delivery ID. A retry returns the per
 reusing an ID with changed request bytes is refused.
 Admission takes its time snapshot inside the transaction and checks expiry again immediately before
 the native effect. If commit time exhausts the grant, Core records an expired refusal, starts no
-process and retains the spent reservation.
+process and atomically refunds that proven-no-effect reservation. The refused delivery stays
+terminal, so retrying it still cannot launch work. Unknown or started invocations are never refunded.
 
 Only one dispatcher opens a journal at a time. SQLite retains an exclusive OS lock for that
 connection's lifetime. Another open fails with `dispatcher-already-open`; process death releases
