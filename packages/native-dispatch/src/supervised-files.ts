@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import type { SpawnSyncReturns } from "node:child_process";
 import {
   closeSync,
   constants,
@@ -133,6 +134,27 @@ const qualifiedCodexProfiles = [
     binarySHA256: "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
   },
 ];
+function managedPreferenceAbsent({
+  result,
+  domain,
+  key,
+}: {
+  result: Pick<SpawnSyncReturns<string>, "status" | "error" | "stderr">;
+  domain: string;
+  key: string | undefined;
+}): boolean {
+  if (result.status !== 1 || result.error) return false;
+  const message = result.stderr
+    .trim()
+    .replace(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3} defaults\[\d+:\d+\] ?\r?\n/, "");
+  return (
+    message === `Domain ${domain} does not exist` ||
+    message === `Error: Domain '${domain}' not found.` ||
+    (key !== undefined &&
+      (message === `The domain/default pair of (${domain}, ${key}) does not exist` ||
+        message === `Error: Could not find key '${key}' in domain '${domain}'.`))
+  );
+}
 export function checkNativeProfile(
   profile: SubscriptionCanaryProfile,
   environment: NodeJS.ProcessEnv = nativeEnvironment(),
@@ -212,7 +234,7 @@ export function checkNativeProfile(
       timeout: 1000,
       maxBuffer: 8192,
     });
-    if (managed.status !== 1 || managed.error || !managed.stderr.includes("does not exist"))
+    if (!managedPreferenceAbsent({ result: managed, domain, key }))
       throw Error("native-profile-unqualified");
   }
   if (profile.provider === "codex") {
