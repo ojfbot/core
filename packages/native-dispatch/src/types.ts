@@ -26,7 +26,7 @@ export interface DispatchGrant {
   bindingAlias: string;
   operation: "native-resume";
   workflow: "advisory-review";
-  mode: "mechanical";
+  mode: "mechanical" | "supervised";
   resources: string[];
   validFromMs: number;
   expiresAtMs: number;
@@ -100,11 +100,12 @@ export interface NativeEvidence {
   outcome: NativeOutcome;
 }
 
-export interface DispatcherStatus {
+export type DispatcherStatus = {
   schemaVersion: 1;
-  mode: "mechanical";
-  realProviderCalls: 0;
   active: number;
   unknown: number;
   reservations: number;
-}
+} & (
+  | { mode: "mechanical"; realProviderCalls: 0 }
+  | { mode: "supervised"; realProviderCalls: null }
+);

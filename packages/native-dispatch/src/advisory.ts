@@ -3,7 +3,7 @@ import type { DispatchRequest } from "./types.js";
 
 export interface RelayedCanaryProposal {
   attribution: "device-relayed-output";
-  source: "deterministic-emulator";
+  source: "deterministic-emulator" | "supervised-native";
   verifiedWork: false;
   ack: { messageId: string; bindingRevision: string; fixtureDigest: string };
   result: { text: string };
