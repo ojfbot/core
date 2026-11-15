@@ -1,5 +1,8 @@
 # Prepare the subscription canary
 
+This is the disabled preparation contract introduced in 0.2. The separate 0.3
+[supervised contract](./SUPERVISED.md) does not arm this API.
+
 This release prepares the owner's selected four top-level turns across two devices in one
 30-minute window. It cannot run a real provider. The current Codex profile lacks a qualified
 complete empty-tool set, and Claude's managed host customizations remain unqualified. The runtime

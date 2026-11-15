@@ -1,0 +1,231 @@
+import { createHash } from "node:crypto";
+import { spawnSync } from "node:child_process";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  openSync,
+  readSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
+import { dirname, isAbsolute } from "node:path";
+import type { SubscriptionCanaryProfile } from "./canary-types.js";
+import { object } from "./admission.js";
+
+function same(a: { dev: number; ino: number }, b: { dev: number; ino: number }) {
+  return a.dev === b.dev && a.ino === b.ino;
+}
+
+function noAcl(path: string, fd: number): void {
+  if (process.platform !== "darwin") throw Error("acl-unqualified");
+  const before = fstatSync(fd);
+  const result = spawnSync("/bin/ls", ["-lde", path], {
+    encoding: "utf8",
+    env: { LANG: "C", LC_ALL: "C" },
+    timeout: 1000,
+    maxBuffer: 8192,
+  });
+  if (
+    result.status !== 0 ||
+    result.error ||
+    result.stdout.split("\n").filter(Boolean).length !== 1 ||
+    /\+/.test(result.stdout.slice(0, 12)) ||
+    !same(before, statSync(path))
+  )
+    throw Error("acl-unqualified");
+}
+
+export function checkPrivateDirectory(path: string): void {
+  if (!isAbsolute(path) || realpathSync(path) !== path) throw Error("unsafe-local-state");
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_DIRECTORY);
+  try {
+    const s = fstatSync(fd);
+    if (!s.isDirectory() || s.uid !== process.getuid?.() || s.mode & 0o077)
+      throw Error("unsafe-local-state");
+    noAcl(path, fd);
+  } finally {
+    closeSync(fd);
+  }
+  for (let parent = dirname(path); ; parent = dirname(parent)) {
+    const ancestor = openSync(
+      parent,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_DIRECTORY,
+    );
+    try {
+      const s = fstatSync(ancestor),
+        uid = process.getuid?.();
+      const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
+      if (!s.isDirectory() || (s.uid !== uid && s.uid !== 0) || (s.mode & 0o022 && !stickyRoot))
+        throw Error("unsafe-local-state");
+      noAcl(parent, ancestor);
+    } finally {
+      closeSync(ancestor);
+    }
+    if (parent === dirname(parent)) break;
+  }
+}
+
+export function readPrivateFile(path: string, maxBytes: number): Buffer {
+  if (!isAbsolute(path) || realpathSync(path) !== path) throw Error("runtime-approval-invalid");
+  checkPrivateDirectory(dirname(path));
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const s = fstatSync(fd);
+    if (
+      !s.isFile() ||
+      s.uid !== process.getuid?.() ||
+      s.mode & 0o077 ||
+      s.size > maxBytes ||
+      !same(s, statSync(path))
+    )
+      throw Error("runtime-approval-invalid");
+    noAcl(path, fd);
+    const bytes = Buffer.alloc(maxBytes + 1);
+    let size = 0,
+      read = 0;
+    while ((read = readSync(fd, bytes, size, bytes.length - size, null)) > 0) {
+      size += read;
+      if (size > maxBytes) throw Error("runtime-approval-invalid");
+    }
+    if (!same(s, statSync(path))) throw Error("runtime-approval-invalid");
+    return bytes.subarray(0, size);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+export function checkBinary(profile: SubscriptionCanaryProfile): void {
+  const path = profile.binaryRealPath;
+  if (!isAbsolute(path) || realpathSync(path) !== path) throw Error("binary-pin-mismatch");
+  const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const s = fstatSync(fd);
+    if (
+      !s.isFile() ||
+      !(s.mode & 0o111) ||
+      s.mode & 0o022 ||
+      s.size > 512 * 1024 * 1024 ||
+      !same(s, statSync(path))
+    )
+      throw Error("binary-pin-mismatch");
+    const hash = createHash("sha256"),
+      bytes = Buffer.alloc(1024 * 1024);
+    let n = 0;
+    while ((n = readSync(fd, bytes, 0, bytes.length, null)) > 0) hash.update(bytes.subarray(0, n));
+    if (hash.digest("hex") !== profile.binarySHA256 || !same(s, statSync(path)))
+      throw Error("binary-pin-mismatch");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Static, no-inference qualification. Unknown managed sources remain a hold. */
+export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
+  if (process.platform !== "darwin") throw Error("native-profile-unqualified");
+  const version = spawnSync(profile.binaryRealPath, ["--version"], {
+    encoding: "utf8",
+    env: nativeEnvironment(),
+    timeout: 5000,
+    maxBuffer: 8192,
+  });
+  const expected =
+    profile.provider === "codex"
+      ? `codex-cli ${profile.nativeVersion}`
+      : `${profile.nativeVersion} (Claude Code)`;
+  if (version.status !== 0 || version.error || version.stdout.trim() !== expected)
+    throw Error("native-profile-unqualified");
+  const command = profile.provider === "codex" ? ["exec", "resume", "--help"] : ["--help"];
+  const result = spawnSync(profile.binaryRealPath, command, {
+    encoding: "utf8",
+    env: nativeEnvironment(),
+    timeout: 5000,
+    maxBuffer: 131072,
+  });
+  const required =
+    profile.provider === "codex"
+      ? ["--ignore-user-config", "--ignore-rules", "--json"]
+      : [
+          "--safe-mode",
+          "--setting-sources",
+          "--tools",
+          "--strict-mcp-config",
+          "--session-id",
+          "--json-schema",
+          "--permission-prompts",
+        ];
+  if (result.status !== 0 || result.error || required.some((flag) => !result.stdout.includes(flag)))
+    throw Error("native-profile-unqualified");
+  const home = process.env.HOME;
+  if (!home) throw Error("native-profile-unqualified");
+  const paths =
+    profile.provider === "codex"
+      ? [
+          "/etc/codex/config.toml",
+          "/etc/codex/managed_config.toml",
+          "/etc/codex/requirements.toml",
+          "/Library/Managed Preferences/com.openai.codex.plist",
+        ]
+      : [
+          "/Library/Application Support/ClaudeCode",
+          "/Library/Managed Preferences/com.anthropic.claudecode.plist",
+          `${home}/.claude/managed-settings.json`,
+          `${home}/.claude/remote-settings.json`,
+        ];
+  if (paths.some((p) => existsSync(p))) throw Error("native-profile-unqualified");
+  // Codex uses two documented MDM payload keys; ordinary app UI preferences are not policy.
+  const domain = profile.provider === "codex" ? "com.openai.codex" : "com.anthropic.claudecode";
+  const keys =
+    profile.provider === "codex" ? ["config_toml_base64", "requirements_toml_base64"] : [undefined];
+  for (const key of keys) {
+    const managed = spawnSync("/usr/bin/defaults", ["read", domain, ...(key ? [key] : [])], {
+      encoding: "utf8",
+      env: nativeEnvironment(),
+      timeout: 1000,
+      maxBuffer: 8192,
+    });
+    if (managed.status !== 1 || managed.error || !managed.stderr.includes("does not exist"))
+      throw Error("native-profile-unqualified");
+  }
+  if (profile.provider === "codex") {
+    const startup = spawnSync(
+      profile.binaryRealPath,
+      [
+        "app-server",
+        "--print-startup-config",
+        "-c",
+        "features.hooks=false",
+        "-c",
+        "features.apps=false",
+        "-c",
+        'web_search="disabled"',
+      ],
+      { encoding: "utf8", env: nativeEnvironment(), timeout: 10000, maxBuffer: 262144 },
+    );
+    if (startup.status !== 0 || startup.error) throw Error("native-profile-unqualified");
+    const config: unknown = JSON.parse(startup.stdout);
+    if (
+      !object(config) ||
+      config.appServerVersion !== profile.nativeVersion ||
+      !object(config.configRequirements) ||
+      config.configRequirements.requirements !== null
+    )
+      throw Error("native-profile-unqualified");
+    // Static controls do not establish the effective exec tool inventory. No live Codex profile
+    // is qualified until the exact recipe has a directly observed exclusion of plugin/MCP tools.
+    throw Error("native-profile-unqualified");
+  }
+}
+
+export function nativeEnvironment(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {
+    PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+    LANG: "C",
+    LC_ALL: "C",
+    SHELL: "/bin/sh",
+  };
+  for (const key of ["HOME", "USER", "LOGNAME", "TMPDIR", "CODEX_HOME"])
+    if (process.env[key]) env[key] = process.env[key];
+  return env;
+}

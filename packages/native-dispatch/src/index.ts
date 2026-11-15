@@ -36,3 +36,14 @@ export type {
   PreparedSubscriptionCanary,
   CanaryQualification,
 } from "./canary-types.js";
+export {
+  prepareSupervisedSubscriptionCanary,
+  openSupervisedSubscriptionCanary,
+} from "./supervised.js";
+export type {
+  PreparedSupervisedCanary,
+  SupervisedSubscriptionCanaryPlan,
+  SupervisedCanaryHold,
+  SupervisedCanaryOpen,
+  SupervisedCanaryOptions,
+} from "./supervised-types.js";

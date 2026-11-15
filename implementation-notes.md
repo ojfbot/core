@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (supervised native transport): the confirmed charter permits read-only Codex with an explicit host-file-read risk, while the existing factory and status correctly guarantee qualification-only effects; add a separate owner-window entry over the shared journal, retaining the old refusal boundary and reporting provider-internal calls as unproved. Ordinary Codex UI preferences were initially overclassified as managed policy; inspect the documented MDM payload keys and startup requirements instead.
+
 - 2026-11-14 (#604 review): owner-plan strings were assumed to be identifiers and immediate marker absence was assumed to prove no launch; review showed free text could reach the pointer and an asynchronous launch could evade that check. Share bounded identifier/model parsing across preparation and admission, and directly block/count process launch attempts; runtime remains disabled.
 
 - 2026-11-14 (subscription canary preparation): version-pinned native schemas and documented feature controls did not establish a complete empty-tool Codex profile, and Claude managed hooks remain unqualified; prepare the exact disabled contract, candidate command data and four-turn fake proof, with no real launcher, rather than hide the unsupported capability behind an arm flag.

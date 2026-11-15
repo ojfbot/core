@@ -1,7 +1,7 @@
 {
   "name": "@core/native-dispatch",
-  "version": "0.2.1",
-  "description": "Deterministic admission and durable native invocation safety for HelpDesk duty bindings. Qualification transports only.",
+  "version": "0.3.0-preview.1",
+  "description": "Deterministic admission and durable invocation evidence for qualification and owner-attended HelpDesk duty bindings.",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,8 @@
   "files": [
     "dist",
     "README.md",
-    "CANARY.md"
+    "CANARY.md",
+    "SUPERVISED.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json"

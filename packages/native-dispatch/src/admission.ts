@@ -169,7 +169,7 @@ export function validateConfiguration(config: DispatchConfiguration): void {
       grants.has(key) ||
       g.operation !== "native-resume" ||
       g.workflow !== "advisory-review" ||
-      g.mode !== "mechanical" ||
+      !["mechanical", "supervised"].includes(g.mode) ||
       !strings(g.resources) ||
       typeof g.held !== "boolean" ||
       !Number.isSafeInteger(g.validFromMs) ||
@@ -193,6 +193,7 @@ export function decide(
   request: DispatchRequest,
   config: DispatchConfiguration,
   now: number,
+  mode: "mechanical" | "supervised" = "mechanical",
 ): Admission {
   const binding = config.bindings.find((b) => b.alias === request.recipient);
   if (!binding) return { kind: "refused", reason: "unassigned" };
@@ -213,7 +214,7 @@ export function decide(
       g.workflow === request.workflow,
   );
   if (!grant) return { kind: "refused", reason: "grant-mismatch" };
-  if (grant.mode !== "mechanical") return { kind: "refused", reason: "live-not-armed" };
+  if (grant.mode !== mode) return { kind: "refused", reason: "live-not-armed" };
   if (binding.held || grant.held) return { kind: "refused", reason: "held" };
   if (now < grant.validFromMs) return { kind: "refused", reason: "not-yet-valid" };
   if (now >= grant.expiresAtMs) return { kind: "refused", reason: "expired" };

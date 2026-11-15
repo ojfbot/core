@@ -13,12 +13,15 @@ import {
 import type { DispatchConfiguration } from "./admission.js";
 import { isQualificationTransport } from "./native.js";
 import type { QualificationTransport } from "./native.js";
+import { isSupervisedTransport } from "./supervised-native.js";
+import type { SupervisedTransport } from "./supervised-native.js";
 import type { RelayedCanaryProposal } from "./advisory.js";
 import type {
   DispatchDisposition,
   DispatcherStatus,
   NativeEvidence,
   NativeOutcome,
+  RefusalReason,
 } from "./types.js";
 
 // Node's builtin is loaded directly: Vite 5 otherwise rewrites the unsupported node:sqlite import.
@@ -49,6 +52,28 @@ const outcomes: NativeOutcome[] = [
 
 export function openDispatcher(options: DispatcherOptions): Dispatcher {
   if (!isQualificationTransport(options.transport)) throw Error("live-not-armed");
+  return openEngine(options, "mechanical", 5000);
+}
+
+/** Internal built-in transport seam; the public qualification factory stays qualification-only. */
+export function openSupervisedDispatcher(
+  options: Omit<DispatcherOptions, "transport"> & {
+    transport: SupervisedTransport;
+    beforeInvoke: () => RefusalReason | undefined;
+  },
+): Dispatcher {
+  if (!isSupervisedTransport(options.transport)) throw Error("live-not-armed");
+  return openEngine(options, "supervised", 120000, options.beforeInvoke);
+}
+
+function openEngine(
+  options: Omit<DispatcherOptions, "transport"> & {
+    transport: QualificationTransport | SupervisedTransport;
+  },
+  mode: "mechanical" | "supervised",
+  timeoutMs: number,
+  beforeInvoke?: () => RefusalReason | undefined,
+): Dispatcher {
   if (!isAbsolute(options.stateFile)) throw Error("invalid-state-path");
   validateConfiguration(options);
   // Detach authority from mutable objects owned by a caller. It is never drawn from a delivery.
@@ -181,7 +206,10 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
                 : { kind: "refused" as const, reason: "delivery-conflict" as const },
           };
         const admittedAt = now();
-        const admission = decide(request, config, admittedAt);
+        const hold = beforeInvoke?.();
+        if (hold)
+          return { kind: "prior" as const, result: { kind: "refused" as const, reason: hold } };
+        const admission = decide(request, config, admittedAt, mode);
         if (admission.kind === "refused") return { kind: "prior" as const, result: admission };
         const { binding, grant, profile } = admission;
         const sessionKey = JSON.stringify([
@@ -256,11 +284,15 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
       });
       if (prepared.kind === "prior") return prepared.result;
       const { dispatchId, binding, grant, profile } = prepared;
+      const prelaunchHold = beforeInvoke?.();
       const remainingMs = grant.expiresAtMs - now();
-      if (remainingMs <= 0)
+      if (remainingMs <= 0 || prelaunchHold)
         return transaction(() => {
           // No native effect occurred. Refund this reservation atomically with its terminal refusal.
-          const result: DispatchDisposition = { kind: "refused", reason: "expired" };
+          const result: DispatchDisposition = {
+            kind: "refused",
+            reason: prelaunchHold ?? "expired",
+          };
           db.prepare(
             "UPDATE invocations SET state='observed',disposition=? WHERE dispatch_id=?",
           ).run(JSON.stringify(result), dispatchId);
@@ -279,7 +311,7 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
           request,
           dispatchId,
           signal: settings.signal ?? new AbortController().signal,
-          timeoutMs: Math.min(5_000, remainingMs),
+          timeoutMs: Math.min(timeoutMs, remainingMs),
           onStarted: (turnId) => {
             const result: DispatchDisposition = {
               kind: "unknown",
@@ -349,8 +381,9 @@ export function openDispatcher(options: DispatcherOptions): Dispatcher {
         throw Error("invalid-invocation-state");
       return {
         schemaVersion: 1,
-        mode: "mechanical",
-        realProviderCalls: 0,
+        ...(mode === "mechanical"
+          ? { mode: "mechanical" as const, realProviderCalls: 0 as const }
+          : { mode: "supervised" as const, realProviderCalls: null }),
         active: active.size,
         unknown: Math.max(0, count.n - active.size),
         reservations: used.n,
