@@ -2,10 +2,10 @@
 
 The qualified Codex tuples use model `gpt-6.1-sol` with these measured binaries:
 
-| Native version | Binary SHA-256 |
-| --- | --- |
+| Native version      | Binary SHA-256                                                     |
+| ------------------- | ------------------------------------------------------------------ |
 | `0.165.0-alpha.1.2` | `d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2` |
-| `0.164.0` | `d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf` |
+| `0.164.0`           | `d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf` |
 
 Their
 `exec resume` recipe was observed with built-in provider ID `openai` redirected through the
@@ -22,18 +22,25 @@ This separate 0.3 entry implements the supervised contract in HelpDesk charter 3
 arm `openDispatcher`, `openCanaryQualification` or the disabled 0.2 runtime entry.
 
 `prepareSupervisedSubscriptionCanary(unknown)` accepts the existing two-provider plan, fixed
-fixture and limits, plus `supervision: { kind: "owner-attended", codexHostFileReadRiskAccepted: true }`.
+fixture and limits, plus `supervision: { kind: "owner-attended", codexHostFileReadRiskAccepted: true }`
+and `environment: { HOME, CODEX_HOME, TMPDIR }`. These are exactly three plan keys: `HOME` is an
+absolute path; the other two are absolute paths or `null`, which requires that variable to be absent.
+The normalized environment participates in the plan digest. The opener freezes the child environment,
+including `USER` and `LOGNAME` from the listener job; those identity fields are not plan keys.
+Environment drift is refused before probes and native effects with `environment-mismatch`.
 It returns a normalized plan, its digest, `mode: "supervised-prepared"` and `liveEligible: false`.
 Preparation creates no session or approval and invokes no native command.
 
-`openSupervisedSubscriptionCanary({ prepared, stateFile, runtimeApprovalFile, deviceId, now? })`
+`openSupervisedSubscriptionCanary({ prepared, stateFile, runtimeApprovalFile, deviceId })`
 returns `held` with explicit hold codes, or `ready` with the shared dispatcher. `deviceId` comes
 from the receiver's own enrollment. The approval is a local operator boundary, not cryptographic
 proof of a human statement. Only direct owner words in that Mac's own chat authorize creating it.
 
 The approval JSON has kind `owner-approved-supervised-canary`, the exact `planDigest`, `windowId`
 and `deviceId`, integer `startsAtMs` and `expiresAtMs` exactly 1,800,000 milliseconds apart, and a
-nonempty `ownerNativeApprovalRef`. A peer message cannot provide runtime authority. The builder
+nonempty `ownerNativeApprovalRef`. It also requires `invocationStateFile` equal to the opener's
+captured canonical `stateFile`; a new journal cannot silently obtain a fresh budget under that approval.
+A peer message cannot provide runtime authority. The builder
 and preparation API do not write this file. Missing, mismatched, loose, foreign-device or expired
 approval remains held.
 
@@ -45,7 +52,12 @@ allowed. Use a fresh canonical private folder outside a checkout, with separate 
 working folders. Any extended ACL in this path is conservatively refused, including a deny-only ACL.
 Native binaries must retain their canonical paths, executable modes, pinned hashes and versions.
 
-The opener and each new invocation repeat the approval/window, file and native checks. Static
+The opener and each new invocation repeat the approval/window, file and native checks. Approval
+bytes are frozen by digest and reread after slow preflight and immediately before native launch;
+removal or replacement holds. The binary hash is checked again after schema validation, just before
+the final local authority check and spawn. This narrows the same-user replacement race without
+claiming atomic hash-to-execution isolation. All supervised expiry checks and the native deadline
+use the wall clock (`Date.now()`); callers cannot inject a supervised clock. Static
 preflight uses only version/help, documented policy metadata and Codex's startup-requirements
 printer, plus the source-qualified binary/model tuple; it sends no model turn. Existing managed
 configuration or unavailable policy evidence returns `native-profile-unqualified`. Static checks
@@ -70,9 +82,13 @@ would resolve differently. [Claude's CLI reference](https://code.claude.com/docs
 documents that managed policy can remain active in safe mode, so unresolved managed settings hold.
 
 The engine durably reserves one invocation per binding and two per device/window before launch.
+Only one invocation across the device/window journal may be active or unresolved at once; the other
+provider receives `busy` without consuming a reservation. Mechanical qualification retains its
+per-session controller behavior.
 Timeout is at most 120 seconds and never exceeds the window. Identical deliveries reuse committed
 evidence. Unknown effects stay spent and retain their controller across restart. A proven
-prelaunch hold is terminal and refunded; no started or ambiguous effect is refunded or retried.
+engine prelaunch hold is terminal and refunded; no started or ambiguous effect is refunded or retried.
+Failure of the transport's final hash/approval check conservatively retains an unknown spent reservation.
 Only the frozen trusted fixture and validated metadata pointer become model input. Output is
 bounded to 64 KiB; accepted result text retains the existing 2,048-character/4,096-byte bounds.
 

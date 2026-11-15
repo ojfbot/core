@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { object } from "./admission.js";
 import { ADVISORY_OUTPUT_SCHEMA, parseCanaryProposal } from "./advisory.js";
-import { nativeEnvironment, readPrivateFile } from "./supervised-files.js";
+import { checkBinary, readPrivateFile } from "./supervised-files.js";
 import type { NativeObservation, QualificationTransport } from "./native.js";
 import type { PreparedSupervisedCanary } from "./supervised-types.js";
 import type { SubscriptionCanaryBinding, SubscriptionCanaryProfile } from "./canary-types.js";
@@ -113,7 +113,8 @@ export function createSupervisedTransport(
   prepared: PreparedSupervisedCanary,
   stateDirectory: string,
   expiresAtMs: number,
-  now: () => number,
+  environment: NodeJS.ProcessEnv,
+  beforeLaunch: () => void,
 ): SupervisedTransport {
   const transport: SupervisedTransport = {
     mode: "supervised",
@@ -131,11 +132,13 @@ export function createSupervisedTransport(
         }
         if (readPrivateFile(schema, 8192).toString("utf8") !== bytes) throw Error("held");
       }
-      const remainingMs = expiresAtMs - now();
+      checkBinary(pinned);
+      beforeLaunch();
+      const remainingMs = expiresAtMs - Date.now();
       if (remainingMs <= 0) throw Error("expired");
       const child = spawn(pinned.binaryRealPath, supervisedCommand(fixed, pinned, schema), {
         cwd: fixed.cwd,
-        env: nativeEnvironment(),
+        env: environment,
         detached: true,
         stdio: ["pipe", "pipe", "ignore"],
       });
