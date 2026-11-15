@@ -1,7 +1,13 @@
 # Owner-attended subscription canary
 
-The qualified Codex tuple is native version `0.165.0-alpha.1.2`, model `gpt-6.1-sol`, and binary
-SHA-256 `d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2`. Its exact
+The qualified Codex tuples use model `gpt-6.1-sol` with these measured binaries:
+
+| Native version | Binary SHA-256 |
+| --- | --- |
+| `0.165.0-alpha.1.2` | `d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2` |
+| `0.164.0` | `d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf` |
+
+Their
 `exec resume` recipe was observed with built-in provider ID `openai` redirected through the
 documented `openai_base_url` to a loopback WebSocket fixture. The emitted `response.create`
 contained no tools, additional tools or namespaces. The fixture verified synthetic API auth only,
@@ -9,6 +15,8 @@ then rejected the request without inference. Real account credentials were not u
 This qualifies the observed tool-exclusion mechanics in API-auth mode; subscription entitlement
 and actual subscription behavior remain for the owner-attended acceptance test. Other hashes,
 versions and models remain `native-profile-unqualified`; there is no operator override.
+The independent 0.164 receipt is signed HelpDesk 3364/3374; its 1,204 bytes have SHA-256
+`26882f34b3089893316b15d68c2ea1c4dcda18e464a617d2c59d8364e79e2801`.
 
 This separate 0.3 entry implements the supervised contract in HelpDesk charter 3203. It does not
 arm `openDispatcher`, `openCanaryQualification` or the disabled 0.2 runtime entry.
