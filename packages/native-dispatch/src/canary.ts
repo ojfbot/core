@@ -1,7 +1,13 @@
 import { readFileSync, lstatSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { dirname, isAbsolute } from "node:path";
-import { digest, object, parseDispatchRequest } from "./admission.js";
+import {
+  digest,
+  object,
+  parseDispatchRequest,
+  isIdentifier,
+  isModelSelector,
+} from "./admission.js";
 import { ADVISORY_OUTPUT_SCHEMA } from "./advisory.js";
 import { openDispatcher } from "./dispatcher.js";
 import { createAdvisoryQualificationTransport } from "./native.js";
@@ -25,6 +31,10 @@ function str(v: unknown): string {
     throw Error("invalid-canary-plan");
   return v;
 }
+function identifier(v: unknown): string {
+  if (!isIdentifier(v)) throw Error("invalid-canary-plan");
+  return v;
+}
 function path(v: unknown): string {
   const s = str(v);
   if (!isAbsolute(s)) throw Error("invalid-canary-plan");
@@ -41,7 +51,8 @@ function profile(v: unknown): SubscriptionCanaryProfile {
     (v.provider !== "codex" && v.provider !== "claude-code") ||
     v.effort !== "low" ||
     v.authMode !== "existing-subscription" ||
-    v.customizationPolicy !== "none"
+    v.customizationPolicy !== "none" ||
+    !isModelSelector(v.model)
   )
     throw Error("invalid-canary-profile");
   const version = str(v.nativeVersion);
@@ -53,11 +64,11 @@ function profile(v: unknown): SubscriptionCanaryProfile {
     throw Error("unqualified-profile");
   return {
     provider: v.provider,
-    revision: str(v.revision),
+    revision: identifier(v.revision),
     binaryRealPath: path(v.binaryRealPath),
     binarySHA256: sha(v.binarySHA256),
     nativeVersion: version,
-    model: str(v.model),
+    model: v.model,
     effort: "low",
     authMode: "existing-subscription",
     customizationPolicy: "none",
@@ -78,11 +89,11 @@ function binding(v: unknown): SubscriptionCanaryBinding {
   if (!/^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(session))
     throw Error("invalid-canary-binding");
   return {
-    alias: str(v.alias),
-    revision: str(v.revision),
-    deviceId: str(v.deviceId),
+    alias: identifier(v.alias),
+    revision: identifier(v.revision),
+    deviceId: identifier(v.deviceId),
     provider: v.provider,
-    profileRevision: str(v.profileRevision),
+    profileRevision: identifier(v.profileRevision),
     nativeSessionId: session,
     sessionPolicy: v.sessionPolicy,
     cwd: path(v.cwd),
@@ -125,7 +136,7 @@ export function prepareSubscriptionCanary(value: unknown): PreparedSubscriptionC
     a.provider === b.provider
   )
     throw Error("ambiguous-canary-plan");
-  const deviceId = str(value.deviceId);
+  const deviceId = identifier(value.deviceId);
   for (const item of [a, b]) {
     if (
       item.deviceId !== deviceId ||
@@ -135,8 +146,8 @@ export function prepareSubscriptionCanary(value: unknown): PreparedSubscriptionC
   }
   const plan: SubscriptionCanaryPlan = {
     schemaVersion: 1,
-    revision: str(value.revision),
-    windowId: str(value.windowId),
+    revision: identifier(value.revision),
+    windowId: identifier(value.windowId),
     deviceId,
     fixture: { utf8: value.fixture.utf8, sha256: value.fixture.sha256 },
     profiles: [p, q],

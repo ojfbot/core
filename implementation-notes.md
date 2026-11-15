@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (#604 review): owner-plan strings were assumed to be identifiers and immediate marker absence was assumed to prove no launch; review showed free text could reach the pointer and an asynchronous launch could evade that check. Share bounded identifier/model parsing across preparation and admission, and directly block/count process launch attempts; runtime remains disabled.
+
 - 2026-11-14 (subscription canary preparation): version-pinned native schemas and documented feature controls did not establish a complete empty-tool Codex profile, and Claude managed hooks remain unqualified; prepare the exact disabled contract, candidate command data and four-turn fake proof, with no real launcher, rather than hide the unsupported capability behind an arm flag.
 - 2026-11-14 (canary grant composition): two bindings cannot share one charter/revision grant identity in the existing engine; derive a revision from plan digest plus binding alias while retaining one shared device/window budget, without changing the proven admission/controller rules.
 
