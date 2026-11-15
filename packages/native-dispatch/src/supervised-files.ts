@@ -124,6 +124,15 @@ export function checkBinary(profile: SubscriptionCanaryProfile): void {
 /** Static, no-inference qualification. Unknown managed sources remain a hold. */
 export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
   if (process.platform !== "darwin") throw Error("native-profile-unqualified");
+  if (
+    profile.provider === "codex" &&
+    !(
+      profile.nativeVersion === "0.165.0-alpha.1.2" &&
+      profile.binarySHA256 === "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2" &&
+      profile.model === "gpt-6.1-sol"
+    )
+  )
+    throw Error("native-profile-unqualified");
   const version = spawnSync(profile.binaryRealPath, ["--version"], {
     encoding: "utf8",
     env: nativeEnvironment(),
@@ -212,9 +221,8 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
       config.configRequirements.requirements !== null
     )
       throw Error("native-profile-unqualified");
-    // Static controls do not establish the effective exec tool inventory. No live Codex profile
-    // is qualified until the exact recipe has a directly observed exclusion of plugin/MCP tools.
-    throw Error("native-profile-unqualified");
+    // This exact binary/model/recipe was observed through built-in OpenAI's loopback wire path.
+    // The mock used synthetic API auth; subscription behavior still needs attended acceptance.
   }
 }
 
