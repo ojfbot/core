@@ -1,6 +1,6 @@
 {
   "name": "@core/native-dispatch",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Deterministic admission and durable invocation evidence for qualification and owner-attended HelpDesk duty bindings.",
   "private": true,
   "type": "module",
@@ -16,7 +16,8 @@
     "dist",
     "README.md",
     "CANARY.md",
-    "SUPERVISED.md"
+    "SUPERVISED.md",
+    "scripts/prove-codex-revocation.mjs"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json"

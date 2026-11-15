@@ -1,22 +1,29 @@
 # Owner-attended subscription canary
 
-The qualified Codex tuples use model `gpt-6.1-sol` with these measured binaries:
+Codex subscription execution is held with `native-profile-unqualified`. The qualified Codex
+allowlist is empty, with no operator override or provider fallback. Because the supervised plan
+requires both providers, the entire plan remains held before a dispatcher or reservation is created.
+Preparation and BASIC coordination remain available.
+
+The live trial under charter 3203 completed one Codex turn on each host. Both actual subscription
+rollouts exposed `additional_tools`, including execution tools. No tool calls were recorded, and
+Claude was not invoked. The approved subscription tool-omission claim is disproven. The completed
+turns and spent budgets remain historical evidence (HelpDesk 3856/3857).
+
+These formerly admitted Codex tuples are revoked:
 
 | Native version      | Binary SHA-256                                                     |
 | ------------------- | ------------------------------------------------------------------ |
 | `0.165.0-alpha.1.2` | `d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2` |
 | `0.164.0`           | `d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf` |
 
-Their
-`exec resume` recipe was observed with built-in provider ID `openai` redirected through the
-documented `openai_base_url` to a loopback WebSocket fixture. The emitted `response.create`
-contained no tools, additional tools or namespaces. The fixture verified synthetic API auth only,
-then rejected the request without inference. Real account credentials were not used or copied.
-This qualifies the observed tool-exclusion mechanics in API-auth mode; subscription entitlement
-and actual subscription behavior remain for the owner-attended acceptance test. Other hashes,
-versions and models remain `native-profile-unqualified`; there is no operator override.
-The independent 0.164 receipt is signed HelpDesk 3364/3374; its 1,204 bytes have SHA-256
+The earlier loopback `response.create` capture used synthetic API authentication, an ephemeral
+credential store and a redirected base URL. Its omitted tool fields describe that capture only.
+It does not qualify the subscription path or establish an empty live tool inventory. The API
+receipts remain historical evidence, including signed HelpDesk 3364/3374, 1,204 bytes with SHA-256
 `26882f34b3089893316b15d68c2ea1c4dcda18e464a617d2c59d8364e79e2801`.
+No new model call is needed to verify revocation. Re-enablement requires separate evidence and
+approval. Post-event filtering cannot establish that tools were unavailable before execution.
 
 This separate 0.3 entry implements the supervised contract in HelpDesk charter 3203. It does not
 arm `openDispatcher`, `openCanaryQualification` or the disabled 0.2 runtime entry.
@@ -59,7 +66,8 @@ the final local authority check and spawn. This narrows the same-user replacemen
 claiming atomic hash-to-execution isolation. All supervised expiry checks and the native deadline
 use the wall clock (`Date.now()`); callers cannot inject a supervised clock. Static
 preflight uses only version/help, documented policy metadata and Codex's startup-requirements
-printer, plus the source-qualified binary/model tuple; it sends no model turn. Existing managed
+printer and the qualification gate; it sends no model turn. The empty Codex allowlist refuses
+Codex before these native probes. Existing managed
 configuration or unavailable policy evidence returns `native-profile-unqualified`. Static checks
 accept managed-preference absence only when `defaults` exits 1 without a spawn error and reports
 an exact known missing-domain or missing-key message for the queried domain and key. The known
@@ -67,7 +75,7 @@ macOS timestamp prefix is allowed. Present settings and unexpected diagnostics r
 alone do not qualify a new tuple. Actual subscription behavior requires the attended proof.
 
 Codex uses an actual existing, otherwise empty native session UUID, with no fallback creation or
-implicit latest-session selection. A preselected UUID is not creation evidence. Its fixed
+implicit latest-session selection. A preselected UUID is not creation evidence. The retained candidate
 `exec resume` recipe pins provider `openai`, ignores user config and execpolicy rules, selects read-only/never approvals,
 disables web search, apps, browser features, hooks, extra-agent and plugin discovery features, and
 limits the inherited environment. Command-network denial comes from the read-only sandbox.
@@ -106,3 +114,18 @@ top-level invocations, not a native token or monetary budget.
 The focused tests execute local synthetic CLI programs only. They cover held authority, both
 provider event paths, bounded command recipes, duplicate/restart reuse and uncertainty that remains
 spent. Mac no-inference inventory and these tests do not count as the owner-attended four-turn proof.
+
+## Prove the installed block offline
+
+Run the packaged proof with a readable prepared plan or raw plan from this host:
+
+```sh
+pnpm exec node <installed-package>/scripts/prove-codex-revocation.mjs <plan.json>
+```
+
+The script imports that package's production gate and public opener. It checks both revoked tuple
+declarations before any provider spawn, then checks this host's actual pinned binary metadata in
+the public opener with fresh TEST-ONLY plan, approval and directories. Only filesystem ACL reads
+through `/bin/ls -lde` are allowed by the spawn sentinel. No provider version, help, auth or model
+command runs. The proof prints its result and removes only its own temporary fixtures. It never
+uses a real runtime approval or changes a job, plan, journal or historical trial evidence.

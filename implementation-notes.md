@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (trial3203 containment): the API-auth probe omitted tool fields, but both actual subscription rollouts exposed additional_tools. Revoke both Codex entries with an empty typed allowlist and no override; retain preparation, BASIC coordination and the two completed/spent historical turns. Offline fixtures prove the production hold without new provider calls or runtime authority.
+
 - 2026-11-14 (#3586 managed-preference preflight): the absence probe assumed macOS always said "does not exist"; the peer's newer defaults reports quoted missing domains and keys. Accept only the known exact query-specific variants, with the observed timestamp prefix, while keeping unknown diagnostics, present values and process errors held. Plan parsing and digests are unchanged.
 
 - 2026-11-14 (#605 accepted review 3416): a private approval and pinned plan did not bind the journal, inherited path environment or post-preflight authority, and per-session controllers allowed both providers at once. Bind the canonical journal and three path variables, freeze child identity at open, recheck exact approval bytes and binary before launch, use the wall clock, and serialize supervised work in the existing journal. Late transport holds stay unknown/spent; no ACL expansion or new queue was added.
