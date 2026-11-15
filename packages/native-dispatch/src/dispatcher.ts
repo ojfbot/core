@@ -217,9 +217,10 @@ function openEngine(
           binding.provider,
           binding.nativeSessionId,
         ]);
-        const held = db
-          .prepare("SELECT dispatch_id FROM controllers WHERE session_key=?")
-          .get(sessionKey);
+        const held =
+          mode === "supervised"
+            ? db.prepare("SELECT dispatch_id FROM controllers LIMIT 1").get()
+            : db.prepare("SELECT dispatch_id FROM controllers WHERE session_key=?").get(sessionKey);
         if (held && typeof held.dispatch_id === "string")
           return {
             kind: "prior" as const,

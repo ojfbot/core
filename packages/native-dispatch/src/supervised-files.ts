@@ -12,6 +12,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute } from "node:path";
 import type { SubscriptionCanaryProfile } from "./canary-types.js";
+import type { SupervisedEnvironment } from "./supervised-types.js";
 import { object } from "./admission.js";
 
 function same(a: { dev: number; ino: number }, b: { dev: number; ino: number }) {
@@ -132,7 +133,10 @@ const qualifiedCodexProfiles = [
     binarySHA256: "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
   },
 ];
-export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
+export function checkNativeProfile(
+  profile: SubscriptionCanaryProfile,
+  environment: NodeJS.ProcessEnv = nativeEnvironment(),
+): void {
   if (process.platform !== "darwin") throw Error("native-profile-unqualified");
   if (
     profile.provider === "codex" &&
@@ -144,9 +148,10 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
     )
   )
     throw Error("native-profile-unqualified");
+  checkNativeEnvironment(environment);
   const version = spawnSync(profile.binaryRealPath, ["--version"], {
     encoding: "utf8",
-    env: nativeEnvironment(),
+    env: environment,
     timeout: 5000,
     maxBuffer: 8192,
   });
@@ -157,9 +162,10 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
   if (version.status !== 0 || version.error || version.stdout.trim() !== expected)
     throw Error("native-profile-unqualified");
   const command = profile.provider === "codex" ? ["exec", "resume", "--help"] : ["--help"];
+  checkNativeEnvironment(environment);
   const result = spawnSync(profile.binaryRealPath, command, {
     encoding: "utf8",
-    env: nativeEnvironment(),
+    env: environment,
     timeout: 5000,
     maxBuffer: 131072,
   });
@@ -177,7 +183,7 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
         ];
   if (result.status !== 0 || result.error || required.some((flag) => !result.stdout.includes(flag)))
     throw Error("native-profile-unqualified");
-  const home = process.env.HOME;
+  const home = environment.HOME;
   if (!home) throw Error("native-profile-unqualified");
   const paths =
     profile.provider === "codex"
@@ -199,9 +205,10 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
   const keys =
     profile.provider === "codex" ? ["config_toml_base64", "requirements_toml_base64"] : [undefined];
   for (const key of keys) {
+    checkNativeEnvironment(environment);
     const managed = spawnSync("/usr/bin/defaults", ["read", domain, ...(key ? [key] : [])], {
       encoding: "utf8",
-      env: nativeEnvironment(),
+      env: environment,
       timeout: 1000,
       maxBuffer: 8192,
     });
@@ -209,6 +216,7 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
       throw Error("native-profile-unqualified");
   }
   if (profile.provider === "codex") {
+    checkNativeEnvironment(environment);
     const startup = spawnSync(
       profile.binaryRealPath,
       [
@@ -221,7 +229,7 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
         "-c",
         'web_search="disabled"',
       ],
-      { encoding: "utf8", env: nativeEnvironment(), timeout: 10000, maxBuffer: 262144 },
+      { encoding: "utf8", env: environment, timeout: 10000, maxBuffer: 262144 },
     );
     if (startup.status !== 0 || startup.error) throw Error("native-profile-unqualified");
     const config: unknown = JSON.parse(startup.stdout);
@@ -237,14 +245,23 @@ export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
   }
 }
 
-export function nativeEnvironment(): NodeJS.ProcessEnv {
+export function checkNativeEnvironment(environment: NodeJS.ProcessEnv): void {
+  for (const key of ["HOME", "CODEX_HOME", "TMPDIR"])
+    if (process.env[key] !== environment[key]) throw Error("environment-mismatch");
+}
+
+export function nativeEnvironment(environment?: SupervisedEnvironment): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
     LANG: "C",
     LC_ALL: "C",
     SHELL: "/bin/sh",
   };
-  for (const key of ["HOME", "USER", "LOGNAME", "TMPDIR", "CODEX_HOME"])
-    if (process.env[key]) env[key] = process.env[key];
-  return env;
+  for (const key of ["HOME", "CODEX_HOME", "TMPDIR"] as const) {
+    const value = environment ? environment[key] : process.env[key];
+    if (value !== null && value !== undefined) env[key] = value;
+  }
+  for (const key of ["USER", "LOGNAME"])
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  return Object.freeze(env);
 }

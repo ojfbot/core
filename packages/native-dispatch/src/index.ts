@@ -43,6 +43,7 @@ export {
 export type {
   PreparedSupervisedCanary,
   SupervisedSubscriptionCanaryPlan,
+  SupervisedEnvironment,
   SupervisedCanaryHold,
   SupervisedCanaryOpen,
   SupervisedCanaryOptions,

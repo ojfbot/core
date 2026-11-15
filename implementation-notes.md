@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (#605 accepted review 3416): a private approval and pinned plan did not bind the journal, inherited path environment or post-preflight authority, and per-session controllers allowed both providers at once. Bind the canonical journal and three path variables, freeze child identity at open, recheck exact approval bytes and binary before launch, use the wall clock, and serialize supervised work in the existing journal. Late transport holds stay unknown/spent; no ACL expansion or new queue was added.
+
 - 2026-11-14 (native wire qualification): metadata mode retained installed plugin catalogs, and custom-provider wire output did not establish first-party behavior. The documented openai_base_url route with the built-in provider, a disposable resumed session, ephemeral synthetic API auth and a loopback-only WebSocket fixture directly observed the request without tool surfaces; qualify only the measured binary/model tuple and reserve subscription acceptance for the approved window. A named metadata session persisted after graceful EOF, so no initial-create redesign was needed.
 
 - 2026-11-14 (supervised native transport): the confirmed charter permits read-only Codex with an explicit host-file-read risk, while the existing factory and status correctly guarantee qualification-only effects; add a separate owner-window entry over the shared journal, retaining the old refusal boundary and reporting provider-internal calls as unproved. Ordinary Codex UI preferences were initially overclassified as managed policy; inspect the documented MDM payload keys and startup requirements instead.

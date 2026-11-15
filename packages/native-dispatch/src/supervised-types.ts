@@ -1,8 +1,14 @@
 import type { SubscriptionCanaryPlan } from "./canary-types.js";
 import type { Dispatcher } from "./dispatcher.js";
 
+export interface SupervisedEnvironment {
+  HOME: string;
+  CODEX_HOME: string | null;
+  TMPDIR: string | null;
+}
 export interface SupervisedSubscriptionCanaryPlan extends SubscriptionCanaryPlan {
   supervision: { kind: "owner-attended"; codexHostFileReadRiskAccepted: true };
+  environment: SupervisedEnvironment;
 }
 export interface PreparedSupervisedCanary {
   mode: "supervised-prepared";
@@ -15,6 +21,7 @@ export type SupervisedCanaryHold =
   | "runtime-approval-invalid"
   | "window-not-active"
   | "device-mismatch"
+  | "environment-mismatch"
   | "unsafe-local-state"
   | "acl-unqualified"
   | "binary-pin-mismatch"
@@ -27,5 +34,4 @@ export interface SupervisedCanaryOptions {
   stateFile: string;
   runtimeApprovalFile: string;
   deviceId: string;
-  now?: () => number;
 }

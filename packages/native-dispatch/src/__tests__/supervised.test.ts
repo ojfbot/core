@@ -1,4 +1,6 @@
 import {
+  appendFileSync,
+  existsSync,
   chmodSync,
   mkdirSync,
   mkdtempSync,
@@ -22,7 +24,7 @@ import {
   SUBSCRIPTION_CANARY_FIXTURE_SHA256,
 } from "../index.js";
 import { supervisedCommand } from "../supervised-native.js";
-import { checkNativeProfile } from "../supervised-files.js";
+import { checkNativeProfile, readPrivateFile } from "../supervised-files.js";
 import type { Dispatcher, PreparedSupervisedCanary, DispatchRequest } from "../index.js";
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -31,11 +33,17 @@ vi.mock("node:child_process", async (importOriginal) => {
 });
 vi.mock("../supervised-files.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../supervised-files.js")>();
-  return { ...actual, checkNativeProfile: vi.fn(actual.checkNativeProfile) };
+  return {
+    ...actual,
+    checkNativeProfile: vi.fn(actual.checkNativeProfile),
+    readPrivateFile: vi.fn(actual.readPrivateFile),
+  };
 });
 const qualification = vi.mocked(checkNativeProfile).getMockImplementation();
 if (!qualification) throw Error("missing profile qualification seam");
 const qualifyOriginal = qualification;
+const readOriginal = vi.mocked(readPrivateFile).getMockImplementation();
+if (!readOriginal) throw Error("missing private reader");
 let dir: string,
   acl = false;
 const active: Dispatcher[] = [];
@@ -47,6 +55,7 @@ const spawnOriginal = native;
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), "supervised-fixture-")));
   acl = false;
+  vi.spyOn(Date, "now").mockReturnValue(1001);
   // The journal/transport contract tests explicitly simulate qualified synthetic providers.
   vi.mocked(checkNativeProfile).mockImplementation(() => {});
   vi.stubGlobal(
@@ -84,6 +93,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(spawnSync).mockImplementation(spawnOriginal);
   vi.mocked(checkNativeProfile).mockImplementation(qualifyOriginal);
+  vi.mocked(readPrivateFile).mockImplementation(readOriginal);
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -97,6 +109,7 @@ if (args.includes('--help')) { console.log('--ignore-user-config --ignore-rules 
 let data=''; process.stdin.on('data',x=>data+=x); process.stdin.on('end',()=>{
  const x=JSON.parse(data), expected=claude?args[args.indexOf('--session-id')+1]:args[args.length-2], id=fs.existsSync('REPLACE_MODE')?'00000000-0000-4000-8000-000000009999':expected;
  fs.appendFileSync(${JSON.stringify("REPLACE_COUNT")},'1');
+ fs.writeFileSync('REPLACE_ENV',JSON.stringify({HOME:process.env.HOME,CODEX_HOME:process.env.CODEX_HOME,TMPDIR:process.env.TMPDIR,USER:process.env.USER,LOGNAME:process.env.LOGNAME}));
  const out={ack:{messageId:x.pointer.message_id,bindingRevision:x.pointer.bindingRevision,fixtureDigest:x.advisoryFixture.sha256},result:{text:'The observations remain separate.'}};
  const emit=m=>console.log(JSON.stringify(m));
  if(claude){emit({type:'system',subtype:'init',session_id:id,model:args[args.indexOf('--model')+1],tools:[],mcp_servers:[]});emit({type:'result',session_id:id,is_error:false,structured_output:out});}
@@ -111,6 +124,7 @@ function plan(): PreparedSupervisedCanary {
       js,
       program
         .replace("REPLACE_COUNT", join(dir, "launch-count"))
+        .replace("REPLACE_ENV", join(dir, "child-environment.json"))
         .replace("REPLACE_MODE", join(dir, "wrong-session")),
     );
     writeFileSync(binary, `#!/bin/sh\nexec '${process.execPath}' '${js}' "$@"\n`, { mode: 0o700 });
@@ -152,6 +166,11 @@ function plan(): PreparedSupervisedCanary {
     limits: { topLevelTurns: 2, windowMs: 1800000, requestTimeoutMs: 120000 },
     declaredUnproved: ["dollars", "outputTokens", "providerInternalRequests"],
     supervision: { kind: "owner-attended", codexHostFileReadRiskAccepted: true },
+    environment: {
+      HOME: process.env.HOME,
+      CODEX_HOME: process.env.CODEX_HOME ?? null,
+      TMPDIR: process.env.TMPDIR ?? null,
+    },
   });
 }
 function options(prepared = plan()) {
@@ -160,7 +179,6 @@ function options(prepared = plan()) {
     stateFile: join(dir, "state.sqlite"),
     runtimeApprovalFile: join(dir, "approval.json"),
     deviceId: "fixture-device",
-    now: () => 1001,
   };
 }
 function approve(o: ReturnType<typeof options>) {
@@ -174,6 +192,7 @@ function approve(o: ReturnType<typeof options>) {
       startsAtMs: 1000,
       expiresAtMs: 1801000,
       ownerNativeApprovalRef: "synthetic-only",
+      invocationStateFile: o.stateFile,
     }),
     { mode: 0o600 },
   );
@@ -259,10 +278,12 @@ it("holds missing, foreign-device, loose, ACL-bearing, expired and wrong-plan ap
     holds: ["acl-unqualified"],
   });
   acl = false;
-  expect(openSupervisedSubscriptionCanary({ ...o, now: () => 1801000 })).toMatchObject({
+  vi.mocked(Date.now).mockReturnValue(1801000);
+  expect(openSupervisedSubscriptionCanary(o)).toMatchObject({
     kind: "held",
     holds: ["window-not-active"],
   });
+  vi.mocked(Date.now).mockReturnValue(1001);
   const wrong = JSON.parse(readFileSync(o.runtimeApprovalFile, "utf8"));
   wrong.planDigest = "0".repeat(64);
   writeFileSync(o.runtimeApprovalFile, JSON.stringify(wrong));
@@ -319,7 +340,7 @@ it("keeps uncertain native effects spent across retry and restart without manufa
   active.splice(active.indexOf(d), 1);
   const again = open(o);
   expect(await again.dispatch(r)).toEqual(first);
-  expect(await again.dispatch(request(o.prepared, 0, 99))).toMatchObject({
+  expect(await again.dispatch(request(o.prepared, 1, 99))).toMatchObject({
     kind: "busy",
     reason: "session-busy",
   });
@@ -328,9 +349,8 @@ it("keeps uncertain native effects spent across retry and restart without manufa
 it("rechecks an owner window after opening and does not launch after expiry", async () => {
   const o = options();
   approve(o);
-  let now = 1001;
-  const d = open({ ...o, now: () => now });
-  now = 1801000;
+  const d = open(o);
+  vi.mocked(Date.now).mockReturnValue(1801000);
   expect(await d.dispatch(request(o.prepared, 0))).toEqual({ kind: "refused", reason: "expired" });
   expect(d.status().reservations).toBe(0);
 });
@@ -371,6 +391,142 @@ it("does not arm the public mechanical entry with a supervised grant", async () 
   });
   expect(d.status().reservations).toBe(0);
 });
+function track(result: ReturnType<typeof openSupervisedSubscriptionCanary>) {
+  if (result.kind === "ready") active.push(result.dispatcher);
+  return result;
+}
+
+it("uses wall-clock expiry even if a caller supplies an old injected clock", () => {
+  const o = options();
+  approve(o);
+  vi.mocked(Date.now).mockReturnValue(1801000);
+  const oldClock = { ...o, now: () => 1001 };
+  expect(track(openSupervisedSubscriptionCanary(oldClock))).toMatchObject({
+    kind: "held",
+    holds: ["window-not-active"],
+  });
+});
+it("binds the approved journal path and refuses a fresh budget file", () => {
+  const o = options();
+  approve(o);
+  expect(
+    track(openSupervisedSubscriptionCanary({ ...o, stateFile: join(dir, "fresh-budget.sqlite") })),
+  ).toMatchObject({ kind: "held", holds: ["runtime-approval-invalid"] });
+});
+it("refuses approval changes during slow native preflight even if all window fields still match", () => {
+  const o = options();
+  approve(o);
+  vi.mocked(checkNativeProfile).mockImplementationOnce(() => {
+    const a = JSON.parse(readFileSync(o.runtimeApprovalFile, "utf8"));
+    a.ownerNativeApprovalRef = "replacement";
+    writeFileSync(o.runtimeApprovalFile, JSON.stringify(a));
+  });
+  expect(track(openSupervisedSubscriptionCanary(o))).toMatchObject({
+    kind: "held",
+    holds: ["runtime-approval-invalid"],
+  });
+});
+it("refuses revoked approval before reserving any work", async () => {
+  const o = options();
+  approve(o);
+  const d = open(o);
+  rmSync(o.runtimeApprovalFile);
+  expect(await d.dispatch(request(o.prepared, 0))).toEqual({ kind: "refused", reason: "held" });
+  expect(d.status().reservations).toBe(0);
+  expect(existsSync(join(dir, "launch-count"))).toBe(false);
+});
+it("rejects environment drift between preparation and opening", () => {
+  const o = options();
+  approve(o);
+  vi.stubEnv("HOME", join(dir, "different-home"));
+  expect(track(openSupervisedSubscriptionCanary(o))).toMatchObject({
+    kind: "held",
+    holds: ["environment-mismatch"],
+  });
+});
+it("rejects environment drift after opening before a native effect", async () => {
+  const o = options();
+  approve(o);
+  const d = open(o);
+  vi.stubEnv("CODEX_HOME", join(dir, "different-codex-home"));
+  expect(await d.dispatch(request(o.prepared, 0))).toEqual({ kind: "refused", reason: "held" });
+  expect(d.status().reservations).toBe(0);
+  expect(existsSync(join(dir, "launch-count"))).toBe(false);
+});
+it("launches with the approved paths and identity captured at opening, omitting null paths", async () => {
+  vi.stubEnv("CODEX_HOME", undefined);
+  vi.stubEnv("TMPDIR", undefined);
+  vi.stubEnv("USER", "fixture-user");
+  vi.stubEnv("LOGNAME", "fixture-login");
+  const o = options();
+  expect(o.prepared.plan.environment).toEqual({
+    HOME: process.env.HOME,
+    CODEX_HOME: null,
+    TMPDIR: null,
+  });
+  approve(o);
+  const d = open(o);
+  vi.stubEnv("USER", "changed-user");
+  vi.stubEnv("LOGNAME", "changed-login");
+  expect(await d.dispatch(request(o.prepared, 0))).toMatchObject({
+    kind: "observed",
+    outcome: "completed",
+  });
+  expect(JSON.parse(readFileSync(join(dir, "child-environment.json"), "utf8"))).toEqual({
+    HOME: o.prepared.plan.environment.HOME,
+    USER: "fixture-user",
+    LOGNAME: "fixture-login",
+  });
+});
+it("admits only one active invocation across the device window", async () => {
+  const o = options();
+  approve(o);
+  const d = open(o),
+    first = d.dispatch(request(o.prepared, 0));
+  try {
+    expect(await d.dispatch(request(o.prepared, 1))).toMatchObject({
+      kind: "busy",
+      reason: "session-busy",
+    });
+  } finally {
+    await first;
+  }
+  expect(readFileSync(join(dir, "launch-count"), "utf8")).toBe("1");
+  expect(await d.dispatch(request(o.prepared, 1))).toMatchObject({
+    kind: "observed",
+    outcome: "completed",
+  });
+});
+it("rechecks the binary immediately before spawn after schema validation", async () => {
+  const o = options();
+  approve(o);
+  const d = open(o),
+    p = o.prepared.plan.profiles[0];
+  if (!p) throw Error("fixture");
+  vi.mocked(readPrivateFile).mockImplementation((path, max) => {
+    const bytes = readOriginal(path, max);
+    if (path.includes("native-output-schema-")) appendFileSync(p.binaryRealPath, "\n# drift\n");
+    return bytes;
+  });
+  expect(await d.dispatch(request(o.prepared, 0))).toMatchObject({ kind: "unknown" });
+  expect(existsSync(join(dir, "launch-count"))).toBe(false);
+});
+it.each(["model", "binarySHA256"])("holds a qualified tuple when only %s changes", (field) => {
+  const p = plan().plan.profiles[0];
+  if (!p) throw Error("fixture");
+  const measured = {
+    ...p,
+    model: "gpt-6.1-sol",
+    binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  };
+  expect(() => qualifyOriginal(measured)).not.toThrow();
+  const changed =
+    field === "model"
+      ? { ...measured, model: "other-model" }
+      : { ...measured, binarySHA256: "0".repeat(64) };
+  expect(() => qualifyOriginal(changed)).toThrow("native-profile-unqualified");
+});
+
 it("fixes provider argv without auto fallback or prompt instructions as permissions", () => {
   const p = plan();
   for (const b of p.plan.bindings) {
