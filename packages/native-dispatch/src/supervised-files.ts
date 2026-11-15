@@ -122,14 +122,25 @@ export function checkBinary(profile: SubscriptionCanaryProfile): void {
 }
 
 /** Static, no-inference qualification. Unknown managed sources remain a hold. */
+const qualifiedCodexProfiles = [
+  {
+    nativeVersion: "0.165.0-alpha.1.2",
+    binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  },
+  {
+    nativeVersion: "0.164.0",
+    binarySHA256: "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
+  },
+];
 export function checkNativeProfile(profile: SubscriptionCanaryProfile): void {
   if (process.platform !== "darwin") throw Error("native-profile-unqualified");
   if (
     profile.provider === "codex" &&
     !(
-      profile.nativeVersion === "0.165.0-alpha.1.2" &&
-      profile.binarySHA256 === "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2" &&
-      profile.model === "gpt-6.1-sol"
+      profile.model === "gpt-6.1-sol" &&
+      qualifiedCodexProfiles.some(
+        (p) => p.nativeVersion === profile.nativeVersion && p.binarySHA256 === profile.binarySHA256,
+      )
     )
   )
     throw Error("native-profile-unqualified");

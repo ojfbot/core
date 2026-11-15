@@ -1,6 +1,6 @@
 # Native dispatch contract
 
-`@core/native-dispatch` 0.3.0 supplies admission and durable invocation safety to the HelpDesk
+`@core/native-dispatch` 0.3.1 supplies admission and durable invocation safety to the HelpDesk
 device receiver. LocalHelp owns replay, the receiver inbox, checkpoints and correspondence receipts.
 Core owns the invocation journal. The package adds no delivery queue or scheduler and changes no
 FleetRunner compute behavior. It implements the applicable semantics of
