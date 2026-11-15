@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-14 (native wire qualification): metadata mode retained installed plugin catalogs, and custom-provider wire output did not establish first-party behavior. The documented openai_base_url route with the built-in provider, a disposable resumed session, ephemeral synthetic API auth and a loopback-only WebSocket fixture directly observed the request without tool surfaces; qualify only the measured binary/model tuple and reserve subscription acceptance for the approved window. A named metadata session persisted after graceful EOF, so no initial-create redesign was needed.
+
 - 2026-11-14 (supervised native transport): the confirmed charter permits read-only Codex with an explicit host-file-read risk, while the existing factory and status correctly guarantee qualification-only effects; add a separate owner-window entry over the shared journal, retaining the old refusal boundary and reporting provider-internal calls as unproved. Ordinary Codex UI preferences were initially overclassified as managed policy; inspect the documented MDM payload keys and startup requirements instead.
 
 - 2026-11-14 (#604 review): owner-plan strings were assumed to be identifiers and immediate marker absence was assumed to prove no launch; review showed free text could reach the pointer and an asynchronous launch could evade that check. Share bounded identifier/model parsing across preparation and admission, and directly block/count process launch attempts; runtime remains disabled.

@@ -1,11 +1,14 @@
 # Owner-attended subscription canary
 
-**Draft profile hold:** the current Codex recipe remains structurally `native-profile-unqualified`.
-Root's metadata probe still observed installed-plugin MCP tools despite disable flags. Static
-version/help/policy checks do not prove their exclusion. This preview supports adapter wiring and
-synthetic transport/journal qualification; it cannot open a real two-provider window. There is no
-operator boolean to remove this hold. A directly observed effective exec inventory and source
-correction are required before any live readiness claim.
+The qualified Codex tuple is native version `0.165.0-alpha.1.2`, model `gpt-6.1-sol`, and binary
+SHA-256 `d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2`. Its exact
+`exec resume` recipe was observed with built-in provider ID `openai` redirected through the
+documented `openai_base_url` to a loopback WebSocket fixture. The emitted `response.create`
+contained no tools, additional tools or namespaces. The fixture verified synthetic API auth only,
+then rejected the request without inference. Real account credentials were not used or copied.
+This qualifies the observed tool-exclusion mechanics in API-auth mode; subscription entitlement
+and actual subscription behavior remain for the owner-attended acceptance test. Other hashes,
+versions and models remain `native-profile-unqualified`; there is no operator override.
 
 This separate 0.3 entry implements the supervised contract in HelpDesk charter 3203. It does not
 arm `openDispatcher`, `openCanaryQualification` or the disabled 0.2 runtime entry.
@@ -35,16 +38,17 @@ working folders. Any extended ACL in this path is conservatively refused, includ
 Native binaries must retain their canonical paths, executable modes, pinned hashes and versions.
 
 The opener and each new invocation repeat the approval/window, file and native checks. Static
-qualification uses only version/help, documented policy metadata and Codex's startup-requirements
-printer; it does not send a model turn. Existing managed configuration or unavailable policy
-evidence returns `native-profile-unqualified`. A static pass establishes the checked recipe and
-local prerequisites; actual provider behavior still requires the attended proof.
+preflight uses only version/help, documented policy metadata and Codex's startup-requirements
+printer, plus the source-qualified binary/model tuple; it sends no model turn. Existing managed
+configuration or unavailable policy evidence returns `native-profile-unqualified`. Static checks
+alone do not qualify a new tuple. Actual subscription behavior requires the attended proof.
 
 Codex uses an actual existing, otherwise empty native session UUID, with no fallback creation or
 implicit latest-session selection. A preselected UUID is not creation evidence. Its fixed
-`exec resume` recipe ignores user config and execpolicy rules, selects read-only/never approvals,
+`exec resume` recipe pins provider `openai`, ignores user config and execpolicy rules, selects read-only/never approvals,
 disables web search, apps, browser features, hooks, extra-agent and plugin discovery features, and
 limits the inherited environment. Command-network denial comes from the read-only sandbox.
+The global `-C` also pins the declared working root when resuming a session with saved metadata.
 Read-only still permits host file reads; it is not a no-tools profile or separate-user isolation.
 The managed-policy key locations follow [OpenAI's managed configuration reference](https://learn.chatgpt.com/docs/enterprise/managed-configuration);
 web and apps are separate controls in the [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).

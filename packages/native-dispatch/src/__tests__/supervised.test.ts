@@ -223,7 +223,7 @@ it("requires the explicit supervised risk and never upgrades a prepared object b
     }),
   ).toThrow("invalid-supervised-plan");
 });
-it("keeps the real Codex recipe structurally held even when static help and policy checks pass", () => {
+it("holds an unqualified Codex binary/model tuple even when declared version and static controls match", () => {
   const p = plan();
   const codex = p.plan.profiles.find((x) => x.provider === "codex");
   if (!codex) throw Error("fixture");
@@ -381,7 +381,9 @@ it("fixes provider argv without auto fallback or prompt instructions as permissi
     expect(args).not.toContain("--fallback-model");
     if (b.provider === "codex") {
       expect(args).toContain("read-only");
+      expect(args[args.indexOf("-C") + 1]).toBe(b.cwd);
       expect(args).toContain("never");
+      expect(args).toContain('model_provider="openai"');
       expect(args).toContain("--ignore-user-config");
       expect(args).toContain('web_search="disabled"');
       expect(args).toContain("features.browser_use=false");
