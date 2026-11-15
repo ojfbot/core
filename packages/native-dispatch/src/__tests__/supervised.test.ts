@@ -83,7 +83,9 @@ beforeEach(() => {
         status: 1,
         signal: null,
         stdout: "",
-        stderr: "Domain does not exist",
+        stderr: args?.[2]
+          ? `The domain/default pair of (${args[1]}, ${args[2]}) does not exist\n`
+          : `Domain ${args?.[1]} does not exist\n`,
       };
     return spawnOriginal(file, args, options);
   });
@@ -254,6 +256,121 @@ it("holds an unqualified Codex binary/model tuple even when declared version and
     kind: "held",
     holds: ["native-profile-unqualified"],
   });
+});
+function managedPreferenceProbe(
+  provider: "codex" | "claude-code",
+  stderr: (domain: string, key: string | undefined) => string,
+  status: number | null = 1,
+  error?: Error,
+) {
+  const p = plan().plan.profiles.find((profile) => profile.provider === provider);
+  if (!p) throw Error("fixture");
+  const profile =
+    provider === "codex"
+      ? {
+          ...p,
+          model: "gpt-6.1-sol",
+          binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+        }
+      : p;
+  const prior = vi.mocked(spawnSync).getMockImplementation();
+  if (!prior) throw Error("missing subprocess fixture");
+  vi.mocked(spawnSync).mockImplementation((file, args, options) => {
+    if (file === "/usr/bin/defaults")
+      return {
+        pid: 0,
+        output: [],
+        status,
+        signal: null,
+        stdout: "",
+        stderr: stderr(args?.[1] ?? "", args?.[2]),
+        ...(error ? { error } : {}),
+      };
+    return prior(file, args, options);
+  });
+  return () => qualifyOriginal(profile);
+}
+const defaultsMetadata = "2026-11-14 20:50:44.116 defaults[32951:443163311] \n";
+it.each([
+  {
+    name: "legacy domain",
+    provider: "claude-code",
+    text: (domain: string) => `Domain ${domain} does not exist\n`,
+  },
+  {
+    name: "legacy key",
+    provider: "codex",
+    text: (domain: string, key: string | undefined) =>
+      `The domain/default pair of (${domain}, ${key}) does not exist\n`,
+  },
+  {
+    name: "timestamped legacy domain",
+    provider: "claude-code",
+    text: (domain: string) => `${defaultsMetadata}Domain ${domain} does not exist\n`,
+  },
+  {
+    name: "timestamped legacy key",
+    provider: "codex",
+    text: (domain: string, key: string | undefined) =>
+      `${defaultsMetadata}The domain/default pair of (${domain}, ${key}) does not exist\n`,
+  },
+  {
+    name: "quoted domain",
+    provider: "claude-code",
+    text: (domain: string) => `Error: Domain '${domain}' not found.\n`,
+  },
+  {
+    name: "quoted key",
+    provider: "codex",
+    text: (domain: string, key: string | undefined) =>
+      `Error: Could not find key '${key}' in domain '${domain}'.\n`,
+  },
+] as const)("accepts exact managed-preference absence: $name", ({ provider, text }) => {
+  expect(managedPreferenceProbe(provider, text)).not.toThrow();
+});
+it.each([
+  { name: "generic absence", text: "Domain does not exist" },
+  {
+    name: "wrong legacy domain",
+    text: "The domain/default pair of (other.domain, config_toml_base64) does not exist",
+  },
+  {
+    name: "wrong legacy key",
+    text: "The domain/default pair of (com.openai.codex, other_key) does not exist",
+  },
+  { name: "wrong quoted domain", text: "Error: Domain 'other.domain' not found." },
+  {
+    name: "wrong quoted key",
+    text: "Error: Could not find key 'other_key' in domain 'com.openai.codex'.",
+  },
+  { name: "unexpected diagnostic", text: "Error: Could not read preferences." },
+  {
+    name: "additional diagnostic",
+    text: "Domain com.openai.codex does not exist\nError: Permission denied.",
+  },
+  {
+    name: "unknown metadata prefix",
+    text: "unknown defaults[1:2]\nDomain com.openai.codex does not exist",
+  },
+  { name: "present setting", text: "Domain com.openai.codex does not exist", status: 0 },
+  {
+    name: "timeout",
+    text: "Domain com.openai.codex does not exist",
+    status: null,
+    error: new Error("ETIMEDOUT"),
+  },
+  {
+    name: "spawn error",
+    text: "Domain com.openai.codex does not exist",
+    status: 1,
+    error: new Error("EIO"),
+  },
+])("holds unproved managed-preference absence: $name", (test) => {
+  const status = "status" in test ? test.status : 1;
+  const error = "error" in test ? test.error : undefined;
+  expect(managedPreferenceProbe("codex", () => test.text, status, error)).toThrow(
+    "native-profile-unqualified",
+  );
 });
 it("holds missing, foreign-device, loose, ACL-bearing, expired and wrong-plan approval without launching a provider", () => {
   const o = options();

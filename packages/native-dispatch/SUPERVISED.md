@@ -61,6 +61,9 @@ use the wall clock (`Date.now()`); callers cannot inject a supervised clock. Sta
 preflight uses only version/help, documented policy metadata and Codex's startup-requirements
 printer, plus the source-qualified binary/model tuple; it sends no model turn. Existing managed
 configuration or unavailable policy evidence returns `native-profile-unqualified`. Static checks
+accept managed-preference absence only when `defaults` exits 1 without a spawn error and reports
+an exact known missing-domain or missing-key message for the queried domain and key. The known
+macOS timestamp prefix is allowed. Present settings and unexpected diagnostics remain held. Static checks
 alone do not qualify a new tuple. Actual subscription behavior requires the attended proof.
 
 Codex uses an actual existing, otherwise empty native session UUID, with no fallback creation or
