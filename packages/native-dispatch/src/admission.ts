@@ -22,6 +22,15 @@ function text(value: unknown): value is string {
     typeof value === "string" && value.length > 0 && value.length <= 512 && !value.includes("\0")
   );
 }
+export function isIdentifier(value: unknown): value is string {
+  return typeof value === "string" && value.match(/^[a-z0-9][a-z0-9._-]{0,63}$/)?.[0] === value;
+}
+export function isModelSelector(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.match(/^[a-z0-9][a-z0-9._-]{0,63}(?:\[[a-z0-9]{1,16}\])?$/)?.[0] === value
+  );
+}
 function strings(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 64 && value.every(text);
 }
@@ -57,7 +66,7 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
       charterId,
       grantRevision,
       profileRevision,
-    ].every(text) ||
+    ].every(isIdentifier) ||
     typeof sequence !== "number" ||
     !Number.isSafeInteger(sequence) ||
     sequence < 0 ||
@@ -73,16 +82,16 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
     throw Error("invalid-request");
   // Prove each primitive at the boundary; Array.every cannot narrow separate bindings.
   if (
-    !text(deliveryId) ||
-    !text(streamId) ||
-    !text(eventId) ||
-    !text(messageId) ||
-    !text(threadId) ||
-    !text(recipient) ||
-    !text(bindingRevision) ||
-    !text(charterId) ||
-    !text(grantRevision) ||
-    !text(profileRevision)
+    !isIdentifier(deliveryId) ||
+    !isIdentifier(streamId) ||
+    !isIdentifier(eventId) ||
+    !isIdentifier(messageId) ||
+    !isIdentifier(threadId) ||
+    !isIdentifier(recipient) ||
+    !isIdentifier(bindingRevision) ||
+    !isIdentifier(charterId) ||
+    !isIdentifier(grantRevision) ||
+    !isIdentifier(profileRevision)
   )
     throw Error("invalid-request");
   const pointer: unknown = JSON.parse(task.input);
@@ -121,15 +130,15 @@ export function validateConfiguration(config: DispatchConfiguration): void {
     grants = new Set<string>();
   for (const b of config.bindings) {
     if (
-      !text(b.alias) ||
+      !isIdentifier(b.alias) ||
       aliases.has(b.alias) ||
-      !text(b.revision) ||
-      !text(b.deviceId) ||
+      !isIdentifier(b.revision) ||
+      !isIdentifier(b.deviceId) ||
       !["codex", "claude-code"].includes(b.provider) ||
       !text(b.nativeSessionId) ||
       !isAbsolute(b.cwd) ||
       b.cwd.includes("\0") ||
-      !text(b.profileRevision) ||
+      !isIdentifier(b.profileRevision) ||
       !strings(b.resources) ||
       typeof b.held !== "boolean"
     )
@@ -138,9 +147,9 @@ export function validateConfiguration(config: DispatchConfiguration): void {
   }
   for (const p of config.profiles) {
     if (
-      !text(p.revision) ||
+      !isIdentifier(p.revision) ||
       revisions.has(p.revision) ||
-      !text(p.model) ||
+      !isModelSelector(p.model) ||
       !(
         p.provider === "codex"
           ? ["0.165.0-alpha.1.2", "0.164.0"]
@@ -155,7 +164,8 @@ export function validateConfiguration(config: DispatchConfiguration): void {
   for (const g of config.grants) {
     const key = `${g.charterId}\0${g.revision}`;
     if (
-      ![g.charterId, g.revision, g.bindingAlias, g.budgetScope].every(text) ||
+      ![g.charterId, g.revision, g.bindingAlias].every(isIdentifier) ||
+      !text(g.budgetScope) ||
       grants.has(key) ||
       g.operation !== "native-resume" ||
       g.workflow !== "advisory-review" ||

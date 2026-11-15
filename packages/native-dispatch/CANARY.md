@@ -19,6 +19,12 @@ binary's canonical path, SHA-256, exact native version, model, low effort and ex
 auth mode. Each binding pins its logical alias, revision, session UUID, working directory and
 resources. Both bindings must belong to the plan's device and match their provider profile.
 
+Plan, window, device, profile and binding identifiers use the same grammar as Core admission:
+`[a-z0-9][a-z0-9._-]{0,63}`, matched against the entire string. Model selectors use that grammar
+with an optional bracketed suffix of 1–16 lowercase alphanumeric characters, such as `opus[1m]`;
+`gpt-6.1-sol` is also valid. Whitespace, paths and email addresses are refused at both boundaries.
+This constrains selector syntax; it does not detect secrets embedded in otherwise valid identifiers.
+
 The only fixture is the exported `SUBSCRIPTION_CANARY_FIXTURE`, SHA-256
 `d17f721f53033a64b6d7a495c8b2522a784000903329375f79028abb4dbb9b99`. It is a non-sensitive
 wording review, not evidence that the described events occurred. The plan must contain those exact
@@ -98,3 +104,5 @@ The new cases run four fake role turns across two device journals, prove retry/r
 enforce the per-binding/device/window bounds, retain the concrete live holds, and demonstrate that
 even matching synthetic approval/binary pins cannot launch the executable fixture. No inference,
 provider, account, global configuration, live job or NAS change is part of this proof.
+The disabled-entry test blocks and directly counts `spawn` and `execFile` attempts, so an
+asynchronous child launch cannot pass merely because its marker file has not appeared yet.
