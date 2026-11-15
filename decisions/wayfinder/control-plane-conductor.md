@@ -33,6 +33,42 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ## Notes
 
+### NAS application deployment ownership, 2026-11-12
+
+The operator requested a dedicated NAS deployment account named `applications` and
+application-owned storage outside workstation-account home directories. Existing
+deployments need a controlled migration; future deployments should start with the
+approved layout. This is a planning requirement under the existing #307 program.
+It grants no permission to provision accounts, change permissions, move state,
+restart services, or perform cutover.
+
+Distinguish the deploying identity, Docker daemon authority, container runtime UID/GID,
+persistent-file ownership, and original requesting actor. A shared deployment account
+must retain per-actor attribution; application processes must not inherit deployment
+credentials or the Docker socket. Exact directories, persistent ownership/ACLs,
+runtime mappings, delegation and migration ordering remain open.
+
+| Existing decision venue | Follow-up question |
+| --- | --- |
+| Where the conductor runs and what it must reach (#309) | Which supported account/storage layout survives reboot without workstation-home or login dependencies? |
+| What authority the conductor holds (#313) | Who may deploy or recover each service, and how are daemon privileges, requester attribution, runtime identities and secret access bounded? |
+| The portability seam and how the registry names a swappable trigger (#311) | How are paths and numeric identities parameterized while preserving work, journal and accepted-result identity? |
+| Who watches the conductor, and when is it retired (#318) | What independent restart, permission-persistence, backup, restore and rollback evidence qualifies the new layout? |
+| Census the control plane (#315) | Which deployments, lifecycle jobs, backup jobs and consumers depend on the old account? Inventory is not authorization to repair. |
+
+The [planning handoff](../../docs/fleet-runner-nas-applications-account-handoff.md)
+sets out the inventory and future qualification requirements. FleetRunner retains
+its execution/qualification ownership. HelpDesk retains its
+[existing map](https://github.com/ojfbot/LocalHelp/blob/main/decisions/wayfinder/helpdesk.md)
+and service deployment/cutover ownership, including its object store and backups.
+MorningCockpit, and ClassicSpaceVenue if deployed, should use the approved profile
+through their own delivery work.
+
+Conductors must reconcile sequencing with current work. This note closes no ticket,
+creates no replacement program or delivery claim, and does not override existing
+grants or accepted qualification. The supporting audit remains private design input;
+its recommendations are not newly ratified architecture.
+
 ### Skill observation extension, 2026-10-02
 
 The operator confirmed that skill observation covers all Claude and Codex sessions,
