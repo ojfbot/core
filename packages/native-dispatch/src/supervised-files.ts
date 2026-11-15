@@ -124,17 +124,11 @@ export function checkBinary(profile: SubscriptionCanaryProfile): void {
 }
 
 /** Static, no-inference qualification. Unknown managed sources remain a hold. */
-const qualifiedCodexProfiles = [
-  {
-    nativeVersion: "0.165.0-alpha.1.2",
-    binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
-  },
-  {
-    nativeVersion: "0.164.0",
-    binarySHA256: "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
-  },
-];
-function managedPreferenceAbsent({
+// API-auth measurements did not establish subscription tool omission (live trial 3203).
+const qualifiedCodexProfiles: ReadonlyArray<
+  Pick<SubscriptionCanaryProfile, "nativeVersion" | "binarySHA256">
+> = [];
+export function managedPreferenceAbsent({
   result,
   domain,
   key,
@@ -262,8 +256,6 @@ export function checkNativeProfile(
       config.configRequirements.requirements !== null
     )
       throw Error("native-profile-unqualified");
-    // This exact binary/model/recipe was observed through built-in OpenAI's loopback wire path.
-    // The mock used synthetic API auth; subscription behavior still needs attended acceptance.
   }
 }
 

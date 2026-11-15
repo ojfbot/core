@@ -24,7 +24,12 @@ import {
   SUBSCRIPTION_CANARY_FIXTURE_SHA256,
 } from "../index.js";
 import { supervisedCommand } from "../supervised-native.js";
-import { checkNativeProfile, readPrivateFile } from "../supervised-files.js";
+import {
+  checkBinary,
+  checkNativeProfile,
+  managedPreferenceAbsent,
+  readPrivateFile,
+} from "../supervised-files.js";
 import type { Dispatcher, PreparedSupervisedCanary, DispatchRequest } from "../index.js";
 
 vi.mock("node:child_process", async (importOriginal) => {
@@ -35,6 +40,7 @@ vi.mock("../supervised-files.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../supervised-files.js")>();
   return {
     ...actual,
+    checkBinary: vi.fn(actual.checkBinary),
     checkNativeProfile: vi.fn(actual.checkNativeProfile),
     readPrivateFile: vi.fn(actual.readPrivateFile),
   };
@@ -42,6 +48,8 @@ vi.mock("../supervised-files.js", async (importOriginal) => {
 const qualification = vi.mocked(checkNativeProfile).getMockImplementation();
 if (!qualification) throw Error("missing profile qualification seam");
 const qualifyOriginal = qualification;
+const binaryOriginal = vi.mocked(checkBinary).getMockImplementation();
+if (!binaryOriginal) throw Error("missing binary verifier");
 const readOriginal = vi.mocked(readPrivateFile).getMockImplementation();
 if (!readOriginal) throw Error("missing private reader");
 let dir: string,
@@ -95,6 +103,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(spawnSync).mockImplementation(spawnOriginal);
   vi.mocked(checkNativeProfile).mockImplementation(qualifyOriginal);
+  vi.mocked(checkBinary).mockImplementation(binaryOriginal);
   vi.mocked(readPrivateFile).mockImplementation(readOriginal);
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
@@ -257,39 +266,57 @@ it("holds an unqualified Codex binary/model tuple even when declared version and
     holds: ["native-profile-unqualified"],
   });
 });
-function managedPreferenceProbe(
-  provider: "codex" | "claude-code",
-  stderr: (domain: string, key: string | undefined) => string,
-  status: number | null = 1,
-  error?: Error,
-) {
-  const p = plan().plan.profiles.find((profile) => profile.provider === provider);
-  if (!p) throw Error("fixture");
-  const profile =
-    provider === "codex"
-      ? {
-          ...p,
-          model: "gpt-6.1-sol",
-          binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
-        }
-      : p;
-  const prior = vi.mocked(spawnSync).getMockImplementation();
-  if (!prior) throw Error("missing subprocess fixture");
-  vi.mocked(spawnSync).mockImplementation((file, args, options) => {
-    if (file === "/usr/bin/defaults")
-      return {
-        pid: 0,
-        output: [],
-        status,
-        signal: null,
-        stdout: "",
-        stderr: stderr(args?.[1] ?? "", args?.[2]),
-        ...(error ? { error } : {}),
-      };
-    return prior(file, args, options);
-  });
-  return () => qualifyOriginal(profile);
+const revokedCodexProfiles = [
+  {
+    nativeVersion: "0.165.0-alpha.1.2",
+    binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
+  },
+  {
+    nativeVersion: "0.164.0",
+    binarySHA256: "d8990e3ee7acfbc26f91265b12a1a83f0fee40d0e0f8f1f40a37d4ec21f499cf",
+  },
+] as const;
+function revokedPlan(pin: (typeof revokedCodexProfiles)[number]) {
+  const p = plan();
+  const profiles = p.plan.profiles.map((profile) =>
+    profile.provider === "codex" ? { ...profile, ...pin, model: "gpt-6.1-sol" } : profile,
+  );
+  const codex = profiles.find((profile) => profile.provider === "codex");
+  if (!codex) throw Error("fixture");
+  const fixture = codex.binaryRealPath + ".cjs";
+  writeFileSync(
+    fixture,
+    readFileSync(fixture, "utf8").replaceAll("0.165.0-alpha.1.2", pin.nativeVersion),
+  );
+  return prepareSupervisedSubscriptionCanary({ ...p.plan, profiles });
 }
+it.each(revokedCodexProfiles)(
+  "revokes subscription Codex $nativeVersion before any native probe",
+  (pin) => {
+    const p = revokedPlan(pin).plan.profiles.find((profile) => profile.provider === "codex");
+    if (!p) throw Error("fixture");
+    expect(() => qualifyOriginal(p)).toThrow("native-profile-unqualified");
+    expect(spawnSync).not.toHaveBeenCalled();
+  },
+);
+it.each(revokedCodexProfiles)(
+  "holds the public opener for revoked subscription Codex $nativeVersion before creating a journal",
+  (pin) => {
+    const prepared = revokedPlan(pin),
+      o = options(prepared);
+    approve(o);
+    // Synthetic files stand in for the declared pins; the production qualification gate stays real.
+    vi.mocked(checkBinary).mockImplementation(() => {});
+    vi.mocked(checkNativeProfile).mockImplementation(qualifyOriginal);
+    expect(track(openSupervisedSubscriptionCanary(o))).toMatchObject({
+      kind: "held",
+      holds: ["native-profile-unqualified"],
+    });
+    expect(existsSync(o.stateFile)).toBe(false);
+    expect(existsSync(join(dir, "launch-count"))).toBe(false);
+    expect(vi.mocked(spawnSync).mock.calls.filter(([file]) => file !== "/bin/ls")).toEqual([]);
+  },
+);
 const defaultsMetadata = "2026-11-14 20:50:44.116 defaults[32951:443163311] \n";
 it.each([
   {
@@ -326,7 +353,13 @@ it.each([
       `Error: Could not find key '${key}' in domain '${domain}'.\n`,
   },
 ] as const)("accepts exact managed-preference absence: $name", ({ provider, text }) => {
-  expect(managedPreferenceProbe(provider, text)).not.toThrow();
+  const domain = provider === "codex" ? "com.openai.codex" : "com.anthropic.claudecode";
+  const keys =
+    provider === "codex" ? ["config_toml_base64", "requirements_toml_base64"] : [undefined];
+  for (const key of keys)
+    expect(
+      managedPreferenceAbsent({ domain, key, result: { status: 1, stderr: text(domain, key) } }),
+    ).toBe(true);
 });
 it.each([
   { name: "generic absence", text: "Domain does not exist" },
@@ -368,9 +401,13 @@ it.each([
 ])("holds unproved managed-preference absence: $name", (test) => {
   const status = "status" in test ? test.status : 1;
   const error = "error" in test ? test.error : undefined;
-  expect(managedPreferenceProbe("codex", () => test.text, status, error)).toThrow(
-    "native-profile-unqualified",
-  );
+  expect(
+    managedPreferenceAbsent({
+      domain: "com.openai.codex",
+      key: "config_toml_base64",
+      result: { status, error, stderr: test.text },
+    }),
+  ).toBe(false);
 });
 it("holds missing, foreign-device, loose, ACL-bearing, expired and wrong-plan approval without launching a provider", () => {
   const o = options();
@@ -628,7 +665,7 @@ it("rechecks the binary immediately before spawn after schema validation", async
   expect(await d.dispatch(request(o.prepared, 0))).toMatchObject({ kind: "unknown" });
   expect(existsSync(join(dir, "launch-count"))).toBe(false);
 });
-it.each(["model", "binarySHA256"])("holds a qualified tuple when only %s changes", (field) => {
+it.each(["model", "binarySHA256"])("keeps a revoked tuple held when only %s changes", (field) => {
   const p = plan().plan.profiles[0];
   if (!p) throw Error("fixture");
   const measured = {
@@ -636,7 +673,7 @@ it.each(["model", "binarySHA256"])("holds a qualified tuple when only %s changes
     model: "gpt-6.1-sol",
     binarySHA256: "d84a54b031085f01e3ad915ea7c72ebea4dcf69e90f0d1e0e4a637e8280991d2",
   };
-  expect(() => qualifyOriginal(measured)).not.toThrow();
+  expect(() => qualifyOriginal(measured)).toThrow("native-profile-unqualified");
   const changed =
     field === "model"
       ? { ...measured, model: "other-model" }

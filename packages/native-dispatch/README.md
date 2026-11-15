@@ -1,6 +1,6 @@
 # Native dispatch contract
 
-`@core/native-dispatch` 0.3.3 supplies admission and durable invocation safety to the HelpDesk
+`@core/native-dispatch` 0.3.4 supplies admission and durable invocation safety to the HelpDesk
 device receiver. LocalHelp owns replay, the receiver inbox, checkpoints and correspondence receipts.
 Core owns the invocation journal. The package adds no delivery queue or scheduler and changes no
 FleetRunner compute behavior. It implements the applicable semantics of
@@ -10,6 +10,8 @@ Version 0.2 adds [disabled subscription-canary preparation](./CANARY.md). Versio
 separate [owner-attended subscription transport](./SUPERVISED.md), gated by a local approval
 artifact and exact 30-minute window. The preparation API remains disabled. The mechanical
 contract below and its controller/recovery rules remain in force.
+Version 0.3.4 revokes all Codex subscription qualifications after the live trial exposed tools.
+The two-provider supervised plan remains held; preparation and BASIC coordination remain available.
 
 The mechanical entry has no real-provider launch path. `createQualificationTransport()` runs fixed local
 emulators with the current Node executable and an empty environment. There is no executable option,
