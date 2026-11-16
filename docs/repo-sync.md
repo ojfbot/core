@@ -69,7 +69,7 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
   `~/.claude/repo-sync/launchd.err.log`, and liveness flags `runs.jsonl` silence after 36 h.
 - Code merged to `main` reaches each Mac's next run once `main` is fast-forwarded *and* checked
   out there. That is the same trust boundary as pulling `main`: the PR review gate.
-- **Residual race (Codex rates it Medium; the owner accepts it or not):** git has no atomic "move
+- **Residual race (Codex rates it Medium; the owner ACCEPTED it on 2026-11-16, Yuri chat: "Accept #5"):** git has no atomic "move
   this ref only if no worktree has it checked out", and no atomic "fast-forward only if HEAD is
   still `main`". Both ownership checks run shortly before their write, with other git calls in
   between (the filter check sits between `symbolic-ref` and `merge`). Neither check is atomic with
