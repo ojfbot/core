@@ -1,7 +1,14 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readdirSync, realpathSync } from "node:fs";
 import { basename, dirname, isAbsolute, join } from "node:path";
-import { digest, isIdentifier, object, parseDispatchRequest } from "./admission.js";
+import {
+  CORRESPONDENCE_ANY_THREAD,
+  digest,
+  isIdentifier,
+  isThreadResource,
+  object,
+  parseDispatchRequest,
+} from "./admission.js";
 import { profile as parseProfile } from "./canary.js";
 import { openCorrespondenceDispatcher } from "./dispatcher.js";
 import {
@@ -9,6 +16,15 @@ import {
   createCorrespondenceTransport,
 } from "./correspondence-native.js";
 import type { CorrespondenceEmulatorScript } from "./correspondence-native.js";
+import { serializeCorrespondenceTrace, traceFromFrames } from "./correspondence-frames.js";
+import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
+import { parseCorrespondencePacket } from "./correspondence-protocol.js";
+import {
+  CORRESPONDENCE_QUALIFICATION_PACKET,
+  CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
+  checkCorrespondenceQualification,
+  checkCorrespondenceTraceBytes,
+} from "./correspondence-qualification.js";
 import {
   CORRESPONDENCE_MAX_TURNS,
   CORRESPONDENCE_MAX_WINDOW_MS,
@@ -27,12 +43,13 @@ import {
   checkBinary,
   checkNativeEnvironment,
   checkNativeProfile,
+  checkPinnedTemporaryDirectory,
   checkPrivateDirectory,
   nativeEnvironment,
   readPrivateFile,
 } from "./supervised-files.js";
 import type { SupervisedCanaryHold } from "./supervised-types.js";
-import type { DispatchGrant, Provider } from "./types.js";
+import type { DispatchDisposition, DispatchGrant, Provider } from "./types.js";
 
 /** Providers whose subscription qualification is revoked (Core 0.3.4). No plan may bind them. */
 const REVOKED_PROVIDERS: Provider[] = ["codex"];
@@ -81,7 +98,10 @@ function binding(v: unknown, deviceId: string): CorrespondenceBinding {
     profileRevision: identifier(v.profileRevision),
     sessionPolicy: "fresh-per-dispatch",
     cwd: absolute(v.cwd),
-    resources: v.resources.map(str),
+    // Explicit thread resources, or exactly the one wildcard `helpdesk:thread:*`.
+    resources: v.resources.map((r) =>
+      r === CORRESPONDENCE_ANY_THREAD || isThreadResource(r) ? r : fail(),
+    ),
   };
 }
 
@@ -275,12 +295,27 @@ const holdCodes: SupervisedCanaryHold[] = [
   "native-profile-unqualified",
 ];
 
-/** Only this local owner-window boundary can construct the built-in real correspondence transport. */
-export function openCorrespondenceWindow(options: CorrespondenceOptions): CorrespondenceOpen {
+/** Correspondence compares HOME and CODEX_HOME with the controller; TMPDIR is pinned by the plan. */
+const CORRESPONDENCE_COMPARED = ["HOME", "CODEX_HOME"] as const;
+
+/**
+ * The two ways a live window opens. "duty" is every listener window. "qualification" exists only
+ * for qualifyClaudeCorrespondence: it skips the version-has-trace gate and admits nothing but the
+ * fixed qualification packet, once.
+ */
+type WindowMode =
+  | { kind: "duty" }
+  | { kind: "qualification"; recordFrame: (frame: unknown) => void };
+
+function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
   const { stateFile, runtimeApprovalFile, deviceId } = options;
   const prepared = frozen(options.prepared);
   const { plan, planDigest } = prepared;
   const environment = nativeEnvironment(plan.environment);
+  const checkEnvironment = () => {
+    checkNativeEnvironment(environment, CORRESPONDENCE_COMPARED);
+    checkPinnedTemporaryDirectory(plan.environment.TMPDIR);
+  };
   function readApproval(expectedDigest?: string) {
     if (!existsSync(runtimeApprovalFile)) throw Error("runtime-approval-missing");
     const bytes = readPrivateFile(runtimeApprovalFile, 8192);
@@ -331,7 +366,7 @@ export function openCorrespondenceWindow(options: CorrespondenceOptions): Corres
     | { kind: "approved"; startsAtMs: number; expiresAtMs: number; digest: string } {
     try {
       if (!isIdentifier(deviceId) || plan.deviceId !== deviceId) throw Error("device-mismatch");
-      checkNativeEnvironment(environment);
+      checkEnvironment();
       const approval = readApproval(expectedDigest);
       checkPrivateDirectory(dirname(stateFile));
       if (existsSync(stateFile)) readPrivateFile(stateFile, 16777216);
@@ -341,10 +376,14 @@ export function openCorrespondenceWindow(options: CorrespondenceOptions): Corres
       }
       for (const p of plan.profiles) {
         checkBinary(p);
-        checkNativeProfile(p, environment);
+        // QUALIFICATION BYPASS. A duty window requires an allowlisted version with a committed,
+        // replayable trace. Only a qualification run skips it, to record that trace; it admits
+        // nothing but the fixed CORRESPONDENCE_QUALIFICATION_PACKET, for one turn.
+        if (mode.kind !== "qualification") checkCorrespondenceQualification(p);
+        checkNativeProfile(p, environment, CORRESPONDENCE_COMPARED);
       }
       const final = readApproval(approval.digest);
-      checkNativeEnvironment(environment);
+      checkEnvironment();
       return { kind: "approved", ...final };
     } catch (error) {
       const code = error instanceof Error ? holdCodes.find((c) => c === error.message) : undefined;
@@ -352,22 +391,31 @@ export function openCorrespondenceWindow(options: CorrespondenceOptions): Corres
     }
   }
   const approval = inspect();
-  if (approval.kind === "held") return { kind: "held", planDigest, holds: [approval.hold] };
+  if (approval.kind === "held")
+    return { kind: "held" as const, planDigest, holds: [approval.hold] };
   const transport = createCorrespondenceTransport(
     prepared,
     approval.expiresAtMs,
     environment,
     () => {
       readApproval(approval.digest);
-      checkNativeEnvironment(environment);
+      checkEnvironment();
     },
+    mode.kind === "qualification" ? mode.recordFrame : undefined,
   );
+  const qualificationThread = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET).request
+    .thread_id;
+  const only = (resources: string[]) =>
+    mode.kind === "qualification" ? [`helpdesk:thread:${qualificationThread}`] : resources;
   const dispatcher = openCorrespondenceDispatcher<RelayedCorrespondenceProposal>({
     stateFile,
     now: () => Date.now(),
     profiles: plan.profiles,
-    bindings: dutyBindings(prepared),
-    grants: grants(prepared, "supervised", approval.startsAtMs, approval.expiresAtMs),
+    bindings: dutyBindings(prepared).map((b) => ({ ...b, resources: only(b.resources) })),
+    grants: grants(prepared, "supervised", approval.startsAtMs, approval.expiresAtMs).map((g) => ({
+      ...g,
+      resources: only(g.resources),
+    })),
     transport,
     beforeInvoke: () => {
       const result = inspect(approval.digest);
@@ -378,7 +426,130 @@ export function openCorrespondenceWindow(options: CorrespondenceOptions): Corres
         : undefined;
     },
   });
-  return { kind: "ready", planDigest, dispatcher: wrap(dispatcher) };
+  return { kind: "ready" as const, planDigest, dispatcher: wrap(dispatcher) };
+}
+
+/** Only this local owner-window boundary can construct the built-in real correspondence transport. */
+export function openCorrespondenceWindow(options: CorrespondenceOptions): CorrespondenceOpen {
+  return openWindow(options, { kind: "duty" });
+}
+
+export type CorrespondenceQualification =
+  | { kind: "held"; planDigest: string; holds: SupervisedCanaryHold[] }
+  | { kind: "not-run"; planDigest: string; disposition: DispatchDisposition }
+  | {
+      kind: "ran";
+      planDigest: string;
+      nativeVersion: string;
+      disposition: DispatchDisposition;
+      /** The live checker's refusal, as journaled, if any. */
+      turnRefusal: CorrespondenceTurnRefusal | undefined;
+      /** The committed-form trace, its SHA-256, and the verdict of replaying it. */
+      traceText: string;
+      traceSHA256: string;
+      replayRefusal: string | undefined;
+      proposal: RelayedCorrespondenceProposal | undefined;
+      /** "accepted" only for a completed turn with a proposal, no refusal, and a trace that replays. */
+      verdict: "accepted" | { refused: string };
+    };
+
+/**
+ * Records one real correspondence turn on the fixed qualification packet, through the same window
+ * path, transport and frame checker as duty. It reads the owner's approval and never writes one;
+ * the approval's own journal holds the turn and its budget. Returns the cut-down trace, for the
+ * owner to commit with an allowlist entry if `replayRefusal` is undefined.
+ */
+export async function qualifyClaudeCorrespondence(options: {
+  prepared: PreparedCorrespondencePlan;
+  runtimeApprovalFile: string;
+  deviceId: string;
+}): Promise<CorrespondenceQualification> {
+  const prepared = frozen(options.prepared);
+  const { planDigest, plan } = prepared;
+  const held = (hold: SupervisedCanaryHold) => ({
+    kind: "held" as const,
+    planDigest,
+    holds: [hold],
+  });
+  if (!existsSync(options.runtimeApprovalFile)) return held("runtime-approval-missing");
+  let stateFile: unknown;
+  try {
+    stateFile = JSON.parse(
+      readPrivateFile(options.runtimeApprovalFile, 8192).toString("utf8"),
+    ).invocationStateFile;
+  } catch {
+    return held("runtime-approval-invalid");
+  }
+  if (typeof stateFile !== "string" || !isAbsolute(stateFile))
+    return held("runtime-approval-invalid");
+  const frames: unknown[] = [];
+  const opened = openWindow(
+    {
+      prepared,
+      stateFile,
+      runtimeApprovalFile: options.runtimeApprovalFile,
+      deviceId: options.deviceId,
+    },
+    { kind: "qualification", recordFrame: (frame) => frames.push(frame) },
+  );
+  if (opened.kind === "held") return opened;
+  const binding = plan.bindings[0],
+    profile = plan.profiles.find((p) => p.revision === binding.profileRevision);
+  if (!profile) throw Error("invalid-correspondence-plan");
+  const packet = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET);
+  const deliveryId = `qualification-${Date.now()}`;
+  const request = {
+    deliveryId,
+    streamId: randomUUID(),
+    eventId: randomUUID(),
+    messageId: packet.request.message_id,
+    threadId: packet.request.thread_id,
+    sequence: packet.request.sequence,
+    recipient: binding.alias,
+    bindingRevision: binding.revision,
+    charterId: plan.windowId,
+    grantRevision: correspondenceGrantRevision(prepared, binding.alias),
+    profileRevision: binding.profileRevision,
+    workflow: "correspondence",
+    resources: [`helpdesk:thread:${packet.request.thread_id}`],
+    task: {
+      input: CORRESPONDENCE_QUALIFICATION_PACKET,
+      inputDigest: CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
+    },
+  };
+  const dispatcher = opened.dispatcher;
+  try {
+    // Exactly one turn: this is the only dispatch this dispatcher ever receives.
+    const disposition = await dispatcher.dispatch(request);
+    if (frames.length === 0 && disposition.kind !== "observed" && disposition.kind !== "unknown")
+      return { kind: "not-run", planDigest, disposition };
+    const traceText = serializeCorrespondenceTrace(traceFromFrames(frames));
+    const turnRefusal = dispatcher.turnRefusal(deliveryId),
+      replayRefusal = checkCorrespondenceTraceBytes(traceText),
+      proposal = dispatcher.agentProposal(deliveryId);
+    const refused =
+      turnRefusal ??
+      replayRefusal ??
+      (disposition.kind !== "observed" || disposition.outcome !== "completed"
+        ? `turn-${disposition.kind === "observed" ? disposition.outcome : disposition.kind}`
+        : proposal === undefined
+          ? "invalid-agent-proposal"
+          : undefined);
+    return {
+      kind: "ran",
+      planDigest,
+      nativeVersion: profile.nativeVersion,
+      disposition,
+      turnRefusal,
+      traceText,
+      traceSHA256: createHash("sha256").update(traceText).digest("hex"),
+      replayRefusal,
+      proposal,
+      verdict: refused === undefined ? "accepted" : { refused },
+    };
+  } finally {
+    dispatcher.close();
+  }
 }
 
 /**

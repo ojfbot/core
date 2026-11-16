@@ -1,4 +1,5 @@
 import type { Dispatcher } from "./dispatcher.js";
+import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import type { SubscriptionCanaryProfile } from "./canary-types.js";
 import type { DispatchDisposition, Provider } from "./types.js";
 import type { SupervisedCanaryHold, SupervisedEnvironment } from "./supervised-types.js";
@@ -58,7 +59,8 @@ export interface CorrespondenceAnswer {
 /**
  * Accepted only when: packetDigest === task.inputDigest; reply ⇒ reason and needs null;
  * escalate ⇒ reason non-null; needs non-null iff reason is "missing-context";
- * packet.best_effort ⇒ reason !== "missing-context"; text ≤ 8000 bytes.
+ * packet.best_effort ⇒ reason !== "missing-context"; gaps non-null only for a reply; text 1–4000
+ * code points and ≤ 8000 bytes, needs ≤ 1000 code points, gaps ≤ 2000 code points.
  */
 export interface RelayedCorrespondenceProposal {
   attribution: "device-relayed-output";
@@ -76,7 +78,10 @@ export interface CorrespondenceBinding {
   /** Core mints a new native session UUID per dispatch and journals it before the native process starts. */
   sessionPolicy: "fresh-per-dispatch";
   cwd: string;
-  /** e.g. ["helpdesk:thread:*"] or explicit thread resources. */
+  /**
+   * Explicit `helpdesk:thread:<id>` resources, or `["helpdesk:thread:*"]` for any one thread. That
+   * wildcard is the only pattern. A request names exactly `helpdesk:thread:<its threadId>`.
+   */
   resources: string[];
 }
 
@@ -128,6 +133,8 @@ export interface CorrespondenceDispatcher extends Omit<Dispatcher, "agentProposa
   dispatch(request: unknown, options?: { signal?: AbortSignal }): Promise<DispatchDisposition>;
   /** Undefined when the turn completed without an accepted proposal (shape, digest or rule failure). */
   agentProposal(deliveryId: string): RelayedCorrespondenceProposal | undefined;
+  /** Why an unknown live turn was refused (frame contract or process), as journaled. */
+  turnRefusal(deliveryId: string): CorrespondenceTurnRefusal | undefined;
 }
 
 export type CorrespondenceOpen =

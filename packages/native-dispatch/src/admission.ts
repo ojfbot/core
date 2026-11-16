@@ -36,6 +36,15 @@ export function isModelSelector(value: unknown): value is string {
 function strings(value: unknown): value is string[] {
   return Array.isArray(value) && value.length <= 64 && value.every(text);
 }
+/** The only resource pattern: any one HelpDesk thread, for correspondence bindings and grants. */
+export const CORRESPONDENCE_ANY_THREAD = "helpdesk:thread:*";
+export function isThreadResource(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.startsWith("helpdesk:thread:") &&
+    isIdentifier(value.slice("helpdesk:thread:".length))
+  );
+}
 export const digest = (input: string) => createHash("sha256").update(input).digest("hex");
 
 export function parseDispatchRequest(value: unknown): DispatchRequest {
@@ -107,7 +116,10 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
     if (
       packet.request.message_id !== messageId ||
       packet.request.thread_id !== threadId ||
-      packet.request.sequence !== sequence
+      packet.request.sequence !== sequence ||
+      // A correspondence turn names exactly its own thread, so resource scoping cannot be skipped.
+      resources.length !== 1 ||
+      resources[0] !== `helpdesk:thread:${threadId}`
     )
       throw Error("invalid-request");
   } else {
@@ -246,7 +258,13 @@ export function decide(
   if (binding.held || grant.held) return { kind: "refused", reason: "held" };
   if (now < grant.validFromMs) return { kind: "refused", reason: "not-yet-valid" };
   if (now >= grant.expiresAtMs) return { kind: "refused", reason: "expired" };
-  if (request.resources.some((r) => !binding.resources.includes(r) || !grant.resources.includes(r)))
+  const allows = (list: string[], r: string) =>
+    list.includes(r) ||
+    // Correspondence only: the one wildcard `helpdesk:thread:*` allows any single thread resource.
+    (request.workflow === "correspondence" &&
+      list.includes(CORRESPONDENCE_ANY_THREAD) &&
+      isThreadResource(r));
+  if (request.resources.some((r) => !allows(binding.resources, r) || !allows(grant.resources, r)))
     return { kind: "refused", reason: "resource-denied" };
   return { kind: "invoke", binding, grant, profile };
 }
