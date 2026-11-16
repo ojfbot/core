@@ -100,8 +100,22 @@ is the one checker: the live transport, trace replay and qualification all use i
   `CORRESPONDENCE_CHECKED_INIT_KEYS`; any other key (a new surface, or a conditional one such as
   `plugin_errors`, `mcp_server_errors`, `startup_timing` or `memory_paths`) refuses the turn
   (`unexpected-init-key`). Its `tools` must be exactly `["StructuredOutput"]`; a duplicate is
-  refused. `mcp_servers` must be empty, and so must `slash_commands`, `terminal_slash_commands`,
-  `agents`, `skills` and `plugins` whenever they are listed.
+  refused. `mcp_servers` must be empty, and so must `slash_commands`, `terminal_slash_commands`
+  and `skills` whenever they are listed.
+- **Built-in agents and plugins, pinned by exact name.** Safe mode disables installed plugins and
+  user-supplied agents, but Claude Code still loads its built-ins: 2.1.308 lists five built-in agent
+  types (such as `general-purpose`, `Explore` and `Plan`) and three built-in plugins (such as
+  `cc-plugin-easel`). The model cannot invoke them: it has no Agent tool (its only tool is
+  `StructuredOutput`, with `--tools ""`), and hooks are off. Owner's decision, 16 November: "Pin
+  exact names". Each allowlist entry carries `builtinAgents` and `builtinPlugins`, the exact sorted
+  name sets from its recorded qualification trace, and every duty turn must report exactly those
+  sets: an addition, removal, rename or duplicate refuses the turn (`init-builtins-mismatch`), live
+  and in replay. Agents are agent-type strings; for plugins only `name` is read, never a path,
+  source or version (built-in plugins ship inside the binary, whose SHA-256 is already pinned).
+  Anything that is not a plain name of at most 64 characters, in a list of at most 64, refuses the
+  turn (`init-value-unexpected`). A qualification turn has no entry yet, so it records the names
+  instead of refusing them; the entry it prints carries them, and only a committed entry opens a
+  duty window.
 - **Print-mode init keys (2.1.308).** Each may be absent; when present it must pass its check:
 
   | Key                         | Meaning                                           | Check                                  |
@@ -142,7 +156,11 @@ Each refusal below ends the turn as `unknown` with no proposal. The reason is jo
 | `unexpected-frame`         | A frame kind not on the allowlist, e.g. `stream_event`     |
 | `init-version-mismatch`    | Init reports another Claude version than the plan's        |
 | `init-tools-mismatch`      | Init tools are not exactly the output tool                 |
-| `init-surface-not-empty`   | An MCP server, slash command, agent, skill or plugin       |
+| `init-surface-not-empty`   | An MCP server, slash command or skill                      |
+| `init-builtins-mismatch`   | Built-in agents or plugins differ from the pinned sets     |
+| `init-messaging-socket`    | Init reports a cross-session messaging socket              |
+| `init-cwd-mismatch`        | `original_cwd` is not the turn's folder                    |
+| `init-value-unexpected`    | A checked init key failed its check                        |
 | `unexpected-init-key`      | An init key not on `CORRESPONDENCE_INIT_KEYS`              |
 | `invalid-result`           | A result whose `is_error` is not a boolean                 |
 | `tool-name-mismatch`       | Another tool, a server or MCP block, or one out of place   |
@@ -272,7 +290,8 @@ the model and version only as selectors (otherwise `"invalid"`), and `is_error` 
 - every frame keeps only `type` and `subtype`;
 - `system/init` also keeps `model` and `claude_code_version`; `tools` keeps its names only when it is
   exactly `["StructuredOutput"]`, otherwise `{count, sha256}` of the sorted names; `mcp_servers`
-  and the other init lists keep only `{count, empty}`; an unknown init key is kept by name only, in
+  and the other init lists keep only `{count, empty}`; `agents` and `plugins` keep only their sorted
+  names (or `{count, valid: false}`); an unknown init key is kept by name only, in
   `unexpected_init_keys`; every value-checked or unknown init key also gets a shape in
   `init_key_shapes`: its type, its length (string, array or object) and whether Core allowed it,
   never its content, so a refusal can be diagnosed without another turn;
@@ -299,7 +318,8 @@ copied to another version is refused); the answer is for the fixed qualification
 binary itself reports that version (`--version`, in the static checks).
 
 **Allowlist.** `CLAUDE_CORRESPONDENCE_QUALIFIED` in `src/correspondence-allowlist.ts`, a data-only
-module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace }`, with the trace's exact
+module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace, builtinAgents,
+builtinPlugins }`, with the trace's exact
 bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
 file stays the reviewed source, and a test checks that each embedded trace equals its file. The
 list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It is empty: no
