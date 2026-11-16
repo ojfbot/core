@@ -9,6 +9,7 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 ## Deviations
 
 - 2026-11-16 (charter continuity): alignment defaults could restart human confirmation for already-chartered work, and the user-scope template repeated that rule. Added explicit carry-forward and bounded-discretion guidance in both sources, with a note in the existing conductor map; no installed instructions, runtime policy, authority gate or delivery status changed.
+- 2026-11-16 (native-dispatch 0.4.3 allowlist): the pin-exact-names decision assumed a binary's built-in plugin set is fixed; the same 2.1.308 binary on Yojimbo reported three built-in plugins at about 05:36Z and four at about 18:57Z. Kept exact pinning (fail-closed) as the owner decided, documented the drift in CORRESPONDENCE.md, and raised the soak risk with the owner.
 
 - 2026-11-16 (core#608 publication): the plan treated the isolated clone's origin as the publication remote, but cloning from the source checkout made origin local, and Git refused a push to its checked-out branch. Preserved the source checkout and selected the verified GitHub repository URL for non-force publication after an expected-head check.
 - 2026-11-16 (core#608 integration): the reviewed 0.4.1 branch predates the repo-sync changes on main, and both branches appended deviation sections at the same location. Preserved both sections and merged current main without changing any file under `packages/native-dispatch`.
