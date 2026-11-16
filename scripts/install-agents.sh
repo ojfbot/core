@@ -62,12 +62,13 @@ done
 
 # --repo-sync: render scripts/repo-sync-launchd.plist for this Mac and load it (loops.md
 # slug: repo-sync). Standalone — does nothing else and exits. The plist points at the MAIN
-# checkout of core (resolved via git-common-dir, so running from a worktree is fine); that
+# working tree of core (first `git worktree list` entry, so running from a worktree is fine); that
 # checkout must already contain scripts/repo-sync.mjs. Installing changes this Mac's
 # scheduled jobs: run it only with the owner's yes. --repo-sync-dry-run prints the plist.
 if [[ -n "$REPO_SYNC" ]]; then
-  COMMON_DIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-common-dir)"
-  MAIN_CORE="$(dirname "$COMMON_DIR")"
+  # Main working tree = first `worktree list` entry (does not assume .git sits beside it).
+  MAIN_CORE="$(git -C "$CORE_DIR" worktree list --porcelain | sed -n '1s/^worktree //p')"
+  if [[ -z "$MAIN_CORE" ]]; then echo "Error: cannot resolve core's main working tree" >&2; exit 1; fi
   # Resolve symlinks: version managers (fnm) put a per-shell path on PATH that is deleted when
   # the installing shell exits; launchd needs the real, persistent binary.
   NODE_BIN="$(command -v node || true)"
@@ -81,7 +82,7 @@ if [[ -n "$REPO_SYNC" ]]; then
   fi
   # Paths are substituted into sed and XML unescaped: refuse characters that would break either.
   for p in "$NODE_BIN" "$MAIN_CORE" "$HOME"; do
-    if [[ "$p" =~ [\|\&\<\>\"\'] ]]; then
+    if [[ "$p" =~ [\|\&\<\>\"\'\\] ]]; then
       echo "Error: path contains a character repo-sync's installer does not escape: $p" >&2
       exit 1
     fi

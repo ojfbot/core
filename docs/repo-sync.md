@@ -26,11 +26,22 @@ Every 30 minutes, for the core repository (the main checkout, resolved through
    upstream gone. Every worktree: branch or detached, uncommitted-change count, in-progress op,
    prunable. Status reads use `--no-optional-locks`, so they never take another worktree's index lock.
 
-It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktrees. Fetch runs
-with `gc.auto=0` and `maintenance.auto=false`, because auto-gc would run `git worktree prune`.
-Local ref writes have no timeout (killing git mid-checkout is worse than a slow run). A token
-lock skips overlapping runs; a lock older than 25 min is taken over, and a run releases the lock
-only while it still holds it.
+It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktrees. Concretely:
+
+- **Fetch** uses an explicit refspec, `+refs/heads/*:refs/remotes/origin/*`, with `--refmap=`, so a
+  configured refspec can never write a local branch. It runs with `gc.auto=0` and
+  `maintenance.auto=false`, because auto-gc would run `git worktree prune`.
+- **Writes** (`update-ref`, `merge --ff-only`) run with `core.hooksPath=/dev/null`, so no
+  repository hooks run unattended. They also run with `merge.autoStash=false` / `--no-autostash`
+  and `--no-overwrite-ignore`, with a 5-minute timeout.
+- **Ownership checks:** if the worktree listing fails, ownership counts as unknown and the run
+  skips. Ownership is re-checked just before `update-ref`. Before merging, the run confirms that
+  the worktree holding `main` is still on `main`.
+- **Locking:** there is one lock per repository, at `<git-common-dir>/repo-sync.lock`, holding a
+  pid and a token. A run takes over a lock only if it is older than 25 minutes *and* its pid is
+  gone. A run releases the lock only while it still holds its own token.
+- **Reports** are written 0600 in a 0700 directory. Git stderr is cut to one line, with URL
+  credentials redacted.
 
 ### Known limits
 
@@ -39,9 +50,12 @@ only while it still holds it.
   `~/.claude/repo-sync/launchd.err.log`, and liveness flags `runs.jsonl` silence after 36 h.
 - Code merged to `main` reaches each Mac's next run once `main` is fast-forwarded *and* checked
   out there. That is the same trust boundary as pulling `main`: the PR review gate.
-- Between listing worktrees and `update-ref` there is a narrow window in which a session could
-  check `main` out. The compare-and-swap still keeps the ref consistent, but that worktree's tree
-  would lag its ref until its next `git status` shows it. Not closed in this slice.
+- Between the last ownership re-check and `update-ref`, a few milliseconds remain in which a
+  session could check `main` out. The compare-and-swap keeps the ref consistent; that worktree's tree
+  would then lag its ref. Git offers no atomic "update only if not checked out", so this is not closed.
+- When flipping the loops.md entry to `status: live`, add
+  `installed_ref: ~/Library/LaunchAgents/com.ojfbot.repo-sync.plist`. It is left out while disabled
+  because loops-lint errors on an installed_ref that is absent on disk.
 - The installer records the real node binary path (symlinks resolved; refuses fnm per-shell paths).
   Uninstalling that node version breaks the job; re-run the installer after changing node.
 

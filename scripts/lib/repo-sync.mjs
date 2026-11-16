@@ -18,16 +18,31 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' };
+// Writes never run repository hooks unattended (a hung post-merge or reference-transaction hook
+// would wedge the LaunchAgent) and never auto-gc (gc runs `worktree prune`).
+const WRITE_CONFIG = ['-c', 'core.hooksPath=/dev/null', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false',
+  '-c', 'merge.autoStash=false'];
+const WRITE_TIMEOUT_MS = 5 * 60_000;
 
 export function git(cwd, args, { timeoutMs = 60_000, readOnly = true } = {}) {
-  const full = readOnly ? ['--no-optional-locks', ...args] : args;
-  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs || undefined });
+  const full = readOnly ? ['--no-optional-locks', ...args] : [...WRITE_CONFIG, ...args];
+  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs });
   return {
     ok: r.status === 0,
     code: r.status,
     out: (r.stdout || '').trim(),
-    err: (r.stderr || '').trim() || (r.error ? String(r.error.message) : ''),
+    err: redact((r.stderr || '').trim() || (r.error ? String(r.error.message) : '')),
   };
+}
+
+/** Strip URL credentials and keep stderr to one short line for reports. */
+export function redact(text) {
+  const line = String(text).split('\n').find(Boolean) || '';
+  return line.replace(/(\w+:\/\/)[^/@\s]+@/g, '$1***@').slice(0, 300);
+}
+
+function readSafe(file) {
+  try { return readFileSync(file, 'utf8').trim(); } catch { return null; }
 }
 
 function revParse(repo, ref) {
@@ -42,10 +57,10 @@ function aheadBehind(repo, base, ref) {
   return { ahead, behind };
 }
 
-/** Parse `git worktree list --porcelain`. */
+/** Parse `git worktree list --porcelain`. Returns null when the listing fails (ownership unknown). */
 export function listWorktrees(repo) {
   const r = git(repo, ['worktree', 'list', '--porcelain']);
-  if (!r.ok) return [];
+  if (!r.ok) return null;
   const out = [];
   let cur = null;
   for (const line of r.out.split('\n')) {
@@ -62,13 +77,19 @@ export function listWorktrees(repo) {
   return out;
 }
 
-/** Name of a merge/rebase/cherry-pick/revert in progress in this worktree, or null. */
+/** The main working tree (first `worktree list` entry); does not assume .git sits beside it. */
+export function mainWorktree(anyPath) {
+  const wts = listWorktrees(anyPath);
+  return wts && wts.length ? wts[0].path : null;
+}
+
+/** Name of a merge/rebase/cherry-pick/revert/bisect in progress in this worktree, or null. */
 export function inProgressOp(worktreePath) {
   const r = git(worktreePath, ['rev-parse', '--absolute-git-dir']);
   if (!r.ok) return null;
   const markers = [
     ['rebase-merge', 'rebase'], ['rebase-apply', 'rebase'], ['MERGE_HEAD', 'merge'],
-    ['CHERRY_PICK_HEAD', 'cherry-pick'], ['REVERT_HEAD', 'revert'],
+    ['CHERRY_PICK_HEAD', 'cherry-pick'], ['REVERT_HEAD', 'revert'], ['BISECT_START', 'bisect'],
   ];
   for (const [file, name] of markers) if (existsSync(path.join(r.out, file))) return name;
   return null;
@@ -84,7 +105,8 @@ function dirtyCount(worktreePath, { untracked = true } = {}) {
 /**
  * Worktree path whose rebase or bisect is operating on refs/heads/<branch>, or null.
  * During a rebase the worktree shows as detached, so `worktree list` alone misses it;
- * moving the ref underneath would make the rebase fail to finish.
+ * moving the ref underneath would make the rebase fail to finish. Reads tolerate files
+ * vanishing mid-check (another session finishing).
  */
 export function branchBusyElsewhere(worktrees, branch) {
   const full = `refs/heads/${branch}`;
@@ -93,25 +115,30 @@ export function branchBusyElsewhere(worktrees, branch) {
     const r = git(w.path, ['rev-parse', '--absolute-git-dir']);
     if (!r.ok) continue;
     for (const dir of ['rebase-merge', 'rebase-apply']) {
-      const f = path.join(r.out, dir, 'head-name');
-      if (existsSync(f) && readFileSync(f, 'utf8').trim() === full) return w.path;
+      if (readSafe(path.join(r.out, dir, 'head-name')) === full) return w.path;
     }
-    const bisect = path.join(r.out, 'BISECT_START');
-    if (existsSync(bisect)) {
-      const orig = readFileSync(bisect, 'utf8').trim();
-      if (orig === branch || orig === full) return w.path;
-    }
+    const orig = readSafe(path.join(r.out, 'BISECT_START'));
+    if (orig === branch || orig === full) return w.path;
   }
   return null;
+}
+
+/** Who holds <branch> right now: { holder } (maybe null), or { unknown: true } if it can't be told. */
+function ownership(repo, branch) {
+  const wts = listWorktrees(repo);
+  if (!wts) return { unknown: true };
+  const busy = branchBusyElsewhere(wts, branch);
+  return { busy, holder: wts.find((w) => w.branch === branch) || null };
 }
 
 /** Step 1: fetch + fast-forward local main. Returns a result object; never throws on git failure. */
 export function syncMain(repo, { remote = 'origin', branch = 'main', fetch = true } = {}) {
   const res = { remote, branch, fetched: false, action: null, before: null, after: null, detail: '' };
   if (fetch) {
-    // No auto-gc/maintenance: gc runs `worktree prune`, which this loop must never do.
-    const f = git(repo, ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false',
-      'fetch', '--quiet', '--no-prune', remote], { readOnly: false });
+    // Explicit refspec into remote-tracking refs only, with --refmap= so configured refspecs
+    // (which could map onto refs/heads/*) are not applied. Never writes a local branch.
+    const f = git(repo, ['fetch', '--quiet', '--no-prune', '--refmap=', remote,
+      `+refs/heads/*:refs/remotes/${remote}/*`], { readOnly: false, timeoutMs: 120_000 });
     if (!f.ok) return { ...res, action: 'fetch-failed', detail: f.err };
     res.fetched = true;
   }
@@ -130,20 +157,24 @@ export function syncMain(repo, { remote = 'origin', branch = 'main', fetch = tru
     return { ...res, action: localAhead ? 'local-ahead' : 'diverged', after: local, ...ab };
   }
 
-  const worktrees = listWorktrees(repo);
-  const busy = branchBusyElsewhere(worktrees, branch);
-  if (busy) return { ...res, action: 'skipped-branch-in-rebase-or-bisect', after: local, worktree: busy };
+  const own = ownership(repo, branch);
+  if (own.unknown) return { ...res, action: 'skipped-worktrees-unknown', after: local };
+  if (own.busy) return { ...res, action: 'skipped-branch-in-rebase-or-bisect', after: local, worktree: own.busy };
 
-  const holder = worktrees.find((w) => w.branch === branch);
-  if (!holder) {
-    // Compare-and-swap: fails if anything moved the ref since we read it. Local ref writes get no
-    // timeout — killing git mid-write is worse than a slow run.
+  if (!own.holder) {
+    // Re-check ownership immediately before the write to shrink the window in which a session
+    // could check the branch out; the compare-and-swap then fails if the ref itself moved.
+    const again = ownership(repo, branch);
+    if (again.unknown || again.busy || again.holder) {
+      return { ...res, action: 'skipped-ownership-changed', after: local };
+    }
     const u = git(repo, ['update-ref', '-m', `repo-sync: fast-forward ${branch} to ${remote}/${branch}`,
-      `refs/heads/${branch}`, target, local], { readOnly: false, timeoutMs: 0 });
+      `refs/heads/${branch}`, target, local], { readOnly: false, timeoutMs: WRITE_TIMEOUT_MS });
     if (!u.ok) return { ...res, action: 'update-ref-failed', after: local, detail: u.err };
     return { ...res, action: 'fast-forwarded', after: target };
   }
 
+  const holder = own.holder;
   res.worktree = holder.path;
   if (holder.prunable || !existsSync(holder.path)) {
     return { ...res, action: 'skipped-worktree-missing', after: local };
@@ -151,10 +182,17 @@ export function syncMain(repo, { remote = 'origin', branch = 'main', fetch = tru
   const op = inProgressOp(holder.path);
   if (op) return { ...res, action: `skipped-${op}-in-progress`, after: local };
   // Only touch a worktree whose tracked files are clean: a session editing files there could
-  // otherwise race the checkout. Untracked files are still protected by git's own refusal.
+  // otherwise race the checkout. Untracked files are protected by git's own refusal, ignored
+  // files by --no-overwrite-ignore, and autostash is off so nothing is ever stashed.
   const dirty = dirtyCount(holder.path, { untracked: false });
   if (dirty !== 0) return { ...res, action: 'skipped-dirty-worktree', after: local, dirty };
-  const m = git(holder.path, ['merge', '--ff-only', '--quiet', target], { readOnly: false, timeoutMs: 0 });
+  // The holder must still be on <branch>: if it switched, merge would advance the wrong branch.
+  const head = git(holder.path, ['symbolic-ref', '--quiet', 'HEAD']);
+  if (!head.ok || head.out !== `refs/heads/${branch}`) {
+    return { ...res, action: 'skipped-ownership-changed', after: local };
+  }
+  const m = git(holder.path, ['merge', '--ff-only', '--no-autostash', '--no-overwrite-ignore', '--quiet', target],
+    { readOnly: false, timeoutMs: WRITE_TIMEOUT_MS });
   if (!m.ok) return { ...res, action: 'ff-refused', after: local, detail: m.err };
   return { ...res, action: 'fast-forwarded', after: target };
 }
@@ -163,7 +201,7 @@ export function syncMain(repo, { remote = 'origin', branch = 'main', fetch = tru
 export function driftReport(repo, { remote = 'origin', branch = 'main' } = {}) {
   const base = `refs/remotes/${remote}/${branch}`;
   const haveBase = Boolean(revParse(repo, base));
-  const worktrees = listWorktrees(repo);
+  const worktrees = listWorktrees(repo) || [];
   const byBranch = new Map(worktrees.filter((w) => w.branch).map((w) => [w.branch, w.path]));
 
   const fmt = '%(refname:short)%00%(upstream:short)%00%(upstream:track)';
