@@ -229,11 +229,12 @@ approval.
 
 **Trace format.** `qualification/claude/<version>.trace.json` holds one real correspondence turn,
 cut down and written (two-space JSON with a final newline) by `qualifyClaudeCorrespondence`'s real
-transport path. That path is the only code that can build a `recorded` trace: its constructor is
-internal and exported from neither the main entry nor `testing`. The public `traceFromFrames`
-builds only `emulated` traces, and `serializeCorrespondenceTrace` refuses a `recorded` trace that
-the real path did not build. Its SHA-256 is over those
-exact bytes. The file is
+transport path. Within the package API, that path is the only one that builds a `recorded` trace:
+its constructor is internal and exported from neither the main entry nor `testing`, the public
+`traceFromFrames` builds only `emulated` traces, and `serializeCorrespondenceTrace` serializes a
+plain-data snapshot and refuses a `recorded` one the real path did not build. This does not make
+the bytes unforgeable: see [Trust boundary](#trust-boundary). Its SHA-256 is over those exact
+bytes. The file is
 `{ "format": "claude-correspondence-trace-v3", "source": "recorded", "binary_sha256": "…",
 "frames": [...] }`, with the pinned binary's SHA-256 and one entry per stream-json frame. `source`
 is `recorded` for a real Claude turn and `emulated` for scripted frames; it is inside the hashed
@@ -277,9 +278,19 @@ list is deep-frozen, and the gate reads a frozen copy taken when the module load
 real trace exists yet, so 2.1.286 and 2.1.308 are refused. Adding a version is one data entry, which
 the qualification script prints. Tests that need a fixture version use
 `replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
-subpath; the main entry does not export it. Its versions count for preparing a plan, but the gate
-refuses every entry it installs, so no test path can make a live window accept a version. A real
-accepted entry comes only from a real qualification turn or from a committed, reviewed file.
+subpath; the main entry does not export it. It sets only the versions plan preparation accepts; the
+gate reads only the frozen shipped allowlist, so no test path can make a live window accept a
+version.
+
+**Trust boundary.** A live window's gate accepts only entries committed to the shipped allowlist in
+`src/correspondence-allowlist.ts`. Trace bytes carry no proof of origin: anyone can write
+identical bytes by hand (for example, relabel the output of `traceFromFrames` and call
+`JSON.stringify(t, null, 2) + "\n"`). The protection is review of commits to
+`correspondence-allowlist.ts` and its trace files, which should come only from a real
+qualification turn. The checks in code protect against mistakes and agent-driven misuse through the
+package's public exports (main entry and `testing`). Code running inside the listener's process is
+trusted, because it could launch a binary directly, and a filesystem import of `dist/` internals is
+outside the exports-map boundary.
 
 **Recording.** The owner approves one qualification run with
 `kind: "owner-approved-correspondence-qualification"`, the same fields as a window approval, a
