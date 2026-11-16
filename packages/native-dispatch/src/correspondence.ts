@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
-import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, realpathSync, writeFileSync } from "node:fs";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import {
@@ -15,9 +15,14 @@ import {
 import { openCorrespondenceDispatcher } from "./dispatcher.js";
 import {
   createCorrespondenceEmulator,
+  createCorrespondenceFrameEmulator,
   createCorrespondenceTransport,
 } from "./correspondence-native.js";
-import type { CorrespondenceEmulatorScript } from "./correspondence-native.js";
+import type {
+  CorrespondenceEmulatorScript,
+  CorrespondenceFrameScript,
+} from "./correspondence-native.js";
+import type { QualifiedClaudeCorrespondence } from "./correspondence-allowlist.js";
 import { serializeCorrespondenceTrace, traceFromFrames } from "./correspondence-frames.js";
 import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import { parseCorrespondencePacket } from "./correspondence-protocol.js";
@@ -167,6 +172,15 @@ export function prepareCorrespondenceQualificationPlan(value: unknown): Prepared
   return prepare(value, "correspondence-qualification-prepared");
 }
 
+/**
+ * EMULATION ONLY. The same plan, for openCorrespondenceEmulation: no real binary runs, so its
+ * Claude version need not be allowlisted. It cannot open a live window or a qualification run,
+ * and an emulation journal is marked `emulated`.
+ */
+export function prepareCorrespondenceEmulationPlan(value: unknown): PreparedCorrespondencePlan {
+  return prepare(value, "correspondence-emulation-prepared");
+}
+
 function prepare(
   value: unknown,
   mode: PreparedCorrespondencePlan["mode"],
@@ -196,7 +210,8 @@ function prepare(
   const listed = qualifiedCorrespondenceVersions();
   const profiles = value.profiles.map((p) =>
     correspondenceProfile(p, (v) =>
-      mode === "correspondence-qualification-prepared" ? true : listed.includes(v),
+      // Qualification and emulation skip the allowlist; a duty plan needs a listed version.
+      mode === "correspondence-prepared" ? listed.includes(v) : true,
     ),
   );
   const bindings = value.bindings.map((b) => binding(b, deviceId));
@@ -324,7 +339,13 @@ export function correspondenceGrantRevision(
   prepared: PreparedCorrespondencePlan,
   alias: string,
 ): string {
-  const result = frozen(prepared);
+  // Duty and emulation plans share grant revisions; a qualification plan has its own.
+  const result = frozen(
+    prepared,
+    prepared.mode === "correspondence-emulation-prepared"
+      ? "correspondence-emulation-prepared"
+      : "correspondence-prepared",
+  );
   if (!result.plan.bindings.some((b) => b.alias === alias)) throw Error("unassigned");
   return digest(JSON.stringify(["correspondence", result.planDigest, alias]));
 }
@@ -565,7 +586,52 @@ export type CorrespondenceQualification =
       proposal: RelayedCorrespondenceProposal | undefined;
       /** "accepted" only for a completed turn with a proposal, no refusal, and a trace that replays. */
       verdict: "accepted" | { refused: string };
+      allowlistEntry: QualifiedClaudeCorrespondence | undefined;
     };
+
+/** Writes a trace only to the path the operator names: a new file, mode 0600. */
+export function writeCorrespondenceTrace(path: string, traceText: string): void {
+  if (!isAbsolute(path)) throw Error("invalid-trace-path");
+  writeFileSync(path, traceText, { flag: "wx", mode: 0o600 });
+}
+
+/**
+ * EMULATION ONLY. The qualification path offline: the same request, dispatcher, frame checker,
+ * trace cut, hash and replay as qualifyClaudeCorrespondence, but the turn's frames come from
+ * `frames` instead of a Claude process. It needs no approval, binary, managed-policy check or HOME,
+ * and its journal is marked `emulated`, so it cannot open a live or qualification journal, and its
+ * trace proves nothing about a real Claude version.
+ */
+export async function qualifyClaudeCorrespondenceEmulation(options: {
+  /** From prepareCorrespondenceQualificationPlan. */
+  prepared: PreparedCorrespondencePlan;
+  stateFile: string;
+  frames: CorrespondenceFrameScript;
+  now?: () => number;
+}): Promise<CorrespondenceQualification> {
+  const prepared = frozen(options.prepared, "correspondence-qualification-prepared");
+  const now = options.now ?? Date.now;
+  const startsAtMs = now();
+  const recorded: unknown[] = [];
+  const emulator = createCorrespondenceFrameEmulator(options.frames, (f) => recorded.push(f));
+  const thread = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET).request.thread_id;
+  const only = [`helpdesk:thread:${thread}`];
+  const dispatcher = openCorrespondenceDispatcher<RelayedCorrespondenceProposal>({
+    stateFile: options.stateFile,
+    now,
+    profiles: prepared.plan.profiles,
+    bindings: dutyBindings(prepared).map((b) => ({ ...b, resources: only })),
+    grants: grants(
+      prepared,
+      "mechanical",
+      startsAtMs,
+      startsAtMs + prepared.plan.limits.windowMs,
+    ).map((g) => ({ ...g, resources: only })),
+    transport: emulator.transport,
+    claudeVersions: prepared.plan.profiles.map((p) => p.nativeVersion),
+  });
+  return runQualificationTurn(prepared, wrap(dispatcher), recorded);
+}
 
 /**
  * Records one real correspondence turn on the fixed qualification packet, through the same window
@@ -581,7 +647,7 @@ export async function qualifyClaudeCorrespondence(options: {
   deviceId: string;
 }): Promise<CorrespondenceQualification> {
   const prepared = frozen(options.prepared, "correspondence-qualification-prepared");
-  const { planDigest, plan } = prepared;
+  const { planDigest } = prepared;
   const held = (hold: CorrespondenceHold) => ({
     kind: "held" as const,
     planDigest,
@@ -609,6 +675,16 @@ export async function qualifyClaudeCorrespondence(options: {
     { kind: "qualification", recordFrame: (frame) => frames.push(frame) },
   );
   if (opened.kind === "held") return opened;
+  return runQualificationTurn(prepared, opened.dispatcher, frames);
+}
+
+/** The one qualification turn, shared by the real and the emulated run. */
+async function runQualificationTurn(
+  prepared: PreparedCorrespondencePlan,
+  dispatcher: CorrespondenceDispatcher,
+  frames: unknown[],
+): Promise<CorrespondenceQualification> {
+  const { planDigest, plan } = prepared;
   const binding = plan.bindings[0],
     profile = plan.profiles.find((p) => p.revision === binding.profileRevision);
   if (!profile) throw Error("invalid-correspondence-plan");
@@ -633,7 +709,6 @@ export async function qualifyClaudeCorrespondence(options: {
       inputDigest: CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
     },
   };
-  const dispatcher = opened.dispatcher;
   try {
     // Exactly one turn: this is the only dispatch this dispatcher ever receives.
     const disposition = await dispatcher.dispatch(request);
@@ -653,11 +728,15 @@ export async function qualifyClaudeCorrespondence(options: {
       disposition.kind === "observed" &&
       disposition.outcome === "completed";
     const traceText = serializeCorrespondenceTrace(
-      traceFromFrames(frames, accepted ? { acceptedAnswer: result?.structured_output } : {}),
+      traceFromFrames(frames, {
+        binarySHA256: profile.binarySHA256,
+        ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
+      }),
     );
     const replayRefusal = checkCorrespondenceTraceBytes(traceText, {
       model: profile.model,
       nativeVersion: profile.nativeVersion,
+      binarySHA256: profile.binarySHA256,
     });
     const refused =
       turnRefusal ??
@@ -667,6 +746,7 @@ export async function qualifyClaudeCorrespondence(options: {
         : proposal === undefined
           ? "invalid-agent-proposal"
           : undefined);
+    const traceSHA256 = createHash("sha256").update(traceText).digest("hex");
     return {
       kind: "ran",
       planDigest,
@@ -674,10 +754,21 @@ export async function qualifyClaudeCorrespondence(options: {
       disposition,
       turnRefusal,
       traceText,
-      traceSHA256: createHash("sha256").update(traceText).digest("hex"),
+      traceSHA256,
       replayRefusal,
       proposal,
       verdict: refused === undefined ? "accepted" : { refused },
+      // The allowlist entry to add, with the trace embedded, once the trace file is committed.
+      allowlistEntry:
+        refused === undefined
+          ? {
+              nativeVersion: profile.nativeVersion,
+              model: profile.model,
+              binarySHA256: profile.binarySHA256,
+              traceSHA256,
+              trace: traceText,
+            }
+          : undefined,
     };
   } finally {
     dispatcher.close();
@@ -695,7 +786,13 @@ export function openCorrespondenceEmulation(options: {
   now?: () => number;
   startsAtMs?: number;
 }): { planDigest: string; dispatcher: CorrespondenceDispatcher; invocations: () => number } {
-  const prepared = frozen(options.prepared);
+  // A duty plan, or one from prepareCorrespondenceEmulationPlan (no allowlisted version needed).
+  const prepared = frozen(
+    options.prepared,
+    options.prepared.mode === "correspondence-emulation-prepared"
+      ? "correspondence-emulation-prepared"
+      : "correspondence-prepared",
+  );
   const now = options.now ?? Date.now;
   const startsAtMs = options.startsAtMs ?? now();
   const emulator = createCorrespondenceEmulator(options.script);
@@ -706,7 +803,8 @@ export function openCorrespondenceEmulation(options: {
     bindings: dutyBindings(prepared),
     grants: grants(prepared, "mechanical", startsAtMs, startsAtMs + prepared.plan.limits.windowMs),
     transport: emulator.transport,
-    claudeVersions: qualifiedCorrespondenceVersions(),
+    // No binary runs: the plan's own versions, checked well formed when it was prepared.
+    claudeVersions: prepared.plan.profiles.map((p) => p.nativeVersion),
   });
   return {
     planDigest: prepared.planDigest,

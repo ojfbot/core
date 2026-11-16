@@ -39,6 +39,8 @@ export type CorrespondenceFrameRefusal =
   | "init-version-mismatch"
   | "init-tools-mismatch"
   | "init-surface-not-empty"
+  | "unexpected-init-key"
+  | "invalid-result"
   | "frame-after-result"
   | "tool-name-mismatch"
   | "tool-second-call"
@@ -46,7 +48,9 @@ export type CorrespondenceFrameRefusal =
   | "output-without-tool-call"
   | "tool-input-mismatch"
   | "no-tool-call"
-  | "no-result";
+  | "no-result"
+  /** Replay only: the trace was recorded from another binary than the one pinned. */
+  | "binary-mismatch";
 
 /** A frame refusal, or a process-level reason the native turn could not be accepted. */
 export type CorrespondenceTurnRefusal =
@@ -83,6 +87,28 @@ const INIT_SURFACES = [
   "plugins",
 ] as const;
 const INIT_LISTS = ["mcp_servers", ...INIT_SURFACES] as const;
+/**
+ * Every key Claude Code 2.1.308's init frame may carry. Any other key (a new surface in a later
+ * version, or a conditional one such as `plugin_errors`, `mcp_server_errors` or `capabilities`)
+ * refuses the turn, so it shows up in qualification and needs a reviewed change here.
+ */
+export const CORRESPONDENCE_INIT_KEYS: readonly string[] = [
+  "type",
+  "subtype",
+  "session_id",
+  "cwd",
+  "uuid",
+  "model",
+  "claude_code_version",
+  "tools",
+  ...INIT_LISTS,
+  "permissionMode",
+  "apiKeySource",
+  "betas",
+  "output_style",
+  "analytics_disabled",
+  "product_feedback_disabled",
+];
 
 function frameKind(m: Record<string, unknown>): string | undefined {
   if (typeof m.type !== "string") return undefined;
@@ -174,15 +200,12 @@ export function createCorrespondenceFrameChecker(
       if (m.session_id !== expected.sessionId) refuse("wrong-session");
       if (kind === "system/init") {
         if (initialized) refuse("init-repeated");
+        if (Object.keys(m).some((k) => !CORRESPONDENCE_INIT_KEYS.includes(k)))
+          refuse("unexpected-init-key");
         if (m.model !== expected.model) refuse("init-model-mismatch");
         if (m.claude_code_version !== expected.nativeVersion) refuse("init-version-mismatch");
-        // As a set, the tools must be exactly Claude's one output tool.
-        if (
-          !Array.isArray(m.tools) ||
-          !m.tools.every((t) => typeof t === "string") ||
-          new Set(m.tools).size !== 1 ||
-          m.tools[0] !== CLAUDE_OUTPUT_TOOL
-        )
+        // Exactly one tool, the output tool; a duplicate is refused too.
+        if (!Array.isArray(m.tools) || m.tools.length !== 1 || m.tools[0] !== CLAUDE_OUTPUT_TOOL)
           refuse("init-tools-mismatch");
         if (!Array.isArray(m.mcp_servers) || m.mcp_servers.length) refuse("init-surface-not-empty");
         for (const key of INIT_SURFACES)
@@ -202,13 +225,17 @@ export function createCorrespondenceFrameChecker(
         call = { input: node.input };
       });
       if (kind === "system/init") initialized = true;
-      if (kind?.startsWith("result/")) result = m;
+      if (kind?.startsWith("result/")) {
+        if (typeof m.is_error !== "boolean") refuse("invalid-result");
+        result = m;
+      }
     },
     terminal: () => result !== undefined,
     verdict() {
       if (refused) return { kind: "refused", reason: refused };
       if (!result) return { kind: "refused", reason: "no-result" };
-      if (result.is_error !== false) return { kind: "failed" };
+      // A proposal only from a successful result.
+      if (result.subtype !== "success" || result.is_error !== false) return { kind: "failed" };
       const output = result.structured_output;
       const has = output !== undefined && output !== null;
       if (!call && !has) return { kind: "refused", reason: "no-tool-call" };
@@ -223,36 +250,51 @@ export function createCorrespondenceFrameChecker(
 // ---------------------------------------------------------------------------------------------
 // Trace format: a cut-down frame list of one correspondence turn, committed per Claude version.
 
-export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v2";
+export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v3";
 export interface CorrespondenceTrace {
   format: typeof CORRESPONDENCE_TRACE_FORMAT;
+  /** SHA-256 of the pinned binary that produced the trace. */
+  binary_sha256: string;
   frames: unknown[];
 }
 const TRACE_MAX_FRAMES = 1000;
 /** Session placeholder used when replaying: traces keep no session, account or usage data. */
 const REPLAY_SESSION = "00000000-0000-4000-8000-000000000000";
 
-function label(value: unknown): string | undefined {
-  return typeof value === "string" && value.length <= 128 ? value : undefined;
+/** A frame, block or key name: copied only if it is a plain identifier, otherwise "invalid". */
+function name(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  return typeof value === "string" && /^[A-Za-z0-9_.:-]{1,64}$/.test(value) ? value : "invalid";
+}
+/** A model selector or version string: copied only in its expected shape, otherwise "invalid". */
+function selector(value: unknown): string {
+  return typeof value === "string" && /^[A-Za-z0-9._[\]-]{1,128}$/.test(value) ? value : "invalid";
+}
+/** `is_error` is copied only as a boolean. */
+function flag(value: unknown): boolean | "non-boolean" {
+  return typeof value === "boolean" ? value : "non-boolean";
 }
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 
 /** A tool-like block, reduced to its type and name. Never its input. */
 function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = { type: label(node.type) ?? null };
-  if (node.name !== undefined) out.name = label(node.name) ?? null;
+  const out: Record<string, unknown> = { type: name(node.type) ?? null };
+  if (node.name !== undefined) out.name = name(node.name);
   // A streamed tool-input delta keeps only its delta type, so replay still sees it as tool use.
   if (node.type === "content_block_delta" && record(node.delta))
-    out.delta = { type: label(node.delta.type) ?? null };
+    out.delta = { type: name(node.delta.type) ?? null };
   return out;
 }
 
 /**
- * Cuts raw parsed stream-json frames down to what the checker reads, and nothing private:
+ * Cuts raw parsed stream-json frames down to what the checker reads, and nothing private. Only a
+ * closed set of fields is copied, and each only in its expected shape (names as identifiers,
+ * `is_error` as a boolean, otherwise "invalid" or "non-boolean"):
  * - every frame keeps `type` and `subtype`;
- * - `system/init` keeps `model` and `claude_code_version`; `tools` keeps names only when it is
+ * - `system/init` keeps `model` and `claude_code_version`; `tools` keeps its names only when it is
  *   exactly `["StructuredOutput"]`, otherwise `{count, sha256}` of the sorted names; every other
- *   init list keeps only `{count, empty}`;
+ *   init list keeps only `{count, empty}`; an unknown init key is kept by name only, in
+ *   `unexpected_init_keys`;
  * - an assistant frame keeps each content block's `type`, and a tool block's `name`;
  * - a result keeps `is_error` and whether it has `structured_output`;
  * - tool use found anywhere else in a frame is kept as `nested_tool_uses` (type and name).
@@ -261,22 +303,23 @@ function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
  */
 export function traceFromFrames(
   frames: readonly unknown[],
-  options: { acceptedAnswer?: unknown } = {},
+  options: { binarySHA256: string; acceptedAnswer?: unknown },
 ): CorrespondenceTrace {
   const answer = options.acceptedAnswer;
   return {
     format: CORRESPONDENCE_TRACE_FORMAT,
+    binary_sha256: /^[a-f0-9]{64}$/.test(options.binarySHA256) ? options.binarySHA256 : "invalid",
     frames: frames.slice(0, TRACE_MAX_FRAMES + 1).map((m) => {
       if (!record(m)) return null;
       const out: Record<string, unknown> = {};
-      const type = label(m.type),
-        subtype = label(m.subtype);
+      const type = name(m.type),
+        subtype = name(m.subtype);
       if (type !== undefined) out.type = type;
       if (subtype !== undefined) out.subtype = subtype;
       const direct: unknown[] = [];
       if (m.type === "system" && m.subtype === "init") {
-        out.model = label(m.model) ?? null;
-        out.claude_code_version = label(m.claude_code_version) ?? null;
+        out.model = selector(m.model);
+        out.claude_code_version = selector(m.claude_code_version);
         const tools = Array.isArray(m.tools) ? m.tools : null;
         out.tools =
           tools && tools.length === 1 && tools[0] === CLAUDE_OUTPUT_TOOL
@@ -299,6 +342,8 @@ export function traceFromFrames(
               ? { count: list.length, empty: list.length === 0 }
               : { count: null, empty: false };
           }
+        const unexpected = Object.keys(m).filter((k) => !CORRESPONDENCE_INIT_KEYS.includes(k));
+        if (unexpected.length) out.unexpected_init_keys = unexpected.map((k) => name(k));
       } else if (m.type === "assistant") {
         const content =
           record(m.message) && Array.isArray(m.message.content) ? m.message.content : null;
@@ -307,7 +352,7 @@ export function traceFromFrames(
           ? {
               content: content.map((b: unknown) => {
                 if (!record(b)) return null;
-                if (!toolLike(b)) return { type: label(b.type) ?? null };
+                if (!toolLike(b)) return { type: name(b.type) ?? null };
                 const summary = toolSummary(b);
                 if (
                   answer !== undefined &&
@@ -321,7 +366,7 @@ export function traceFromFrames(
             }
           : null;
       } else if (m.type === "result") {
-        out.is_error = m.is_error;
+        out.is_error = flag(m.is_error);
         const output = m.structured_output;
         out.has_structured_output = output !== undefined && output !== null;
         if (answer !== undefined && jsonEqual(output, answer))
@@ -361,6 +406,11 @@ function rehydrate(f: unknown): unknown {
           : null;
     out.tools = placeholders(f.tools);
     for (const key of INIT_LISTS) if (key in f) out[key] = placeholders(f[key]);
+    delete out.unexpected_init_keys;
+    // An unknown init key comes back as itself, so the checker refuses it again.
+    if (Array.isArray(f.unexpected_init_keys))
+      for (const k of f.unexpected_init_keys)
+        out[typeof k === "string" && k !== "invalid" ? k : "unexpected_init_key"] = null;
   }
   if (f.type === "result") {
     delete out.has_structured_output;
@@ -376,17 +426,23 @@ function rehydrate(f: unknown): unknown {
  */
 export function replayCorrespondenceTrace(
   trace: unknown,
-  expected: { model: string; nativeVersion: string },
+  expected: { model: string; nativeVersion: string; binarySHA256: string },
 ): CorrespondenceFrameVerdict {
+  if (record(trace) && trace.binary_sha256 !== expected.binarySHA256)
+    return { kind: "refused", reason: "binary-mismatch" };
   if (
     !record(trace) ||
-    Object.keys(trace).sort().join(",") !== "format,frames" ||
+    Object.keys(trace).sort().join(",") !== "binary_sha256,format,frames" ||
     trace.format !== CORRESPONDENCE_TRACE_FORMAT ||
     !Array.isArray(trace.frames) ||
     trace.frames.length > TRACE_MAX_FRAMES
   )
     return { kind: "refused", reason: "invalid-frame" };
-  const checker = createCorrespondenceFrameChecker({ ...expected, sessionId: REPLAY_SESSION });
+  const checker = createCorrespondenceFrameChecker({
+    model: expected.model,
+    nativeVersion: expected.nativeVersion,
+    sessionId: REPLAY_SESSION,
+  });
   for (const f of trace.frames) {
     try {
       checker.frame(rehydrate(f));

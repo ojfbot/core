@@ -16,9 +16,9 @@ nothing from HelpDesk.
   In practice the plan is Claude-only.
 - **Claude version.** Correspondence plans and dispatchers take their Claude versions from
   `CLAUDE_CORRESPONDENCE_QUALIFIED` only, never from the advisory canary's fixed list; any other
-  version is `unqualified-profile` when the plan is prepared. Only
-  `prepareCorrespondenceQualificationPlan` accepts a version not yet listed, and such a plan opens
-  only a qualification run.
+  version is `unqualified-profile` when the plan is prepared. Two marked paths skip the allowlist:
+  `prepareCorrespondenceQualificationPlan` (a version being qualified; it opens only a qualification
+  run) and `prepareCorrespondenceEmulationPlan` (no real binary runs; it opens only an emulation).
 - **Limits.** `topLevelTurns` 1–40 as one budget for the whole window
   (`correspondence:<windowId>:<deviceId>`); `windowMs` 60,000–5,400,000; `requestTimeoutMs` 120,000.
 - **Supervision.** `owner-attended` only, without `codexHostFileReadRiskAccepted`.
@@ -27,12 +27,14 @@ nothing from HelpDesk.
   the plan in the same environment the launchd job runs with: a `HOME` or `CODEX_HOME` that differs
   from the job's holds the window with `environment-mismatch`.
 - **TMPDIR.** Pinned by the plan and set for Claude, exactly as checked; it is not compared with
-  the controller's. `null` leaves it unset for Claude. A pinned folder must be its own realpath (no
-  symlink anywhere in it and no trailing slash: on macOS use `/private/var/folders/…/T`, not
-  `/var/folders/…/T/`), carry no ACL, and be either the owner's own folder with mode exactly 0700 or
-  a root-owned sticky folder such as `/private/tmp`. Every parent up to `/` must be owned by the
-  owner or root and not writable by group or others, unless it is root-owned and sticky. Anything
-  else holds with `environment-mismatch`.
+  the controller's. `null` leaves it unset for Claude. A pinned folder must be the owner's own
+  private folder: its own realpath (no symlink anywhere in it and no trailing slash: on macOS use
+  `/private/var/folders/…/T`, not `/var/folders/…/T/`), owned by the owner with mode exactly 0700,
+  and without an ACL. Shared folders such as `/private/tmp` or `/Users/Shared`, and any root-owned
+  sticky folder, are refused. Every parent up to `/` must be owned by the owner or root and not
+  writable by group or others, unless it is root-owned and sticky; parents are checked on open
+  descriptors in-process, with one ACL listing for the whole path. Anything else holds with
+  `environment-mismatch`.
 - **Approval.** `kind: "owner-approved-correspondence-window"`, with
   `expiresAtMs - startsAtMs === plan.limits.windowMs`. The owner approves each window in that Mac's
   chat. A qualification approval (`owner-approved-correspondence-qualification`) never opens a duty
@@ -67,8 +69,10 @@ nothing from HelpDesk.
 - **Journal source.** Every opener declares its source. A correspondence journal is marked `live`
   (duty), `qualification` or `emulated`, and opens only for that source. The advisory and
   supervised openers, including the public `openDispatcher`, declare none and cannot open a marked
-  journal. A correspondence opener also refuses an unmarked journal that already holds rows (such as
-  a 0.4.0 journal). The check runs in the same transaction as table creation, before it, so a
+  journal, nor any journal holding correspondence rows (workflow `correspondence` or operation
+  `native-fresh`), marked or not. A correspondence opener also refuses an unmarked journal that
+  already holds rows (such as a 0.4.0 journal). Only the read-only `reviewCorrespondenceJournal`
+  opens those. The check runs in the same transaction as table creation, before it, so a
   refused open leaves the journal byte-for-byte unchanged. `openCorrespondenceWindow` returns a
   `held` result with `journal-source-mismatch`; the emulation throws it.
 
@@ -85,8 +89,10 @@ is the one checker: the live transport, trace replay and qualification all use i
   subtypes). Anything else, `stream_event` included, refuses the turn with `unexpected-frame`. A
   version that emits another frame kind needs a reviewed change to that list.
 - **Init.** The first frame is `system/init` with the plan's model, the plan's exact Claude version
-  in `claude_code_version`, and this session. Its `tools`, as a set, must be exactly
-  `["StructuredOutput"]`. `mcp_servers` must be empty, and so must
+  in `claude_code_version`, and this session. Every key must be on `CORRESPONDENCE_INIT_KEYS`, the
+  keys 2.1.308 reports; any other key (a new surface, or a conditional one such as
+  `plugin_errors`, `mcp_server_errors` or `capabilities`) refuses the turn. Its `tools` must be
+  exactly `["StructuredOutput"]`; a duplicate is refused. `mcp_servers` must be empty, and so must
   `slash_commands`, `terminal_slash_commands`, `agents`, `skills` and `plugins` whenever they are
   listed.
 - **Calls.** Every allowed frame is searched at any depth, nested `event` objects included, for a
@@ -95,7 +101,9 @@ is the one checker: the live transport, trace replay and qualification all use i
   and it must be a direct content block of an assistant frame: `tool_use` named
   `StructuredOutput`. Its `input` must deep-equal the result's `structured_output`,
   and that object is what `parseCorrespondenceAnswer` gets.
-- **Errors.** A result frame with `is_error` other than `false` is a `failed` turn with no proposal.
+- **Result.** `is_error` must be a boolean, or the turn is refused. A proposal comes only from a
+  `result/success` frame with `is_error: false`; any other result is a `failed` turn with no
+  proposal.
 - **Scope.** The advisory canary and supervised transports keep their own checks, unchanged.
 
 Each refusal below ends the turn as `unknown` with no proposal. The reason is journaled; read it with
@@ -107,6 +115,8 @@ Each refusal below ends the turn as `unknown` with no proposal. The reason is jo
 | `init-version-mismatch`    | Init reports another Claude version than the plan's       |
 | `init-tools-mismatch`      | Init tools are not exactly the output tool                |
 | `init-surface-not-empty`   | An MCP server, slash command, agent, skill or plugin      |
+| `unexpected-init-key`      | An init key not on `CORRESPONDENCE_INIT_KEYS`             |
+| `invalid-result`           | A result whose `is_error` is not a boolean                |
 | `tool-name-mismatch`       | Another tool, a server or MCP block, or one out of place  |
 | `tool-second-call`         | A second tool-use block                                   |
 | `tool-call-without-output` | The output tool was called, but no `structured_output`    |
@@ -125,15 +135,17 @@ Each refusal below ends the turn as `unknown` with no proposal. The reason is jo
 | `exit-nonzero`             | The process exited nonzero                                |
 | `trailing-output`          | Bytes after the last complete line                        |
 | `process-error`            | The process could not be spawned                          |
-| `stop-unconfirmed`         | Claude's process group could not be shown to be gone      |
+| `stop-unconfirmed`         | Claude's group or a holder of its stdout may still run    |
 
 ## Process lifetime
 
 The watchdog is the controller's own Node binary running `CORRESPONDENCE_WATCHDOG_SOURCE` with
-`-e`. It is not detached, so it stays in the controller's process group and launchd's job teardown
-signals it. The controller passes its own PID; the watchdog refuses to start Claude (exit 122)
-unless that PID is its parent, and ends the turn as soon as its parent changes. It starts Claude in
-Claude's own new process group and owns that whole group:
+`-e`, started by `spawnCorrespondenceWatchdog` in its own process group. A signal to the
+controller's group, including a `kill -9 -<pgid>` or launchd's job teardown, therefore does not
+reach it; it treats its parent changing as the controller's death. The controller passes its own
+PID. The watchdog installs its signal handlers and its limit first, then starts Claude on the next
+turn of its event loop, and only if no signal has arrived and its parent is still that PID
+(otherwise exit 122). It starts Claude in Claude's own new process group and owns that whole group:
 
 - at the turn's limit, which it measures itself (at most 120 seconds, never past the window; exit
   124), within 50 ms of its parent changing (exit 125), or when it is signalled (exit 143), it sends
@@ -141,14 +153,22 @@ Claude's own new process group and owns that whole group:
 - when Claude exits by itself, descendants left in its group are killed the same way;
 - it exits only after the group is shown gone, or with 121 when it could not show that.
 
-It reports `group <pgid>` and `done <code>` on fd 3 and never reads stdin or stdout: Claude
-inherits those pipes. The controller's own timer stops the turn at the same limit. Its stop first
-lets the watchdog's escalation finish (it waits 3 s), then SIGKILLs a watchdog that has not exited
-and Claude's group directly. Once the watchdog has confirmed the group gone, the controller never
-signals that group ID again. If neither can show the group gone, the turn records
-`stop-unconfirmed`, and `dispatcher.turnProcessGroup(deliveryId)` gives the group to check.
-A process that leaves Claude's group (a new session or group of its own) is outside this
-guarantee; a turn whose only tool is the output tool is not expected to start one.
+It reports the group once, as `group <pgid>`, on fd 3. Claude is spawned with only stdin, stdout
+and stderr; fd 3 is closed in Claude's process, so nothing in Claude's tree can write to that
+channel, and nothing on it can skip the controller's own checks.
+
+The controller's own timer stops the turn at the same limit. Its stop first lets the watchdog's
+escalation finish (it waits 3 s), then SIGKILLs a watchdog that has not exited, then probes
+Claude's group itself and SIGKILLs it while the probe shows it is there. After that it waits at
+most 1 s more for the pipes to close. A holder of stdout that left Claude's group cannot be shown
+gone, so the controller then stops waiting, destroys the pipes and records `stop-unconfirmed`; the
+same happens 1 s after the watchdog exits if the pipes are still open. `dispatch` therefore returns
+within the limit plus about 5 s, and `dispatcher.turnProcessGroup(deliveryId)` gives the group to
+check. A probe of a group ID that the system has already reused is a residual risk: the controller
+signals the group only while its probe succeeds, within seconds of the turn.
+
+A turn refused before any process starts (a binary, approval or environment check just before
+launch, or an expired window) is refunded and journaled as a refusal, never as unknown.
 
 ## Unresolved turns
 
@@ -165,6 +185,9 @@ journaled refusal and Claude's process group.
 To reconcile, the owner confirms that the turn's processes are gone: `pgrep -g <processGroup>`
 prints nothing (the group from the review, or from `turnProcessGroup`), and
 `pgrep -f <nativeSessionId>` prints nothing (it matches the watchdog's and Claude's command lines).
+For a `stop-unconfirmed` turn, also look for an escaped holder of the turn's stdout, a process that
+left Claude's group: `ps -axo pid,pgid,ppid,command` for processes started from Claude's working
+folder or binary.
 Then the owner opens the window again with the same plan, approval and journal, and calls
 `reconcile`:
 
@@ -192,15 +215,20 @@ approval.
 ## Qualifying a Claude version
 
 **Trace format.** `qualification/claude/<version>.trace.json` holds one real correspondence turn,
-cut down by `traceFromFrames(frames, { acceptedAnswer })` and written by
+cut down by `traceFromFrames(frames, { binarySHA256, acceptedAnswer })` and written by
 `serializeCorrespondenceTrace` (two-space JSON with a final newline). Its SHA-256 is over those
-exact bytes. The file is `{ "format": "claude-correspondence-trace-v2", "frames": [...] }`, one
-entry per stream-json frame:
+exact bytes. The file is
+`{ "format": "claude-correspondence-trace-v3", "binary_sha256": "…", "frames": [...] }`, with the
+pinned binary's SHA-256 and one entry per stream-json frame. Only a closed set of fields is copied,
+each in its expected shape: names (frame, block and tool types and names) only as identifiers,
+the model and version only as selectors (otherwise `"invalid"`), and `is_error` only as a boolean
+(otherwise `"non-boolean"`):
 
 - every frame keeps only `type` and `subtype`;
 - `system/init` also keeps `model` and `claude_code_version`; `tools` keeps its names only when it is
   exactly `["StructuredOutput"]`, otherwise `{count, sha256}` of the sorted names; `mcp_servers`
-  and the other init lists keep only `{count, empty}`;
+  and the other init lists keep only `{count, empty}`; an unknown init key is kept by name only, in
+  `unexpected_init_keys`;
 - `assistant` keeps `message.content`, where a tool-use block keeps its `type` and `name` and any
   other block only its `type`;
 - `result` keeps `is_error` and `has_structured_output`;
@@ -212,19 +240,24 @@ Tool input is never copied, except that the single StructuredOutput call's input
 `structured_output` are kept when the turn was accepted and the answer passed
 `parseCorrespondenceAnswer`. A refused trace keeps only names, counts and block types. No session,
 account, usage, cost or identifier is kept. `replayCorrespondenceTrace(trace, { model,
-nativeVersion })` restores the frames' shape and feeds them to the real checker against the plan's
-model and version, never the trace's own claims.
+nativeVersion, binarySHA256 })` restores the frames' shape and feeds them to the real checker
+against the plan's model, version and binary, never the trace's own claims.
 
-**The gate.** A duty window opens a Claude profile only when its version and binary SHA-256 match an
-allowlist entry, the committed trace matches the entry's trace SHA-256, the trace replays as
-accepted with the profile's model and version (so a trace copied to another version's name is
-refused), the answer is for the fixed qualification packet, and the binary itself reports that
-version (`--version`, in the static checks).
+**The gate.** A duty window opens a Claude profile only when an allowlist entry has its exact
+version, binary SHA-256 and model; the entry's embedded trace matches the entry's trace SHA-256,
+records the same binary, and replays as accepted with the profile's model and version (so a trace
+copied to another version is refused); the answer is for the fixed qualification packet; and the
+binary itself reports that version (`--version`, in the static checks).
 
 **Allowlist.** `CLAUDE_CORRESPONDENCE_QUALIFIED` in `src/correspondence-allowlist.ts`, a data-only
-module, lists
-`{ nativeVersion, binarySHA256, traceSHA256 }`. It is empty: no real trace exists yet, so 2.1.286
-and 2.1.308 are refused. Adding a version is one data entry and no code change.
+module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace }`, with the trace's exact
+bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
+file stays the reviewed source, and a test checks that each embedded trace equals its file. The
+list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It is empty: no
+real trace exists yet, so 2.1.286 and 2.1.308 are refused. Adding a version is one data entry, which
+the qualification script prints. Tests that need a fixture version use
+`replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
+subpath; the main entry does not export it.
 
 **Recording.** The owner approves one qualification run with
 `kind: "owner-approved-correspondence-qualification"`, the same fields as a window approval, a
@@ -245,8 +278,8 @@ exactly one turn. In this one path the version-has-trace refusal is skipped (mar
 and the window admits only that packet's thread. It refuses to run without a valid approval, never
 writes an approval, and opens no listener. It writes the trace only to the path given, with mode
 0600, and prints the version, path, SHA-256, the turn's disposition and the verdict; it exits 0
-only when the verdict is `accepted`. To qualify the version, commit the trace as
-`qualification/claude/<version>.trace.json` and add its allowlist entry with the binary's SHA-256.
+only when the verdict is `accepted`, in which case it also prints the allowlist entry. To qualify the
+version, commit the trace as `qualification/claude/<version>.trace.json` and add that entry.
 
 A failed qualification leaves only its own journal unresolved. The owner can review it with
 `reviewCorrespondenceJournal` and then delete it, or keep it as evidence; no duty journal is
@@ -255,5 +288,14 @@ affected, and no qualified version is needed.
 ## Offline proof
 
 `openCorrespondenceEmulation` runs the same admission, journal, budget and proposal checks with a
-scripted fake model (`answer`, `failed`, `lost`, `hang`). It needs no approval file or binary, and
-`status()` reports `realProviderCalls: 0`. Its journal is marked `emulated`.
+scripted fake model (`answer`, `failed`, `lost`, `hang`). It needs no approval file, binary or
+qualified version: prepare its plan with `prepareCorrespondenceEmulationPlan`, which skips the
+allowlist and can open nothing but an emulation. `status()` reports `realProviderCalls: 0`, and its
+journal is marked `emulated`.
+
+`qualifyClaudeCorrespondenceEmulation({ prepared, stateFile, frames })` proves the qualification
+trace path offline: the same request, dispatcher, frame checker, trace cut, SHA-256, replay and
+allowlist entry, with scripted stream-json frames instead of a Claude process. It needs no
+approval, binary, managed-policy check or `HOME`, and its journal is marked `emulated`, so it cannot
+touch a live or qualification journal. `writeCorrespondenceTrace` writes the trace as the script
+does. An emulated trace proves nothing about a real Claude version.

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { object } from "./admission.js";
 import {
@@ -100,17 +101,32 @@ function packetOf(request: DispatchRequest): CorrespondencePacket {
 }
 
 /**
- * Hard wall-clock limit that does not depend on the controller. The watchdog is the controller's own
- * Node binary running this source with `-e`; it is not detached, so it stays in the controller's
- * process group and launchd's job teardown signals it. It starts only under the controller PID it
- * was given, then starts Claude in Claude's own new process group and owns that whole group:
- * - at the limit it measures itself (exit 124), as soon as its parent changes (exit 125), or when
- *   it is signalled (exit 143), it sends SIGTERM to the group, then SIGKILL after 200 ms, and waits
- *   up to 2 s for the group to be gone;
+ * A turn that is refused before any process starts. The dispatcher refunds its reservation and
+ * journals nothing unknown, as it does for a hold before launch.
+ */
+export class CorrespondencePrelaunchError extends Error {
+  constructor(readonly reason: "held" | "expired") {
+    super(reason);
+  }
+}
+export function isCorrespondencePrelaunch(error: unknown): error is CorrespondencePrelaunchError {
+  return error instanceof CorrespondencePrelaunchError;
+}
+
+/**
+ * Hard wall-clock limit that does not depend on the controller or its process group. The
+ * watchdog is the controller's own Node binary running this source with `-e`, in its OWN process
+ * group, so a signal to the controller's group (a `kill -9 -<pgid>`, or launchd's job teardown)
+ * does not reach it. It installs its signal handlers first, and starts Claude on the next turn of
+ * its event loop only if no signal arrived and its parent is still the controller PID it was given
+ * (otherwise exit 122). Claude runs in Claude's own new process group, which the watchdog owns:
+ * - at the limit it measures itself from its own start (exit 124), as soon as its parent changes
+ *   (exit 125), or when it is signalled (exit 143), it sends SIGTERM to the group, then SIGKILL
+ *   after 200 ms, and polls for up to 2 s until the group is gone;
  * - when Claude exits by itself, any descendants left in the group are killed the same way;
  * - it exits only once the group is shown to be gone, or with 121 if it could not show that.
- * It reports the group as `group <pgid>` and its end as `done <code>` on fd 3. It reads neither
- * stdin nor stdout: Claude inherits those pipes directly.
+ * It reports the group once, as `group <pgid>`, on fd 3. Claude is spawned with only stdin, stdout
+ * and stderr, so it does not inherit fd 3 and cannot write to that channel.
  */
 export const CORRESPONDENCE_WATCHDOG_SOURCE = `"use strict";
 const { spawn } = require("node:child_process");
@@ -118,24 +134,20 @@ const { writeSync } = require("node:fs");
 const [controllerText, limitText, file, ...args] = process.argv.slice(1);
 const controller = Number(controllerText), limit = Number(limitText);
 if (!Number.isSafeInteger(controller) || controller <= 1 || !Number.isSafeInteger(limit) || limit < 0 || !file) process.exit(126);
-// Never start Claude under any parent but the controller that launched this watchdog.
 if (process.ppid !== controller) process.exit(122);
-const report = (line) => { try { writeSync(3, line + "\\n"); } catch {} };
-const child = spawn(file, args, { stdio: ["inherit", "inherit", "ignore"], detached: true });
-const group = child.pid;
-let reason, ending = false;
-const signal = (s) => { try { process.kill(-group, s); return true; } catch (e) { return e.code !== "ESRCH"; } };
-const finish = (code) => { report("done " + code); process.exit(code); };
+let child, group, reason, ending = false;
+const signal = (s) => { if (!group) return false; try { process.kill(-group, s); return true; } catch (e) { return e.code !== "ESRCH"; } };
 const end = (code) => {
   if (reason === undefined) reason = code;
   if (ending) return;
   ending = true;
+  if (!group) process.exit(reason);
   signal("SIGTERM");
   setTimeout(() => {
     const until = Date.now() + 2000;
     const poll = () => {
-      if (!signal(0)) return finish(reason);
-      if (Date.now() > until) return finish(121);
+      if (!signal(0)) return process.exit(reason);
+      if (Date.now() > until) return process.exit(121);
       signal("SIGKILL");
       setTimeout(poll, 20);
     };
@@ -143,20 +155,29 @@ const end = (code) => {
     setTimeout(poll, 20);
   }, 200);
 };
-if (!group) finish(127);
-report("group " + group);
-child.on("error", () => end(127));
-child.on("exit", (code) => {
-  const status = code === null ? 128 : code;
-  if (!signal(0)) finish(reason ?? status);
-  else end(status);
-});
+// Handlers and limits first; Claude starts only after any signal already sent has been handled.
+for (const s of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(s, () => end(143));
 setTimeout(() => end(124), limit);
 setInterval(() => { if (process.ppid !== controller) end(125); }, 50);
-for (const s of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(s, () => end(143));
+setImmediate(() => {
+  if (reason !== undefined) return;
+  if (process.ppid !== controller) return end(122);
+  child = spawn(file, args, { stdio: ["inherit", "inherit", "ignore"], detached: true });
+  group = child.pid;
+  if (!group) return end(127);
+  try { writeSync(3, "group " + group + "\\n"); } catch {}
+  child.on("error", () => end(127));
+  child.on("exit", (code) => {
+    const status = code === null ? 128 : code;
+    if (!signal(0)) process.exit(reason ?? status);
+    else end(status);
+  });
+});
 `;
 /** The watchdog's longest own escalation: 200 ms grace plus up to 2 s of SIGKILL polling. */
 const WATCHDOG_ESCALATION_MS = 2400;
+/** How long to wait for the pipes to close once every process is stopped or gone. */
+const CLOSE_GRACE_MS = 1000;
 
 /**
  * Node arguments that run `file args` under the watchdog for `controllerPid`, killed with its whole
@@ -181,6 +202,24 @@ export function correspondenceWatchdogArgs(
   ];
 }
 
+/**
+ * Starts the watchdog exactly as the transport does: the controller's own Node, its own process
+ * group (`detached`), stdin and stdout piped to Claude, fd 3 for the group report.
+ */
+export function spawnCorrespondenceWatchdog(
+  limitMs: number,
+  file: string,
+  args: readonly string[],
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+): ChildProcess {
+  return spawn(process.execPath, correspondenceWatchdogArgs(process.pid, limitMs, file, args), {
+    cwd: options.cwd,
+    env: options.env,
+    detached: true,
+    stdio: ["pipe", "pipe", "ignore", "pipe"],
+  });
+}
+
 /** Internal built-in real launcher. Only openCorrespondenceWindow constructs it, after its checks. */
 export function createCorrespondenceTransport(
   prepared: PreparedCorrespondencePlan,
@@ -193,26 +232,32 @@ export function createCorrespondenceTransport(
   const transport: CorrespondenceTransport = {
     mode: "supervised",
     resume: async ({ binding, profile, request, signal, timeoutMs, onStarted }) => {
+      // Everything before spawn refuses without a process: the reservation is refunded.
+      let session: string, packet: CorrespondencePacket, args: string[], limitMs: number;
       const fixed = prepared.plan.bindings.find((b) => b.alias === binding.alias),
         pinned = prepared.plan.profiles.find((p) => p.revision === profile.revision);
-      if (!fixed || !pinned || signal.aborted || pinned.provider !== "claude-code")
-        throw Error("held");
-      const session = binding.nativeSessionId;
-      const packet = packetOf(request);
-      const args = correspondenceCommand(fixed, pinned, session);
-      checkBinary(pinned);
-      beforeLaunch();
-      const remainingMs = expiresAtMs - Date.now();
-      if (remainingMs <= 0) throw Error("expired");
-      const limitMs = Math.min(timeoutMs, remainingMs);
-      // The watchdog is not detached; it puts Claude in Claude's own process group.
-      const child = spawn(
-        process.execPath,
-        correspondenceWatchdogArgs(process.pid, limitMs, pinned.binaryRealPath, args),
-        { cwd: fixed.cwd, env: environment, stdio: ["pipe", "pipe", "ignore", "pipe"] },
-      );
+      try {
+        if (!fixed || !pinned || signal.aborted || pinned.provider !== "claude-code")
+          throw Error("held");
+        session = binding.nativeSessionId;
+        packet = packetOf(request);
+        args = correspondenceCommand(fixed, pinned, session);
+        checkBinary(pinned);
+        beforeLaunch();
+        const remainingMs = expiresAtMs - Date.now();
+        if (remainingMs <= 0) throw new CorrespondencePrelaunchError("expired");
+        limitMs = Math.min(timeoutMs, remainingMs);
+      } catch (error) {
+        if (isCorrespondencePrelaunch(error)) throw error;
+        throw new CorrespondencePrelaunchError("held");
+      }
+      const child = spawnCorrespondenceWatchdog(limitMs, pinned.binaryRealPath, args, {
+        cwd: fixed.cwd,
+        env: environment,
+      });
       const stdin = child.stdin!,
-        stdout = child.stdout!;
+        stdout = child.stdout!,
+        control = child.stdio[3] as NodeJS.ReadableStream & { destroy(): void };
       const checker = createCorrespondenceFrameChecker({
         sessionId: session,
         model: pinned.model,
@@ -223,30 +268,23 @@ export function createCorrespondenceTransport(
         buffer = "",
         started = false,
         group: number | undefined,
-        done: number | undefined,
-        control = "";
+        controlText = "",
+        closed = false,
+        finishWait: (() => void) | undefined;
       const refuse = (reason: CorrespondenceTurnRefusal) => {
         refusal ??= reason;
       };
-      const control$ = child.stdio[3] as NodeJS.ReadableStream | null;
-      control$?.setEncoding("utf8");
-      control$?.on("data", (chunk: string) => {
-        control += chunk;
-        let end: number;
-        while ((end = control.indexOf("\n")) >= 0) {
-          const line = control.slice(0, end);
-          control = control.slice(end + 1);
-          const m = /^(group|done) (\d{1,10})$/.exec(line);
-          if (m?.[1] === "group" && group === undefined) group = Number(m[2]);
-          if (m?.[1] === "done") done = Number(m[2]);
-        }
+      control.setEncoding("utf8");
+      control.on("data", (chunk: string) => {
+        // Only the watchdog holds fd 3. One line, `group <pgid>`, accepted once.
+        controlText = (controlText + chunk).slice(0, 64);
+        const m = /^group (\d{1,10})\n/.exec(controlText);
+        if (m && group === undefined && Number(m[1]) > 1) group = Number(m[1]);
       });
       const watchdogAlive = () => child.exitCode === null && child.signalCode === null;
-      // The group is shown gone only by the watchdog's own confirmed end (any code but 121), or
-      // by a probe here after the watchdog is gone. A confirmed group is never signalled again.
-      const confirmed = () => done !== undefined && done !== 121;
+      // Claude's group is always probed here; nothing reported on fd 3 can skip this.
       const groupAlive = () => {
-        if (group === undefined || confirmed()) return false;
+        if (group === undefined) return false;
         try {
           process.kill(-group, 0);
           return true;
@@ -258,6 +296,13 @@ export function createCorrespondenceTransport(
       const waitFor = async (gone: () => boolean, ms: number) => {
         for (let t = 0; t < ms && !gone(); t += 20) await delay(20);
       };
+      /** Stops waiting for `close`: a holder of stdout that cannot be shown gone is unconfirmed. */
+      const abandonPipes = () => {
+        if (closed) return;
+        refusal = "stop-unconfirmed";
+        for (const pipe of [stdin, stdout, control]) pipe.destroy();
+        finishWait?.();
+      };
       let cleanup: Promise<void> | undefined;
       const stop = () => {
         cleanup ??= (async () => {
@@ -266,6 +311,7 @@ export function createCorrespondenceTransport(
           await waitFor(() => !watchdogAlive(), WATCHDOG_ESCALATION_MS + 600);
           if (watchdogAlive()) child.kill("SIGKILL");
           await waitFor(() => !watchdogAlive(), 500);
+          // Signal the group only while the probe shows it is still there.
           if (groupAlive())
             try {
               process.kill(-group!, "SIGKILL");
@@ -274,7 +320,11 @@ export function createCorrespondenceTransport(
             }
           await waitFor(() => !groupAlive(), 1000);
           // Overrides any earlier reason: the owner must know the group may still be running.
+          if (group === undefined && started) refusal = "stop-unconfirmed";
           if (alive()) refusal = "stop-unconfirmed";
+          // Everything is stopped or unconfirmed: wait only briefly more for the pipes.
+          await waitFor(() => closed, CLOSE_GRACE_MS);
+          abandonPipes();
         })();
       };
       const timer = setTimeout(() => {
@@ -326,11 +376,20 @@ export function createCorrespondenceTransport(
       let exitCode: number | null = null;
       try {
         await new Promise<void>((resolve) => {
+          finishWait = resolve;
           child.once("error", () => {
             refuse("process-error");
             resolve();
           });
+          // After the watchdog exits, a holder of stdout that escaped Claude's group must not
+          // keep this turn open: stop, then abandon the pipes.
+          child.once("exit", () => {
+            setTimeout(() => {
+              if (!closed) stop();
+            }, CLOSE_GRACE_MS).unref();
+          });
           child.once("close", (code) => {
+            closed = true;
             exitCode = code;
             resolve();
           });
@@ -342,6 +401,7 @@ export function createCorrespondenceTransport(
         stop();
         await cleanup;
       }
+      if (exitCode === null && child.exitCode !== null) exitCode = child.exitCode;
       const verdict = checker.verdict();
       if (!refusal && verdict.kind === "refused") refuse(verdict.reason);
       if (!refusal && buffer.trim()) refuse("trailing-output");
@@ -394,7 +454,7 @@ export function createCorrespondenceEmulator(
   const transport: CorrespondenceTransport = {
     mode: "emulated",
     resume: async ({ binding, request, signal, timeoutMs, onStarted }) => {
-      if (signal.aborted) throw Error("held");
+      if (signal.aborted) throw new CorrespondencePrelaunchError("held");
       const packet = packetOf(request);
       invocations += 1;
       onStarted(null);
@@ -423,6 +483,72 @@ export function createCorrespondenceEmulator(
       let proposal: RelayedCorrespondenceProposal | undefined;
       try {
         proposal = parseCorrespondenceAnswer(step.answer, request, packet);
+      } catch {
+        proposal = undefined;
+      }
+      return { ...base, outcome: "completed", ...(proposal ? { agentProposal: proposal } : {}) };
+    },
+  };
+  transports.add(transport);
+  return { transport: Object.freeze(transport), invocations: () => invocations };
+}
+
+/** Scripted raw stream-json frames for one turn, as a fake Claude would print them. */
+export type CorrespondenceFrameScript = (
+  packet: CorrespondencePacket,
+  turn: { packetDigest: string; nativeSessionId: string; invocation: number },
+) => unknown[] | Promise<unknown[]>;
+
+/**
+ * Deterministic in-process turn source at the frame level: the script's frames go through the real
+ * frame checker and proposal parser, exactly as a live turn's would. No process, network,
+ * credential or file access. Its journals are marked `emulated`.
+ */
+export function createCorrespondenceFrameEmulator(
+  script: CorrespondenceFrameScript,
+  recordFrame?: (frame: unknown) => void,
+): CorrespondenceEmulator {
+  let invocations = 0;
+  const transport: CorrespondenceTransport = {
+    mode: "emulated",
+    resume: async ({ binding, profile, request, signal, onStarted }) => {
+      if (signal.aborted) throw new CorrespondencePrelaunchError("held");
+      const packet = packetOf(request);
+      invocations += 1;
+      const session = binding.nativeSessionId;
+      const frames = await script(packet, {
+        packetDigest: request.task.inputDigest,
+        nativeSessionId: session,
+        invocation: invocations,
+      });
+      const checker = createCorrespondenceFrameChecker({
+        sessionId: session,
+        model: profile.model,
+        nativeVersion: profile.nativeVersion,
+      });
+      let refusal: CorrespondenceTurnRefusal | undefined;
+      for (const frame of frames) {
+        recordFrame?.(frame);
+        try {
+          checker.frame(frame);
+        } catch (error) {
+          refusal = error instanceof CorrespondenceFrameError ? error.reason : "invalid-frame";
+          break;
+        }
+        if (object(frame) && frame.type === "system" && frame.subtype === "init") onStarted(null);
+      }
+      const verdict = checker.verdict();
+      if (!refusal && verdict.kind === "refused") refusal = verdict.reason;
+      const base = { nativeSessionId: session, nativeTurnId: null };
+      if (refusal) return { ...base, outcome: "unknown", refusal, processGroup: null };
+      if (verdict.kind === "failed") return { ...base, outcome: "failed" };
+      let proposal: RelayedCorrespondenceProposal | undefined;
+      try {
+        proposal = parseCorrespondenceAnswer(
+          verdict.kind === "accepted" ? verdict.structuredOutput : undefined,
+          request,
+          packet,
+        );
       } catch {
         proposal = undefined;
       }
