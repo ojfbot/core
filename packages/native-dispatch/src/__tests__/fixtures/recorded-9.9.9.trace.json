@@ -1,0 +1,70 @@
+{
+  "format": "claude-correspondence-trace-v3",
+  "source": "recorded",
+  "binary_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "frames": [
+    {
+      "type": "system",
+      "subtype": "init",
+      "model": "claude-model",
+      "claude_code_version": "9.9.9",
+      "tools": ["StructuredOutput"],
+      "mcp_servers": {
+        "count": 0,
+        "empty": true
+      },
+      "slash_commands": {
+        "count": 0,
+        "empty": true
+      },
+      "agents": {
+        "count": 0,
+        "empty": true
+      },
+      "skills": {
+        "count": 0,
+        "empty": true
+      },
+      "plugins": {
+        "count": 0,
+        "empty": true
+      }
+    },
+    {
+      "type": "assistant",
+      "message": {
+        "content": [
+          {
+            "type": "tool_use",
+            "name": "StructuredOutput",
+            "input": {
+              "packetDigest": "3c0e6a82c4d4c387f4b8948aae1b56d2906b4155aef253a0299548b0eb4956b5",
+              "decision": "reply",
+              "reason": null,
+              "text": "Received.",
+              "needs": null,
+              "gaps": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "user"
+    },
+    {
+      "type": "result",
+      "subtype": "success",
+      "is_error": false,
+      "has_structured_output": true,
+      "structured_output": {
+        "packetDigest": "3c0e6a82c4d4c387f4b8948aae1b56d2906b4155aef253a0299548b0eb4956b5",
+        "decision": "reply",
+        "reason": null,
+        "text": "Received.",
+        "needs": null,
+        "gaps": null
+      }
+    }
+  ]
+}
