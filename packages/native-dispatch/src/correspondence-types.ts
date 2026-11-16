@@ -108,14 +108,19 @@ export interface CorrespondencePlan {
 }
 
 export interface PreparedCorrespondencePlan {
-  mode: "correspondence-prepared";
+  /** Qualification plans are prepared separately and can open only a qualification run. */
+  mode: "correspondence-prepared" | "correspondence-qualification-prepared";
   plan: CorrespondencePlan;
   planDigest: string;
   liveEligible: false;
 }
 
 export interface CorrespondenceRuntimeApproval {
-  kind: "owner-approved-correspondence-window";
+  /**
+   * A duty window, or one qualification run (its own journal, one turn, 1–30 minutes). Neither kind
+   * authorises the other.
+   */
+  kind: "owner-approved-correspondence-window" | "owner-approved-correspondence-qualification";
   planDigest: string;
   windowId: string;
   deviceId: string;
@@ -135,10 +140,14 @@ export interface CorrespondenceDispatcher extends Omit<Dispatcher, "agentProposa
   agentProposal(deliveryId: string): RelayedCorrespondenceProposal | undefined;
   /** Why an unknown live turn was refused (frame contract or process), as journaled. */
   turnRefusal(deliveryId: string): CorrespondenceTurnRefusal | undefined;
+  /** Claude's process group for a refused live turn, as journaled, when the watchdog reported it. */
+  turnProcessGroup(deliveryId: string): number | undefined;
 }
 
+/** A window's holds: the supervised ones, plus a journal of another source. */
+export type CorrespondenceHold = SupervisedCanaryHold | "journal-source-mismatch";
 export type CorrespondenceOpen =
-  | { kind: "held"; planDigest: string; holds: SupervisedCanaryHold[] }
+  | { kind: "held"; planDigest: string; holds: CorrespondenceHold[] }
   | { kind: "ready"; planDigest: string; dispatcher: CorrespondenceDispatcher };
 
 export interface CorrespondenceOptions {
