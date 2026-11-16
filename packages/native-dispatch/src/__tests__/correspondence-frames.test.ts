@@ -20,6 +20,7 @@ import {
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
   correspondenceGrantRevision,
+  qualifiedCorrespondenceVersions,
   correspondenceTracePath,
   createCorrespondenceFrameChecker,
   digest,
@@ -35,6 +36,8 @@ import {
   writeCorrespondenceTrace,
 } from "../index.js";
 import { replaceCorrespondenceAllowlistForTesting } from "../testing.js";
+import * as mainEntry from "../index.js";
+import * as testingEntry from "../testing.js";
 import type { CorrespondenceTrace } from "../index.js";
 
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
@@ -111,9 +114,12 @@ function rawFrames(): Array<Record<string, unknown>> {
     },
   ];
 }
-/** The trace qualification commits for an accepted turn: the answer only after it was accepted. */
+/**
+ * A synthetic trace, cut as qualification cuts an accepted turn. The public API can only make it
+ * "emulated", so it replays only through replayEmulatedCorrespondenceTrace and the gate refuses it.
+ */
 const synthetic = (frames = rawFrames()): CorrespondenceTrace =>
-  traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY, acceptedAnswer: answer });
+  traceFromFrames(frames, { binarySHA256: BINARY, acceptedAnswer: answer });
 
 type Frames = Array<Record<string, unknown>>;
 const clone = (t: CorrespondenceTrace): CorrespondenceTrace => structuredClone(t);
@@ -264,11 +270,29 @@ const pinOf = (version: string): Pin => {
   if (!entry) throw Error(`committed trace ${version} has no allowlist entry`);
   return { model: entry.model, nativeVersion: version, binarySHA256: entry.binarySHA256 };
 };
-/** The synthetic trace shaped like the binary, plus every committed trace, with its pin. */
-const traces: Array<[string, CorrespondenceTrace, Pin]> = [
-  ["synthetic 2.1.308-shaped trace", synthetic(), PINNED],
-  ...committed().map(([f, t, , v]): [string, CorrespondenceTrace, Pin] => [f, t, pinOf(v)]),
+/**
+ * The recorded fixture: a reviewed, committed file made once by the internal recorded-trace
+ * constructor (the public API cannot make one). Binary "b"×64, model claude-model, version 9.9.9.
+ */
+const FIXTURE_TEXT = readFileSync(
+  join(import.meta.dirname, "fixtures/recorded-9.9.9.trace.json"),
+  "utf8",
+);
+const FIXTURE_PIN: Pin = { model: MODEL, nativeVersion: "9.9.9", binarySHA256: BINARY };
+type Replay = typeof replayCorrespondenceTrace;
+/** Each trace with its pin and its replay: recorded ones through the real replay. */
+const traces: Array<[string, CorrespondenceTrace, Pin, Replay]> = [
+  ["synthetic 2.1.308-shaped trace", synthetic(), PINNED, replayEmulatedCorrespondenceTrace],
+  ["recorded fixture", JSON.parse(FIXTURE_TEXT), FIXTURE_PIN, replayCorrespondenceTrace],
+  ...committed().map(([f, t, , v]): [string, CorrespondenceTrace, Pin, Replay] => [
+    f,
+    t,
+    pinOf(v),
+    replayCorrespondenceTrace,
+  ]),
 ];
+/** Hand serialization, for refused variants of a recorded trace in tests. */
+const handSerialize = (t: unknown) => JSON.stringify(t, null, 2) + "\n";
 
 function run(frames: unknown[]) {
   const checker = createCorrespondenceFrameChecker({ sessionId: SESSION, ...PINNED });
@@ -325,10 +349,10 @@ describe("frame checker", () => {
     const frames = rawFrames();
     frames[3].is_error = "SECRET-TOKEN";
     expect(run(frames)).toEqual({ kind: "refused", reason: "invalid-result" });
-    const trace = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
     expect(result(trace).is_error).toBe("non-boolean");
     expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
-    expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
+    expect(replayEmulatedCorrespondenceTrace(trace, PINNED)).toEqual({
       kind: "refused",
       reason: "invalid-result",
     });
@@ -339,9 +363,7 @@ describe("frame checker", () => {
     frames[0].model = "model with SECRET-TOKEN";
     (frames[1].message as { content: Array<Record<string, unknown>> }).content[0].type =
       "text SECRET-TOKEN";
-    const text = serializeCorrespondenceTrace(
-      traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
-    );
+    const text = serializeCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }));
     expect(text).not.toContain("SECRET-TOKEN");
     expect(text).toContain('"model": "invalid"');
   });
@@ -351,10 +373,10 @@ describe("frame checker", () => {
     const frames = rawFrames();
     Object.assign(frames[0], { capabilities: ["SECRET-TOKEN"] });
     expect(run(frames)).toEqual({ kind: "refused", reason: "unexpected-init-key" });
-    const trace = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
     expect(init(trace).unexpected_init_keys).toEqual(["capabilities"]);
     expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
-    expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
+    expect(replayEmulatedCorrespondenceTrace(trace, PINNED)).toEqual({
       kind: "refused",
       reason: "unexpected-init-key",
     });
@@ -366,10 +388,7 @@ describe("frame checker", () => {
     frames[0].tools = [CLAUDE_OUTPUT_TOOL, CLAUDE_OUTPUT_TOOL];
     expect(run(frames)).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
     expect(
-      replayCorrespondenceTrace(
-        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
-        PINNED,
-      ),
+      replayEmulatedCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
     ).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
   });
 
@@ -425,10 +444,7 @@ describe("frame checker", () => {
     expect(run(frames)).toEqual({ kind: "refused", reason });
     // The cut trace keeps enough for replay to refuse it the same way.
     expect(
-      replayCorrespondenceTrace(
-        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
-        PINNED,
-      ),
+      replayEmulatedCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
     ).toEqual({
       kind: "refused",
       reason,
@@ -490,19 +506,19 @@ describe("trace format", () => {
     });
     for (const options of [{}, { acceptedAnswer: answer }]) {
       const text = serializeCorrespondenceTrace(
-        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY, ...options }),
+        traceFromFrames(frames, { binarySHA256: BINARY, ...options }),
       );
       for (const leaked of ["SECRET-TOKEN", "PrivateTool", "private-server", "private-command"])
         expect(text).not.toContain(leaked);
     }
-    const refused = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
+    const refused = traceFromFrames(frames, { binarySHA256: BINARY });
     expect(init(refused).tools).toEqual({
       count: 2,
       sha256: sha(["PrivateTool", "StructuredOutput"].join("\n")),
     });
     expect(init(refused).mcp_servers).toEqual({ count: 1, empty: false });
     // Without an accepted answer, neither the call's input nor structured_output is kept.
-    const plain = traceFromFrames(rawFrames(), { source: "recorded", binarySHA256: BINARY });
+    const plain = traceFromFrames(rawFrames(), { binarySHA256: BINARY });
     expect(serializeCorrespondenceTrace(plain)).not.toContain("Received.");
     expect(result(plain)).toEqual({
       type: "result",
@@ -513,11 +529,11 @@ describe("trace format", () => {
   });
 
   it("refuses a trace of the wrong format", () => {
-    expect(replayCorrespondenceTrace({ ...synthetic(), format: "v0" }, PINNED)).toEqual({
+    expect(replayEmulatedCorrespondenceTrace({ ...synthetic(), format: "v0" }, PINNED)).toEqual({
       kind: "refused",
       reason: "invalid-frame",
     });
-    expect(replayCorrespondenceTrace({ ...synthetic(), extra: 1 }, PINNED)).toEqual({
+    expect(replayEmulatedCorrespondenceTrace({ ...synthetic(), extra: 1 }, PINNED)).toEqual({
       kind: "refused",
       reason: "invalid-frame",
     });
@@ -525,30 +541,29 @@ describe("trace format", () => {
 
   it("refuses a trace recorded from another binary", () => {
     expect(
-      replayCorrespondenceTrace(synthetic(), { ...PINNED, binarySHA256: "c".repeat(64) }),
+      replayEmulatedCorrespondenceTrace(synthetic(), { ...PINNED, binarySHA256: "c".repeat(64) }),
     ).toEqual({ kind: "refused", reason: "binary-mismatch" });
   });
 
   it("checks the model and version against the plan, not against the trace's own init", () => {
-    expect(replayCorrespondenceTrace(synthetic(), { ...PINNED, model: "other" })).toEqual({
+    expect(replayEmulatedCorrespondenceTrace(synthetic(), { ...PINNED, model: "other" })).toEqual({
       kind: "refused",
       reason: "init-model-mismatch",
     });
-    expect(replayCorrespondenceTrace(synthetic(), { ...PINNED, nativeVersion: "2.1.400" })).toEqual(
-      { kind: "refused", reason: "init-version-mismatch" },
-    );
+    expect(
+      replayEmulatedCorrespondenceTrace(synthetic(), { ...PINNED, nativeVersion: "2.1.400" }),
+    ).toEqual({ kind: "refused", reason: "init-version-mismatch" });
   });
 
-  it.each(traces)("replays %s through the real checker as accepted", (_, trace, pin) => {
-    expect(replayCorrespondenceTrace(trace, pin).kind).toBe("accepted");
-    expect(checkCorrespondenceTraceBytes(serializeCorrespondenceTrace(trace), pin)).toBeUndefined();
+  it.each(traces)("replays %s through the real checker as accepted", (_, trace, pin, replay) => {
+    expect(replay(trace, pin).kind).toBe("accepted");
   });
 
-  describe.each(traces)("mutations of %s", (_, trace, pin) => {
+  describe.each(traces)("mutations of %s", (_, trace, pin, replay) => {
     it.each(mutations)("refuses %s", (__, mutate, reason) => {
       const t = clone(trace);
       mutate(t);
-      expect(replayCorrespondenceTrace(t, pin)).toEqual(
+      expect(replay(t, pin)).toEqual(
         reason === "failed" ? { kind: "failed" } : { kind: "refused", reason },
       );
     });
@@ -562,14 +577,13 @@ describe("correspondence allowlist", () => {
     binarySHA256,
     model,
   });
-  const traceFor = (version: string, model = MODEL, binarySHA256 = BINARY) => {
-    const frames = rawFrames();
-    Object.assign(frames[0], { claude_code_version: version, model });
-    return serializeCorrespondenceTrace(
-      traceFromFrames(frames, { source: "recorded", binarySHA256, acceptedAnswer: answer }),
-    );
+  /** The recorded fixture, changed only in ways the gate must refuse. */
+  const variant = (change: (t: Record<string, unknown>) => void) => {
+    const t = JSON.parse(FIXTURE_TEXT) as Record<string, unknown>;
+    change(t);
+    return handSerialize(t);
   };
-  const entryFor = (version: string, trace = traceFor(version)) => ({
+  const entryFor = (version: string, trace = FIXTURE_TEXT) => ({
     nativeVersion: version,
     model: MODEL,
     binarySHA256: BINARY,
@@ -594,10 +608,14 @@ describe("correspondence allowlist", () => {
     expect(() => checkCorrespondenceQualification(profile("9.9.9"))).toThrow(
       "native-profile-unqualified",
     );
-    // Only the test-only hook, from the `testing` subpath, replaces it.
+    // Only the test-only hook, from the `testing` subpath, replaces it: its versions count for
+    // preparing a plan, but the gate refuses every entry it installs.
     const restore = replaceCorrespondenceAllowlistForTesting([entryFor("9.9.9")]);
     try {
-      expect(() => checkCorrespondenceQualification(profile("9.9.9"))).not.toThrow();
+      expect(qualifiedCorrespondenceVersions()).toEqual(["9.9.9"]);
+      expect(() => checkCorrespondenceQualification(profile("9.9.9"))).toThrow(
+        "native-profile-unqualified",
+      );
     } finally {
       restore();
     }
@@ -644,42 +662,40 @@ describe("correspondence allowlist", () => {
 
   // Claude reviews 4 and 12 (round 2): traces and entries were not tied together.
   it("refuses a trace recorded from another binary than its entry's", () => {
-    const other = traceFor("9.9.9", MODEL, "c".repeat(64));
+    // The fixture records binary "b"×64; an entry and profile for binary "c"×64 are refused.
+    const c = "c".repeat(64);
     expect(() =>
-      checkCorrespondenceQualification(profile("9.9.9"), [entryFor("9.9.9", other)]),
+      checkCorrespondenceQualification(profile("9.9.9", c), [
+        { ...entryFor("9.9.9"), binarySHA256: c },
+      ]),
     ).toThrow("native-profile-unqualified");
   });
 
   // Claude review 2: a trace was not bound to a version, a model or a real recording.
   it("refuses a trace copied or renamed to another version", () => {
-    expect(() =>
-      checkCorrespondenceQualification(profile("2.1.400"), [
-        entryFor("2.1.400", traceFor("2.1.308")),
-      ]),
-    ).toThrow("native-profile-unqualified");
-    expect(() =>
-      checkCorrespondenceQualification(profile("9.9.8"), [entryFor("9.9.8", traceFor("9.9.9"))]),
-    ).toThrow("native-profile-unqualified");
+    // The 9.9.9 recording, listed under other versions.
+    for (const version of ["2.1.400", "9.9.8"])
+      expect(() => checkCorrespondenceQualification(profile(version), [entryFor(version)])).toThrow(
+        "native-profile-unqualified",
+      );
   });
 
   it("refuses an embedded trace that no longer replays, even with a matching hash", () => {
-    const bad = JSON.parse(traceFor("9.9.7")) as CorrespondenceTrace;
-    callOf(bad).name = "Bash";
-    const badText = serializeCorrespondenceTrace(bad);
+    const badText = variant((t) => (callOf(t as unknown as CorrespondenceTrace).name = "Bash"));
     expect(() =>
-      checkCorrespondenceQualification(profile("9.9.7"), [entryFor("9.9.7", badText)]),
+      checkCorrespondenceQualification(profile("9.9.9"), [entryFor("9.9.9", badText)]),
     ).toThrow("native-profile-unqualified");
   });
 
   it("requires the trace to answer the fixed qualification packet", () => {
-    const t = clone(synthetic());
-    for (const o of [callOf(t).input, result(t).structured_output] as Array<
-      Record<string, unknown>
-    >)
-      o.packetDigest = "0".repeat(64);
-    expect(checkCorrespondenceTraceBytes(serializeCorrespondenceTrace(t), PINNED)).toBe(
-      "invalid-agent-proposal",
-    );
+    const text = variant((raw) => {
+      const t = raw as unknown as CorrespondenceTrace;
+      for (const o of [callOf(t).input, result(t).structured_output] as Array<
+        Record<string, unknown>
+      >)
+        o.packetDigest = "0".repeat(64);
+    });
+    expect(checkCorrespondenceTraceBytes(text, FIXTURE_PIN)).toBe("invalid-agent-proposal");
   });
 });
 
@@ -902,3 +918,132 @@ const profile999 = () => ({
   binarySHA256: BINARY,
   model: MODEL,
 });
+
+// Codex round 5: a "recorded" trace could be forged through the public traceFromFrames.
+describe("no public way to produce an accepted trace", () => {
+  /** Reviewed: any new export must be added here, and checked against this rule. */
+  const MAIN_EXPORTS = [
+    "ADVISORY_OUTPUT_SCHEMA",
+    "CLAUDE_CORRESPONDENCE_QUALIFIED",
+    "CLAUDE_OUTPUT_TOOL",
+    "CORRESPONDENCE_ALLOWED_FRAMES",
+    "CORRESPONDENCE_INIT_KEYS",
+    "CORRESPONDENCE_INSTRUCTIONS_V2",
+    "CORRESPONDENCE_INSTRUCTIONS_V2_SHA256",
+    "CORRESPONDENCE_MAX_TURNS",
+    "CORRESPONDENCE_MAX_WINDOW_MS",
+    "CORRESPONDENCE_OUTPUT_SCHEMA",
+    "CORRESPONDENCE_PACKET_MAX_BYTES",
+    "CORRESPONDENCE_QUALIFICATION_PACKET",
+    "CORRESPONDENCE_QUALIFICATION_PACKET_SHA256",
+    "CORRESPONDENCE_REQUEST_TIMEOUT_MS",
+    "CORRESPONDENCE_TEXT_MAX_BYTES",
+    "CORRESPONDENCE_TRACE_DIRECTORY",
+    "CORRESPONDENCE_TRACE_FORMAT",
+    "CORRESPONDENCE_TURN_MARKER",
+    "CORRESPONDENCE_WATCHDOG_SOURCE",
+    "SUBSCRIPTION_CANARY_FIXTURE",
+    "SUBSCRIPTION_CANARY_FIXTURE_SHA256",
+    "canaryGrantRevision",
+    "checkCorrespondenceQualification",
+    "checkCorrespondenceTraceBytes",
+    "claudeResumeArgs",
+    "correspondenceCommand",
+    "correspondenceGrantRevision",
+    "correspondenceInput",
+    "correspondenceTracePath",
+    "correspondenceWatchdogArgs",
+    "createCorrespondenceEmulator",
+    "createCorrespondenceFrameChecker",
+    "createCorrespondenceFrameEmulator",
+    "createQualificationTransport",
+    "decide",
+    "digest",
+    "findTurnProcesses",
+    "openApprovedSubscriptionCanary",
+    "openCanaryQualification",
+    "openCorrespondenceEmulation",
+    "openCorrespondenceWindow",
+    "openDispatcher",
+    "openSupervisedSubscriptionCanary",
+    "parseCanaryProposal",
+    "parseCorrespondenceAnswer",
+    "parseCorrespondencePacket",
+    "parseDispatchRequest",
+    "prepareCorrespondenceEmulationPlan",
+    "prepareCorrespondencePlan",
+    "prepareCorrespondenceQualificationPlan",
+    "prepareSubscriptionCanary",
+    "prepareSupervisedSubscriptionCanary",
+    "qualifiedCorrespondenceVersions",
+    "qualifyClaudeCorrespondence",
+    "qualifyClaudeCorrespondenceEmulation",
+    "replayCorrespondenceTrace",
+    "replayEmulatedCorrespondenceTrace",
+    "reviewCorrespondenceJournal",
+    "serializeCorrespondenceTrace",
+    "spawnCorrespondenceWatchdog",
+    "subscriptionCanaryCommand",
+    "traceFromFrames",
+    "writeCorrespondenceTrace",
+  ].sort();
+
+  it("exports exactly the reviewed names, and no recorded-trace constructor", () => {
+    expect(Object.keys(mainEntry).sort()).toEqual(MAIN_EXPORTS);
+    expect(Object.keys(testingEntry).sort()).toEqual(["replaceCorrespondenceAllowlistForTesting"]);
+    for (const key of [...Object.keys(mainEntry), ...Object.keys(testingEntry)])
+      expect(key).not.toMatch(/recorded/i);
+  });
+
+  it("makes every trace it can build emulated, which the gate refuses", () => {
+    const trace = traceFromFrames(rawFrames(), { binarySHA256: BINARY, acceptedAnswer: answer });
+    expect(trace.source).toBe("emulated");
+    const text = serializeCorrespondenceTrace(trace);
+    const entry = {
+      nativeVersion: VERSION,
+      model: MODEL,
+      binarySHA256: BINARY,
+      traceSHA256: sha(text),
+      trace: text,
+    };
+    expect(() => checkCorrespondenceQualification(PINNED_PROFILE, [entry])).toThrow(
+      "native-profile-unqualified",
+    );
+    // Relabelling the object does not get it serialized as recorded.
+    expect(() => serializeCorrespondenceTrace({ ...trace, source: "recorded" })).toThrow(
+      "trace-not-recorded",
+    );
+  });
+
+  it("never accepts an entry installed through the testing hook", () => {
+    const entry = {
+      ...FIXTURE_PIN,
+      traceSHA256: sha(FIXTURE_TEXT),
+      trace: FIXTURE_TEXT,
+    };
+    // The reviewed fixture itself passes the gate as an explicit, committed entry...
+    const fixtureProfile = { provider: "claude-code" as const, ...FIXTURE_PIN };
+    expect(() => checkCorrespondenceQualification(fixtureProfile, [entry])).not.toThrow();
+    // ...but not once installed through the hook.
+    const restore = replaceCorrespondenceAllowlistForTesting([entry]);
+    try {
+      expect(() => checkCorrespondenceQualification(fixtureProfile)).toThrow(
+        "native-profile-unqualified",
+      );
+    } finally {
+      restore();
+    }
+  });
+
+  it("builds recorded traces only on the real qualification path", () => {
+    const src = join(import.meta.dirname, "..");
+    const callers = readdirSync(src)
+      .filter((f) => f.endsWith(".ts"))
+      .filter((f) => readFileSync(join(src, f), "utf8").includes("recordedTraceFromFrames("));
+    expect(callers.sort()).toEqual(["correspondence-frames.ts", "correspondence.ts"]);
+    const body = readFileSync(join(src, "correspondence.ts"), "utf8");
+    expect(body.match(/recordedTraceFromFrames\(/g)).toHaveLength(1);
+    expect(body.match(/runQualificationTurn\([^)]*"recorded"\)/g)).toHaveLength(1);
+  });
+});
+const PINNED_PROFILE = { provider: "claude-code" as const, ...PINNED };

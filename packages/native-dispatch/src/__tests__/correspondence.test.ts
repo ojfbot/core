@@ -16,7 +16,6 @@ import { createRequire } from "node:module";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CLAUDE_OUTPUT_TOOL,
   CORRESPONDENCE_INSTRUCTIONS_V2,
   CORRESPONDENCE_INSTRUCTIONS_V2_SHA256,
   CORRESPONDENCE_OUTPUT_SCHEMA,
@@ -41,11 +40,10 @@ import {
   qualifyClaudeCorrespondence,
   qualifyClaudeCorrespondenceEmulation,
   reviewCorrespondenceJournal,
-  serializeCorrespondenceTrace,
-  traceFromFrames,
 } from "../index.js";
 import { checkBinary, checkNativeProfile } from "../supervised-files.js";
 import { replaceCorrespondenceAllowlistForTesting } from "../testing.js";
+import { checkCorrespondenceQualification } from "../correspondence-qualification.js";
 import type {
   CorrespondenceDispatcher,
   CorrespondenceEmulatorScript,
@@ -76,6 +74,13 @@ vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   return { ...actual, spawnSync: vi.fn(actual.spawnSync) };
 });
+vi.mock("../correspondence-qualification.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../correspondence-qualification.js")>();
+  return {
+    ...actual,
+    checkCorrespondenceQualification: vi.fn(actual.checkCorrespondenceQualification),
+  };
+});
 vi.mock("../supervised-files.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../supervised-files.js")>();
   return {
@@ -87,6 +92,13 @@ vi.mock("../supervised-files.js", async (importOriginal) => {
 const spawnOriginal = vi.mocked(spawnSync).getMockImplementation()!;
 const qualifyOriginal = vi.mocked(checkNativeProfile).getMockImplementation()!;
 const binaryOriginal = vi.mocked(checkBinary).getMockImplementation()!;
+const gateOriginal = vi.mocked(checkCorrespondenceQualification).getMockImplementation()!;
+/** The test-local gate stub: accepts only the fakes qualifyFake registered. */
+const stubGate = () =>
+  vi.mocked(checkCorrespondenceQualification).mockImplementation((profile, allowlist) => {
+    if (stubbedFakes.has(fakeKey(profile))) return;
+    return allowlist ? gateOriginal(profile, allowlist) : gateOriginal(profile);
+  });
 const realProcess = process;
 // Vite 5 rewrites node:sqlite, so load the builtin directly, as the dispatcher does.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
@@ -121,6 +133,7 @@ beforeEach(() => {
     trace: "",
   });
   applyAllowlist();
+  stubGate();
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -131,64 +144,34 @@ afterEach(() => {
   vi.mocked(checkBinary).mockImplementation(binaryOriginal);
   allow.restore();
   allow.restore = () => {};
+  stubbedFakes.clear();
   vi.restoreAllMocks();
   rmSync(dir, { recursive: true, force: true });
 });
 
-/** The answer a fake Claude gives to the fixed qualification packet. */
-const qualificationAnswer = {
-  packetDigest: CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
-  decision: "reply",
-  reason: null,
-  text: "Received.",
-  needs: null,
-  gaps: null,
-};
 /**
- * Qualifies a synthetic binary the way a maintainer qualifies a real one: commit a trace of an
- * accepted turn for this version and model, and list the version with both hashes.
+ * Fake binaries the gate is stubbed to accept in this file. The public API cannot make a recorded
+ * trace, and the gate refuses entries from the test hook, so a live window with a fake binary
+ * opens only through this test-local stub; every other profile goes to the real gate.
+ */
+const stubbedFakes = new Set<string>();
+const fakeKey = (p: { nativeVersion: string; binarySHA256: string; model: string }) =>
+  `${p.nativeVersion} ${p.binarySHA256} ${p.model}`;
+/**
+ * Lists a fake binary's version through the test hook, so plans prepare, and stubs the gate for
+ * exactly that version, binary and model.
  */
 function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "claude-model") {
-  const trace = traceFromFrames(
-    [
-      {
-        type: "system",
-        subtype: "init",
-        model,
-        claude_code_version: nativeVersion,
-        tools: [CLAUDE_OUTPUT_TOOL],
-        mcp_servers: [],
-        slash_commands: [],
-        agents: [],
-        skills: [],
-        plugins: [],
-      },
-      {
-        type: "assistant",
-        message: {
-          content: [{ type: "tool_use", name: CLAUDE_OUTPUT_TOOL, input: qualificationAnswer }],
-        },
-      },
-      { type: "user" },
-      {
-        type: "result",
-        subtype: "success",
-        is_error: false,
-        structured_output: qualificationAnswer,
-      },
-    ],
-    { source: "recorded", binarySHA256: bin.sha, acceptedAnswer: qualificationAnswer },
-  );
-  const text = serializeCorrespondenceTrace(trace);
   const others = allow.entries.filter((e) => e.nativeVersion !== nativeVersion);
   allow.entries.splice(0, allow.entries.length, ...others, {
     nativeVersion,
     model,
     binarySHA256: bin.sha,
-    traceSHA256: sha(text),
-    trace: text,
+    traceSHA256: "0".repeat(64),
+    trace: "",
   });
   applyAllowlist();
+  stubbedFakes.add(fakeKey({ nativeVersion, binarySHA256: bin.sha, model }));
 }
 
 function packet(
@@ -1036,15 +1019,16 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       expect(dispatcher.status()).toMatchObject({ mode: "supervised", realProviderCalls: null });
     });
 
-    it("refuses a pinned version only because its trace is missing", () => {
+    // Codex round 5: the real gate never accepts an entry from the test hook.
+    it("holds a version listed only through the test hook at the real gate", () => {
       vi.mocked(checkNativeProfile).mockImplementation(() => {});
       const bin = fakeBinary("reply");
       qualifyFake(bin);
       const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
       approve(o);
-      // A valid binary hash, model and allowlist entry; only the embedded trace is missing.
-      allow.entries[allow.entries.length - 1] = { ...allow.entries.at(-1)!, trace: "" };
-      applyAllowlist();
+      // The plan prepares (the hook lists the version), but without the test-local stub the real
+      // gate refuses the hook's entry.
+      stubbedFakes.clear();
       expect(openCorrespondenceWindow(o)).toEqual(held(o, "native-profile-unqualified"));
       qualifyFake(bin);
       const opened = openCorrespondenceWindow(o);

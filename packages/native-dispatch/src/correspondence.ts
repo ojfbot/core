@@ -23,7 +23,11 @@ import type {
   CorrespondenceFrameScript,
 } from "./correspondence-native.js";
 import type { QualifiedClaudeCorrespondence } from "./correspondence-allowlist.js";
-import { serializeCorrespondenceTrace, traceFromFrames } from "./correspondence-frames.js";
+import {
+  recordedTraceFromFrames,
+  serializeCorrespondenceTrace,
+  traceFromFrames,
+} from "./correspondence-frames.js";
 import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import { parseCorrespondencePacket } from "./correspondence-protocol.js";
 import {
@@ -737,12 +741,15 @@ async function runQualificationTurn(
       proposal !== undefined &&
       disposition.kind === "observed" &&
       disposition.outcome === "completed";
+    const traceOptions = {
+      binarySHA256: profile.binarySHA256,
+      ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
+    };
+    // Only the real-transport path (qualifyClaudeCorrespondence) records; emulation never does.
     const traceText = serializeCorrespondenceTrace(
-      traceFromFrames(frames, {
-        source,
-        binarySHA256: profile.binarySHA256,
-        ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
-      }),
+      source === "recorded"
+        ? recordedTraceFromFrames(frames, traceOptions)
+        : traceFromFrames(frames, traceOptions),
     );
     // An emulated trace replays only through the emulation-only check; the gate refuses it.
     const replayRefusal = (

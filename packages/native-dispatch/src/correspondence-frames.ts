@@ -311,12 +311,38 @@ function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
  */
 export function traceFromFrames(
   frames: readonly unknown[],
-  options: { source: "recorded" | "emulated"; binarySHA256: string; acceptedAnswer?: unknown },
+  options: { binarySHA256: string; acceptedAnswer?: unknown },
+): CorrespondenceTrace {
+  // Public: only ever an emulated trace. The gate refuses it.
+  return cutTrace(frames, options, "emulated");
+}
+
+/** Traces built by recordedTraceFromFrames; only these may be serialized as "recorded". */
+const recordedTraces = new WeakSet<object>();
+
+/**
+ * INTERNAL, not exported from the package (main entry or `testing`). The one way to produce a
+ * "recorded" trace in code: qualifyClaudeCorrespondence calls it only for frames its real Claude
+ * transport recorded. A test checks that nothing else in the source calls it.
+ */
+export function recordedTraceFromFrames(
+  frames: readonly unknown[],
+  options: { binarySHA256: string; acceptedAnswer?: unknown },
+): CorrespondenceTrace {
+  const trace = cutTrace(frames, options, "recorded");
+  recordedTraces.add(trace);
+  return trace;
+}
+
+function cutTrace(
+  frames: readonly unknown[],
+  options: { binarySHA256: string; acceptedAnswer?: unknown },
+  source: "recorded" | "emulated",
 ): CorrespondenceTrace {
   const answer = options.acceptedAnswer;
   return {
     format: CORRESPONDENCE_TRACE_FORMAT,
-    source: options.source === "recorded" ? "recorded" : "emulated",
+    source,
     binary_sha256: /^[a-f0-9]{64}$/.test(options.binarySHA256) ? options.binarySHA256 : "invalid",
     frames: frames.slice(0, TRACE_MAX_FRAMES + 1).map((m) => {
       if (!record(m)) return null;
@@ -398,6 +424,8 @@ export function traceFromFrames(
 
 /** The committed byte form of a trace. Its SHA-256 is what the allowlist pins. */
 export function serializeCorrespondenceTrace(trace: CorrespondenceTrace): string {
+  // A "recorded" trace serializes only if a real recording built it.
+  if (trace.source !== "emulated" && !recordedTraces.has(trace)) throw Error("trace-not-recorded");
   return JSON.stringify(trace, null, 2) + "\n";
 }
 
