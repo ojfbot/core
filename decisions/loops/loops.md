@@ -28,6 +28,18 @@ loops:
     owner: operator
     status: live
     repo: core
+  - slug: repo-sync
+    purpose: "Upstream sync for the core checkout on each Mac (Yuri, Yojimbo) — fetches origin, fast-forwards local main to origin/main (ff only; divergence reported and skipped; main checked out → merge --ff-only, which keeps uncommitted edits), and reports ahead/behind + uncommitted state for every local branch and worktree. Never rebases, stashes, resets, pushes or prunes; rebasing a branch is an explicit step for the session that picks it up. Supersedes Yojimbo's unversioned ~/.claude/hooks/core-main-ff.sh SessionStart hook once installed there"
+    trigger: launchd
+    trigger_ref: scripts/repo-sync-launchd.plist
+    cadence: daily
+    state_spine: "~/.claude/repo-sync/latest.json + latest.md (current drift) and runs.jsonl (history), per Mac"
+    verifier: "scripts/lib/__tests__/repo-sync.test.mjs (ff / diverged / dirty / in-progress / prunable cases); liveness reads runs.jsonl recency"
+    stop_rule: "fires every 30 min (StartInterval 1800, plus RunAtLoad); mkdir lock skips overlapping runs; exit 0 on any git failure — a sync report never blocks. launchctl bootout gui/$UID/com.ojfbot.repo-sync to stop"
+    evidence_ref: "file:~/.claude/repo-sync/runs.jsonl"
+    owner: operator
+    status: disabled
+    repo: core
   - slug: skill-architecture-audit
     purpose: "Weekly OPAV observation pulse — skill-architecture audit + loops-liveness report (S30 wired onto this rail), one jsonl line each per week; also the skill-metrics receipt incl. dispatch funnel + regression-issue surface (ADR-0100 loop contract, wired 2026-07-22 via weekly-measure.mjs)"
     trigger: launchd

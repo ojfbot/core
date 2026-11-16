@@ -45,17 +45,96 @@ TARGET_ARG=""
 USER_SCOPE=false
 WITH_SELFCO=false
 TELEMETRY_DIR=""
+REPO_SYNC=""
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=true ;;
     --user-scope) USER_SCOPE=true ;;
     --with-selfco) WITH_SELFCO=true ;;
+    --repo-sync) REPO_SYNC=install ;;
+    --repo-sync-dry-run) REPO_SYNC=dry-run ;;
     --telemetry-dir=) echo "Error: --telemetry-dir needs an absolute path" >&2; exit 1 ;;
     --telemetry-dir=*) TELEMETRY_DIR="${arg#*=}" ;;
     *) TARGET_ARG="$arg" ;;
   esac
 done
+
+# --repo-sync: render scripts/repo-sync-launchd.plist for this Mac and load it (loops.md
+# slug: repo-sync). Standalone — does nothing else and exits. The plist points at the MAIN
+# working tree of core (first `git worktree list` entry, so running from a worktree is fine); that
+# checkout must already contain scripts/repo-sync.mjs. Installing changes this Mac's
+# scheduled jobs: run it only with the owner's yes. --repo-sync-dry-run prints the plist.
+if [[ -n "$REPO_SYNC" ]]; then
+  # Main working tree: if this checkout IS the main one (git-dir == common-dir) use it directly,
+  # which also covers --separate-git-dir layouts; otherwise take the first `worktree list` entry
+  # and confirm it really belongs to this repository.
+  OWN_GITDIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-dir)"
+  COMMON_DIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-common-dir)"
+  if [[ "$OWN_GITDIR" == "$COMMON_DIR" ]]; then
+    MAIN_CORE="$(git -C "$CORE_DIR" rev-parse --show-toplevel)"
+  else
+    MAIN_CORE="$(git -C "$CORE_DIR" worktree list --porcelain | sed -n '1s/^worktree //p')"
+    # The candidate must be a real working tree whose top level is itself (a --separate-git-dir
+    # common dir such as /metadata/core.git is not) and must share this repository's common dir.
+    if [[ -z "$MAIN_CORE" \
+       || "$(git -C "$MAIN_CORE" rev-parse --show-toplevel 2>/dev/null)" != "$MAIN_CORE" \
+       || "$(git -C "$MAIN_CORE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" != "$COMMON_DIR" ]]; then
+      echo "Error: cannot resolve core's main working tree from this worktree; run the installer from the main checkout" >&2
+      exit 1
+    fi
+  fi
+  # Resolve symlinks: version managers (fnm) put a per-shell path on PATH that is deleted when
+  # the installing shell exits; launchd needs the real, persistent binary.
+  NODE_BIN="$(command -v node || true)"
+  [[ -n "$NODE_BIN" ]] && NODE_BIN="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$NODE_BIN")"
+  LABEL="com.ojfbot.repo-sync"
+  DEST="$HOME/Library/LaunchAgents/$LABEL.plist"
+  if [[ -z "$NODE_BIN" || ! -x "$NODE_BIN" ]]; then echo "Error: node not found on PATH" >&2; exit 1; fi
+  if [[ "$NODE_BIN" == *fnm_multishells* ]]; then
+    echo "Error: node resolves to a per-shell fnm path ($NODE_BIN); install a persistent node first" >&2
+    exit 1
+  fi
+  # Paths are substituted into sed and XML unescaped: refuse characters that would break either.
+  for p in "$NODE_BIN" "$MAIN_CORE" "$HOME"; do
+    if [[ "$p" =~ [\|\&\<\>\"\'\\] ]]; then
+      echo "Error: path contains a character repo-sync's installer does not escape: $p" >&2
+      exit 1
+    fi
+  done
+  if [[ ! -f "$MAIN_CORE/scripts/repo-sync.mjs" ]]; then
+    echo "Error: $MAIN_CORE/scripts/repo-sync.mjs is missing — the main checkout must carry the" >&2
+    echo "  repo-sync script (check out or rebase onto a main that includes it) before installing." >&2
+    exit 1
+  fi
+  RENDERED="$(sed -e "s|__NODE__|$NODE_BIN|g" -e "s|__CORE_DIR__|$MAIN_CORE|g" -e "s|__HOME__|$HOME|g" \
+    "$SCRIPT_DIR/repo-sync-launchd.plist")"
+  if [[ "$REPO_SYNC" == "dry-run" ]]; then
+    printf '%s\n' "$RENDERED"
+    echo "(dry run — would write $DEST and load it into gui/$(id -u))" >&2
+    exit 0
+  fi
+  mkdir -p "$HOME/.claude/repo-sync" "$HOME/Library/LaunchAgents"
+  TMP_PLIST="$(mktemp "${TMPDIR:-/tmp}/repo-sync-plist.XXXXXX")"
+  printf '%s\n' "$RENDERED" > "$TMP_PLIST"
+  plutil -lint "$TMP_PLIST" >/dev/null
+  mv "$TMP_PLIST" "$DEST"
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  # bootout returns before the job is fully gone; an immediate bootstrap can fail with EIO.
+  loaded=false
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if launchctl bootstrap "gui/$(id -u)" "$DEST" 2>/dev/null; then loaded=true; break; fi
+    sleep 1
+  done
+  if [[ "$loaded" != "true" ]]; then
+    echo "Error: launchctl bootstrap failed; plist is at $DEST — load it with:" >&2
+    echo "  launchctl bootstrap gui/$(id -u) $DEST" >&2
+    exit 1
+  fi
+  echo "repo-sync installed: $DEST (every 30 min; report at ~/.claude/repo-sync/latest.md)"
+  echo "Once installed on the Macs it covers, flip decisions/loops/loops.md repo-sync to status: live."
+  exit 0
+fi
 
 # Telemetry is a separate opt-in. Resolve and validate its destination before any writes.
 if [[ -n "$TELEMETRY_DIR" ]]; then
