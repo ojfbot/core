@@ -39,16 +39,21 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
 - **Ownership checks:** if the worktree listing fails, ownership counts as unknown and the run
   skips. Ownership is re-checked just before `update-ref`. Before merging, the run confirms that
   the worktree holding `main` is still on `main`.
-- **Locking:** kernel `flock(2)` locks taken by `/usr/bin/lockf` around a re-exec of the script.
+- **Locking:** `flock(2)` locks taken on file descriptors that the worker itself holds. A short
+  `python3` shim takes the locks and `exec()`s the script in the same process, so no separate
+  supervisor process exists whose death could free a lock while the worker runs. Lock paths are
+  de-duplicated, so two worktrees of one repository never contend with each other.
   One sits on `<state-dir>/run.flock` and serializes whole runs, report publication included. One per
   repository sits on `<git-common-dir>/repo-sync.flock` and keeps runs with different state dirs off
   the same repo. The kernel releases them when the process exits or is killed, so no stale lock can
-  outlive a crash, and there is no reclaim logic to race. (launchd also never starts a second
+  outlive a crash, and there is no reclaim logic to race (launchd also never starts a second
   instance of the same job while one is running.)
 - **Checkout filters:** filters such as git-lfs `smudge`/`process` run external programs, which a
   write with no timeout must not wait on. In the worktree holding `main`, the run fast-forwards
   only if no changed path has a `filter` attribute under either the current or the incoming
-  `.gitattributes`. Otherwise it reports `skipped-filtered-paths`. `core.fsmonitor` is off for
+  `.gitattributes`. A driver literally named `unset` or `unspecified` also counts as filtered,
+  because `check-attr` can't tell those names from the special states. Otherwise it reports
+  `skipped-filtered-paths`. `core.fsmonitor` is off for
   every git call. The `update-ref` path checks nothing out, so filters never apply there.
 - **Unreadable markers:** if a rebase or bisect marker is unreadable (anything except ENOENT), the
   branch counts as busy and the run skips. A missing marker counts as absent.
@@ -66,8 +71,9 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
   out there. That is the same trust boundary as pulling `main`: the PR review gate.
 - **Residual race (Codex rates it Medium; the owner accepts it or not):** git has no atomic "move
   this ref only if no worktree has it checked out", and no atomic "fast-forward only if HEAD is
-  still `main`". Both ownership checks run immediately before their write, but neither is atomic
-  with it, and the gap has no guaranteed bound. Two outcomes are possible:
+  still `main`". Both ownership checks run shortly before their write, with other git calls in
+  between (the filter check sits between `symbolic-ref` and `merge`). Neither check is atomic with
+  its write, and the gap has no guaranteed bound. Two outcomes are possible:
   1. A session checks `main` out between the last check and `update-ref`. Its HEAD then points at
      the new commit while its index and files are still the old commit's. `git status` only shows
      this. To repair it, take the old commit from `latest.json` (`main.before`) or `git reflog main`,
