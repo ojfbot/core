@@ -623,3 +623,12 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - 2026-11-08 (G5 control storage): remote pause cannot safely be an additive table ignored by an old server. Migrate the isolated candidate to schema4 and add a paused-claim trigger, preserving v3 queue/nonces and fencing already-open older writers; old binaries reject the new schema. This is not a live cutover or a G7 recovery qualification.
 - 2026-11-08 (G5 browser auth): browser JavaScript cannot safely hold a host signing key. The packaged CLI serves a read-only literal-loopback viewer that signs observer requests in its local process; no key or URL bearer token enters the page. Raw container logs and unqualified backup health are not exposed as verified operations data.
 - 2026-11-08 (G5 viewer persistence): add an optional fixed loopback port so a host service manager can supervise the installed observer CLI independently of an agent session. The NAS API/worker source pins remain unchanged; this final operator-only package revision does not inherit a new backend performance claim.
+
+## Deviations — native-dispatch 0.4.0 correspondence duty (15 November 2026)
+
+- The interface post (HelpDesk #6147) promised `createCorrespondenceEmulator(script)` as the offline turn source; the live window opener must never accept a caller transport, so the proof entry is a separate `openCorrespondenceEmulation({ prepared, stateFile, script })` (the emulator factory is still exported).
+- The plan forces `CODEX_HOME: null`, and `checkNativeEnvironment` requires the plan environment to equal the controller's, so a correspondence listener must run with `CODEX_HOME` unset; went with the strict match rather than relaxing the environment check.
+- The contract said `windowMs` "up to 90 minutes" with no floor; added a 60,000 ms minimum as the conservative bound.
+- The canary path checks only Claude's first frame for tools; correspondence also treats any `tool_use` block in an assistant frame as unknown with no proposal (the charter's "a tool used" stop condition).
+- The canary's empty-cwd check now runs before each of up to 40 turns instead of one; whether Claude 2.1.286/2.1.308 leaves anything in cwd across fresh sessions is unverified until the first approved window.
+- `DutyBinding.sessionPolicy` was meant to be correspondence-only, but the canary already spreads `initial-fixed`/`existing-fixed` into dispatcher bindings at runtime; widened the field to all three values so the canary keeps validating.
