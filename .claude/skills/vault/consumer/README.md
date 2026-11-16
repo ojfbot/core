@@ -1,5 +1,7 @@
 # `/vault` — consumer-app Agent Skill
 
+> **Current boundary (2026-10-29):** GitHub transport is retired. Notion remains the planned durable chat inbox. Accept only explicitly `ready` rows and ignore draft/unset rows. Failures remain retryable by Notion page ID until Mini CLI exact hosted Obsidian Sync receipt; only then acknowledge terminal `landed`. The defective historical transport stays off and replacement is not deployed; until review, use this skill for read/orientation only.
+
 `SKILL.md` here is a **Claude Agent Skill** — the version of `/vault` that works in the Claude *apps*
 (claude.ai web, the iPhone app, the Claude Desktop Mac app), as opposed to the full Claude-Code `/vault`
 skill one level up (`../vault.md`), which only runs in Claude Code on the Mac (it needs the python scripts +

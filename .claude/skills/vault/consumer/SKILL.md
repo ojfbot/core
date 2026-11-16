@@ -18,6 +18,8 @@ description: >
 
 # /vault — selfco LLM Wiki (consumer-app edition)
 
+> **Current boundary (2026-10-29):** GitHub transport is retired. Notion remains the planned durable ChatGPT/Claude Chat inbox into Mini's canonical vault. Intake accepts only explicitly `ready` rows and ignores draft/unset rows. Failures stay in a retryable Mini queue keyed by Notion page ID until the Mini CLI verifies exact hosted Obsidian Sync receipt; only then may it acknowledge terminal `landed`. The defective historical transport stays off and the replacement is not deployed. Until review, web/mobile agents are read-only. Do not create Notion rows, GitHub commits or promoter jobs from this skill yet.
+
 This is the Claude-apps companion to the `/vault` Claude-Code skill. It lets you tend the **selfco** vault
 from claude.ai web, the Claude iPhone app, or the Claude Desktop Mac app — anywhere a vault connector is
 attached. The Karpathy pattern: *"Obsidian is the IDE; the LLM is the programmer; the wiki is the codebase."*
