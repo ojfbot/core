@@ -154,7 +154,13 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
   };
 }
 
-export function validateConfiguration(config: DispatchConfiguration): void {
+/** The advisory canary's fixed Claude versions. Correspondence passes its allowlist's instead. */
+const ADVISORY_CLAUDE_VERSIONS: readonly string[] = ["2.1.286", "2.1.308"];
+
+export function validateConfiguration(
+  config: DispatchConfiguration,
+  claudeVersions: readonly string[] = ADVISORY_CLAUDE_VERSIONS,
+): void {
   const aliases = new Set<string>(),
     revisions = new Set<string>(),
     grants = new Set<string>();
@@ -188,7 +194,7 @@ export function validateConfiguration(config: DispatchConfiguration): void {
         p.provider === "codex"
           ? ["0.165.0-alpha.1.2", "0.164.0"]
           : p.provider === "claude-code"
-            ? ["2.1.286", "2.1.308"]
+            ? claudeVersions
             : []
       ).includes(p.nativeVersion)
     )

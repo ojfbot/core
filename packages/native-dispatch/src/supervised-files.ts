@@ -50,6 +50,11 @@ export function checkPrivateDirectory(path: string): void {
   } finally {
     closeSync(fd);
   }
+  checkAncestors(path);
+}
+
+/** Every parent up to `/`: owned by this user or root, and not group/other-writable unless sticky root. */
+function checkAncestors(path: string): void {
   for (let parent = dirname(path); ; parent = dirname(parent)) {
     const ancestor = openSync(
       parent,
@@ -274,20 +279,29 @@ export function checkNativeEnvironment(
 
 /**
  * Correspondence pins TMPDIR in the plan and sets it for the child instead of comparing it with the
- * controller's. A pinned directory must exist and be the owner's own private folder, or a root-owned
- * sticky one such as /tmp, so another user cannot plant files in Claude's temporary space.
+ * controller's. The pinned folder must be its own realpath (no symlink anywhere in it), have no
+ * ACL, and be either the owner's own folder with mode exactly 0700 or a root-owned sticky folder.
+ * Every parent up to `/` must be owned by the owner or root and not writable by group or others,
+ * unless it is root-owned and sticky. Claude gets exactly this checked path.
  */
 export function checkPinnedTemporaryDirectory(path: string | null): void {
   if (path === null) return;
-  let s;
   try {
-    s = statSync(realpathSync(path));
+    if (!isAbsolute(path) || realpathSync(path) !== path) throw Error("environment-mismatch");
+    const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_DIRECTORY);
+    try {
+      const s = fstatSync(fd);
+      const own = s.uid === process.getuid?.() && (s.mode & 0o7777) === 0o700;
+      const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
+      if (!s.isDirectory() || !(own || stickyRoot)) throw Error("environment-mismatch");
+      noAcl(path, fd);
+    } finally {
+      closeSync(fd);
+    }
+    checkAncestors(path);
   } catch {
     throw Error("environment-mismatch");
   }
-  const own = s.uid === process.getuid?.() && !(s.mode & 0o022);
-  const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
-  if (!s.isDirectory() || !(own || stickyRoot)) throw Error("environment-mismatch");
 }
 
 export function nativeEnvironment(environment?: SupervisedEnvironment): NodeJS.ProcessEnv {

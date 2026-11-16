@@ -67,6 +67,7 @@ export type {
   CorrespondenceDispatcher,
   CorrespondenceOpen,
   CorrespondenceOptions,
+  CorrespondenceHold,
 } from "./correspondence-types.js";
 export {
   prepareCorrespondencePlan,
@@ -74,10 +75,13 @@ export {
   openCorrespondenceWindow,
   openCorrespondenceEmulation,
   qualifyClaudeCorrespondence,
+  prepareCorrespondenceQualificationPlan,
+  reviewCorrespondenceJournal,
 } from "./correspondence.js";
-export type { CorrespondenceQualification } from "./correspondence.js";
+export type { CorrespondenceQualification, CorrespondenceJournalReview } from "./correspondence.js";
 export {
   CLAUDE_OUTPUT_TOOL,
+  CORRESPONDENCE_ALLOWED_FRAMES,
   CORRESPONDENCE_TRACE_FORMAT,
   createCorrespondenceFrameChecker,
   replayCorrespondenceTrace,
@@ -98,11 +102,12 @@ export {
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
   correspondenceTracePath,
+  qualifiedCorrespondenceVersions,
 } from "./correspondence-qualification.js";
 export type { QualifiedClaudeCorrespondence } from "./correspondence-qualification.js";
 export {
-  CORRESPONDENCE_INSTRUCTIONS_V1,
-  CORRESPONDENCE_INSTRUCTIONS_V1_SHA256,
+  CORRESPONDENCE_INSTRUCTIONS_V2,
+  CORRESPONDENCE_INSTRUCTIONS_V2_SHA256,
   CORRESPONDENCE_OUTPUT_SCHEMA,
   parseCorrespondencePacket,
   parseCorrespondenceAnswer,
@@ -112,6 +117,7 @@ export {
   createCorrespondenceEmulator,
   correspondenceCommand,
   correspondenceWatchdogArgs,
+  CORRESPONDENCE_WATCHDOG_SOURCE,
 } from "./correspondence-native.js";
 export type {
   CorrespondenceEmulator,

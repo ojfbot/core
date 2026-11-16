@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /**
  * Claude's correspondence frame contract. With `--json-schema`, Claude Code exposes exactly one
  * built-in output tool; the turn must call it once, and its input must be the result's
@@ -8,13 +10,33 @@
 /** The single built-in tool Claude Code uses to return a `--json-schema` answer. */
 export const CLAUDE_OUTPUT_TOOL = "StructuredOutput";
 
+/**
+ * Fail closed on frames: every frame's `type` (or `type/subtype`) must be listed here. Every
+ * allowed frame is still searched, at any depth, for tool use.
+ */
+export const CORRESPONDENCE_ALLOWED_FRAMES: readonly string[] = [
+  "system/init",
+  "system/status",
+  "system/api_retry",
+  "rate_limit_event",
+  "assistant",
+  "user",
+  "result/success",
+  "result/error_during_execution",
+  "result/error_max_turns",
+  "result/error_max_budget_usd",
+  "result/error_max_structured_output_retries",
+];
+
 /** Why a frame stream was refused. Each one ends the turn as unknown with no proposal. */
 export type CorrespondenceFrameRefusal =
   | "invalid-frame"
+  | "unexpected-frame"
   | "wrong-session"
   | "frame-before-init"
   | "init-repeated"
   | "init-model-mismatch"
+  | "init-version-mismatch"
   | "init-tools-mismatch"
   | "init-surface-not-empty"
   | "frame-after-result"
@@ -60,10 +82,40 @@ const INIT_SURFACES = [
   "skills",
   "plugins",
 ] as const;
+const INIT_LISTS = ["mcp_servers", ...INIT_SURFACES] as const;
 
-function toolCall(block: Record<string, unknown>): boolean {
-  // `tool_use`, `server_tool_use`, `mcp_tool_use`: any tool-use block type counts as a call.
-  return typeof block.type === "string" && block.type.endsWith("tool_use");
+function frameKind(m: Record<string, unknown>): string | undefined {
+  if (typeof m.type !== "string") return undefined;
+  return typeof m.subtype === "string" ? `${m.type}/${m.subtype}` : m.type;
+}
+
+/**
+ * Anything that is, or streams, a tool call: a `tool_use`, `server_tool_use`, `mcp_tool_use` or
+ * other `*tool_use` block (a `content_block_start` carries one as its `content_block`), and a
+ * `content_block_delta` whose delta streams tool input.
+ */
+function toolLike(node: Record<string, unknown>): boolean {
+  if (typeof node.type === "string" && node.type.endsWith("tool_use")) return true;
+  return (
+    node.type === "content_block_delta" &&
+    record(node.delta) &&
+    typeof node.delta.type === "string" &&
+    /json|tool/.test(node.delta.type)
+  );
+}
+
+/** Visits every tool-like object anywhere in a value. Too deep a value is malformed. */
+function scanTools(
+  value: unknown,
+  visit: (node: Record<string, unknown>) => void,
+  depth = 0,
+): void {
+  if (depth > 64) throw new CorrespondenceFrameError("invalid-frame");
+  if (Array.isArray(value)) for (const v of value) scanTools(v, visit, depth + 1);
+  else if (record(value)) {
+    if (toolLike(value)) visit(value);
+    for (const v of Object.values(value)) scanTools(v, visit, depth + 1);
+  }
 }
 
 /** Structural equality of JSON values; object key order does not matter. */
@@ -91,11 +143,17 @@ export interface CorrespondenceFrameChecker {
   verdict(): CorrespondenceFrameVerdict;
 }
 
-/** The one frame checker. The live transport, trace replay and qualification all use it. */
-export function createCorrespondenceFrameChecker(expected: {
+/** What the checker expects, from the pinned plan profile (never from the frames themselves). */
+export interface CorrespondenceFrameExpectation {
   sessionId: string;
   model: string;
-}): CorrespondenceFrameChecker {
+  nativeVersion: string;
+}
+
+/** The one frame checker. The live transport, trace replay and qualification all use it. */
+export function createCorrespondenceFrameChecker(
+  expected: CorrespondenceFrameExpectation,
+): CorrespondenceFrameChecker {
   let initialized = false,
     calls = 0,
     refused: CorrespondenceFrameRefusal | undefined,
@@ -110,10 +168,14 @@ export function createCorrespondenceFrameChecker(expected: {
       if (refused) refuse(refused);
       if (!record(m)) return refuse("invalid-frame");
       if (result) refuse("frame-after-result");
+      const kind = frameKind(m);
+      if (kind === undefined || !CORRESPONDENCE_ALLOWED_FRAMES.includes(kind))
+        refuse("unexpected-frame");
       if (m.session_id !== expected.sessionId) refuse("wrong-session");
-      if (m.type === "system" && m.subtype === "init") {
+      if (kind === "system/init") {
         if (initialized) refuse("init-repeated");
         if (m.model !== expected.model) refuse("init-model-mismatch");
+        if (m.claude_code_version !== expected.nativeVersion) refuse("init-version-mismatch");
         // As a set, the tools must be exactly Claude's one output tool.
         if (
           !Array.isArray(m.tools) ||
@@ -126,25 +188,21 @@ export function createCorrespondenceFrameChecker(expected: {
         for (const key of INIT_SURFACES)
           if (key in m && !(Array.isArray(m[key]) && (m[key] as unknown[]).length === 0))
             refuse("init-surface-not-empty");
-        initialized = true;
-        return;
-      }
-      if (!initialized) refuse("frame-before-init");
-      if (m.type === "assistant") {
-        if (!record(m.message) || !Array.isArray(m.message.content)) refuse("invalid-frame");
-        for (const block of (m.message as { content: unknown[] }).content) {
-          if (!record(block)) refuse("invalid-frame");
-          const b = block as Record<string, unknown>;
-          if (!toolCall(b)) continue;
-          calls += 1;
-          if (calls > 1) refuse("tool-second-call");
-          if (b.type !== "tool_use" || b.name !== CLAUDE_OUTPUT_TOOL) refuse("tool-name-mismatch");
-          call = { input: b.input };
-        }
-        return;
-      }
-      if (m.type === "result") result = m;
-      // Other frames (the output tool's user/tool_result echo, status events) carry no answer.
+      } else if (!initialized) refuse("frame-before-init");
+      if (kind === "assistant" && (!record(m.message) || !Array.isArray(m.message.content)))
+        refuse("invalid-frame");
+      // The one legitimate position for the call: a direct content block of an assistant frame.
+      const direct: unknown[] =
+        kind === "assistant" ? ((m.message as Record<string, unknown>).content as unknown[]) : [];
+      scanTools(m, (node) => {
+        calls += 1;
+        if (calls > 1) refuse("tool-second-call");
+        if (!direct.includes(node) || node.type !== "tool_use" || node.name !== CLAUDE_OUTPUT_TOOL)
+          refuse("tool-name-mismatch");
+        call = { input: node.input };
+      });
+      if (kind === "system/init") initialized = true;
+      if (kind?.startsWith("result/")) result = m;
     },
     terminal: () => result !== undefined,
     verdict() {
@@ -165,7 +223,7 @@ export function createCorrespondenceFrameChecker(expected: {
 // ---------------------------------------------------------------------------------------------
 // Trace format: a cut-down frame list of one correspondence turn, committed per Claude version.
 
-export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v1";
+export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v2";
 export interface CorrespondenceTrace {
   format: typeof CORRESPONDENCE_TRACE_FORMAT;
   frames: unknown[];
@@ -175,24 +233,37 @@ const TRACE_MAX_FRAMES = 1000;
 const REPLAY_SESSION = "00000000-0000-4000-8000-000000000000";
 
 function label(value: unknown): string | undefined {
-  return typeof value === "string" && value.length <= 64 ? value : undefined;
+  return typeof value === "string" && value.length <= 128 ? value : undefined;
 }
-function listEntry(value: unknown): unknown {
-  if (typeof value === "string") return value;
-  if (record(value) && typeof value.name === "string") return { name: value.name };
-  return null;
-}
-function list(value: unknown): unknown {
-  return Array.isArray(value) ? value.map(listEntry) : null;
+const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
+
+/** A tool-like block, reduced to its type and name. Never its input. */
+function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { type: label(node.type) ?? null };
+  if (node.name !== undefined) out.name = label(node.name) ?? null;
+  // A streamed tool-input delta keeps only its delta type, so replay still sees it as tool use.
+  if (node.type === "content_block_delta" && record(node.delta))
+    out.delta = { type: label(node.delta.type) ?? null };
+  return out;
 }
 
 /**
- * Cuts raw parsed stream-json frames down to what the checker reads: frame type/subtype; the init
- * model, tools, mcp_servers and other surface lists; tool-use name/input blocks (other blocks keep
- * only their type); and the result's is_error and structured_output. Session, account, usage,
- * prose and identifiers are dropped.
+ * Cuts raw parsed stream-json frames down to what the checker reads, and nothing private:
+ * - every frame keeps `type` and `subtype`;
+ * - `system/init` keeps `model` and `claude_code_version`; `tools` keeps names only when it is
+ *   exactly `["StructuredOutput"]`, otherwise `{count, sha256}` of the sorted names; every other
+ *   init list keeps only `{count, empty}`;
+ * - an assistant frame keeps each content block's `type`, and a tool block's `name`;
+ * - a result keeps `is_error` and whether it has `structured_output`;
+ * - tool use found anywhere else in a frame is kept as `nested_tool_uses` (type and name).
+ * Tool input and `structured_output` are copied only for `acceptedAnswer`: the single accepted
+ * StructuredOutput call, after it passed parseCorrespondenceAnswer.
  */
-export function traceFromFrames(frames: readonly unknown[]): CorrespondenceTrace {
+export function traceFromFrames(
+  frames: readonly unknown[],
+  options: { acceptedAnswer?: unknown } = {},
+): CorrespondenceTrace {
+  const answer = options.acceptedAnswer;
   return {
     format: CORRESPONDENCE_TRACE_FORMAT,
     frames: frames.slice(0, TRACE_MAX_FRAMES + 1).map((m) => {
@@ -202,28 +273,70 @@ export function traceFromFrames(frames: readonly unknown[]): CorrespondenceTrace
         subtype = label(m.subtype);
       if (type !== undefined) out.type = type;
       if (subtype !== undefined) out.subtype = subtype;
+      const direct: unknown[] = [];
       if (m.type === "system" && m.subtype === "init") {
-        out.model = m.model;
-        out.tools = Array.isArray(m.tools) ? m.tools.map(listEntry) : null;
-        out.mcp_servers = list(m.mcp_servers);
-        for (const key of INIT_SURFACES) if (key in m) out[key] = list(m[key]);
+        out.model = label(m.model) ?? null;
+        out.claude_code_version = label(m.claude_code_version) ?? null;
+        const tools = Array.isArray(m.tools) ? m.tools : null;
+        out.tools =
+          tools && tools.length === 1 && tools[0] === CLAUDE_OUTPUT_TOOL
+            ? [CLAUDE_OUTPUT_TOOL]
+            : {
+                count: tools ? tools.length : null,
+                sha256: tools
+                  ? sha256(
+                      tools
+                        .map((t) => String(t))
+                        .sort()
+                        .join("\n"),
+                    )
+                  : null,
+              };
+        for (const key of INIT_LISTS)
+          if (key in m) {
+            const list = m[key];
+            out[key] = Array.isArray(list)
+              ? { count: list.length, empty: list.length === 0 }
+              : { count: null, empty: false };
+          }
       } else if (m.type === "assistant") {
-        out.message =
-          record(m.message) && Array.isArray(m.message.content)
-            ? {
-                content: m.message.content.map((b: unknown) =>
-                  !record(b)
-                    ? null
-                    : toolCall(b)
-                      ? { type: b.type, name: b.name, input: b.input }
-                      : { type: label(b.type) ?? null },
-                ),
-              }
-            : null;
+        const content =
+          record(m.message) && Array.isArray(m.message.content) ? m.message.content : null;
+        if (content) direct.push(...content);
+        out.message = content
+          ? {
+              content: content.map((b: unknown) => {
+                if (!record(b)) return null;
+                if (!toolLike(b)) return { type: label(b.type) ?? null };
+                const summary = toolSummary(b);
+                if (
+                  answer !== undefined &&
+                  b.type === "tool_use" &&
+                  b.name === CLAUDE_OUTPUT_TOOL &&
+                  jsonEqual(b.input, answer)
+                )
+                  summary.input = structuredClone(answer);
+                return summary;
+              }),
+            }
+          : null;
       } else if (m.type === "result") {
         out.is_error = m.is_error;
-        if (m.structured_output !== undefined) out.structured_output = m.structured_output;
+        const output = m.structured_output;
+        out.has_structured_output = output !== undefined && output !== null;
+        if (answer !== undefined && jsonEqual(output, answer))
+          out.structured_output = structuredClone(answer);
       }
+      const nested: unknown[] = [];
+      try {
+        scanTools(m, (node) => {
+          if (!direct.includes(node)) nested.push(toolSummary(node));
+        });
+      } catch {
+        // Too deep to scan: keep a tool marker, so replay refuses it as the live checker did.
+        nested.push({ type: "unscannable_tool_use" });
+      }
+      if (nested.length) out.nested_tool_uses = nested;
       return out;
     }),
   };
@@ -234,8 +347,37 @@ export function serializeCorrespondenceTrace(trace: CorrespondenceTrace): string
   return JSON.stringify(trace, null, 2) + "\n";
 }
 
-/** Replays a cut-down trace through the same frame checker the live transport uses. */
-export function replayCorrespondenceTrace(trace: unknown): CorrespondenceFrameVerdict {
+/** Turns a cut-down trace frame back into the raw shape the checker reads. */
+function rehydrate(f: unknown): unknown {
+  if (!record(f)) return f;
+  const out: Record<string, unknown> = { ...f, session_id: REPLAY_SESSION };
+  if (f.type === "system" && f.subtype === "init") {
+    // Redacted lists come back as that many placeholders, so a non-empty list stays non-empty.
+    const placeholders = (v: unknown) =>
+      Array.isArray(v)
+        ? v
+        : record(v) && typeof v.count === "number" && v.count >= 0 && v.count <= 4096
+          ? Array.from({ length: v.count }, () => "redacted")
+          : null;
+    out.tools = placeholders(f.tools);
+    for (const key of INIT_LISTS) if (key in f) out[key] = placeholders(f[key]);
+  }
+  if (f.type === "result") {
+    delete out.has_structured_output;
+    if (f.has_structured_output === true && !("structured_output" in f))
+      out.structured_output = { redacted: true };
+  }
+  return out;
+}
+
+/**
+ * Replays a cut-down trace through the same frame checker the live transport uses, against the
+ * model and version the plan pins (never the trace's own claims).
+ */
+export function replayCorrespondenceTrace(
+  trace: unknown,
+  expected: { model: string; nativeVersion: string },
+): CorrespondenceFrameVerdict {
   if (
     !record(trace) ||
     Object.keys(trace).sort().join(",") !== "format,frames" ||
@@ -244,14 +386,10 @@ export function replayCorrespondenceTrace(trace: unknown): CorrespondenceFrameVe
     trace.frames.length > TRACE_MAX_FRAMES
   )
     return { kind: "refused", reason: "invalid-frame" };
-  const init = trace.frames.find((f) => record(f) && f.type === "system" && f.subtype === "init");
-  const checker = createCorrespondenceFrameChecker({
-    sessionId: REPLAY_SESSION,
-    model: record(init) && typeof init.model === "string" ? init.model : "",
-  });
+  const checker = createCorrespondenceFrameChecker({ ...expected, sessionId: REPLAY_SESSION });
   for (const f of trace.frames) {
     try {
-      checker.frame(record(f) ? { ...f, session_id: REPLAY_SESSION } : f);
+      checker.frame(rehydrate(f));
     } catch (error) {
       if (error instanceof CorrespondenceFrameError) break;
       throw error;

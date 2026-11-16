@@ -3,9 +3,11 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,27 +17,34 @@ import { createRequire } from "node:module";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  CORRESPONDENCE_INSTRUCTIONS_V1,
-  CORRESPONDENCE_INSTRUCTIONS_V1_SHA256,
+  CLAUDE_OUTPUT_TOOL,
+  CORRESPONDENCE_INSTRUCTIONS_V2,
+  CORRESPONDENCE_INSTRUCTIONS_V2_SHA256,
   CORRESPONDENCE_OUTPUT_SCHEMA,
   CORRESPONDENCE_QUALIFICATION_PACKET,
   CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
+  CORRESPONDENCE_WATCHDOG_SOURCE,
   checkCorrespondenceTraceBytes,
   correspondenceCommand,
   correspondenceWatchdogArgs,
   correspondenceGrantRevision,
   correspondenceInput,
+  createQualificationTransport,
   digest,
   openCorrespondenceEmulation,
   openCorrespondenceWindow,
+  openDispatcher,
   parseCorrespondenceAnswer,
   parseCorrespondencePacket,
   parseDispatchRequest,
   prepareCorrespondencePlan,
+  prepareCorrespondenceQualificationPlan,
   qualifyClaudeCorrespondence,
+  reviewCorrespondenceJournal,
+  serializeCorrespondenceTrace,
+  traceFromFrames,
 } from "../index.js";
 import { checkNativeProfile } from "../supervised-files.js";
-import { checkCorrespondenceQualification } from "../correspondence-qualification.js";
 import type {
   CorrespondenceDispatcher,
   CorrespondenceEmulatorScript,
@@ -43,6 +52,23 @@ import type {
   PreparedCorrespondencePlan,
 } from "../index.js";
 
+/**
+ * The correspondence allowlist is data. Here it is a mutable fixture with its own trace folder,
+ * so a test adds a version exactly as a maintainer would: one entry and one committed trace.
+ */
+const allow = await vi.hoisted(async () => {
+  const fs = await import("node:fs");
+  const os = await import("node:os");
+  const path = await import("node:path");
+  return {
+    entries: [] as Array<{ nativeVersion: string; binarySHA256: string; traceSHA256: string }>,
+    dir: fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "allowlist-fixture-"))),
+  };
+});
+vi.mock("../correspondence-allowlist.js", () => ({
+  CLAUDE_CORRESPONDENCE_QUALIFIED: allow.entries,
+  CORRESPONDENCE_TRACE_DIRECTORY: allow.dir,
+}));
 vi.mock("node:child_process", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:child_process")>();
   return { ...actual, spawnSync: vi.fn(actual.spawnSync) };
@@ -51,16 +77,8 @@ vi.mock("../supervised-files.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../supervised-files.js")>();
   return { ...actual, checkNativeProfile: vi.fn(actual.checkNativeProfile) };
 });
-vi.mock("../correspondence-qualification.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../correspondence-qualification.js")>();
-  return {
-    ...actual,
-    checkCorrespondenceQualification: vi.fn(actual.checkCorrespondenceQualification),
-  };
-});
 const spawnOriginal = vi.mocked(spawnSync).getMockImplementation()!;
 const qualifyOriginal = vi.mocked(checkNativeProfile).getMockImplementation()!;
-const traceGateOriginal = vi.mocked(checkCorrespondenceQualification).getMockImplementation()!;
 const realProcess = process;
 // Vite 5 rewrites node:sqlite, so load the builtin directly, as the dispatcher does.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
@@ -71,6 +89,9 @@ let dir: string, home: string, temporary: string;
 const open: CorrespondenceDispatcher[] = [];
 const uuid = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const THREAD = uuid(900);
+/** The V2 instruction text's SHA-256, pinned here so any change is deliberate. */
+const PINNED_V2_SHA256 = "d69e5d3fe1c8ef616d8cab6510bda1d6dd98dc1c9c513fff7f29468fba0c4028";
+const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
 
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), "correspondence-fixture-")));
@@ -83,6 +104,13 @@ beforeEach(() => {
   vi.stubEnv("TMPDIR", temporary);
   // A Claude-only plan requires the controller to run without CODEX_HOME.
   vi.stubEnv("CODEX_HOME", undefined);
+  // Plans may name 2.1.286 (listed); a window still needs its binary hash and trace (qualifyFake).
+  allow.entries.splice(0, allow.entries.length, {
+    nativeVersion: "2.1.286",
+    binarySHA256: "0".repeat(64),
+    traceSHA256: "0".repeat(64),
+  });
+  for (const f of readdirSync(allow.dir)) rmSync(join(allow.dir, f));
 });
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -90,10 +118,63 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.mocked(spawnSync).mockImplementation(spawnOriginal);
   vi.mocked(checkNativeProfile).mockImplementation(qualifyOriginal);
-  vi.mocked(checkCorrespondenceQualification).mockImplementation(traceGateOriginal);
   vi.restoreAllMocks();
   rmSync(dir, { recursive: true, force: true });
 });
+
+/** The answer a fake Claude gives to the fixed qualification packet. */
+const qualificationAnswer = {
+  packetDigest: CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
+  decision: "reply",
+  reason: null,
+  text: "Received.",
+  needs: null,
+  gaps: null,
+};
+/**
+ * Qualifies a synthetic binary the way a maintainer qualifies a real one: commit a trace of an
+ * accepted turn for this version and model, and list the version with both hashes.
+ */
+function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "claude-model") {
+  const trace = traceFromFrames(
+    [
+      {
+        type: "system",
+        subtype: "init",
+        model,
+        claude_code_version: nativeVersion,
+        tools: [CLAUDE_OUTPUT_TOOL],
+        mcp_servers: [],
+        slash_commands: [],
+        agents: [],
+        skills: [],
+        plugins: [],
+      },
+      {
+        type: "assistant",
+        message: {
+          content: [{ type: "tool_use", name: CLAUDE_OUTPUT_TOOL, input: qualificationAnswer }],
+        },
+      },
+      { type: "user" },
+      {
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        structured_output: qualificationAnswer,
+      },
+    ],
+    { acceptedAnswer: qualificationAnswer },
+  );
+  const text = serializeCorrespondenceTrace(trace);
+  writeFileSync(join(allow.dir, `${nativeVersion}.trace.json`), text);
+  const others = allow.entries.filter((e) => e.nativeVersion !== nativeVersion);
+  allow.entries.splice(0, allow.entries.length, ...others, {
+    nativeVersion,
+    binarySHA256: bin.sha,
+    traceSHA256: sha(text),
+  });
+}
 
 function packet(
   n: number,
@@ -212,9 +293,17 @@ function emulate(script: CorrespondenceEmulatorScript, rawOverrides = {}, now = 
 }
 
 describe("protocol", () => {
+  it("pins the V2 instruction text, which names the one output tool", () => {
+    expect(CORRESPONDENCE_INSTRUCTIONS_V2).toContain(
+      "Return your answer by calling the StructuredOutput tool exactly once, and use no other tool.",
+    );
+    expect(CORRESPONDENCE_INSTRUCTIONS_V2).not.toContain("You have no tools");
+    expect(CORRESPONDENCE_INSTRUCTIONS_V2_SHA256).toBe(PINNED_V2_SHA256);
+  });
+
   it("pins the instruction text and the closed answer schema", () => {
-    expect(createHash("sha256").update(CORRESPONDENCE_INSTRUCTIONS_V1).digest("hex")).toBe(
-      CORRESPONDENCE_INSTRUCTIONS_V1_SHA256,
+    expect(createHash("sha256").update(CORRESPONDENCE_INSTRUCTIONS_V2).digest("hex")).toBe(
+      CORRESPONDENCE_INSTRUCTIONS_V2_SHA256,
     );
     expect(CORRESPONDENCE_OUTPUT_SCHEMA.required).toEqual([
       "packetDigest",
@@ -230,7 +319,7 @@ describe("protocol", () => {
   it("puts the packet last and verbatim, after the digest", () => {
     const bytes = JSON.stringify(packet(1));
     const input = correspondenceInput(bytes, digest(bytes));
-    expect(input.startsWith(CORRESPONDENCE_INSTRUCTIONS_V1)).toBe(true);
+    expect(input.startsWith(CORRESPONDENCE_INSTRUCTIONS_V2)).toBe(true);
     expect(input).toContain(`Packet digest: ${digest(bytes)}`);
     // No trailing newline: the packet's last byte is the last byte of stdin.
     expect(input.endsWith(bytes)).toBe(true);
@@ -534,6 +623,16 @@ describe("emulated correspondence through the real dispatcher and journal", () =
     expect(again.invocations()).toBe(0);
   });
 
+  it("records an emulated hang as unknown when aborted, and keeps the controller", async () => {
+    const { prepared, dispatcher, invocations } = emulate(() => ({ kind: "hang" }));
+    const controller = new AbortController();
+    const pending = dispatcher.dispatch(request(prepared, 1), { signal: controller.signal });
+    setTimeout(() => controller.abort(), 50);
+    expect(await pending).toMatchObject({ kind: "unknown", reason: "invocation-unresolved" });
+    expect(await dispatcher.dispatch(request(prepared, 2))).toMatchObject({ kind: "busy" });
+    expect(invocations()).toBe(1);
+  });
+
   it("serves any thread with the helpdesk:thread:* wildcard", async () => {
     const plan = rawPlan();
     const prepared = prepareCorrespondencePlan({
@@ -669,17 +768,27 @@ describe("emulated correspondence through the real dispatcher and journal", () =
 });
 
 describe("owner window", () => {
-  const options = (prepared: PreparedCorrespondencePlan) => ({
+  const options = (
+    prepared: PreparedCorrespondencePlan,
+    stateFile = join(dir, "state.sqlite"),
+  ) => ({
     prepared,
-    stateFile: join(dir, "state.sqlite"),
+    stateFile,
     runtimeApprovalFile: join(dir, "approval.json"),
     deviceId: "yuri",
   });
-  const approve = (o: ReturnType<typeof options>, lengthMs = o.prepared.plan.limits.windowMs) =>
+  type ApprovalKind =
+    | "owner-approved-correspondence-window"
+    | "owner-approved-correspondence-qualification";
+  const approve = (
+    o: ReturnType<typeof options>,
+    lengthMs = o.prepared.plan.limits.windowMs,
+    kind: ApprovalKind = "owner-approved-correspondence-window",
+  ) =>
     writeFileSync(
       o.runtimeApprovalFile,
       JSON.stringify({
-        kind: "owner-approved-correspondence-window",
+        kind,
         planDigest: o.prepared.planDigest,
         windowId: "window-1",
         deviceId: "yuri",
@@ -690,15 +799,32 @@ describe("owner window", () => {
       }),
       { mode: 0o600 },
     );
+  const held = (o: ReturnType<typeof options>, hold: string) => ({
+    kind: "held",
+    planDigest: o.prepared.planDigest,
+    holds: [hold],
+  });
 
+  /** Paths whose ACL listing shows an entry, and an optional hook in front of process.kill. */
+  let aclPaths: string[], killHook: ((pid: number, sig?: string | number) => boolean) | undefined;
+  const defaultsCalls: string[][] = [];
   beforeEach(() => {
+    aclPaths = [];
+    killHook = undefined;
+    defaultsCalls.length = 0;
     vi.spyOn(Date, "now").mockReturnValue(1001);
     // The private-file checks are qualified for macOS only; simulate it on any host, as the
     // supervised suite does, so these tests assert the same holds on CI's Linux runner.
     vi.stubGlobal(
       "process",
       new Proxy(realProcess, {
-        get: (t, k) => (k === "platform" ? "darwin" : Reflect.get(t, k)),
+        get: (t, k) =>
+          k === "platform"
+            ? "darwin"
+            : k === "kill"
+              ? (pid: number, sig?: string | number) =>
+                  killHook?.(pid, sig) ?? realProcess.kill(pid, sig)
+              : Reflect.get(t, k),
       }),
     );
     vi.mocked(spawnSync).mockImplementation((file, args, opts) => {
@@ -708,26 +834,31 @@ describe("owner window", () => {
           output: [],
           status: 0,
           signal: null,
-          stdout: "drwx------ 1 f\n",
+          stdout: aclPaths.includes(String(args?.[1]))
+            ? "drwx------+ 1 f\n 0: user:other allow write\n"
+            : "drwx------ 1 f\n",
           stderr: "",
         };
+      if (file === "/usr/bin/defaults") {
+        defaultsCalls.push([...(args ?? [])]);
+        return {
+          pid: 0,
+          output: [],
+          status: 1,
+          signal: null,
+          stdout: "",
+          stderr: `Domain ${args?.[1]} does not exist\n`,
+        };
+      }
       return spawnOriginal(file, args, opts);
     });
   });
 
   it("holds without an approval, and with an approval of the wrong length", () => {
     const o = options(prepareCorrespondencePlan(rawPlan()));
-    expect(openCorrespondenceWindow(o)).toEqual({
-      kind: "held",
-      planDigest: o.prepared.planDigest,
-      holds: ["runtime-approval-missing"],
-    });
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "runtime-approval-missing"));
     approve(o, 1800000);
-    expect(openCorrespondenceWindow(o)).toEqual({
-      kind: "held",
-      planDigest: o.prepared.planDigest,
-      holds: ["runtime-approval-invalid"],
-    });
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "runtime-approval-invalid"));
   });
 
   it("refuses a canary approval kind", () => {
@@ -739,11 +870,7 @@ describe("owner window", () => {
       JSON.stringify({ ...approval, kind: "owner-approved-supervised-canary" }),
       { mode: 0o600 },
     );
-    expect(openCorrespondenceWindow(o)).toEqual({
-      kind: "held",
-      planDigest: o.prepared.planDigest,
-      holds: ["runtime-approval-invalid"],
-    });
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "runtime-approval-invalid"));
   });
 
   it("builds a fresh-session Claude command whose only tool is the output tool", () => {
@@ -775,16 +902,28 @@ describe("owner window", () => {
       | "no-call"
       | "no-output"
       | "text-only"
-      | "hang";
+      | "stream-event"
+      | "hidden-user-tool"
+      | "hang"
+      | "descendant"
+      | "reply-with-descendant"
+      | "slow-term"
+      | "overflow"
+      | "nonzero"
+      | "trailing";
     // No provider SDK, network or credentials: a local script that speaks Claude's stream-json the
     // way 2.1.308's --json-schema does: one StructuredOutput call whose input is structured_output.
-    const fake = (behavior: Behavior) => `
+    const fake = (behavior: Behavior, version = "2.1.286") => `
 const fs=require('node:fs'),cp=require('node:child_process');
-const args=process.argv.slice(2), behavior=${JSON.stringify(behavior)};
+const args=process.argv.slice(2), behavior=${JSON.stringify(behavior)}, version=${JSON.stringify(version)};
+const log=(f,x)=>fs.appendFileSync(${JSON.stringify(dir)}+'/'+f, JSON.stringify(x)+String.fromCharCode(10));
+if(args[0]==='--version'){log('probes','--version');console.log(version+' (Claude Code)');process.exit(0);}
+if(args[0]==='--help'){log('probes','--help');console.log('--safe-mode --setting-sources --tools --strict-mcp-config --session-id --json-schema --permission-prompts');process.exit(0);}
+const descendant=()=>cp.spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "descendant"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore'}).unref();
 let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
-  fs.appendFileSync(${JSON.stringify(join(dir, "launches"))}, JSON.stringify(args)+'\\n');
+  log('launches', args);
   fs.writeFileSync(${JSON.stringify(join(dir, "stdin"))}, data);
-  fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,
+  fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
     pgid:cp.execFileSync('ps',['-o','pgid=','-p',String(process.pid)],{encoding:'utf8'}).trim(),
     TMPDIR:process.env.TMPDIR}));
   const s=args[args.indexOf('--session-id')+1];
@@ -792,9 +931,15 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   const emit=m=>console.log(JSON.stringify(m));
   const answer={packetDigest:d,decision:'reply',reason:null,text:'Received.',needs:null,gaps:null};
   const tools=behavior==='tools-offered'?['StructuredOutput','Bash']:behavior==='no-tools'?[]:['StructuredOutput'];
-  emit({type:'system',subtype:'init',session_id:s,model:args[args.indexOf('--model')+1],tools,
+  emit({type:'system',subtype:'init',session_id:s,model:args[args.indexOf('--model')+1],claude_code_version:version,tools,
     mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],agents:[],skills:[],plugins:[]});
-  if(behavior==='hang'){setInterval(()=>{},1000);return;}
+  if(behavior==='descendant'||behavior==='slow-term') descendant();
+  if(behavior==='slow-term') process.on('SIGTERM',()=>setTimeout(()=>process.exit(0),1500));
+  if(behavior==='hang'||behavior==='descendant'||behavior==='slow-term'){setInterval(()=>{},1000);return;}
+  if(behavior==='overflow'){emit({type:'user',session_id:s,pad:'x'.repeat(300000)});setInterval(()=>{},1000);return;}
+  const rest=()=>{
+  if(behavior==='stream-event') emit({type:'stream_event',session_id:s,event:{type:'content_block_start',index:0,content_block:{type:'tool_use',name:'Bash',input:{}}}});
+  if(behavior==='hidden-user-tool') emit({type:'user',session_id:s,message:{content:[{type:'tool_result',content:[{type:'tool_use',name:'Bash',input:{command:'cat SECRET-TOKEN'}}]}]}});
   const call={type:'tool_use',id:'toolu_1',name:behavior==='tool'?'Bash':'StructuredOutput',
     input:behavior==='input-differs'?{...answer,text:'Other.'}:answer};
   if(behavior==='text-only') emit({type:'assistant',session_id:s,message:{content:[{type:'text',text:'Received.'}]}});
@@ -802,20 +947,43 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   if(behavior!=='no-call'&&behavior!=='text-only') emit({type:'user',session_id:s,message:{content:[{type:'tool_result',tool_use_id:'toolu_1',content:'ok'}]}});
   emit({type:'result',subtype:'success',session_id:s,is_error:false,
     ...(behavior==='no-output'||behavior==='text-only'?{}:{structured_output:answer})});
+  if(behavior==='trailing') process.stdout.write('{"type":"user"');
+  if(behavior==='nonzero') process.exitCode=3;
+  };
+  if(behavior!=='reply-with-descendant') return rest();
+  // Reply only once the descendant is running, so it is still alive when Claude exits.
+  descendant();
+  const wait=setInterval(()=>{ if(fs.existsSync(${JSON.stringify(join(dir, "descendant"))})){ clearInterval(wait); rest(); } },10);
 });`;
+    const fakeBinary = (behavior: Behavior, version = "2.1.286") =>
+      binary("claude-fixture", fake(behavior, version));
     function ready(behavior: Behavior, overrides: Record<string, unknown> = {}) {
       vi.mocked(checkNativeProfile).mockImplementation(() => {});
-      // The synthetic binary has no committed trace; the trace gate has its own tests.
-      vi.mocked(checkCorrespondenceQualification).mockImplementation(() => {});
-      const o = options(
-        prepareCorrespondencePlan(rawPlan(overrides, binary("claude-fixture", fake(behavior)))),
-      );
+      const bin = fakeBinary(behavior);
+      qualifyFake(bin);
+      const o = options(prepareCorrespondencePlan(rawPlan(overrides, bin)));
       approve(o);
       const opened = openCorrespondenceWindow(o);
       if (opened.kind !== "ready") throw Error("not ready: " + JSON.stringify(opened));
       open.push(opened.dispatcher);
       return { o, dispatcher: opened.dispatcher };
     }
+    const childInfo = () => JSON.parse(readFileSync(join(dir, "child"), "utf8"));
+    const alive = (pid: number) => {
+      try {
+        realProcess.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const until = async (ok: () => boolean, ms = 5000) => {
+      const end = realProcess.hrtime.bigint() + BigInt(ms) * 1000000n;
+      while (!ok()) {
+        if (realProcess.hrtime.bigint() > end) throw Error("fixture deadline");
+        await new Promise((r) => setTimeout(r, 20));
+      }
+    };
 
     it("runs a supervised turn on a new session and accepts the checked proposal", async () => {
       const { o, dispatcher } = ready("reply");
@@ -834,25 +1002,28 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       expect(dispatcher.status()).toMatchObject({ mode: "supervised", realProviderCalls: null });
     });
 
-    it("refuses a pinned version without a committed trace", () => {
+    it("refuses a pinned version only because its trace is missing", () => {
       vi.mocked(checkNativeProfile).mockImplementation(() => {});
-      for (const nativeVersion of ["2.1.286", "2.1.308"]) {
-        const bin = binary("claude-fixture", fake("reply"));
-        const plan = rawPlan({}, bin);
-        const o = options(
-          prepareCorrespondencePlan({
-            ...plan,
-            profiles: [{ ...plan.profiles[0], nativeVersion }],
-          }),
-        );
-        approve(o);
-        expect(openCorrespondenceWindow(o)).toEqual({
-          kind: "held",
-          planDigest: o.prepared.planDigest,
-          holds: ["native-profile-unqualified"],
-        });
-      }
+      const bin = fakeBinary("reply");
+      qualifyFake(bin);
+      const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+      approve(o);
+      // A valid binary hash and allowlist entry; only the committed trace is missing.
+      rmSync(join(allow.dir, "2.1.286.trace.json"));
+      expect(openCorrespondenceWindow(o)).toEqual(held(o, "native-profile-unqualified"));
+      qualifyFake(bin);
+      const opened = openCorrespondenceWindow(o);
+      expect(opened.kind).toBe("ready");
+      if (opened.kind === "ready") opened.dispatcher.close();
       expect(existsSync(join(dir, "launches"))).toBe(false);
+    });
+
+    it("refuses another binary for an allowlisted version", () => {
+      vi.mocked(checkNativeProfile).mockImplementation(() => {});
+      qualifyFake({ sha: "c".repeat(64) });
+      const o = options(prepareCorrespondencePlan(rawPlan({}, fakeBinary("reply"))));
+      approve(o);
+      expect(openCorrespondenceWindow(o)).toEqual(held(o, "native-profile-unqualified"));
     });
 
     it.each([
@@ -865,6 +1036,12 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       ["returns structured_output with no call", "no-call", "output-without-tool-call"],
       ["calls it with no structured_output", "no-output", "tool-call-without-output"],
       ["answers in text with no call", "text-only", "no-tool-call"],
+      // Codex review 1: a tool call outside the assistant message, then a valid call.
+      ["streams a Bash call in a stream_event", "stream-event", "unexpected-frame"],
+      ["hides a Bash call in a user frame", "hidden-user-tool", "tool-name-mismatch"],
+      ["overflows its output", "overflow", "output-overflow"],
+      ["exits nonzero after a valid answer", "nonzero", "exit-nonzero"],
+      ["leaves a partial line", "trailing", "trailing-output"],
     ] as const)(
       "treats a turn that %s as unknown, with no proposal and its reason journaled",
       async (_, behavior, reason) => {
@@ -879,14 +1056,78 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       },
     );
 
-    it("keeps Claude in the controller's process group, never detached", async () => {
+    // Codex review 2: descendants outlived the deadline.
+    it.each(["hang", "descendant"] as const)(
+      "stops a turn that does not finish (%s) at its deadline, with its whole process group",
+      async (behavior) => {
+        // One 60 s window, 700 ms from its end: the turn's limit is 700 ms.
+        const { o, dispatcher } = ready(behavior, {
+          limits: { topLevelTurns: 1, windowMs: 60000, requestTimeoutMs: 120000 },
+        });
+        vi.mocked(Date.now).mockReturnValue(61000 - 700);
+        expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+          kind: "unknown",
+        });
+        expect(dispatcher.turnRefusal("delivery-1")).toBe("deadline");
+        const child = childInfo();
+        expect(dispatcher.turnProcessGroup("delivery-1")).toBe(child.pid);
+        expect(alive(child.pid)).toBe(false);
+        if (behavior === "descendant")
+          expect(alive(Number(readFileSync(join(dir, "descendant"), "utf8")))).toBe(false);
+      },
+      15000,
+    );
+
+    // Claude review 4: a Claude that ignores SIGTERM, slow to exit, with a descendant that ignores
+    // SIGTERM. Both must be dead before the turn is reported stopped.
+    it("kills a slow Claude and its descendants before an aborted turn returns", async () => {
+      const { o, dispatcher } = ready("slow-term");
+      const controller = new AbortController();
+      const pending = dispatcher.dispatch(request(o.prepared, 1), { signal: controller.signal });
+      await until(() => existsSync(join(dir, "descendant")));
+      controller.abort();
+      expect(await pending).toMatchObject({ kind: "unknown" });
+      expect(dispatcher.turnRefusal("delivery-1")).toBe("aborted");
+      expect(alive(childInfo().pid)).toBe(false);
+      expect(alive(Number(readFileSync(join(dir, "descendant"), "utf8")))).toBe(false);
+    }, 15000);
+
+    it("records stop-unconfirmed when Claude's process group cannot be shown gone", async () => {
+      const { o, dispatcher } = ready("hang");
+      const controller = new AbortController();
+      const pending = dispatcher.dispatch(request(o.prepared, 1), { signal: controller.signal });
+      await until(() => existsSync(join(dir, "child")));
+      const child = childInfo();
+      // A stopped watchdog cannot confirm, and the group keeps answering the probe.
+      realProcess.kill(child.ppid, "SIGSTOP");
+      killHook = (pid, sig) =>
+        pid === -child.pid && (sig === 0 || sig === undefined) ? true : undefined!;
+      controller.abort();
+      expect(await pending).toMatchObject({ kind: "unknown" });
+      expect(dispatcher.turnRefusal("delivery-1")).toBe("stop-unconfirmed");
+      expect(dispatcher.turnProcessGroup("delivery-1")).toBe(child.pid);
+      killHook = undefined;
+      // The real group was still killed.
+      await until(() => !alive(child.pid));
+    }, 20000);
+
+    it("kills descendants left in Claude's group after a normal answer", async () => {
+      const { o, dispatcher } = ready("reply-with-descendant");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      expect(alive(Number(readFileSync(join(dir, "descendant"), "utf8")))).toBe(false);
+    }, 15000);
+
+    it("starts Claude in its own process group, under a watchdog in the controller's", async () => {
       const { o, dispatcher } = ready("reply");
       await dispatcher.dispatch(request(o.prepared, 1));
-      const child = JSON.parse(readFileSync(join(dir, "child"), "utf8"));
-      const own = execFileSync("ps", ["-o", "pgid=", "-p", String(realProcess.pid)], {
-        encoding: "utf8",
-      }).trim();
-      expect(child.pgid).toBe(own);
+      const child = childInfo();
+      const pgid = (pid: number) =>
+        execFileSync("ps", ["-o", "pgid=", "-p", String(pid)], { encoding: "utf8" }).trim();
+      expect(child.pgid).toBe(String(child.pid));
+      expect(child.pgid).not.toBe(pgid(realProcess.pid));
     });
 
     it("pins TMPDIR from the plan for the child instead of comparing it with the controller's", async () => {
@@ -898,95 +1139,197 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
         kind: "observed",
       });
-      expect(JSON.parse(readFileSync(join(dir, "child"), "utf8")).TMPDIR).toBe(pinned);
+      expect(childInfo().TMPDIR).toBe(pinned);
     });
 
-    it("holds a pinned TMPDIR that is missing or writable by others, and a different HOME", () => {
+    it("accepts a root-owned sticky TMPDIR such as /tmp", () => {
+      const sticky = realpathSync("/tmp");
+      expect(() =>
+        ready("reply", { environment: { HOME: home, CODEX_HOME: null, TMPDIR: sticky } }),
+      ).not.toThrow();
+    });
+
+    // Codex review 7 and Claude review 6: the pinned TMPDIR check was too loose.
+    it("holds a pinned TMPDIR that is unsafe in any way, and a different HOME", () => {
       vi.mocked(checkNativeProfile).mockImplementation(() => {});
-      vi.mocked(checkCorrespondenceQualification).mockImplementation(() => {});
-      const shared = join(dir, "shared-tmp");
-      mkdirSync(shared, { mode: 0o777 });
-      execFileSync("chmod", ["777", shared]);
+      const bin = fakeBinary("reply");
+      qualifyFake(bin);
+      const loose = join(dir, "loose-tmp"),
+        parent = join(dir, "shared"),
+        inShared = join(parent, "tmp"),
+        withAcl = join(dir, "acl-tmp"),
+        link = join(dir, "link-tmp");
+      mkdirSync(loose, { mode: 0o755 });
+      execFileSync("chmod", ["755", loose]);
+      mkdirSync(inShared, { recursive: true, mode: 0o700 });
+      execFileSync("chmod", ["777", parent]);
+      mkdirSync(withAcl, { mode: 0o700 });
+      aclPaths.push(withAcl);
+      symlinkSync(temporary, link);
       for (const environment of [
         { HOME: home, CODEX_HOME: null, TMPDIR: join(dir, "missing") },
-        { HOME: home, CODEX_HOME: null, TMPDIR: shared },
+        { HOME: home, CODEX_HOME: null, TMPDIR: loose },
+        { HOME: home, CODEX_HOME: null, TMPDIR: inShared },
+        { HOME: home, CODEX_HOME: null, TMPDIR: withAcl },
+        { HOME: home, CODEX_HOME: null, TMPDIR: link },
+        { HOME: home, CODEX_HOME: null, TMPDIR: temporary + "/" },
         { HOME: join(dir, "other-home"), CODEX_HOME: null, TMPDIR: temporary },
       ]) {
-        const o = options(prepareCorrespondencePlan(rawPlan({ environment })));
+        const o = options(prepareCorrespondencePlan(rawPlan({ environment }, bin)));
         approve(o);
-        expect(openCorrespondenceWindow(o)).toEqual({
-          kind: "held",
-          planDigest: o.prepared.planDigest,
-          holds: ["environment-mismatch"],
-        });
+        expect([environment.TMPDIR, openCorrespondenceWindow(o)]).toEqual([
+          environment.TMPDIR,
+          held(o, "environment-mismatch"),
+        ]);
       }
     });
 
-    it("never opens a live window on an emulated journal, or the other way round", async () => {
-      const emulated = emulate(() => ({ kind: "failed" }));
-      emulated.dispatcher.close();
-      open.splice(0);
-      expect(() => ready("reply")).toThrow("journal-source-mismatch");
-      rmSync(join(dir, "state.sqlite"));
-      const live = ready("reply");
-      live.dispatcher.close();
-      open.splice(0);
-      expect(() => emulate(() => ({ kind: "failed" }))).toThrow("journal-source-mismatch");
+    describe("journals", () => {
+      const fileHash = (path: string) => sha(readFileSync(path));
+
+      it("holds a live window on an emulated journal, and refuses the other way round", async () => {
+        const emulated = emulate(() => ({ kind: "failed" }));
+        await emulated.dispatcher.dispatch(request(emulated.prepared, 1));
+        emulated.dispatcher.close();
+        open.splice(0);
+        const before = fileHash(join(dir, "state.sqlite"));
+        vi.mocked(checkNativeProfile).mockImplementation(() => {});
+        const bin = fakeBinary("reply");
+        qualifyFake(bin);
+        const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+        approve(o);
+        expect(openCorrespondenceWindow(o)).toEqual(held(o, "journal-source-mismatch"));
+        expect(fileHash(join(dir, "state.sqlite"))).toBe(before);
+        rmSync(join(dir, "state.sqlite"));
+        const live = ready("reply");
+        await live.dispatcher.dispatch(request(live.o.prepared, 1));
+        live.dispatcher.close();
+        open.splice(0);
+        const liveBefore = fileHash(join(dir, "state.sqlite"));
+        expect(() => emulate(() => ({ kind: "failed" }))).toThrow("journal-source-mismatch");
+        expect(fileHash(join(dir, "state.sqlite"))).toBe(liveBefore);
+      });
+
+      // Codex review 6: the public openDispatcher skipped the journal-source check.
+      it("refuses the public qualification dispatcher on a live journal, unchanged", async () => {
+        const live = ready("reply");
+        await live.dispatcher.dispatch(request(live.o.prepared, 1));
+        live.dispatcher.close();
+        open.splice(0);
+        const before = fileHash(join(dir, "state.sqlite"));
+        expect(() =>
+          openDispatcher({
+            stateFile: join(dir, "state.sqlite"),
+            transport: createQualificationTransport(),
+            bindings: [],
+            grants: [],
+            profiles: [],
+          }),
+        ).toThrow("journal-source-mismatch");
+        expect(fileHash(join(dir, "state.sqlite"))).toBe(before);
+      });
+
+      it("holds an unmarked journal with rows, like 0.4.0's, and reviews it read-only", async () => {
+        const first = emulate(() => ({ kind: "lost" }));
+        const lost = await first.dispatcher.dispatch(request(first.prepared, 1));
+        first.dispatcher.close();
+        open.splice(0);
+        const db = new DatabaseSync(join(dir, "state.sqlite"));
+        db.exec("DROP TABLE journal_source; DROP TABLE turn_refusals;");
+        db.close();
+        const before = fileHash(join(dir, "state.sqlite"));
+        vi.mocked(checkNativeProfile).mockImplementation(() => {});
+        const bin = fakeBinary("reply");
+        qualifyFake(bin);
+        const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+        approve(o);
+        expect(openCorrespondenceWindow(o)).toEqual(held(o, "journal-source-mismatch"));
+        expect(reviewCorrespondenceJournal(join(dir, "state.sqlite"))).toEqual({
+          source: "unmarked",
+          reservations: 1,
+          unresolved: [
+            {
+              deliveryId: "delivery-1",
+              dispatchId: lost.kind === "unknown" ? lost.dispatchId : "",
+              nativeSessionId: lost.kind === "unknown" ? lost.nativeSessionId : "",
+              state: "unknown",
+              admittedAtMs: 1000,
+              refusal: null,
+              processGroup: null,
+            },
+          ],
+        });
+        expect(fileHash(join(dir, "state.sqlite"))).toBe(before);
+      });
+
+      it("will not review a journal a listener holds", () => {
+        const live = ready("reply");
+        expect(() => reviewCorrespondenceJournal(live.o.stateFile)).toThrow(
+          "dispatcher-already-open",
+        );
+      });
     });
 
     describe("qualification", () => {
+      const qualificationFile = () => join(dir, "qualification.sqlite");
       function prepared(behavior: Behavior, nativeVersion = "2.1.308") {
-        vi.mocked(checkNativeProfile).mockImplementation(() => {});
-        const plan = rawPlan({}, binary("claude-fixture", fake(behavior)));
-        const o = options(
-          prepareCorrespondencePlan({
+        const plan = rawPlan({}, fakeBinary(behavior, nativeVersion));
+        return options(
+          prepareCorrespondenceQualificationPlan({
             ...plan,
             profiles: [{ ...plan.profiles[0], nativeVersion }],
           }),
+          qualificationFile(),
         );
-        return o;
       }
-
-      it("refuses to run without a valid approval, and writes nothing", async () => {
-        const o = prepared("reply");
-        expect(
-          await qualifyClaudeCorrespondence({
-            prepared: o.prepared,
-            runtimeApprovalFile: o.runtimeApprovalFile,
-            deviceId: "yuri",
-          }),
-        ).toEqual({
-          kind: "held",
-          planDigest: o.prepared.planDigest,
-          holds: ["runtime-approval-missing"],
-        });
-        approve(o, 1800000);
-        expect(
-          await qualifyClaudeCorrespondence({
-            prepared: o.prepared,
-            runtimeApprovalFile: o.runtimeApprovalFile,
-            deviceId: "yuri",
-          }),
-        ).toMatchObject({ kind: "held", holds: ["runtime-approval-invalid"] });
-        expect(existsSync(join(dir, "launches"))).toBe(false);
-        expect(existsSync(o.stateFile)).toBe(false);
-      });
-
-      it("records exactly one turn on the fixed packet, bypassing only the trace gate", async () => {
-        const o = prepared("reply");
-        approve(o);
-        const approvalBefore = readFileSync(o.runtimeApprovalFile, "utf8");
-        // A duty window on this unqualified version is held...
-        expect(openCorrespondenceWindow(o)).toMatchObject({
-          kind: "held",
-          holds: ["native-profile-unqualified"],
-        });
-        // ...while qualification records its one fixed-packet turn.
-        const result = await qualifyClaudeCorrespondence({
+      const qualify = (o: ReturnType<typeof options>) =>
+        qualifyClaudeCorrespondence({
           prepared: o.prepared,
           runtimeApprovalFile: o.runtimeApprovalFile,
           deviceId: "yuri",
         });
+      const approveQualification = (o: ReturnType<typeof options>) =>
+        approve(o, 600000, "owner-approved-correspondence-qualification");
+
+      it("refuses to run without a valid qualification approval, and writes nothing", async () => {
+        const o = prepared("reply");
+        expect(await qualify(o)).toEqual(held(o, "runtime-approval-missing"));
+        // A duty approval never authorises qualification.
+        approve(o, 600000, "owner-approved-correspondence-window");
+        expect(await qualify(o)).toEqual(held(o, "runtime-approval-invalid"));
+        approve(o, 1800001, "owner-approved-correspondence-qualification");
+        expect(await qualify(o)).toEqual(held(o, "runtime-approval-invalid"));
+        expect(existsSync(join(dir, "launches"))).toBe(false);
+        expect(existsSync(o.stateFile)).toBe(false);
+      });
+
+      it("never lets a qualification plan or approval open a duty window", () => {
+        const o = prepared("reply");
+        approveQualification(o);
+        expect(() => openCorrespondenceWindow(o)).toThrow("correspondence-plan-changed");
+        const duty = options(prepareCorrespondencePlan(rawPlan({}, fakeBinary("reply"))));
+        approve(duty, 600000, "owner-approved-correspondence-qualification");
+        expect(openCorrespondenceWindow(duty)).toEqual(held(duty, "runtime-approval-invalid"));
+      });
+
+      it("refuses a duty plan for qualification", async () => {
+        const duty = options(prepareCorrespondencePlan(rawPlan({}, fakeBinary("reply"))));
+        await expect(
+          qualifyClaudeCorrespondence({
+            prepared: duty.prepared,
+            runtimeApprovalFile: duty.runtimeApprovalFile,
+            deviceId: "yuri",
+          }),
+        ).rejects.toThrow("correspondence-plan-changed");
+      });
+
+      // Claude reviews 8/9, Codex 8: the bypass must keep the version, help and policy checks.
+      it("records exactly one turn on the fixed packet, bypassing only the trace gate", async () => {
+        // 2.1.308 is not allowlisted here, and checkNativeProfile is the real one.
+        const o = prepared("reply");
+        approveQualification(o);
+        const approvalBefore = readFileSync(o.runtimeApprovalFile, "utf8");
+        const result = await qualify(o);
         if (result.kind !== "ran") throw Error("not run: " + JSON.stringify(result));
         expect(result.verdict).toBe("accepted");
         expect(result.turnRefusal).toBeUndefined();
@@ -994,10 +1337,17 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         expect(result.nativeVersion).toBe("2.1.308");
         expect(result.disposition).toMatchObject({ kind: "observed", outcome: "completed" });
         expect(result.traceSHA256).toBe(digest(result.traceText));
-        expect(checkCorrespondenceTraceBytes(result.traceText)).toBeUndefined();
-        expect(result.traceText).not.toContain(
-          result.disposition.kind === "observed" ? result.disposition.nativeSessionId : "-",
-        );
+        expect(
+          checkCorrespondenceTraceBytes(result.traceText, {
+            model: "claude-model",
+            nativeVersion: "2.1.308",
+          }),
+        ).toBeUndefined();
+        expect(result.traceText).toContain('"claude_code_version": "2.1.308"');
+        // The real static checks ran: version, help and managed policy.
+        const probes = readFileSync(join(dir, "probes"), "utf8").trim().split("\n");
+        expect(probes).toEqual(expect.arrayContaining(['"--version"', '"--help"']));
+        expect(defaultsCalls).toContainEqual(["read", "com.anthropic.claudecode"]);
         expect(readFileSync(join(dir, "launches"), "utf8").trim().split("\n")).toHaveLength(1);
         expect(readFileSync(join(dir, "stdin"), "utf8")).toBe(
           correspondenceInput(
@@ -1006,34 +1356,134 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
           ),
         );
         expect(readFileSync(o.runtimeApprovalFile, "utf8")).toBe(approvalBefore);
+        // Its own journal, budget of one: a second run starts no turn.
+        expect(reviewCorrespondenceJournal(o.stateFile)).toMatchObject({
+          source: "qualification",
+          reservations: 1,
+          unresolved: [],
+        });
+        expect(await qualify(o)).toMatchObject({
+          kind: "not-run",
+          disposition: { kind: "refused", reason: "budget-exhausted" },
+        });
       });
 
-      it("reports a refused trace with the checker's reason", async () => {
+      it("still holds when the binary reports another version", async () => {
+        const plan = rawPlan({}, fakeBinary("reply", "2.1.286"));
+        const o = options(
+          prepareCorrespondenceQualificationPlan({
+            ...plan,
+            profiles: [{ ...plan.profiles[0], nativeVersion: "2.1.308" }],
+          }),
+          qualificationFile(),
+        );
+        approveQualification(o);
+        expect(await qualify(o)).toEqual(held(o, "native-profile-unqualified"));
+        expect(existsSync(join(dir, "launches"))).toBe(false);
+      });
+
+      it.each([
+        ["calls the output tool twice", "second-call", "tool-second-call"],
+        ["streams a Bash call in a stream_event", "stream-event", "unexpected-frame"],
+        ["hides a Bash call in a user frame", "hidden-user-tool", "tool-name-mismatch"],
+      ] as const)(
+        "reports a turn that %s as refused, with no tool input in the trace",
+        async (_, behavior, reason) => {
+          const o = prepared(behavior);
+          approveQualification(o);
+          const result = await qualify(o);
+          expect(result).toMatchObject({
+            kind: "ran",
+            turnRefusal: reason,
+            replayRefusal: reason,
+            verdict: { refused: reason },
+          });
+          if (result.kind !== "ran") return;
+          for (const leaked of ["SECRET-TOKEN", "Received.", '"input"', 'structured_output": {'])
+            expect(result.traceText).not.toContain(leaked);
+        },
+      );
+
+      // Claude review 3: a failed qualification blocked the duty journal for good.
+      it("leaves a failed qualification only in its own journal", async () => {
         const o = prepared("second-call");
+        approveQualification(o);
+        await qualify(o);
+        expect(reviewCorrespondenceJournal(o.stateFile)).toMatchObject({
+          source: "qualification",
+          reservations: 1,
+          unresolved: [{ state: "unknown", refusal: "tool-second-call" }],
+        });
+        // A duty window on the qualification journal is held; a duty journal is unaffected.
+        const bin = fakeBinary("reply");
+        qualifyFake(bin);
+        vi.mocked(checkNativeProfile).mockImplementation(() => {});
+        const onQualification = options(prepareCorrespondencePlan(rawPlan({}, bin)), o.stateFile);
+        approve(onQualification);
+        expect(openCorrespondenceWindow(onQualification)).toEqual(
+          held(onQualification, "journal-source-mismatch"),
+        );
+        const duty = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+        approve(duty);
+        const opened = openCorrespondenceWindow(duty);
+        expect(opened.kind).toBe("ready");
+        if (opened.kind === "ready") opened.dispatcher.close();
+      });
+    });
+
+    // Codex review 5: a new Claude version needed code, not only data.
+    describe("a new Claude version", () => {
+      it("is usable for duty with one allowlist entry and its trace, and nothing else", async () => {
+        const bin = fakeBinary("reply", "9.9.9");
+        const plan = rawPlan({}, bin);
+        const raw = { ...plan, profiles: [{ ...plan.profiles[0], nativeVersion: "9.9.9" }] };
+        expect(() => prepareCorrespondencePlan(raw)).toThrow("unqualified-profile");
+        qualifyFake(bin, "9.9.9");
+        const o = options(prepareCorrespondencePlan(raw));
         approve(o);
-        const result = await qualifyClaudeCorrespondence({
-          prepared: o.prepared,
-          runtimeApprovalFile: o.runtimeApprovalFile,
-          deviceId: "yuri",
+        // The real static checks, against the binary's own --version.
+        const opened = openCorrespondenceWindow(o);
+        if (opened.kind !== "ready") throw Error("not ready: " + JSON.stringify(opened));
+        open.push(opened.dispatcher);
+        expect(await opened.dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+          kind: "observed",
+          outcome: "completed",
         });
-        expect(result).toMatchObject({
-          kind: "ran",
-          turnRefusal: "tool-second-call",
-          replayRefusal: "tool-second-call",
-          verdict: { refused: "tool-second-call" },
-        });
+        expect(opened.dispatcher.agentProposal("delivery-1")?.source).toBe("supervised-native");
+      });
+
+      it("can be qualified before it is listed", async () => {
+        const plan = rawPlan({}, fakeBinary("reply", "9.9.8"));
+        const raw = { ...plan, profiles: [{ ...plan.profiles[0], nativeVersion: "9.9.8" }] };
+        expect(() => prepareCorrespondencePlan(raw)).toThrow("unqualified-profile");
+        const o = options(prepareCorrespondenceQualificationPlan(raw), join(dir, "q.sqlite"));
+        approve(o, 600000, "owner-approved-correspondence-qualification");
+        expect(
+          await qualifyClaudeCorrespondence({
+            prepared: o.prepared,
+            runtimeApprovalFile: o.runtimeApprovalFile,
+            deviceId: "yuri",
+          }),
+        ).toMatchObject({ kind: "ran", nativeVersion: "9.9.8", verdict: "accepted" });
       });
     });
   });
 
   describe("watchdog", () => {
-    const sleeper = () => {
-      const pidFile = join(dir, "sleeper.pid");
+    const sleeper = (withDescendant = false) => {
+      const pidFile = join(dir, "sleeper.pid"),
+        descendantFile = join(dir, "sleeper-descendant.pid");
       const { bin } = binary(
         "sleeper",
-        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); setInterval(()=>{},1000);`,
+        `const fs=require('node:fs');fs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+${
+  withDescendant
+    ? `require('node:child_process').spawn(process.execPath,['-e',"process.on('SIGTERM',()=>{});require('fs').writeFileSync(${JSON.stringify(JSON.stringify(descendantFile)).slice(1, -1)},String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore'});`
+    : ""
+}
+setInterval(()=>{},1000);`,
       );
-      return { bin, pidFile };
+      return { bin, pidFile, descendantFile };
     };
     const alive = (pid: number) => {
       try {
@@ -1051,28 +1501,54 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       }
     };
 
-    it("kills the child at its wall-clock deadline", async () => {
-      const { bin, pidFile } = sleeper();
-      const watchdog = spawn(realProcess.execPath, correspondenceWatchdogArgs(400, bin, []), {
-        stdio: ["pipe", "ignore", "ignore"],
-      });
+    it("kills the child and its descendants at its wall-clock deadline", async () => {
+      const { bin, pidFile, descendantFile } = sleeper(true);
+      const watchdog = spawn(
+        realProcess.execPath,
+        correspondenceWatchdogArgs(realProcess.pid, 600, bin, []),
+        { stdio: ["pipe", "ignore", "ignore"] },
+      );
       const code = await new Promise<number | null>((r) => watchdog.once("exit", r));
       expect(code).toBe(124);
-      const pid = Number(readFileSync(pidFile, "utf8"));
-      await until(() => !alive(pid));
-    });
+      // The watchdog exits only once the whole group is gone.
+      expect(alive(Number(readFileSync(pidFile, "utf8")))).toBe(false);
+      expect(alive(Number(readFileSync(descendantFile, "utf8")))).toBe(false);
+    }, 10000);
 
     it("kills the child when its controller dies without cleaning up", async () => {
       const { bin, pidFile } = sleeper();
       // A throwaway controller starts the watchdog, waits for the child, then SIGKILLs itself.
       const controller = `
 const {spawn}=require('node:child_process'),fs=require('node:fs');
-spawn(process.execPath, ${JSON.stringify(correspondenceWatchdogArgs(60000, bin, []))}, {stdio:['pipe','ignore','ignore']});
+spawn(process.execPath, ['-e', ${JSON.stringify(CORRESPONDENCE_WATCHDOG_SOURCE)}, '--', String(process.pid), '60000', ${JSON.stringify(bin)}], {stdio:['pipe','ignore','ignore']});
 const t=setInterval(()=>{ if(fs.existsSync(${JSON.stringify(pidFile)})){ clearInterval(t); process.kill(process.pid,'SIGKILL'); } },20);`;
       const parent = spawn(realProcess.execPath, ["-e", controller], { stdio: "ignore" });
       await new Promise((r) => parent.once("exit", r));
       const pid = Number(readFileSync(pidFile, "utf8"));
-      await until(() => !alive(pid), 3000);
+      await until(() => !alive(pid), 4000);
+    }, 10000);
+
+    // Codex review 3: the watchdog could adopt the wrong parent.
+    it("never starts Claude when its controller is already gone", async () => {
+      const { bin, pidFile } = sleeper();
+      const controller = `
+require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(CORRESPONDENCE_WATCHDOG_SOURCE)}, '--', String(process.pid), '60000', ${JSON.stringify(bin)}], {stdio:['pipe','ignore','ignore'], detached: false}).unref();
+process.exit(0);`;
+      const parent = spawn(realProcess.execPath, ["-e", controller], { stdio: "ignore" });
+      await new Promise((r) => parent.once("exit", r));
+      await new Promise((r) => setTimeout(r, 1500));
+      expect(existsSync(pidFile)).toBe(false);
+    }, 10000);
+
+    it("refuses to start under a parent other than the one it was given", async () => {
+      const { bin, pidFile } = sleeper();
+      const watchdog = spawn(
+        realProcess.execPath,
+        correspondenceWatchdogArgs(realProcess.pid + 100000, 60000, bin, []),
+        { stdio: ["pipe", "ignore", "ignore"] },
+      );
+      expect(await new Promise((r) => watchdog.once("exit", r))).toBe(122);
+      expect(existsSync(pidFile)).toBe(false);
     });
   });
 });
