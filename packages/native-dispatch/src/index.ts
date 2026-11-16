@@ -89,6 +89,7 @@ export {
   CORRESPONDENCE_TRACE_FORMAT,
   createCorrespondenceFrameChecker,
   replayCorrespondenceTrace,
+  replayEmulatedCorrespondenceTrace,
   serializeCorrespondenceTrace,
   traceFromFrames,
 } from "./correspondence-frames.js";
@@ -123,6 +124,8 @@ export {
   correspondenceWatchdogArgs,
   createCorrespondenceFrameEmulator,
   spawnCorrespondenceWatchdog,
+  findTurnProcesses,
+  CORRESPONDENCE_TURN_MARKER,
   CORRESPONDENCE_WATCHDOG_SOURCE,
 } from "./correspondence-native.js";
 export type {
