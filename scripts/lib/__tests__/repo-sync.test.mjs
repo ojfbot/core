@@ -155,6 +155,20 @@ describe('syncMain', () => {
     expect(sha(clone, 'main')).toBe(before);
   });
 
+  it('checks a filtered first filename with leading whitespace exactly', () => {
+    commit(upstream, '.gitattributes', '" lead.bin" filter=lfs\n', 'attrs');
+    g(clone, 'pull', '-q', '--ff-only');
+    commit(upstream, ' lead.bin', 'pointer\n', 'adds filtered file with leading space');
+    const r = syncMain(clone);
+    expect(r.action).toBe('skipped-filtered-paths');
+  });
+
+  it('treats a filter driver literally named unset as filtered', () => {
+    g(clone, 'config', 'filter.unset.smudge', 'cat');
+    commit(upstream, 'a.txt', 'two\n', 'c2');
+    expect(syncMain(clone).action).toBe('skipped-filtered-paths');
+  });
+
   it('reports local-ahead without moving anything', () => {
     commit(clone, 'local.txt', 'l\n', 'local only');
     const r = syncMain(clone);
@@ -181,7 +195,9 @@ describe('repo-sync CLI', () => {
     { env: ENV, encoding: 'utf8' });
   // Hold a kernel flock the way a concurrent run would, until the returned function kills it.
   const hold = (file) => {
-    const p = spawn('/usr/bin/lockf', ['-k', '-t', '0', file, '/bin/sleep', '30'], { stdio: 'ignore' });
+    const p = spawn('python3', ['-c',
+      'import fcntl,os,sys,time; fd=os.open(sys.argv[1],os.O_RDWR|os.O_CREAT,0o600); fcntl.flock(fd,fcntl.LOCK_EX); time.sleep(30)',
+      file], { stdio: 'ignore' });
     execFileSync('/bin/sleep', ['0.5']);
     return () => { p.kill('SIGKILL'); execFileSync('/bin/sleep', ['0.3']); };
   };
@@ -214,6 +230,14 @@ describe('repo-sync CLI', () => {
     } finally {
       release();
     }
+  });
+
+  it('does not contend with itself when given two worktrees of one repository', () => {
+    const wt = path.join(tmp, 'wt-dup');
+    g(clone, 'worktree', 'add', '-q', '-b', 'dup', wt);
+    const r = spawnSync(process.execPath, [CLI, '--repo', clone, '--repo', wt, '--state-dir', path.join(tmp, 'state'), '--no-fetch'],
+      { env: ENV, encoding: 'utf8' });
+    expect(r.status).toBe(0);
   });
 
   it('writes reports owner-only (0600) in a 0700 state dir', () => {
@@ -268,5 +292,6 @@ describe('redact', () => {
   it('redacts quoted values, lowercase bearer and short basic values', () => {
     const t = redact(`token="q1w2e3" password='pw9' authorization: bearer abc basic dXM6cA==`);
     expect(t).not.toMatch(/q1w2e3|pw9|abc\b|dXM6cA/);
+    expect(redact('password="CANARY HAS SPACES" token=\'a&b c\'')).not.toMatch(/CANARY|HAS|SPACES|a&b/);
   });
 });

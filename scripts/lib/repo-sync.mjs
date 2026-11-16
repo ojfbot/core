@@ -26,13 +26,13 @@ const WRITE_CONFIG = ['-c', 'core.hooksPath=/dev/null', '-c', 'gc.auto=0', '-c',
 // worktree, and with hooks disabled nothing external can hang them.
 const WRITE_TIMEOUT_MS = 0;
 
-export function git(cwd, args, { timeoutMs = 60_000, readOnly = true, input } = {}) {
+export function git(cwd, args, { timeoutMs = 60_000, readOnly = true, input, raw = false } = {}) {
   const full = readOnly ? ['--no-optional-locks', '-c', 'core.fsmonitor=false', ...args] : [...WRITE_CONFIG, ...args];
   const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs || undefined, input });
   return {
     ok: r.status === 0,
     code: r.status,
-    out: (r.stdout || '').trim(),
+    out: raw ? (r.stdout || '') : (r.stdout || '').trim(),
     err: redact((r.stderr || '').trim() || (r.error ? String(r.error.message) : '')),
   };
 }
@@ -42,7 +42,7 @@ export function redact(text) {
   const line = String(text).split('\n').find(Boolean) || '';
   return line
     .replace(/(\w+:\/\/)[^/@\s]+@/g, '$1***@')
-    .replace(/((?:access_|private_|auth_)?(?:token|password|passwd|pwd|secret|api_?key|key|auth|signature|sig|credential)s?\s*[=:]\s*)(["']?)[^\s"'&]*\2/gi, '$1$2***$2')
+    .replace(/((?:access_|private_|auth_)?(?:token|password|passwd|pwd|secret|api_?key|key|auth|signature|sig|credential)s?\s*[=:]\s*)(?:"[^"]*"?|'[^']*'?|[^\s&"']*)/gi, '$1***')
     .replace(/\b(bearer|basic|token)\s+["']?[^\s"']+["']?/gi, '$1 ***')
     .replace(/\b(gh[pousr]_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,})\b/g, '***')
     .slice(0, 300);
@@ -132,13 +132,18 @@ export function branchBusyElsewhere(worktrees, branch) {
 
 /** true if any path changed between a and b has a filter attribute; null if it can't be told. */
 export function changedPathsUseFilter(worktreePath, a, b) {
-  const d = git(worktreePath, ['diff', '--name-only', '-z', '--no-renames', a, b]);
+  // check-attr prints a driver literally named "unset"/"unspecified" the same as the special
+  // states, so a repository that defines such a driver is treated as filtered outright.
+  const odd = git(worktreePath, ['config', '--get-regexp', '^filter\\.(unset|unspecified)\\.']);
+  if (odd.ok && odd.out) return true;
+  // raw: trimming NUL-delimited output would eat leading whitespace in the first filename.
+  const d = git(worktreePath, ['diff', '--name-only', '-z', '--no-renames', a, b], { raw: true });
   if (!d.ok) return null;
   if (!d.out) return false;
   for (const source of [null, b]) {
     const args = ['check-attr', '-z', '--stdin', 'filter'];
     if (source) args.splice(1, 0, `--source=${source}`);
-    const r = git(worktreePath, args, { input: d.out });
+    const r = git(worktreePath, args, { input: d.out, raw: true });
     if (!r.ok) return null;
     const parts = r.out.split('\0');
     for (let i = 2; i < parts.length; i += 3) {

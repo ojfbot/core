@@ -14,12 +14,12 @@
  *   --no-fetch   skip `git fetch` (report against the remote-tracking refs already present)
  *   --json       print the JSON result to stdout instead of the markdown summary
  *
- * Locking: kernel flock locks via /usr/bin/lockf (see runUnderLocks). Exit 0 unless arguments
+ * Locking: flock(2) locks held by the worker process itself (see execUnderLocks). Exit 0 unless arguments
  * are invalid (2) or another run holds a lock (3):
  * a sync report never blocks anything.
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, chmodSync, existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, chmodSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -45,20 +45,36 @@ function repoLockPath(repo) {
   return common.ok ? path.join(common.out, 'repo-sync.flock') : null;
 }
 
+// Takes every lock with flock(2) on a file descriptor, then exec()s this script in the same
+// process. The descriptors stay open across exec, so the locks live exactly as long as the
+// worker itself: no supervisor process exists whose death could free a lock early, and the
+// kernel releases them when the worker exits or is killed. Exit 75 if any lock is held.
+const FLOCK_EXEC = `
+import fcntl, os, sys
+n = int(sys.argv[1])
+locks, cmd = sys.argv[2:2 + n], sys.argv[2 + n:]
+for f in locks:
+    fd = os.open(f, os.O_RDWR | os.O_CREAT, 0o600)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit(75)
+    os.set_inheritable(fd, True)
+os.execv(cmd[0], cmd)
+`;
+
 /**
- * Locks are kernel flock(2) locks taken by /usr/bin/lockf around a re-exec of this script: one
- * on <state-dir>/run.flock (serializes whole runs, report publication included) and one per
- * repository on <git-common-dir>/repo-sync.flock (keeps runs with different state dirs off the
- * same repository). The kernel releases them when the process exits or is killed, so there is
- * no stale-lock state to reclaim. lockf exits 75 when a lock is held: reported as exit 3.
+ * One lock on <state-dir>/run.flock (serializes whole runs, report publication included) and one
+ * per distinct repository on <git-common-dir>/repo-sync.flock (keeps runs with different state
+ * dirs off the same repository). Lock paths are de-duplicated, so two worktrees of one repository
+ * never contend with each other.
  */
-function runUnderLocks(lockFiles) {
-  const LOCKF = '/usr/bin/lockf';
-  if (!existsSync(LOCKF)) { console.error('repo-sync: /usr/bin/lockf not found (macOS only)'); process.exit(2); }
-  const argv = [];
-  for (const f of lockFiles) argv.push(LOCKF, '-k', '-t', '0', f);
-  argv.push(process.execPath, fileURLToPath(import.meta.url), ...process.argv.slice(2));
-  const r = spawnSync(argv[0], argv.slice(1), { stdio: 'inherit', env: { ...process.env, REPO_SYNC_LOCKED: '1' } });
+function execUnderLocks(lockFiles) {
+  const unique = [...new Set(lockFiles)];
+  const cmd = [process.execPath, fileURLToPath(import.meta.url), ...process.argv.slice(2)];
+  const r = spawnSync('python3', ['-c', FLOCK_EXEC, String(unique.length), ...unique, ...cmd],
+    { stdio: 'inherit', env: { ...process.env, REPO_SYNC_LOCKED: '1' } });
+  if (r.error) { console.error(`repo-sync: cannot take locks (${r.error.message})`); process.exit(2); }
   if (r.status === 75) { console.error('repo-sync: another run holds a lock; skipping'); process.exit(3); }
   process.exit(r.status ?? 1);
 }
@@ -88,7 +104,7 @@ if (process.env.REPO_SYNC_LOCKED !== '1') {
     if (!l) { console.error(`repo-sync: ${repo} is not a git repository`); process.exit(2); }
     locks.push(l);
   }
-  runUnderLocks(locks);
+  execUnderLocks(locks);
 }
 
 const results = repos.map((repo) => runRepoSync(repo, { fetch: args.fetch }));
