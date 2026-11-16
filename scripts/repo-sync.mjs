@@ -17,14 +17,14 @@
  * Exit 0 always unless arguments are invalid or another run holds the lock (exit 3):
  * a sync report never blocks anything.
  */
-import { appendFileSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { git, renderMarkdown, runRepoSync } from './lib/repo-sync.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const LOCK_STALE_MS = 10 * 60 * 1000;
+const LOCK_STALE_MS = 25 * 60 * 1000; // under the 30-min StartInterval, well over a normal ~2 s run
 
 function parseArgs(argv) {
   const a = { repos: [], stateDir: path.join(os.homedir(), '.claude', 'repo-sync'), fetch: true, json: false };
@@ -45,18 +45,30 @@ function defaultRepo() {
   return path.dirname(r.out);
 }
 
+/**
+ * mkdir lock holding an owner token. A lock older than LOCK_STALE_MS is taken over; release
+ * removes the lock only while it still holds this run's token, so a slow run that lost its
+ * lock can never delete the next run's.
+ */
 function acquireLock(dir) {
   const lock = path.join(dir, 'run.lock');
+  const token = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const owner = path.join(lock, 'owner');
+  const take = () => { mkdirSync(lock); writeFileSync(owner, token); };
   try {
-    mkdirSync(lock);
+    take();
   } catch {
     let age = 0;
     try { age = Date.now() - statSync(lock).mtimeMs; } catch { /* vanished */ }
     if (age < LOCK_STALE_MS) return null;
     rmSync(lock, { recursive: true, force: true });
-    try { mkdirSync(lock); } catch { return null; }
+    try { take(); } catch { return null; }
   }
-  return () => rmSync(lock, { recursive: true, force: true });
+  return () => {
+    let held = '';
+    try { held = readFileSync(owner, 'utf8'); } catch { return; }
+    if (held === token) rmSync(lock, { recursive: true, force: true });
+  };
 }
 
 function writeAtomic(file, body) {

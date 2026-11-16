@@ -16,15 +16,34 @@ Every 30 minutes, for the core repository (the main checkout, resolved through
    | Situation | Action |
    |---|---|
    | `main` not checked out in any worktree | ancestry check, then compare-and-swap `git update-ref` — no checkout |
-   | `main` checked out in a worktree | `git merge --ff-only` there; git refuses (reported `ff-refused`) rather than overwrite uncommitted edits |
-   | merge / rebase / cherry-pick / revert in progress in that worktree | skipped, reported |
+   | `main` checked out in a worktree with clean tracked files | `git merge --ff-only` there; git refuses (`ff-refused`) rather than overwrite an untracked file |
+   | `main` checked out in a worktree with uncommitted tracked edits | `skipped-dirty-worktree` — a session may be editing there, so the checkout is not raced |
+   | another worktree is rebasing or bisecting `main` (shows as detached HEAD) | `skipped-branch-in-rebase-or-bisect` — moving the ref would make that rebase fail to finish |
+   | merge / rebase / cherry-pick / revert in progress in the worktree holding `main` | skipped, reported |
    | local `main` has commits `origin/main` lacks | `diverged` or `local-ahead`, reported, nothing moved |
    | fetch fails (offline, auth) | `fetch-failed`, reported, exit 0 |
 2. **Report drift.** Every local branch: ahead/behind `origin/main`, ahead/behind its upstream,
    upstream gone. Every worktree: branch or detached, uncommitted-change count, in-progress op,
    prunable. Status reads use `--no-optional-locks`, so they never take another worktree's index lock.
 
-It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktrees.
+It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktrees. Fetch runs
+with `gc.auto=0` and `maintenance.auto=false`, because auto-gc would run `git worktree prune`.
+Local ref writes have no timeout (killing git mid-checkout is worse than a slow run). A token
+lock skips overlapping runs; a lock older than 25 min is taken over, and a run releases the lock
+only while it still holds it.
+
+### Known limits
+
+- The job runs `scripts/repo-sync.mjs` from the main checkout's **current branch**. If that
+  checkout is switched to a branch without the script, runs stop. launchd logs the error to
+  `~/.claude/repo-sync/launchd.err.log`, and liveness flags `runs.jsonl` silence after 36 h.
+- Code merged to `main` reaches each Mac's next run once `main` is fast-forwarded *and* checked
+  out there. That is the same trust boundary as pulling `main`: the PR review gate.
+- Between listing worktrees and `update-ref` there is a narrow window in which a session could
+  check `main` out. The compare-and-swap still keeps the ref consistent, but that worktree's tree
+  would lag its ref until its next `git status` shows it. Not closed in this slice.
+- The installer records the real node binary path (symlinks resolved; refuses fnm per-shell paths).
+  Uninstalling that node version breaks the job; re-run the installer after changing node.
 
 ## Where to see it
 
@@ -79,6 +98,7 @@ with a FleetRunner job and retire the connector.
 
 After this merges and is installed on Yojimbo, Yojimbo removes the `SessionStart` entry for
 `core-main-ff.sh` from its `~/.claude/settings.json` (and the script). The loop covers everything
-the hook did, and also fast-forwards `main` when it is not checked out. One behaviour is lost: the
-hook announced the result in each new Claude session's start message; the loop writes
-`latest.md` instead. That retirement is Yojimbo's change, requested on the addendum thread.
+the hook did, and also fast-forwards `main` when it is not checked out. Two behaviours change:
+the hook announced the result in each new Claude session's start message (the loop writes
+`latest.md` instead), and the hook fast-forwarded a checked-out `main` with non-overlapping
+uncommitted edits (the loop skips any checked-out `main` with uncommitted tracked edits and reports it). That retirement is Yojimbo's change, requested on the addendum thread.
