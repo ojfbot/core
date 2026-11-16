@@ -43,7 +43,10 @@ import {
 } from "../index.js";
 import { checkBinary, checkNativeProfile } from "../supervised-files.js";
 import { replaceCorrespondenceAllowlistForTesting } from "../testing.js";
-import { checkCorrespondenceQualification } from "../correspondence-qualification.js";
+import {
+  checkCorrespondenceQualification,
+  correspondenceBuiltins,
+} from "../correspondence-qualification.js";
 import type {
   CorrespondenceDispatcher,
   CorrespondenceEmulatorScript,
@@ -63,6 +66,8 @@ const allow = {
     binarySHA256: string;
     traceSHA256: string;
     trace: string;
+    builtinAgents: string[];
+    builtinPlugins: string[];
   }>,
   restore: () => {},
 };
@@ -79,6 +84,7 @@ vi.mock("../correspondence-qualification.js", async (importOriginal) => {
   return {
     ...actual,
     checkCorrespondenceQualification: vi.fn(actual.checkCorrespondenceQualification),
+    correspondenceBuiltins: vi.fn(actual.correspondenceBuiltins),
   };
 });
 vi.mock("../supervised-files.js", async (importOriginal) => {
@@ -94,11 +100,16 @@ const qualifyOriginal = vi.mocked(checkNativeProfile).getMockImplementation()!;
 const binaryOriginal = vi.mocked(checkBinary).getMockImplementation()!;
 const gateOriginal = vi.mocked(checkCorrespondenceQualification).getMockImplementation()!;
 /** The test-local gate stub: accepts only the fakes qualifyFake registered. */
-const stubGate = () =>
+const stubGate = () => {
   vi.mocked(checkCorrespondenceQualification).mockImplementation((profile, allowlist) => {
     if (stubbedFakes.has(fakeKey(profile))) return;
     return allowlist ? gateOriginal(profile, allowlist) : gateOriginal(profile);
   });
+  // The pinned built-ins a stubbed fake's (test-only) entry would carry.
+  vi.mocked(correspondenceBuiltins).mockImplementation((profile) =>
+    stubbedBuiltins.get(fakeKey(profile)),
+  );
+};
 const realProcess = process;
 // Vite 5 rewrites node:sqlite, so load the builtin directly, as the dispatcher does.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
@@ -131,6 +142,8 @@ beforeEach(() => {
     binarySHA256: "0".repeat(64),
     traceSHA256: "0".repeat(64),
     trace: "",
+    builtinAgents: [],
+    builtinPlugins: [],
   });
   applyAllowlist();
   stubGate();
@@ -145,6 +158,7 @@ afterEach(() => {
   allow.restore();
   allow.restore = () => {};
   stubbedFakes.clear();
+  stubbedBuiltins.clear();
   vi.restoreAllMocks();
   rmSync(dir, { recursive: true, force: true });
 });
@@ -155,13 +169,19 @@ afterEach(() => {
  * opens only through this test-local stub; every other profile goes to the real gate.
  */
 const stubbedFakes = new Set<string>();
+const stubbedBuiltins = new Map<string, { agents: string[]; plugins: string[] }>();
 const fakeKey = (p: { nativeVersion: string; binarySHA256: string; model: string }) =>
   `${p.nativeVersion} ${p.binarySHA256} ${p.model}`;
 /**
  * Lists a fake binary's version through the test hook, so plans prepare, and stubs the gate for
  * exactly that version, binary and model.
  */
-function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "claude-model") {
+function qualifyFake(
+  bin: { sha: string },
+  nativeVersion = "2.1.286",
+  model = "claude-model",
+  builtins: { agents: string[]; plugins: string[] } = { agents: [], plugins: [] },
+) {
   const others = allow.entries.filter((e) => e.nativeVersion !== nativeVersion);
   allow.entries.splice(0, allow.entries.length, ...others, {
     nativeVersion,
@@ -169,10 +189,26 @@ function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "c
     binarySHA256: bin.sha,
     traceSHA256: "0".repeat(64),
     trace: "",
+    builtinAgents: builtins.agents,
+    builtinPlugins: builtins.plugins,
   });
   applyAllowlist();
-  stubbedFakes.add(fakeKey({ nativeVersion, binarySHA256: bin.sha, model }));
+  const key = fakeKey({ nativeVersion, binarySHA256: bin.sha, model });
+  stubbedFakes.add(key);
+  stubbedBuiltins.set(key, {
+    agents: [...builtins.agents].sort(),
+    plugins: [...builtins.plugins].sort(),
+  });
 }
+/** The 2.1.308 safe-mode built-ins, as the "builtins" fake reports them. */
+const BUILTIN_AGENTS = [
+  "general-purpose",
+  "Explore",
+  "Plan",
+  "statusline-setup",
+  "claude-code-guide",
+];
+const BUILTIN_PLUGINS = ["cc-plugin-easel", "cc-plugin-plugin-authoring", "cc-plugin-sec-default"];
 
 function packet(
   n: number,
@@ -944,7 +980,8 @@ describe("owner window", () => {
       | "trailing"
       | "escaped-holder"
       | "escaped-detached"
-      | "socket";
+      | "socket"
+      | "builtins";
     // No provider SDK, network or credentials: a local script that speaks Claude's stream-json the
     // way 2.1.308's --json-schema does: one StructuredOutput call whose input is structured_output.
     const fake = (behavior: Behavior, version = "2.1.286") => `
@@ -978,7 +1015,9 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   const answer={packetDigest:d,decision:'reply',reason:null,text:'Received.',needs:null,gaps:null};
   const tools=behavior==='tools-offered'?['StructuredOutput','Bash']:behavior==='no-tools'?[]:['StructuredOutput'];
   emit({type:'system',subtype:'init',session_id:s,model:args[args.indexOf('--model')+1],claude_code_version:version,tools,
-    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],agents:[],skills:[],plugins:[],
+    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],skills:[],
+    agents:behavior==='builtins'?${JSON.stringify(["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide"])}:[],
+    plugins:behavior==='builtins'?${JSON.stringify(["cc-plugin-easel", "cc-plugin-plugin-authoring", "cc-plugin-sec-default"])}.map(n=>({name:n,path:'/Users/someone/.claude/'+n,source:n+'@builtin',version:'2.1.308'})):[],
     // The keys 2.1.308's print mode adds, as Core's flags and environment leave them.
     capabilities:['interrupt_receipt_v1','ui_surface_v1'],original_cwd:process.cwd(),additional_directories:[],
     ...(behavior==='socket'?{messaging_socket_path:'/tmp/cc-socks/'+process.pid+'.sock'}:{}),
@@ -1043,6 +1082,38 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         outcome: "completed",
       });
       expect(childInfo().HARBOR_KITE).toBe("0");
+    });
+
+    // Owner, 16 November: "Pin exact names".
+    it("accepts the pinned built-ins and refuses any change to them", async () => {
+      vi.mocked(checkNativeProfile).mockImplementation(() => {});
+      const bin = fakeBinary("builtins");
+      qualifyFake(bin, "2.1.286", "claude-model", {
+        agents: BUILTIN_AGENTS,
+        plugins: BUILTIN_PLUGINS,
+      });
+      const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+      approve(o);
+      const opened = openCorrespondenceWindow(o);
+      if (opened.kind !== "ready") throw Error("not ready: " + JSON.stringify(opened));
+      expect(await opened.dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      opened.dispatcher.close();
+      rmSync(o.stateFile);
+      // The same turn against a pin that lacks one plugin.
+      qualifyFake(bin, "2.1.286", "claude-model", {
+        agents: BUILTIN_AGENTS,
+        plugins: BUILTIN_PLUGINS.slice(1),
+      });
+      const again = openCorrespondenceWindow(o);
+      if (again.kind !== "ready") throw Error("not ready: " + JSON.stringify(again));
+      open.push(again.dispatcher);
+      expect(await again.dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "unknown",
+      });
+      expect(again.dispatcher.turnRefusal("delivery-1")).toBe("init-builtins-mismatch");
     });
 
     it("refuses a turn whose init reports a messaging socket", async () => {
@@ -1527,6 +1598,27 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       });
 
       // Claude reviews 8/9, Codex 8: the bypass must keep the version, help and policy checks.
+      it("fills the entry's pinned built-ins from the recorded trace", async () => {
+        const o = prepared("builtins");
+        approveQualification(o);
+        const result = await qualify(o);
+        if (result.kind !== "ran") throw Error("not run: " + JSON.stringify(result));
+        // Unpinned during qualification, so the built-ins are recorded, not refused.
+        expect(result.verdict).toBe("accepted");
+        expect(result.allowlistEntry?.builtinAgents).toEqual([...BUILTIN_AGENTS].sort());
+        expect(result.allowlistEntry?.builtinPlugins).toEqual([...BUILTIN_PLUGINS].sort());
+        const init = JSON.parse(result.traceText).frames[0];
+        expect(init.agents).toEqual([...BUILTIN_AGENTS].sort());
+        expect(init.plugins).toEqual([...BUILTIN_PLUGINS].sort());
+        expect(result.traceText).not.toContain("/Users/someone");
+        // The entry it prints, with its trace, passes the real gate for exactly this binary.
+        const profile = o.prepared.plan.profiles[0];
+        expect(() => gateOriginal(profile, [result.allowlistEntry!])).not.toThrow();
+        expect(() =>
+          gateOriginal(profile, [{ ...result.allowlistEntry!, builtinAgents: ["Plan"] }]),
+        ).toThrow("native-profile-unqualified");
+      });
+
       it("records exactly one turn on the fixed packet, bypassing only the trace gate", async () => {
         // 2.1.308 is not allowlisted here, and checkNativeProfile is the real one.
         const o = prepared("reply");

@@ -19,18 +19,12 @@
         "count": 0,
         "empty": true
       },
-      "agents": {
-        "count": 0,
-        "empty": true
-      },
       "skills": {
         "count": 0,
         "empty": true
       },
-      "plugins": {
-        "count": 0,
-        "empty": true
-      }
+      "agents": [],
+      "plugins": []
     },
     {
       "type": "assistant",

@@ -43,6 +43,7 @@ export type CorrespondenceFrameRefusal =
   | "init-messaging-socket"
   | "init-cwd-mismatch"
   | "init-value-unexpected"
+  | "init-builtins-mismatch"
   | "invalid-result"
   | "frame-after-result"
   | "tool-name-mismatch"
@@ -85,14 +86,33 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 /** Init lists that must be empty whenever Claude reports them, besides `mcp_servers`. */
-const INIT_SURFACES = [
-  "slash_commands",
-  "terminal_slash_commands",
-  "agents",
-  "skills",
-  "plugins",
-] as const;
+const INIT_SURFACES = ["slash_commands", "terminal_slash_commands", "skills"] as const;
 const INIT_LISTS = ["mcp_servers", ...INIT_SURFACES] as const;
+
+/** Built-in agent and plugin lists: safe mode still loads them, so they are pinned by name. */
+export interface CorrespondenceBuiltins {
+  agents: readonly string[];
+  plugins: readonly string[];
+}
+const BUILTIN_NAME = /^[A-Za-z0-9][A-Za-z0-9._:@-]{0,63}$/;
+const BUILTINS_MAX = 64;
+/**
+ * The sorted names of init's `agents` (agent-type strings) or `plugins` (objects whose `name` is
+ * the only field read; path, source and version are not). Undefined if not plain bounded names.
+ */
+function builtinNames(key: "agents" | "plugins", value: unknown): string[] | undefined {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > BUILTINS_MAX) return undefined;
+  const names: string[] = [];
+  for (const item of value) {
+    const name = key === "agents" ? item : record(item) ? item.name : undefined;
+    if (typeof name !== "string" || !BUILTIN_NAME.test(name)) return undefined;
+    names.push(name);
+  }
+  return names.sort();
+}
+const sameNames = (a: readonly string[], b: readonly string[]) =>
+  a.length === b.length && a.every((v, i) => v === b[i]);
 /**
  * Every key Claude Code 2.1.308's init frame may carry. Any other key (a new surface in a later
  * version, or a conditional one such as `plugin_errors`, `mcp_server_errors` or `capabilities`)
@@ -108,6 +128,8 @@ export const CORRESPONDENCE_INIT_KEYS: readonly string[] = [
   "claude_code_version",
   "tools",
   ...INIT_LISTS,
+  "agents",
+  "plugins",
   "permissionMode",
   "apiKeySource",
   "betas",
@@ -248,6 +270,11 @@ export interface CorrespondenceFrameExpectation {
   nativeVersion: string;
   /** The turn's working folder, as its realpath: `original_cwd` must equal it. */
   cwd: string;
+  /**
+   * The allowlist entry's pinned built-ins (sorted). Undefined only in qualification, which records
+   * them instead; a duty window always pins, empty when the entry lists none.
+   */
+  builtins?: CorrespondenceBuiltins;
 }
 
 /** The one frame checker. The live transport, trace replay and qualification all use it. */
@@ -289,6 +316,13 @@ export function createCorrespondenceFrameChecker(
         for (const key of INIT_SURFACES)
           if (key in m && !(Array.isArray(m[key]) && (m[key] as unknown[]).length === 0))
             refuse("init-surface-not-empty");
+        // Built-in agents and plugins: plain names, exactly the pinned sets when pinned.
+        for (const key of ["agents", "plugins"] as const) {
+          const names = builtinNames(key, m[key]);
+          if (names === undefined) refuse("init-value-unexpected");
+          if (expected.builtins && !sameNames(names!, [...expected.builtins[key]].sort()))
+            refuse("init-builtins-mismatch");
+        }
       } else if (!initialized) refuse("frame-before-init");
       if (kind === "assistant" && (!record(m.message) || !Array.isArray(m.message.content)))
         refuse("invalid-frame");
@@ -488,6 +522,15 @@ function cutTrace(
               ? { count: list.length, empty: list.length === 0 }
               : { count: null, empty: false };
           }
+        // Built-ins: their sorted names only, never a path, source or version.
+        for (const key of ["agents", "plugins"] as const)
+          if (key in m) {
+            const names = builtinNames(key, m[key]);
+            out[key] = names ?? {
+              count: Array.isArray(m[key]) ? (m[key] as unknown[]).length : null,
+              valid: false,
+            };
+          }
         // New (value-checked) and unknown init keys: their names, and a shape of each value.
         const unexpected = Object.keys(m).filter((k) => !knownInitKey(k));
         if (unexpected.length) out.unexpected_init_keys = unexpected.map((k) => name(k));
@@ -587,6 +630,12 @@ function rehydrate(f: unknown): unknown {
           : null;
     out.tools = placeholders(f.tools);
     for (const key of INIT_LISTS) if (key in f) out[key] = placeholders(f[key]);
+    // Recorded built-in names come back as init lists them; anything else stays invalid.
+    for (const key of ["agents", "plugins"] as const)
+      if (key in f)
+        out[key] = Array.isArray(f[key])
+          ? (f[key] as unknown[]).map((n) => (key === "plugins" ? { name: n } : n))
+          : { invalid: true };
     delete out.unexpected_init_keys;
     delete out.init_key_shapes;
     // A value-checked key comes back as a value that passes if Core allowed it, else as one
@@ -620,7 +669,12 @@ function rehydrate(f: unknown): unknown {
  */
 export function replayCorrespondenceTrace(
   trace: unknown,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
 ): CorrespondenceFrameVerdict {
   if (record(trace) && trace.source !== "recorded")
     return { kind: "refused", reason: "emulated-trace" };
@@ -633,7 +687,12 @@ export function replayCorrespondenceTrace(
  */
 export function replayEmulatedCorrespondenceTrace(
   trace: unknown,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
 ): CorrespondenceFrameVerdict {
   if (!record(trace) || trace.source !== "emulated")
     return { kind: "refused", reason: "invalid-frame" };
@@ -642,7 +701,12 @@ export function replayEmulatedCorrespondenceTrace(
 
 function replay(
   trace: unknown,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
 ): CorrespondenceFrameVerdict {
   if (record(trace) && trace.binary_sha256 !== expected.binarySHA256)
     return { kind: "refused", reason: "binary-mismatch" };
@@ -659,6 +723,7 @@ function replay(
     nativeVersion: expected.nativeVersion,
     sessionId: REPLAY_SESSION,
     cwd: REPLAY_CWD,
+    ...(expected.builtins ? { builtins: expected.builtins } : {}),
   });
   for (const f of trace.frames) {
     try {
