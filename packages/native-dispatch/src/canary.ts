@@ -45,7 +45,7 @@ function sha(v: unknown): string {
   if (!/^[a-f0-9]{64}$/.test(s)) throw Error("invalid-canary-plan");
   return s;
 }
-function profile(v: unknown): SubscriptionCanaryProfile {
+export function profile(v: unknown): SubscriptionCanaryProfile {
   if (
     !object(v) ||
     (v.provider !== "codex" && v.provider !== "claude-code") ||

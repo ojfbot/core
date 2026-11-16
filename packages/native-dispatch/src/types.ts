@@ -17,15 +17,19 @@ export interface DutyBinding {
   profileRevision: string;
   resources: string[];
   held: boolean;
+  /** "fresh-per-dispatch" (correspondence only): Core mints nativeSessionId per dispatch. */
+  sessionPolicy?: "initial-fixed" | "existing-fixed" | "fresh-per-dispatch";
 }
+
+export type DutyWorkflow = "advisory-review" | "correspondence";
 
 /** Owner-supplied configuration, never inferred from the signed peer message. */
 export interface DispatchGrant {
   charterId: string;
   revision: string;
   bindingAlias: string;
-  operation: "native-resume";
-  workflow: "advisory-review";
+  operation: "native-resume" | "native-fresh";
+  workflow: DutyWorkflow;
   mode: "mechanical" | "supervised";
   resources: string[];
   validFromMs: number;
@@ -49,7 +53,7 @@ export interface DispatchRequest {
   charterId: string;
   grantRevision: string;
   profileRevision: string;
-  workflow: "advisory-review";
+  workflow: DutyWorkflow;
   resources: string[];
   task: { input: string; inputDigest: string };
 }

@@ -48,3 +48,44 @@ export type {
   SupervisedCanaryOpen,
   SupervisedCanaryOptions,
 } from "./supervised-types.js";
+export {
+  CORRESPONDENCE_PACKET_MAX_BYTES,
+  CORRESPONDENCE_TEXT_MAX_BYTES,
+  CORRESPONDENCE_MAX_TURNS,
+  CORRESPONDENCE_MAX_WINDOW_MS,
+  CORRESPONDENCE_REQUEST_TIMEOUT_MS,
+} from "./correspondence-types.js";
+export type {
+  CorrespondenceReason,
+  CorrespondencePacket,
+  CorrespondenceAnswer,
+  RelayedCorrespondenceProposal,
+  CorrespondenceBinding,
+  CorrespondencePlan,
+  PreparedCorrespondencePlan,
+  CorrespondenceRuntimeApproval,
+  CorrespondenceDispatcher,
+  CorrespondenceOpen,
+  CorrespondenceOptions,
+} from "./correspondence-types.js";
+export {
+  prepareCorrespondencePlan,
+  correspondenceGrantRevision,
+  openCorrespondenceWindow,
+  openCorrespondenceEmulation,
+} from "./correspondence.js";
+export {
+  CORRESPONDENCE_INSTRUCTIONS_V1,
+  CORRESPONDENCE_INSTRUCTIONS_V1_SHA256,
+  CORRESPONDENCE_OUTPUT_SCHEMA,
+  parseCorrespondencePacket,
+  parseCorrespondenceAnswer,
+  correspondenceInput,
+} from "./correspondence-protocol.js";
+export { createCorrespondenceEmulator, correspondenceCommand } from "./correspondence-native.js";
+export type {
+  CorrespondenceEmulator,
+  CorrespondenceEmulatorScript,
+  CorrespondenceEmulatorStep,
+} from "./correspondence-native.js";
+export type { DutyWorkflow } from "./types.js";
