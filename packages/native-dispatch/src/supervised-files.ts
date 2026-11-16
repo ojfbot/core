@@ -152,6 +152,7 @@ export function managedPreferenceAbsent({
 export function checkNativeProfile(
   profile: SubscriptionCanaryProfile,
   environment: NodeJS.ProcessEnv = nativeEnvironment(),
+  compared: readonly ComparedEnvironmentKey[] = COMPARED_ENVIRONMENT,
 ): void {
   if (process.platform !== "darwin") throw Error("native-profile-unqualified");
   if (
@@ -164,7 +165,7 @@ export function checkNativeProfile(
     )
   )
     throw Error("native-profile-unqualified");
-  checkNativeEnvironment(environment);
+  checkNativeEnvironment(environment, compared);
   const version = spawnSync(profile.binaryRealPath, ["--version"], {
     encoding: "utf8",
     env: environment,
@@ -178,7 +179,7 @@ export function checkNativeProfile(
   if (version.status !== 0 || version.error || version.stdout.trim() !== expected)
     throw Error("native-profile-unqualified");
   const command = profile.provider === "codex" ? ["exec", "resume", "--help"] : ["--help"];
-  checkNativeEnvironment(environment);
+  checkNativeEnvironment(environment, compared);
   const result = spawnSync(profile.binaryRealPath, command, {
     encoding: "utf8",
     env: environment,
@@ -221,7 +222,7 @@ export function checkNativeProfile(
   const keys =
     profile.provider === "codex" ? ["config_toml_base64", "requirements_toml_base64"] : [undefined];
   for (const key of keys) {
-    checkNativeEnvironment(environment);
+    checkNativeEnvironment(environment, compared);
     const managed = spawnSync("/usr/bin/defaults", ["read", domain, ...(key ? [key] : [])], {
       encoding: "utf8",
       env: environment,
@@ -232,7 +233,7 @@ export function checkNativeProfile(
       throw Error("native-profile-unqualified");
   }
   if (profile.provider === "codex") {
-    checkNativeEnvironment(environment);
+    checkNativeEnvironment(environment, compared);
     const startup = spawnSync(
       profile.binaryRealPath,
       [
@@ -259,9 +260,34 @@ export function checkNativeProfile(
   }
 }
 
-export function checkNativeEnvironment(environment: NodeJS.ProcessEnv): void {
-  for (const key of ["HOME", "CODEX_HOME", "TMPDIR"])
+/** Every path variable the supervised canary compares with the controller's environment. */
+export const COMPARED_ENVIRONMENT = ["HOME", "CODEX_HOME", "TMPDIR"] as const;
+export type ComparedEnvironmentKey = (typeof COMPARED_ENVIRONMENT)[number];
+
+export function checkNativeEnvironment(
+  environment: NodeJS.ProcessEnv,
+  keys: readonly ComparedEnvironmentKey[] = COMPARED_ENVIRONMENT,
+): void {
+  for (const key of keys)
     if (process.env[key] !== environment[key]) throw Error("environment-mismatch");
+}
+
+/**
+ * Correspondence pins TMPDIR in the plan and sets it for the child instead of comparing it with the
+ * controller's. A pinned directory must exist and be the owner's own private folder, or a root-owned
+ * sticky one such as /tmp, so another user cannot plant files in Claude's temporary space.
+ */
+export function checkPinnedTemporaryDirectory(path: string | null): void {
+  if (path === null) return;
+  let s;
+  try {
+    s = statSync(realpathSync(path));
+  } catch {
+    throw Error("environment-mismatch");
+  }
+  const own = s.uid === process.getuid?.() && !(s.mode & 0o022);
+  const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
+  if (!s.isDirectory() || !(own || stickyRoot)) throw Error("environment-mismatch");
 }
 
 export function nativeEnvironment(environment?: SupervisedEnvironment): NodeJS.ProcessEnv {

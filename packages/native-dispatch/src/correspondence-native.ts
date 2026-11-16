@@ -7,6 +7,11 @@ import {
   parseCorrespondenceAnswer,
   parseCorrespondencePacket,
 } from "./correspondence-protocol.js";
+import {
+  CorrespondenceFrameError,
+  createCorrespondenceFrameChecker,
+} from "./correspondence-frames.js";
+import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import { checkBinary } from "./supervised-files.js";
 import type { NativeObservation } from "./native.js";
 import type { SubscriptionCanaryProfile } from "./canary-types.js";
@@ -20,6 +25,8 @@ import type { DispatchRequest, DutyBinding, NativeProfile } from "./types.js";
 
 export type CorrespondenceObservation = Omit<NativeObservation, "agentProposal"> & {
   agentProposal?: RelayedCorrespondenceProposal;
+  /** Why an unknown turn was refused; the dispatcher journals it. */
+  refusal?: CorrespondenceTurnRefusal;
 };
 export interface CorrespondenceTransport {
   readonly mode: "supervised" | "emulated";
@@ -38,7 +45,11 @@ export function isCorrespondenceTransport(value: unknown): value is Corresponden
   return object(value) && transports.has(value);
 }
 
-/** Claude only. The no-tools flags match the qualified supervised command; the session is always new. */
+/**
+ * Claude only. The flags match the supervised command; the session is always new. `--json-schema`
+ * makes Claude Code expose its one built-in output tool (CLAUDE_OUTPUT_TOOL), which the frame
+ * checker requires and allows exactly once.
+ */
 export function correspondenceCommand(
   binding: Pick<CorrespondenceBinding, "provider">,
   profile: Pick<SubscriptionCanaryProfile, "provider" | "model">,
@@ -87,12 +98,50 @@ function packetOf(request: DispatchRequest): CorrespondencePacket {
   return parseCorrespondencePacket(request.task.input);
 }
 
+/**
+ * Hard wall-clock limit that does not depend on the controller: the watchdog measures the turn's
+ * limit itself, from its own start. Claude runs as the child of this
+ * small Node watchdog (the controller's own Node binary, `-e`), never `detached`, so it stays in the
+ * controller's process group and launchd's job teardown reaches it. The watchdog SIGKILLs Claude
+ * at the deadline (exit 124), as soon as its parent controller is gone (exit 125), or when it is
+ * signalled (exit 143). It never reads stdin or stdout: Claude inherits those pipes directly.
+ */
+export const CORRESPONDENCE_WATCHDOG_SOURCE = `"use strict";
+const { spawn } = require("node:child_process");
+const [limitText, file, ...args] = process.argv.slice(1);
+const limit = Number(limitText), parent = process.ppid;
+if (!Number.isSafeInteger(limit) || limit < 0 || !file) process.exit(126);
+let reason;
+const child = spawn(file, args, { stdio: ["inherit", "inherit", "ignore"] });
+const kill = (code) => {
+  if (reason === undefined) reason = code;
+  try { child.kill("SIGKILL"); } catch {}
+  setTimeout(() => process.exit(reason), 1000).unref();
+};
+child.on("error", () => process.exit(127));
+child.on("exit", (code) => process.exit(reason ?? (code === null ? 128 : code)));
+setTimeout(() => kill(124), limit).unref();
+setInterval(() => { if (process.ppid !== parent) kill(125); }, 100).unref();
+for (const s of ["SIGTERM", "SIGINT", "SIGHUP"]) process.on(s, () => kill(143));
+`;
+/** Node arguments that run `file args` under the watchdog, killed `limitMs` after it starts. */
+export function correspondenceWatchdogArgs(
+  limitMs: number,
+  file: string,
+  args: readonly string[],
+): string[] {
+  if (!Number.isSafeInteger(limitMs) || limitMs < 0) throw Error("held");
+  return ["-e", CORRESPONDENCE_WATCHDOG_SOURCE, "--", String(limitMs), file, ...args];
+}
+
 /** Internal built-in real launcher. Only openCorrespondenceWindow constructs it, after its checks. */
 export function createCorrespondenceTransport(
   prepared: PreparedCorrespondencePlan,
   expiresAtMs: number,
   environment: NodeJS.ProcessEnv,
   beforeLaunch: () => void,
+  /** Qualification only: receives every parsed frame, for the cut-down trace. */
+  recordFrame?: (frame: unknown) => void,
 ): CorrespondenceTransport {
   const transport: CorrespondenceTransport = {
     mode: "supervised",
@@ -108,66 +157,51 @@ export function createCorrespondenceTransport(
       beforeLaunch();
       const remainingMs = expiresAtMs - Date.now();
       if (remainingMs <= 0) throw Error("expired");
-      const child = spawn(pinned.binaryRealPath, args, {
-        cwd: fixed.cwd,
-        env: environment,
-        detached: true,
-        stdio: ["pipe", "pipe", "ignore"],
-      });
-      const state: Pick<NativeObservation, "outcome"> = { outcome: "unknown" };
-      let proposal: RelayedCorrespondenceProposal | undefined,
+      const limitMs = Math.min(timeoutMs, remainingMs);
+      // Never detached: the watchdog and Claude stay in the controller's process group.
+      const child = spawn(
+        process.execPath,
+        correspondenceWatchdogArgs(limitMs, pinned.binaryRealPath, args),
+        { cwd: fixed.cwd, env: environment, stdio: ["pipe", "pipe", "ignore"] },
+      );
+      const checker = createCorrespondenceFrameChecker({ sessionId: session, model: pinned.model });
+      let refusal: CorrespondenceTurnRefusal | undefined,
         total = 0,
         buffer = "",
-        initialized = false,
-        invalid = false,
-        terminal = false;
+        started = false;
+      const refuse = (reason: CorrespondenceTurnRefusal) => {
+        refusal ??= reason;
+      };
       let cleanup: Promise<void> | undefined;
-      const kill = (s: NodeJS.Signals) => {
-        if (child.pid)
-          try {
-            process.kill(-child.pid, s);
-          } catch (error) {
-            if (!(object(error) && error.code === "ESRCH")) invalid = true;
-          }
-      };
-      const alive = () => {
-        if (!child.pid) return false;
-        try {
-          process.kill(-child.pid, 0);
-          return true;
-        } catch (error) {
-          return !(object(error) && error.code === "ESRCH");
-        }
-      };
+      const alive = () => child.exitCode === null && child.signalCode === null;
       const stop = () => {
         cleanup ??= (async () => {
-          kill("SIGTERM");
-          await delay(100);
-          if (alive()) kill("SIGKILL");
+          // The watchdog SIGKILLs Claude on SIGTERM, then exits.
+          if (alive()) child.kill("SIGTERM");
+          for (let i = 0; i < 10 && alive(); i++) await delay(50);
+          if (alive()) child.kill("SIGKILL");
           await delay(50);
-          if (alive()) {
-            invalid = true;
-            state.outcome = "unknown";
-          }
+          if (alive()) refuse("stop-unconfirmed");
         })();
       };
-      const timer = setTimeout(
-        () => {
-          invalid = true;
-          stop();
-        },
-        Math.min(timeoutMs, remainingMs),
-      );
-      signal.addEventListener("abort", stop, { once: true });
-      if (signal.aborted) stop();
+      const timer = setTimeout(() => {
+        refuse("deadline");
+        stop();
+      }, limitMs);
+      const abort = () => {
+        refuse("aborted");
+        stop();
+      };
+      signal.addEventListener("abort", abort, { once: true });
+      if (signal.aborted) abort();
       child.stdin.on("error", () => {});
       child.stdout.setEncoding("utf8");
       child.stdout.on("data", (chunk: string) => {
-        if (invalid) return;
+        if (refusal) return;
         total += Buffer.byteLength(chunk);
         buffer += chunk;
         if (total > 262144) {
-          invalid = true;
+          refuse("output-overflow");
           stop();
           return;
         }
@@ -175,50 +209,24 @@ export function createCorrespondenceTransport(
         while ((end = buffer.indexOf("\n")) >= 0) {
           const line = buffer.slice(0, end);
           buffer = buffer.slice(end + 1);
-          if (invalid || !line) continue;
+          if (refusal || !line) continue;
+          let m: unknown;
           try {
-            const m: unknown = JSON.parse(line);
-            if (!object(m) || terminal) throw Error("invalid-native-frame");
-            if (m.session_id !== session) throw Error("wrong-native-session");
-            if (m.type === "system" && m.subtype === "init") {
-              // The first frame must show the pinned model, no tools and no tool servers.
-              if (
-                initialized ||
-                m.model !== pinned.model ||
-                !Array.isArray(m.tools) ||
-                m.tools.length ||
-                !Array.isArray(m.mcp_servers) ||
-                m.mcp_servers.length
-              )
-                throw Error("native-profile-unqualified");
-              initialized = true;
-              onStarted(null);
-            } else if (!initialized) {
-              throw Error("wrong-native-turn");
-            } else if (
-              m.type === "assistant" &&
-              object(m.message) &&
-              Array.isArray(m.message.content)
-            ) {
-              if (m.message.content.some((c: unknown) => object(c) && c.type === "tool_use"))
-                throw Error("native-profile-unqualified");
-            } else if (m.type === "result") {
-              state.outcome = m.is_error === false ? "completed" : "failed";
-              terminal = true;
-              if (state.outcome === "completed")
-                try {
-                  proposal = {
-                    ...parseCorrespondenceAnswer(m.structured_output, request, packet),
-                    source: "supervised-native",
-                  };
-                } catch {
-                  proposal = undefined;
-                }
-            }
+            m = JSON.parse(line);
           } catch {
-            invalid = true;
-            state.outcome = "unknown";
+            m = null;
+          }
+          recordFrame?.(m);
+          try {
+            checker.frame(m);
+          } catch (error) {
+            refuse(error instanceof CorrespondenceFrameError ? error.reason : "invalid-frame");
             stop();
+            continue;
+          }
+          if (!started && object(m) && m.type === "system" && m.subtype === "init") {
+            started = true;
+            onStarted(null);
           }
         }
       });
@@ -226,8 +234,15 @@ export function createCorrespondenceTransport(
       try {
         await new Promise<void>((resolve) => {
           child.once("error", () => {
-            invalid = true;
+            refuse("process-error");
             resolve();
+          });
+          child.once("exit", () => {
+            // An orphaned grandchild holding stdout must not hold the controller.
+            setTimeout(() => {
+              child.stdout.destroy();
+              resolve();
+            }, 1000).unref();
           });
           child.once("close", (code) => {
             exitCode = code;
@@ -237,20 +252,29 @@ export function createCorrespondenceTransport(
         });
       } finally {
         clearTimeout(timer);
-        signal.removeEventListener("abort", stop);
+        signal.removeEventListener("abort", abort);
         stop();
         await cleanup;
       }
-      if (invalid || !terminal || exitCode !== 0 || buffer.trim()) {
-        state.outcome = "unknown";
-        proposal = undefined;
-      }
-      return {
-        nativeSessionId: session,
-        nativeTurnId: null,
-        outcome: state.outcome,
-        ...(proposal && state.outcome === "completed" ? { agentProposal: proposal } : {}),
-      };
+      const verdict = checker.verdict();
+      if (!refusal && verdict.kind === "refused") refuse(verdict.reason);
+      if (!refusal && buffer.trim()) refuse("trailing-output");
+      // 124 is the watchdog's own deadline kill, which can land just before the controller's timer.
+      if (!refusal && exitCode !== 0) refuse(exitCode === 124 ? "deadline" : "exit-nonzero");
+      const base = { nativeSessionId: session, nativeTurnId: null };
+      if (refusal) return { ...base, outcome: "unknown", refusal };
+      if (verdict.kind === "failed") return { ...base, outcome: "failed" };
+      let proposal: RelayedCorrespondenceProposal | undefined;
+      if (verdict.kind === "accepted")
+        try {
+          proposal = {
+            ...parseCorrespondenceAnswer(verdict.structuredOutput, request, packet),
+            source: "supervised-native",
+          };
+        } catch {
+          proposal = undefined;
+        }
+      return { ...base, outcome: "completed", ...(proposal ? { agentProposal: proposal } : {}) };
     },
   };
   transports.add(transport);
