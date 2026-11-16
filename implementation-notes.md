@@ -1,6 +1,9 @@
 # Implementation notes
 
-Working notes for in-flight work in `core`. The `## Deviations` section is read by
+Working notes for in-flight work in `core`. The `## Deviations
+- 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.
+- 2026-11-16 (focused isolation fixtures): sandboxed process-table checks cannot confirm synthetic child cleanup, producing stop-unconfirmed. Run the unchanged local Node fixtures with process visibility; no Claude binary or provider is involved.
+` section is read by
 `scripts/hooks/deviation-log.mjs` (Stop hook) — see adr:harness-loop-instrumentation.
 
 Log the gap between plan and reality, not routine choices the plan already covered.

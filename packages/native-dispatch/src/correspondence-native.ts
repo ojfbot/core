@@ -84,7 +84,25 @@ export function correspondenceCommand(
     '{"mcpServers":{}}',
     "--disable-slash-commands",
     "--settings",
-    '{"disableAllHooks":true,"disableClaudeAiConnectors":true}',
+    JSON.stringify({
+      disableAllHooks: true,
+      disableClaudeAiConnectors: true,
+      // Built-ins load in safe mode and availability can change without a binary update.
+      // Leave sec-default and managed policy intact; any active extra still fails the pin.
+      enabledPlugins: {
+        "cc-plugin-agents-md@builtin": false,
+        "cc-plugin-telemetry@builtin": false,
+        "cc-plugin-plugin-authoring@builtin": false,
+        "cc-plugin-mods-guide@builtin": false,
+        "cc-plugin-tips@builtin": false,
+        "cc-plugin-mermaid@builtin": false,
+        "cc-plugin-responsive-mode@builtin": false,
+        "cc-plugin-diff@builtin": false,
+        "cc-plugin-easel@builtin": false,
+        "cc-plugin-claude-test@builtin": false,
+        "cc-plugin-you-should-know@builtin": false,
+      },
+    }),
     "--permission-mode",
     "dontAsk",
     "--permission-prompts",
@@ -313,6 +331,7 @@ export function createCorrespondenceTransport(
           [CORRESPONDENCE_TURN_MARKER]: session,
           // Turns Claude's cross-session inbox off: no other local session can message the turn.
           [CORRESPONDENCE_MESSAGING_OFF[0]]: CORRESPONDENCE_MESSAGING_OFF[1],
+          CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS: "1",
         },
       });
       const stdin = child.stdin!,
