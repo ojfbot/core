@@ -1,15 +1,15 @@
 # Implementation notes
 
-Working notes for in-flight work in `core`. The `## Deviations
-- 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.
-- 2026-11-16 (focused isolation fixtures): sandboxed process-table checks cannot confirm synthetic child cleanup, producing stop-unconfirmed. Run the unchanged local Node fixtures with process visibility; no Claude binary or provider is involved.
-` section is read by
+Working notes for in-flight work in `core`. The `## Deviations` section is read by
 `scripts/hooks/deviation-log.mjs` (Stop hook) — see adr:harness-loop-instrumentation.
 
 Log the gap between plan and reality, not routine choices the plan already covered.
 The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
+
+- 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.
+- 2026-11-16 (focused isolation fixtures): sandboxed process-table checks cannot confirm synthetic child cleanup, producing stop-unconfirmed. Run the unchanged local Node fixtures with process visibility; no Claude binary or provider is involved.
 
 - 2026-11-16 (charter continuity): alignment defaults could restart human confirmation for already-chartered work, and the user-scope template repeated that rule. Added explicit carry-forward and bounded-discretion guidance in both sources, with a note in the existing conductor map; no installed instructions, runtime policy, authority gate or delivery status changed.
 - 2026-11-16 (native-dispatch 0.4.3 allowlist): the pin-exact-names decision assumed a binary's built-in plugin set is fixed; the same 2.1.308 binary on Yojimbo reported three built-in plugins at about 05:36Z and four at about 18:57Z. Kept exact pinning (fail-closed) as the owner decided, documented the drift in CORRESPONDENCE.md, and raised the soak risk with the owner.
