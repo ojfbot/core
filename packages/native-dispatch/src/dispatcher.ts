@@ -15,7 +15,7 @@ import { isQualificationTransport } from "./native.js";
 import type { QualificationTransport } from "./native.js";
 import { isSupervisedTransport } from "./supervised-native.js";
 import type { SupervisedTransport } from "./supervised-native.js";
-import { isCorrespondenceTransport } from "./correspondence-native.js";
+import { isCorrespondencePrelaunch, isCorrespondenceTransport } from "./correspondence-native.js";
 import type { CorrespondenceTransport } from "./correspondence-native.js";
 import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import type { RelayedCanaryProposal } from "./advisory.js";
@@ -166,11 +166,21 @@ function openEngine<P = RelayedCanaryProposal>(
       const rows = tables.has("invocations")
         ? db.prepare("SELECT count(*) AS n FROM invocations").get()?.n
         : 0;
+      // Correspondence rows, marked or not (a 0.4.0 journal is unmarked): fresh-session grants.
+      const correspondenceRows = tables.has("invocations")
+        ? db
+            .prepare(
+              `SELECT count(*) AS n FROM invocations WHERE
+                 json_extract(authorization,'$.grant.workflow')='correspondence' OR
+                 json_extract(authorization,'$.grant.operation')='native-fresh'`,
+            )
+            .get()?.n
+        : 0;
       // A marked journal opens only for its own source. A correspondence opener also refuses an
       // unmarked journal that already holds rows: its source is unknown.
       if (
         journalSource === null
-          ? marked !== undefined
+          ? marked !== undefined || correspondenceRows !== 0
           : marked !== undefined
             ? marked !== journalSource
             : rows !== 0
@@ -262,6 +272,26 @@ function openEngine<P = RelayedCanaryProposal>(
     ).run(JSON.stringify(result), evidence.nativeTurnId, now(), evidence.dispatchId);
     db.prepare("DELETE FROM controllers WHERE dispatch_id=?").run(evidence.dispatchId);
     return result;
+  }
+  /** No native effect occurred. Refund this reservation atomically with its terminal refusal. */
+  function refund(
+    dispatchId: string,
+    grant: { budgetScope: string; charterId: string; bindingAlias: string },
+    reason: RefusalReason,
+  ): DispatchDisposition {
+    return transaction(() => {
+      const result: DispatchDisposition = { kind: "refused", reason };
+      db.prepare("UPDATE invocations SET state='observed',disposition=? WHERE dispatch_id=?").run(
+        JSON.stringify(result),
+        dispatchId,
+      );
+      db.prepare("DELETE FROM controllers WHERE dispatch_id=?").run(dispatchId);
+      db.prepare("UPDATE budgets SET used=used-1 WHERE scope=?").run(grant.budgetScope);
+      db.prepare("UPDATE grant_usage SET used=used-1 WHERE scope=?").run(
+        JSON.stringify([grant.charterId, grant.bindingAlias]),
+      );
+      return result;
+    });
   }
   const engine: Dispatcher<P> = {
     dispatch: async (input, settings = {}) => {
@@ -373,22 +403,7 @@ function openEngine<P = RelayedCanaryProposal>(
       const prelaunchHold = beforeInvoke?.();
       const remainingMs = grant.expiresAtMs - now();
       if (remainingMs <= 0 || prelaunchHold)
-        return transaction(() => {
-          // No native effect occurred. Refund this reservation atomically with its terminal refusal.
-          const result: DispatchDisposition = {
-            kind: "refused",
-            reason: prelaunchHold ?? "expired",
-          };
-          db.prepare(
-            "UPDATE invocations SET state='observed',disposition=? WHERE dispatch_id=?",
-          ).run(JSON.stringify(result), dispatchId);
-          db.prepare("DELETE FROM controllers WHERE dispatch_id=?").run(dispatchId);
-          db.prepare("UPDATE budgets SET used=used-1 WHERE scope=?").run(grant.budgetScope);
-          db.prepare("UPDATE grant_usage SET used=used-1 WHERE scope=?").run(
-            JSON.stringify([grant.charterId, grant.bindingAlias]),
-          );
-          return result;
-        });
+        return refund(dispatchId, grant, prelaunchHold ?? "expired");
       active.add(dispatchId);
       let refusal: string | undefined,
         processGroup: number | null = null;
@@ -435,7 +450,12 @@ function openEngine<P = RelayedCanaryProposal>(
               );
             return result;
           });
-      } catch {
+      } catch (error) {
+        // Proven before any process started: refund it, as for a hold before launch.
+        if (journalSource !== null && isCorrespondencePrelaunch(error)) {
+          active.delete(dispatchId);
+          return refund(dispatchId, grant, error.reason);
+        }
         // Once an effect intent is durable, a lost response is held, even if the process exited zero.
       } finally {
         active.delete(dispatchId);

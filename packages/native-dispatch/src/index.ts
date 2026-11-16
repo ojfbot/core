@@ -76,12 +76,16 @@ export {
   openCorrespondenceEmulation,
   qualifyClaudeCorrespondence,
   prepareCorrespondenceQualificationPlan,
+  prepareCorrespondenceEmulationPlan,
+  qualifyClaudeCorrespondenceEmulation,
   reviewCorrespondenceJournal,
+  writeCorrespondenceTrace,
 } from "./correspondence.js";
 export type { CorrespondenceQualification, CorrespondenceJournalReview } from "./correspondence.js";
 export {
   CLAUDE_OUTPUT_TOOL,
   CORRESPONDENCE_ALLOWED_FRAMES,
+  CORRESPONDENCE_INIT_KEYS,
   CORRESPONDENCE_TRACE_FORMAT,
   createCorrespondenceFrameChecker,
   replayCorrespondenceTrace,
@@ -117,11 +121,14 @@ export {
   createCorrespondenceEmulator,
   correspondenceCommand,
   correspondenceWatchdogArgs,
+  createCorrespondenceFrameEmulator,
+  spawnCorrespondenceWatchdog,
   CORRESPONDENCE_WATCHDOG_SOURCE,
 } from "./correspondence-native.js";
 export type {
   CorrespondenceEmulator,
   CorrespondenceEmulatorScript,
   CorrespondenceEmulatorStep,
+  CorrespondenceFrameScript,
 } from "./correspondence-native.js";
 export type { DutyWorkflow } from "./types.js";
