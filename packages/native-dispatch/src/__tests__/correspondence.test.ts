@@ -952,6 +952,23 @@ describe("owner window", () => {
     expect(args[args.indexOf("--json-schema") + 1]).toBe(
       JSON.stringify(CORRESPONDENCE_OUTPUT_SCHEMA),
     );
+    expect(JSON.parse(args[args.indexOf("--settings") + 1])).toEqual({
+      disableAllHooks: true,
+      disableClaudeAiConnectors: true,
+      enabledPlugins: {
+        "cc-plugin-agents-md@builtin": false,
+        "cc-plugin-telemetry@builtin": false,
+        "cc-plugin-plugin-authoring@builtin": false,
+        "cc-plugin-mods-guide@builtin": false,
+        "cc-plugin-tips@builtin": false,
+        "cc-plugin-mermaid@builtin": false,
+        "cc-plugin-responsive-mode@builtin": false,
+        "cc-plugin-diff@builtin": false,
+        "cc-plugin-easel@builtin": false,
+        "cc-plugin-claude-test@builtin": false,
+        "cc-plugin-you-should-know@builtin": false,
+      },
+    });
     expect(() =>
       correspondenceCommand({ provider: "codex" }, { provider: "codex", model: "m" }, uuid(7)),
     ).toThrow("revoked-provider");
@@ -999,7 +1016,8 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   let fd3=false; try{fs.writeSync(3,'group 1'+String.fromCharCode(10)+'done 0'+String.fromCharCode(10));fd3=true;}catch{}
   fs.writeFileSync(${JSON.stringify(join(dir, "child.tmp"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
     pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR,
-    HARBOR_KITE:process.env.CLAUDE_CODE_HARBOR_KITE}));
+    HARBOR_KITE:process.env.CLAUDE_CODE_HARBOR_KITE,
+    DISABLE_BUILTIN_AGENTS:process.env.CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS}));
   fs.renameSync(${JSON.stringify(join(dir, "child.tmp"))}, ${JSON.stringify(join(dir, "child"))});
   if(behavior==='escaped-detached'){
     // A descendant in a new session (setsid), with stdio redirected: invisible to the group kill.
@@ -1077,12 +1095,22 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
 
     // Claude 2.1.308: the cross-session inbox would let other local sessions message a duty turn.
     it("turns Claude's cross-session messaging off for every turn", async () => {
+      vi.stubEnv("CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS", "0");
       const { o, dispatcher } = ready("reply");
       expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
         kind: "observed",
         outcome: "completed",
       });
       expect(childInfo().HARBOR_KITE).toBe("0");
+      expect(childInfo().DISABLE_BUILTIN_AGENTS).toBe("1");
+      expect(process.env.CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS).toBe("0");
+    });
+
+    it("keeps the empty pin fail-closed when built-ins remain active despite invocation settings", async () => {
+      const { o, dispatcher } = ready("builtins");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({ kind: "unknown" });
+      expect(dispatcher.turnRefusal("delivery-1")).toBe("init-builtins-mismatch");
+      expect(dispatcher.status()).toMatchObject({ unknown: 1, reservations: 1 });
     });
 
     // Owner, 16 November: "Pin exact names".

@@ -102,23 +102,19 @@ is the one checker: the live transport, trace replay and qualification all use i
   (`unexpected-init-key`). Its `tools` must be exactly `["StructuredOutput"]`; a duplicate is
   refused. `mcp_servers` must be empty, and so must `slash_commands`, `terminal_slash_commands`
   and `skills` whenever they are listed.
-- **Built-in agents and plugins, pinned by exact name.** Safe mode disables installed plugins and
-  user-supplied agents, but Claude Code still loads its built-ins: 2.1.308 lists five built-in agent
-  types (such as `general-purpose`, `Explore` and `Plan`) and several built-in plugins from a table
-  inside the binary (such as `cc-plugin-easel`). Which of the binary's built-in plugins are enabled
-  can change without a binary change: on Yojimbo on 16 November the same 2.1.308 binary reported
-  three plugins at about 05:36Z and four at about 18:57Z. A change like that refuses duty turns
-  until the version is requalified; it fails closed. The model cannot invoke them: it has no Agent tool (its only tool is
-  `StructuredOutput`, with `--tools ""`), and hooks are off. Owner's decision, 16 November: "Pin
-  exact names". Each allowlist entry carries `builtinAgents` and `builtinPlugins`, the exact sorted
-  name sets from its recorded qualification trace, and every duty turn must report exactly those
-  sets: an addition, removal, rename or duplicate refuses the turn (`init-builtins-mismatch`), live
-  and in replay. Agents are agent-type strings; for plugins only `name` is read, never a path,
-  source or version (built-in plugins ship inside the binary, whose SHA-256 is already pinned).
-  Anything that is not a plain name of at most 64 characters, in a list of at most 64, refuses the
-  turn (`init-value-unexpected`). A qualification turn has no entry yet, so it records the names
-  instead of refusing them; the entry it prints carries them, and only a committed entry opens a
-  duty window.
+- **Built-in agents and plugins, pinned by exact name.** Safe mode alone does not disable
+  built-ins, whose availability can change without a binary change. Core also sets inline
+  `enabledPlugins` false for the eleven enumerated non-security built-ins and sets
+  `CLAUDE_AGENT_SDK_DISABLE_BUILTIN_AGENTS=1` only for the correspondence child. It leaves
+  `cc-plugin-sec-default@builtin` and managed policy untouched. If a security or policy plugin
+  remains active, or an unlisted built-in appears, the exact pin refuses the turn. No account
+  cache or user settings are changed. A qualification must observe empty agent/plugin lists
+  before this invocation is approved for duty; static loader analysis is not live proof.
+  Every duty turn must match its reviewed trace's exact sorted names: additions, removals,
+  renames and duplicates refuse (`init-builtins-mismatch`). Names are bounded to 64 entries
+  of 64 characters; malformed lists refuse (`init-value-unexpected`). Only plugin names are
+  read, never paths or arbitrary metadata. Qualification records names but never updates
+  the shipped allowlist automatically.
 - **Print-mode init keys (2.1.308).** Each may be absent; when present it must pass its check:
 
   | Key                         | Meaning                                           | Check                                  |
@@ -325,11 +321,10 @@ module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace, builtin
 builtinPlugins }`, with the trace's exact
 bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
 file stays the reviewed source, and a test checks that each embedded trace equals its file. The
-list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It holds 2.1.308
-(Yojimbo) and 2.1.286 (Yuri), both `claude-sonnet-5-5`, qualified on 16 November 2026; every other
-version is refused. Each entry pins its own observed built-ins: Yuri's 2.1.286 reported three plugins
-(`cc-plugin-agents-md`, `cc-plugin-plugin-authoring`, `cc-plugin-telemetry`), Yojimbo's 2.1.308 four. Adding a version is one data entry, which
-the qualification script prints. Tests that need a fixture version use
+list is deep-frozen, and the gate reads a frozen copy taken when the module loads. Previous
+nonempty 2.1.286 and 2.1.308 traces are preserved under `qualification/claude/historical/`;
+they do not authorize the changed invocation. Only a new accepted trace and reviewed entry
+can admit duty under this policy. Tests that need a fixture version use
 `replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
 subpath; the main entry does not export it. It sets only the versions plan preparation accepts; the
 gate reads only the frozen shipped allowlist, so no test path can make a live window accept a
