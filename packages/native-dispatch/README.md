@@ -1,6 +1,6 @@
 # Native dispatch contract
 
-`@core/native-dispatch` 0.4.1 supplies admission and durable invocation safety to the HelpDesk
+`@core/native-dispatch` 0.4.2 supplies admission and durable invocation safety to the HelpDesk
 device receiver. LocalHelp owns replay, the receiver inbox, checkpoints and correspondence receipts.
 Core owns the invocation journal. The package adds no delivery queue or scheduler and changes no
 FleetRunner compute behavior. It implements the applicable semantics of
@@ -15,6 +15,8 @@ The two-provider supervised plan remains held; preparation and BASIC coordinatio
 Version 0.4.0 adds [correspondence duty](./CORRESPONDENCE.md): a separate Claude-only plan kind whose
 turns read LocalHelp's packet, run on a fresh native session each time, and return a checked
 reply-or-escalation proposal. The advisory canary is unchanged.
+Version 0.4.2 accepts the init keys Claude Code 2.1.308's print mode adds, each with a strict value
+check, turns Claude's cross-session messaging off for every turn, and names ACL holds as such.
 Version 0.4.1 makes Claude's one output tool (`StructuredOutput`) a version-pinned correspondence
 contract: a Claude version opens a duty window only with a committed, replayable trace. It also
 adds a controller-independent turn limit and the review fixes listed in CORRESPONDENCE.md.
