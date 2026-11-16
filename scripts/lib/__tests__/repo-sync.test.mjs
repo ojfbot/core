@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -92,6 +92,28 @@ describe('syncMain', () => {
     expect(sha(clone, 'main')).toBe(before);
   });
 
+  it('refuses to overwrite an ignored file that an incoming commit starts tracking', () => {
+    writeFileSync(path.join(clone, '.git', 'info', 'exclude'), 'secret.env\n');
+    writeFileSync(path.join(clone, 'secret.env'), 'local secret\n');
+    commit(upstream, 'secret.env', 'theirs\n', 'c2 tracks secret.env');
+    const r = syncMain(clone);
+    expect(r.action).toBe('ff-refused');
+    expect(readFileSync(path.join(clone, 'secret.env'), 'utf8')).toBe('local secret\n');
+  });
+
+  it('never lets a configured fetch refspec overwrite a diverged local main', () => {
+    g(clone, 'config', '--add', 'remote.origin.fetch', '+refs/heads/main:refs/heads/main');
+    g(clone, 'switch', '-q', '-c', 'feature');
+    g(clone, 'switch', '-q', 'main');
+    commit(clone, 'local.txt', 'l\n', 'local only');
+    g(clone, 'switch', '-q', 'feature');
+    commit(upstream, 'a.txt', 'two\n', 'c2');
+    const before = sha(clone, 'main');
+    const r = syncMain(clone);
+    expect(r.action).toBe('diverged');
+    expect(sha(clone, 'main')).toBe(before);
+  });
+
   it('reports divergence and leaves main alone', () => {
     commit(clone, 'local.txt', 'l\n', 'local only');
     commit(upstream, 'a.txt', 'two\n', 'c2');
@@ -132,16 +154,26 @@ describe('repo-sync CLI', () => {
     const r = run(state);
     expect(r.status).toBe(0);
     for (const f of ['latest.json', 'latest.md', 'runs.jsonl']) expect(existsSync(path.join(state, f))).toBe(true);
-    expect(existsSync(path.join(state, 'run.lock'))).toBe(false);
+    expect(existsSync(path.join(clone, '.git', 'repo-sync.lock'))).toBe(false);
   });
 
-  it('skips with exit 3 while a fresh lock is held, and leaves that lock in place', () => {
+  it('skips with exit 3 while a live run holds the repository lock, and leaves that lock in place', () => {
     const state = path.join(tmp, 'state');
-    mkdirSync(path.join(state, 'run.lock'), { recursive: true });
-    writeFileSync(path.join(state, 'run.lock', 'owner'), 'someone-else');
+    const lock = path.join(clone, '.git', 'repo-sync.lock');
+    mkdirSync(lock);
+    writeFileSync(path.join(lock, 'owner'), `${process.pid} someone-else`);
     const r = run(state);
     expect(r.status).toBe(3);
-    expect(readFileSync(path.join(state, 'run.lock', 'owner'), 'utf8')).toBe('someone-else');
+    expect(readFileSync(path.join(lock, 'owner'), 'utf8')).toBe(`${process.pid} someone-else`);
+  });
+
+  it('writes reports owner-only (0600) in a 0700 state dir', () => {
+    const state = path.join(tmp, 'state');
+    expect(run(state).status).toBe(0);
+    expect(statSync(state).mode & 0o777).toBe(0o700);
+    for (const f of ['latest.json', 'latest.md', 'runs.jsonl']) {
+      expect(statSync(path.join(state, f)).mode & 0o777).toBe(0o600);
+    }
   });
 });
 
