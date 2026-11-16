@@ -40,6 +40,9 @@ export type CorrespondenceFrameRefusal =
   | "init-tools-mismatch"
   | "init-surface-not-empty"
   | "unexpected-init-key"
+  | "init-messaging-socket"
+  | "init-cwd-mismatch"
+  | "init-value-unexpected"
   | "invalid-result"
   | "frame-after-result"
   | "tool-name-mismatch"
@@ -113,6 +116,72 @@ export const CORRESPONDENCE_INIT_KEYS: readonly string[] = [
   "product_feedback_disabled",
 ];
 
+/**
+ * Init keys Claude Code 2.1.308's print mode adds, each with a strict value check. Each may be
+ * absent; when present it must pass, or the turn is refused. Keys not here or in
+ * CORRESPONDENCE_INIT_KEYS still refuse the turn (`unexpected-init-key`).
+ */
+const CHECKED_INIT_KEYS: Record<
+  string,
+  {
+    /** Undefined when the value is allowed, otherwise the refusal. */
+    check(value: unknown, expected: { cwd: string }): CorrespondenceFrameRefusal | undefined;
+    /** A value that passes, used by replay for a key the live check allowed. */
+    allowed(expected: { cwd: string }): unknown;
+  }
+> = {
+  // SDK protocol feature names, such as `ui_surface_v1`: not tools.
+  capabilities: {
+    check: (v) =>
+      Array.isArray(v) &&
+      v.length <= 64 &&
+      v.every((c) => typeof c === "string" && /^[a-z][a-z0-9_]{0,63}$/.test(c))
+        ? undefined
+        : "init-value-unexpected",
+    allowed: () => [],
+  },
+  // The folder Claude started in: the turn's own working folder.
+  original_cwd: {
+    check: (v, e) => (v === e.cwd ? undefined : "init-cwd-mismatch"),
+    allowed: (e) => e.cwd,
+  },
+  // Extra working folders (`--add-dir` or settings): none.
+  additional_directories: {
+    check: (v) => (Array.isArray(v) && v.length === 0 ? undefined : "init-value-unexpected"),
+    allowed: () => [],
+  },
+  // The cross-session inbox socket other local sessions can deliver messages to. Core turns the
+  // inbox off (CLAUDE_CODE_HARBOR_KITE=0); a socket path means it is on.
+  messaging_socket_path: {
+    check: (v) => (v === null ? undefined : "init-messaging-socket"),
+    allowed: () => null,
+  },
+  fast_mode_state: {
+    check: (v) =>
+      v === "off" || v === "on" || v === "cooldown" ? undefined : "init-value-unexpected",
+    allowed: () => "off",
+  },
+  fast_mode_disabled_reason: {
+    check: (v) =>
+      v === null || (typeof v === "string" && /^[a-z_]{1,64}$/.test(v))
+        ? undefined
+        : "init-value-unexpected",
+    allowed: () => null,
+  },
+  per_turn_effort_active: {
+    check: (v) => (typeof v === "boolean" ? undefined : "init-value-unexpected"),
+    allowed: () => false,
+  },
+  view_mode: {
+    check: (v) => (v === "default" || v === "focus" ? undefined : "init-value-unexpected"),
+    allowed: () => "default",
+  },
+};
+/** Every init key Core accepts: the base set and the value-checked set. */
+export const CORRESPONDENCE_CHECKED_INIT_KEYS: readonly string[] = Object.keys(CHECKED_INIT_KEYS);
+const knownInitKey = (k: string) =>
+  CORRESPONDENCE_INIT_KEYS.includes(k) || Object.hasOwn(CHECKED_INIT_KEYS, k);
+
 function frameKind(m: Record<string, unknown>): string | undefined {
   if (typeof m.type !== "string") return undefined;
   return typeof m.subtype === "string" ? `${m.type}/${m.subtype}` : m.type;
@@ -177,6 +246,8 @@ export interface CorrespondenceFrameExpectation {
   sessionId: string;
   model: string;
   nativeVersion: string;
+  /** The turn's working folder, as its realpath: `original_cwd` must equal it. */
+  cwd: string;
 }
 
 /** The one frame checker. The live transport, trace replay and qualification all use it. */
@@ -203,8 +274,12 @@ export function createCorrespondenceFrameChecker(
       if (m.session_id !== expected.sessionId) refuse("wrong-session");
       if (kind === "system/init") {
         if (initialized) refuse("init-repeated");
-        if (Object.keys(m).some((k) => !CORRESPONDENCE_INIT_KEYS.includes(k)))
-          refuse("unexpected-init-key");
+        if (Object.keys(m).some((k) => !knownInitKey(k))) refuse("unexpected-init-key");
+        for (const [key, rule] of Object.entries(CHECKED_INIT_KEYS))
+          if (Object.hasOwn(m, key)) {
+            const refusal = rule.check(m[key], expected);
+            if (refusal) refuse(refusal);
+          }
         if (m.model !== expected.model) refuse("init-model-mismatch");
         if (m.claude_code_version !== expected.nativeVersion) refuse("init-version-mismatch");
         // Exactly one tool, the output tool; a duplicate is refused too.
@@ -253,7 +328,7 @@ export function createCorrespondenceFrameChecker(
 // ---------------------------------------------------------------------------------------------
 // Trace format: a cut-down frame list of one correspondence turn, committed per Claude version.
 
-export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v3";
+export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v4";
 export interface CorrespondenceTrace {
   format: typeof CORRESPONDENCE_TRACE_FORMAT;
   /**
@@ -268,6 +343,18 @@ export interface CorrespondenceTrace {
 const TRACE_MAX_FRAMES = 1000;
 /** Session placeholder used when replaying: traces keep no session, account or usage data. */
 const REPLAY_SESSION = "00000000-0000-4000-8000-000000000000";
+/** Working-folder placeholder used when replaying: traces keep no path. */
+const REPLAY_CWD = "/replay/cwd";
+
+/** A value's shape, never its content: type, emptiness or length, and whether Core allowed it. */
+function valueShape(value: unknown, allowed: boolean): Record<string, unknown> {
+  const type = value === null ? "null" : Array.isArray(value) ? "array" : (typeof value as string);
+  const out: Record<string, unknown> = { type };
+  if (typeof value === "string" || Array.isArray(value)) out.length = value.length;
+  else if (record(value)) out.length = Object.keys(value).length;
+  out.allowed = allowed;
+  return out;
+}
 
 /** A frame, block or key name: copied only if it is a plain identifier, otherwise "invalid". */
 function name(value: unknown): string | undefined {
@@ -311,7 +398,12 @@ function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
  */
 export function traceFromFrames(
   frames: readonly unknown[],
-  options: { binarySHA256: string; acceptedAnswer?: unknown },
+  options: {
+    binarySHA256: string;
+    acceptedAnswer?: unknown;
+    /** The turn's working folder (realpath), to record whether `original_cwd` matched it. */
+    cwd?: string;
+  },
 ): CorrespondenceTrace {
   // Public: only ever an emulated trace. The gate refuses it.
   return cutTrace(frames, options, "emulated");
@@ -327,7 +419,12 @@ const recordedTraces = new WeakSet<object>();
  */
 export function recordedTraceFromFrames(
   frames: readonly unknown[],
-  options: { binarySHA256: string; acceptedAnswer?: unknown },
+  options: {
+    binarySHA256: string;
+    acceptedAnswer?: unknown;
+    /** The turn's working folder (realpath), to record whether `original_cwd` matched it. */
+    cwd?: string;
+  },
 ): CorrespondenceTrace {
   // Frozen plain data, so the marked object can never gain a getter, toJSON or new fields.
   const trace = deepFreezeTrace(cutTrace(frames, options, "recorded"));
@@ -345,7 +442,12 @@ function deepFreezeTrace<T>(value: T): T {
 
 function cutTrace(
   frames: readonly unknown[],
-  options: { binarySHA256: string; acceptedAnswer?: unknown },
+  options: {
+    binarySHA256: string;
+    acceptedAnswer?: unknown;
+    /** The turn's working folder (realpath), to record whether `original_cwd` matched it. */
+    cwd?: string;
+  },
   source: "recorded" | "emulated",
 ): CorrespondenceTrace {
   const answer = options.acceptedAnswer;
@@ -386,8 +488,20 @@ function cutTrace(
               ? { count: list.length, empty: list.length === 0 }
               : { count: null, empty: false };
           }
-        const unexpected = Object.keys(m).filter((k) => !CORRESPONDENCE_INIT_KEYS.includes(k));
+        // New (value-checked) and unknown init keys: their names, and a shape of each value.
+        const unexpected = Object.keys(m).filter((k) => !knownInitKey(k));
         if (unexpected.length) out.unexpected_init_keys = unexpected.map((k) => name(k));
+        const shapes: Record<string, unknown> = {};
+        for (const k of Object.keys(m)) {
+          if (CORRESPONDENCE_INIT_KEYS.includes(k)) continue;
+          const rule = Object.hasOwn(CHECKED_INIT_KEYS, k) ? CHECKED_INIT_KEYS[k] : undefined;
+          const keyName = name(k) ?? "invalid";
+          shapes[keyName] = valueShape(
+            m[k],
+            rule !== undefined && rule.check(m[k], { cwd: options.cwd ?? "" }) === undefined,
+          );
+        }
+        if (Object.keys(shapes).length) out.init_key_shapes = shapes;
       } else if (m.type === "assistant") {
         const content =
           record(m.message) && Array.isArray(m.message.content) ? m.message.content : null;
@@ -474,6 +588,18 @@ function rehydrate(f: unknown): unknown {
     out.tools = placeholders(f.tools);
     for (const key of INIT_LISTS) if (key in f) out[key] = placeholders(f[key]);
     delete out.unexpected_init_keys;
+    delete out.init_key_shapes;
+    // A value-checked key comes back as a value that passes if Core allowed it, else as one
+    // that fails the same check.
+    if (record(f.init_key_shapes))
+      for (const [k, shape] of Object.entries(f.init_key_shapes)) {
+        const rule = Object.hasOwn(CHECKED_INIT_KEYS, k) ? CHECKED_INIT_KEYS[k] : undefined;
+        if (!rule) continue;
+        out[k] =
+          record(shape) && shape.allowed === true
+            ? rule.allowed({ cwd: REPLAY_CWD })
+            : { refusedValue: true };
+      }
     // An unknown init key comes back as itself, so the checker refuses it again.
     if (Array.isArray(f.unexpected_init_keys))
       for (const k of f.unexpected_init_keys)
@@ -532,6 +658,7 @@ function replay(
     model: expected.model,
     nativeVersion: expected.nativeVersion,
     sessionId: REPLAY_SESSION,
+    cwd: REPLAY_CWD,
   });
   for (const f of trace.frames) {
     try {
