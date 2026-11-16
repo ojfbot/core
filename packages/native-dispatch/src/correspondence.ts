@@ -1,15 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { createRequire } from "node:module";
+import { existsSync, lstatSync, readdirSync, realpathSync } from "node:fs";
+import type { DatabaseSync as Database } from "node:sqlite";
 import { basename, dirname, isAbsolute, join } from "node:path";
 import {
   CORRESPONDENCE_ANY_THREAD,
   digest,
   isIdentifier,
+  isModelSelector,
   isThreadResource,
   object,
   parseDispatchRequest,
 } from "./admission.js";
-import { profile as parseProfile } from "./canary.js";
 import { openCorrespondenceDispatcher } from "./dispatcher.js";
 import {
   createCorrespondenceEmulator,
@@ -24,15 +26,19 @@ import {
   CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
+  isClaudeVersion,
+  qualifiedCorrespondenceVersions,
 } from "./correspondence-qualification.js";
 import {
   CORRESPONDENCE_MAX_TURNS,
   CORRESPONDENCE_MAX_WINDOW_MS,
   CORRESPONDENCE_REQUEST_TIMEOUT_MS,
 } from "./correspondence-types.js";
+import type { SubscriptionCanaryProfile } from "./canary-types.js";
 import type {
   CorrespondenceBinding,
   CorrespondenceDispatcher,
+  CorrespondenceHold,
   CorrespondenceOpen,
   CorrespondenceOptions,
   CorrespondencePlan,
@@ -48,7 +54,6 @@ import {
   nativeEnvironment,
   readPrivateFile,
 } from "./supervised-files.js";
-import type { SupervisedCanaryHold } from "./supervised-types.js";
 import type { DispatchDisposition, DispatchGrant, Provider } from "./types.js";
 
 /** Providers whose subscription qualification is revoked (Core 0.3.4). No plan may bind them. */
@@ -56,6 +61,10 @@ const REVOKED_PROVIDERS: Provider[] = ["codex"];
 /** Placeholder held by the binding; the dispatcher mints the real session ID per dispatch. */
 const FRESH_SESSION_PLACEHOLDER = "fresh-per-dispatch";
 const UUID = /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/;
+// Vite 5 rewrites node:sqlite, so load the builtin directly, as the dispatcher does.
+const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
+  DatabaseSync: typeof Database;
+};
 
 function fail(code = "invalid-correspondence-plan"): never {
   throw Error(code);
@@ -105,8 +114,63 @@ function binding(v: unknown, deviceId: string): CorrespondenceBinding {
   };
 }
 
-/** Owner configuration is parsed here; no peer message supplies this plan. */
+/**
+ * A Claude profile, for correspondence. Its version must be allowed by the correspondence allowlist
+ * (duty) or only well formed (qualification), never by the advisory canary's fixed list.
+ */
+function correspondenceProfile(
+  v: unknown,
+  allowed: (version: string) => boolean,
+): SubscriptionCanaryProfile {
+  if (
+    !object(v) ||
+    !exact(
+      v,
+      "authMode,binaryRealPath,binarySHA256,customizationPolicy,effort,model,nativeVersion,provider,revision",
+    ) ||
+    v.provider !== "claude-code" ||
+    v.effort !== "low" ||
+    v.authMode !== "existing-subscription" ||
+    v.customizationPolicy !== "none" ||
+    !isModelSelector(v.model) ||
+    typeof v.binarySHA256 !== "string" ||
+    !/^[a-f0-9]{64}$/.test(v.binarySHA256)
+  )
+    fail();
+  if (!isClaudeVersion(v.nativeVersion) || !allowed(v.nativeVersion)) fail("unqualified-profile");
+  return {
+    provider: "claude-code",
+    revision: identifier(v.revision),
+    binaryRealPath: absolute(v.binaryRealPath),
+    binarySHA256: v.binarySHA256,
+    nativeVersion: v.nativeVersion,
+    model: v.model,
+    effort: "low",
+    authMode: "existing-subscription",
+    customizationPolicy: "none",
+  };
+}
+
+/**
+ * Owner configuration is parsed here; no peer message supplies this plan. Its Claude version must
+ * be in CLAUDE_CORRESPONDENCE_QUALIFIED; otherwise `unqualified-profile`.
+ */
 export function prepareCorrespondencePlan(value: unknown): PreparedCorrespondencePlan {
+  return prepare(value, "correspondence-prepared");
+}
+
+/**
+ * The same plan, prepared only for qualifyClaudeCorrespondence: its Claude version may be one the
+ * allowlist does not list yet (the version being qualified). It cannot open a duty window.
+ */
+export function prepareCorrespondenceQualificationPlan(value: unknown): PreparedCorrespondencePlan {
+  return prepare(value, "correspondence-qualification-prepared");
+}
+
+function prepare(
+  value: unknown,
+  mode: PreparedCorrespondencePlan["mode"],
+): PreparedCorrespondencePlan {
   if (
     !object(value) ||
     !exact(
@@ -129,13 +193,12 @@ export function prepareCorrespondencePlan(value: unknown): PreparedCorrespondenc
   )
     fail();
   const deviceId = identifier(value.deviceId);
-  let profiles;
-  try {
-    profiles = value.profiles.map(parseProfile);
-  } catch (error) {
-    if (error instanceof Error && error.message === "unqualified-profile") throw error;
-    fail();
-  }
+  const listed = qualifiedCorrespondenceVersions();
+  const profiles = value.profiles.map((p) =>
+    correspondenceProfile(p, (v) =>
+      mode === "correspondence-qualification-prepared" ? true : listed.includes(v),
+    ),
+  );
   const bindings = value.bindings.map((b) => binding(b, deviceId));
   const providers = new Set(profiles.map((p) => p.provider));
   if (
@@ -193,17 +256,20 @@ export function prepareCorrespondencePlan(value: unknown): PreparedCorrespondenc
     declaredUnproved: ["dollars", "outputTokens", "providerInternalRequests"],
   };
   return {
-    mode: "correspondence-prepared",
+    mode,
     plan,
     planDigest: digest(JSON.stringify(plan)),
     liveEligible: false,
   };
 }
 
-function frozen(input: PreparedCorrespondencePlan): PreparedCorrespondencePlan {
-  const prepared = prepareCorrespondencePlan(input.plan);
-  if (prepared.planDigest !== input.planDigest || input.mode !== "correspondence-prepared")
-    throw Error("correspondence-plan-changed");
+function frozen(
+  input: PreparedCorrespondencePlan,
+  mode: PreparedCorrespondencePlan["mode"] = "correspondence-prepared",
+): PreparedCorrespondencePlan {
+  if (input.mode !== mode) throw Error("correspondence-plan-changed");
+  const prepared = prepare(input.plan, mode);
+  if (prepared.planDigest !== input.planDigest) throw Error("correspondence-plan-changed");
   return prepared;
 }
 
@@ -214,6 +280,25 @@ function grants(
   expiresAtMs: number,
 ): DispatchGrant[] {
   const { plan } = prepared;
+  if (prepared.mode === "correspondence-qualification-prepared")
+    // A qualification journal has a budget of exactly one turn.
+    return plan.bindings.map(
+      (b): DispatchGrant => ({
+        charterId: plan.windowId,
+        revision: qualificationGrantRevision(prepared, b.alias),
+        bindingAlias: b.alias,
+        operation: "native-fresh",
+        workflow: "correspondence",
+        mode,
+        resources: b.resources,
+        validFromMs,
+        expiresAtMs,
+        maxInvocations: 1,
+        budgetScope: `correspondence-qualification:${plan.windowId}:${plan.deviceId}`,
+        scopeMaxInvocations: 1,
+        held: false,
+      }),
+    );
   return plan.bindings.map(
     (b): DispatchGrant => ({
       charterId: plan.windowId,
@@ -242,6 +327,9 @@ export function correspondenceGrantRevision(
   const result = frozen(prepared);
   if (!result.plan.bindings.some((b) => b.alias === alias)) throw Error("unassigned");
   return digest(JSON.stringify(["correspondence", result.planDigest, alias]));
+}
+function qualificationGrantRevision(prepared: PreparedCorrespondencePlan, alias: string): string {
+  return digest(JSON.stringify(["correspondence-qualification", prepared.planDigest, alias]));
 }
 
 function dutyBindings(prepared: PreparedCorrespondencePlan) {
@@ -283,7 +371,8 @@ function wrap(
   };
 }
 
-const holdCodes: SupervisedCanaryHold[] = [
+const holdCodes: CorrespondenceHold[] = [
+  "journal-source-mismatch",
   "runtime-approval-missing",
   "runtime-approval-invalid",
   "window-not-active",
@@ -295,6 +384,8 @@ const holdCodes: SupervisedCanaryHold[] = [
   "native-profile-unqualified",
 ];
 
+/** A qualification approval's window: 1 to 30 minutes, for its one turn. */
+const CORRESPONDENCE_QUALIFICATION_MAX_WINDOW_MS = 1800000;
 /** Correspondence compares HOME and CODEX_HOME with the controller; TMPDIR is pinned by the plan. */
 const CORRESPONDENCE_COMPARED = ["HOME", "CODEX_HOME"] as const;
 
@@ -309,7 +400,11 @@ type WindowMode =
 
 function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
   const { stateFile, runtimeApprovalFile, deviceId } = options;
-  const prepared = frozen(options.prepared);
+  const qualification = mode.kind === "qualification";
+  const prepared = frozen(
+    options.prepared,
+    qualification ? "correspondence-qualification-prepared" : "correspondence-prepared",
+  );
   const { plan, planDigest } = prepared;
   const environment = nativeEnvironment(plan.environment);
   const checkEnvironment = () => {
@@ -336,7 +431,11 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
         approval,
         "deviceId,expiresAtMs,invocationStateFile,kind,ownerNativeApprovalRef,planDigest,startsAtMs,windowId",
       ) ||
-      approval.kind !== "owner-approved-correspondence-window" ||
+      // A duty approval never authorises qualification, nor the reverse.
+      approval.kind !==
+        (qualification
+          ? "owner-approved-correspondence-qualification"
+          : "owner-approved-correspondence-window") ||
       approval.planDigest !== planDigest ||
       approval.windowId !== plan.windowId ||
       approval.deviceId !== plan.deviceId ||
@@ -345,7 +444,10 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
       typeof approval.expiresAtMs !== "number" ||
       !Number.isSafeInteger(approval.startsAtMs) ||
       !Number.isSafeInteger(approval.expiresAtMs) ||
-      approval.expiresAtMs - approval.startsAtMs !== plan.limits.windowMs ||
+      !(qualification
+        ? approval.expiresAtMs - approval.startsAtMs >= 60000 &&
+          approval.expiresAtMs - approval.startsAtMs <= CORRESPONDENCE_QUALIFICATION_MAX_WINDOW_MS
+        : approval.expiresAtMs - approval.startsAtMs === plan.limits.windowMs) ||
       typeof approval.ownerNativeApprovalRef !== "string" ||
       !approval.ownerNativeApprovalRef ||
       approval.ownerNativeApprovalRef.length > 512
@@ -362,7 +464,7 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
   function inspect(
     expectedDigest?: string,
   ):
-    | { kind: "held"; hold: SupervisedCanaryHold }
+    | { kind: "held"; hold: CorrespondenceHold }
     | { kind: "approved"; startsAtMs: number; expiresAtMs: number; digest: string } {
     try {
       if (!isIdentifier(deviceId) || plan.deviceId !== deviceId) throw Error("device-mismatch");
@@ -405,27 +507,39 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
   );
   const qualificationThread = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET).request
     .thread_id;
+  const listed = qualifiedCorrespondenceVersions();
   const only = (resources: string[]) =>
     mode.kind === "qualification" ? [`helpdesk:thread:${qualificationThread}`] : resources;
-  const dispatcher = openCorrespondenceDispatcher<RelayedCorrespondenceProposal>({
-    stateFile,
-    now: () => Date.now(),
-    profiles: plan.profiles,
-    bindings: dutyBindings(prepared).map((b) => ({ ...b, resources: only(b.resources) })),
-    grants: grants(prepared, "supervised", approval.startsAtMs, approval.expiresAtMs).map((g) => ({
-      ...g,
-      resources: only(g.resources),
-    })),
-    transport,
-    beforeInvoke: () => {
-      const result = inspect(approval.digest);
-      return result.kind === "held"
-        ? result.hold === "window-not-active"
-          ? "expired"
-          : "held"
-        : undefined;
-    },
-  });
+  let dispatcher;
+  try {
+    dispatcher = openCorrespondenceDispatcher<RelayedCorrespondenceProposal>({
+      stateFile,
+      now: () => Date.now(),
+      profiles: plan.profiles,
+      bindings: dutyBindings(prepared).map((b) => ({ ...b, resources: only(b.resources) })),
+      grants: grants(prepared, "supervised", approval.startsAtMs, approval.expiresAtMs).map(
+        (g) => ({ ...g, resources: only(g.resources) }),
+      ),
+      transport,
+      beforeInvoke: () => {
+        const result = inspect(approval.digest);
+        return result.kind === "held"
+          ? result.hold === "window-not-active"
+            ? "expired"
+            : "held"
+          : undefined;
+      },
+      qualification,
+      // Duty: the allowlist's versions only. Qualification: also the version being qualified.
+      claudeVersions: qualification
+        ? [...listed, ...plan.profiles.map((p) => p.nativeVersion)]
+        : listed,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "journal-source-mismatch")
+      return { kind: "held" as const, planDigest, holds: ["journal-source-mismatch" as const] };
+    throw error;
+  }
   return { kind: "ready" as const, planDigest, dispatcher: wrap(dispatcher) };
 }
 
@@ -435,7 +549,7 @@ export function openCorrespondenceWindow(options: CorrespondenceOptions): Corres
 }
 
 export type CorrespondenceQualification =
-  | { kind: "held"; planDigest: string; holds: SupervisedCanaryHold[] }
+  | { kind: "held"; planDigest: string; holds: CorrespondenceHold[] }
   | { kind: "not-run"; planDigest: string; disposition: DispatchDisposition }
   | {
       kind: "ran";
@@ -455,18 +569,20 @@ export type CorrespondenceQualification =
 
 /**
  * Records one real correspondence turn on the fixed qualification packet, through the same window
- * path, transport and frame checker as duty. It reads the owner's approval and never writes one;
- * the approval's own journal holds the turn and its budget. Returns the cut-down trace, for the
- * owner to commit with an allowlist entry if `replayRefusal` is undefined.
+ * path, transport and frame checker as duty. It needs the owner's qualification approval
+ * (`owner-approved-correspondence-qualification`) and never writes one. That approval names its own
+ * journal, separate from every duty journal, with a budget of exactly one turn. Returns the cut-down
+ * trace, for the owner to commit with an allowlist entry when the verdict is "accepted".
  */
 export async function qualifyClaudeCorrespondence(options: {
+  /** From prepareCorrespondenceQualificationPlan. */
   prepared: PreparedCorrespondencePlan;
   runtimeApprovalFile: string;
   deviceId: string;
 }): Promise<CorrespondenceQualification> {
-  const prepared = frozen(options.prepared);
+  const prepared = frozen(options.prepared, "correspondence-qualification-prepared");
   const { planDigest, plan } = prepared;
-  const held = (hold: SupervisedCanaryHold) => ({
+  const held = (hold: CorrespondenceHold) => ({
     kind: "held" as const,
     planDigest,
     holds: [hold],
@@ -497,7 +613,7 @@ export async function qualifyClaudeCorrespondence(options: {
     profile = plan.profiles.find((p) => p.revision === binding.profileRevision);
   if (!profile) throw Error("invalid-correspondence-plan");
   const packet = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET);
-  const deliveryId = `qualification-${Date.now()}`;
+  const deliveryId = `qualification-${randomUUID()}`;
   const request = {
     deliveryId,
     streamId: randomUUID(),
@@ -508,7 +624,7 @@ export async function qualifyClaudeCorrespondence(options: {
     recipient: binding.alias,
     bindingRevision: binding.revision,
     charterId: plan.windowId,
-    grantRevision: correspondenceGrantRevision(prepared, binding.alias),
+    grantRevision: qualificationGrantRevision(prepared, binding.alias),
     profileRevision: binding.profileRevision,
     workflow: "correspondence",
     resources: [`helpdesk:thread:${packet.request.thread_id}`],
@@ -521,12 +637,28 @@ export async function qualifyClaudeCorrespondence(options: {
   try {
     // Exactly one turn: this is the only dispatch this dispatcher ever receives.
     const disposition = await dispatcher.dispatch(request);
-    if (frames.length === 0 && disposition.kind !== "observed" && disposition.kind !== "unknown")
+    // Refused or busy: no turn started (budget spent, another turn unresolved, or a hold).
+    if (disposition.kind === "refused" || disposition.kind === "busy")
       return { kind: "not-run", planDigest, disposition };
-    const traceText = serializeCorrespondenceTrace(traceFromFrames(frames));
     const turnRefusal = dispatcher.turnRefusal(deliveryId),
-      replayRefusal = checkCorrespondenceTraceBytes(traceText),
       proposal = dispatcher.agentProposal(deliveryId);
+    // The answer is copied into the trace only after the live checker accepted the turn and
+    // parseCorrespondenceAnswer accepted the proposal. Otherwise only names, counts and types.
+    const result = frames.find((f) => object(f) && f.type === "result") as
+      | Record<string, unknown>
+      | undefined;
+    const accepted =
+      turnRefusal === undefined &&
+      proposal !== undefined &&
+      disposition.kind === "observed" &&
+      disposition.outcome === "completed";
+    const traceText = serializeCorrespondenceTrace(
+      traceFromFrames(frames, accepted ? { acceptedAnswer: result?.structured_output } : {}),
+    );
+    const replayRefusal = checkCorrespondenceTraceBytes(traceText, {
+      model: profile.model,
+      nativeVersion: profile.nativeVersion,
+    });
     const refused =
       turnRefusal ??
       replayRefusal ??
@@ -574,10 +706,96 @@ export function openCorrespondenceEmulation(options: {
     bindings: dutyBindings(prepared),
     grants: grants(prepared, "mechanical", startsAtMs, startsAtMs + prepared.plan.limits.windowMs),
     transport: emulator.transport,
+    claudeVersions: qualifiedCorrespondenceVersions(),
   });
   return {
     planDigest: prepared.planDigest,
     dispatcher: wrap(dispatcher),
     invocations: emulator.invocations,
   };
+}
+
+/** What reviewCorrespondenceJournal reports. */
+export interface CorrespondenceJournalReview {
+  source: "live" | "emulated" | "qualification" | "unmarked";
+  reservations: number;
+  /** Turns that are not observed: they hold the journal's controller. */
+  unresolved: Array<{
+    deliveryId: string;
+    dispatchId: string;
+    nativeSessionId: string;
+    state: "dispatching" | "unknown";
+    admittedAtMs: number;
+    refusal: string | null;
+    processGroup: number | null;
+  }>;
+}
+
+/**
+ * Read-only review of any correspondence journal, including 0.4.0 journals with no source marker
+ * and qualification journals. It needs no plan, approval or qualified version, never writes, and
+ * fails with `dispatcher-already-open` while a listener holds the journal. Use it to decide whether
+ * to keep a journal as evidence and start a new one, or to reconcile it in an active window.
+ */
+export function reviewCorrespondenceJournal(stateFile: string): CorrespondenceJournalReview {
+  if (!isAbsolute(stateFile)) throw Error("invalid-state-path");
+  const info = lstatSync(stateFile);
+  if (!info.isFile() || info.isSymbolicLink() || info.mode & 0o077)
+    throw Error("unsafe-state-file");
+  let db: Database;
+  try {
+    db = new DatabaseSync(stateFile, { readOnly: true });
+    db.exec("PRAGMA busy_timeout=0");
+  } catch {
+    throw Error("dispatcher-already-open");
+  }
+  try {
+    let tables: Set<unknown>;
+    try {
+      tables = new Set(
+        db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((r) => r.name),
+      );
+    } catch (error) {
+      if (object(error) && (error.errcode === 5 || error.errcode === 6))
+        throw Error("dispatcher-already-open");
+      throw error;
+    }
+    const marked = tables.has("journal_source")
+      ? db.prepare("SELECT source FROM journal_source").get()?.source
+      : undefined;
+    const source =
+      marked === "live" || marked === "emulated" || marked === "qualification"
+        ? marked
+        : "unmarked";
+    if (!tables.has("invocations")) return { source, reservations: 0, unresolved: [] };
+    const refusals = tables.has("turn_refusals");
+    const rows = db
+      .prepare(
+        refusals
+          ? `SELECT i.*, r.reason AS refusal, r.process_group AS process_group FROM invocations i
+             LEFT JOIN turn_refusals r USING(dispatch_id) WHERE i.state!='observed'
+             ORDER BY i.admitted_at`
+          : "SELECT *, NULL AS refusal, NULL AS process_group FROM invocations WHERE state!='observed' ORDER BY admitted_at",
+      )
+      .all();
+    const total = db.prepare("SELECT count(*) AS n FROM invocations").get()?.n;
+    return {
+      source,
+      reservations: typeof total === "number" ? total : 0,
+      unresolved: rows.map((r) => ({
+        deliveryId: String(r.delivery_id),
+        dispatchId: String(r.dispatch_id),
+        nativeSessionId: String(r.native_session),
+        state: r.state === "dispatching" ? "dispatching" : "unknown",
+        admittedAtMs: Number(r.admitted_at),
+        refusal: typeof r.refusal === "string" ? r.refusal : null,
+        processGroup: typeof r.process_group === "number" ? r.process_group : null,
+      })),
+    };
+  } finally {
+    db.close();
+  }
 }

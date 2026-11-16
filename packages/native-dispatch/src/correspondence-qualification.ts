@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import {
+  CLAUDE_CORRESPONDENCE_QUALIFIED,
+  CORRESPONDENCE_TRACE_DIRECTORY,
+} from "./correspondence-allowlist.js";
+import type { QualifiedClaudeCorrespondence } from "./correspondence-allowlist.js";
 import { replayCorrespondenceTrace } from "./correspondence-frames.js";
 import { parseCorrespondenceAnswer, parseCorrespondencePacket } from "./correspondence-protocol.js";
 import type { CorrespondencePacket } from "./correspondence-types.js";
@@ -10,33 +14,24 @@ import type { SubscriptionCanaryProfile } from "./canary-types.js";
 
 const sha256 = (input: string | Buffer) => createHash("sha256").update(input).digest("hex");
 
-/** One Claude Code version qualified for correspondence by a committed, replayable trace. */
-export interface QualifiedClaudeCorrespondence {
-  nativeVersion: string;
-  /** SHA-256 of the pinned Claude binary, as the plan's profile pins it. */
-  binarySHA256: string;
-  /** SHA-256 of `qualification/claude/<nativeVersion>.trace.json`, as committed. */
-  traceSHA256: string;
+export { CLAUDE_CORRESPONDENCE_QUALIFIED, CORRESPONDENCE_TRACE_DIRECTORY };
+export type { QualifiedClaudeCorrespondence };
+
+/** Claude versions a correspondence plan, dispatcher and duty window may use: the allowlist's. */
+export function qualifiedCorrespondenceVersions(): string[] {
+  return CLAUDE_CORRESPONDENCE_QUALIFIED.map((e) => e.nativeVersion);
 }
-
-/**
- * The correspondence allowlist. A version is qualified only by an entry here AND its committed
- * trace. To add a version after recording its trace with `scripts/qualify-claude-correspondence.mjs`
- * and committing it, add one entry. No real trace exists yet, so 2.1.286 and 2.1.308 are refused.
- */
-export const CLAUDE_CORRESPONDENCE_QUALIFIED: readonly QualifiedClaudeCorrespondence[] = [];
-
-/** `qualification/claude/` in this package (beside `src/` and `dist/`). */
-export const CORRESPONDENCE_TRACE_DIRECTORY = fileURLToPath(
-  new URL("../qualification/claude/", import.meta.url),
-);
+/** A well-formed Claude version, the only kind a qualification plan may name. */
+export function isClaudeVersion(value: unknown): value is string {
+  return typeof value === "string" && /^\d{1,4}\.\d{1,4}\.\d{1,6}$/.test(value);
+}
 const TRACE_MAX_BYTES = 1048576;
 
 export function correspondenceTracePath(
   nativeVersion: string,
   directory = CORRESPONDENCE_TRACE_DIRECTORY,
 ): string {
-  if (!/^\d{1,4}\.\d{1,4}\.\d{1,6}$/.test(nativeVersion)) throw Error("native-profile-unqualified");
+  if (!isClaudeVersion(nativeVersion)) throw Error("native-profile-unqualified");
   return join(directory, `${nativeVersion}.trace.json`);
 }
 
@@ -80,15 +75,21 @@ function qualificationRequest(): { request: DispatchRequest; packet: Corresponde
   };
 }
 
-/** Replays trace bytes and checks the answer against the fixed packet. Returns the refusal, if any. */
-export function checkCorrespondenceTraceBytes(bytes: Buffer | string): string | undefined {
+/**
+ * Replays trace bytes against the pinned model and version, and checks the answer against the fixed
+ * packet. Returns the refusal, if any.
+ */
+export function checkCorrespondenceTraceBytes(
+  bytes: Buffer | string,
+  expected: { model: string; nativeVersion: string },
+): string | undefined {
   let trace: unknown;
   try {
     trace = JSON.parse(bytes.toString());
   } catch {
     return "invalid-frame";
   }
-  const verdict = replayCorrespondenceTrace(trace);
+  const verdict = replayCorrespondenceTrace(trace, expected);
   if (verdict.kind === "refused") return verdict.reason;
   if (verdict.kind === "failed") return "result-error";
   const { request, packet } = qualificationRequest();
@@ -118,10 +119,12 @@ function readTrace(path: string): Buffer {
 /**
  * Correspondence gate for one pinned profile: an allowlist entry for this exact version and binary,
  * and a committed trace whose bytes match the pinned trace SHA-256 and which replays as accepted
- * through the real frame checker. Anything else is `native-profile-unqualified`.
+ * through the real frame checker with the profile's model and version. The binary's own reported
+ * version is checked separately by checkNativeProfile. Anything else is
+ * `native-profile-unqualified`.
  */
 export function checkCorrespondenceQualification(
-  profile: Pick<SubscriptionCanaryProfile, "provider" | "nativeVersion" | "binarySHA256">,
+  profile: Pick<SubscriptionCanaryProfile, "provider" | "nativeVersion" | "binarySHA256" | "model">,
   allowlist: readonly QualifiedClaudeCorrespondence[] = CLAUDE_CORRESPONDENCE_QUALIFIED,
   directory = CORRESPONDENCE_TRACE_DIRECTORY,
 ): void {
@@ -135,6 +138,13 @@ export function checkCorrespondenceQualification(
   } catch {
     throw Error("native-profile-unqualified");
   }
-  if (sha256(bytes) !== entry.traceSHA256 || checkCorrespondenceTraceBytes(bytes) !== undefined)
+  // The trace's init must report this exact version (= entry = plan profile) and the plan's model.
+  if (
+    sha256(bytes) !== entry.traceSHA256 ||
+    checkCorrespondenceTraceBytes(bytes, {
+      model: profile.model,
+      nativeVersion: profile.nativeVersion,
+    }) !== undefined
+  )
     throw Error("native-profile-unqualified");
 }

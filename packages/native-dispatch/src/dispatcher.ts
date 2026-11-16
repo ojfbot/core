@@ -55,7 +55,8 @@ const outcomes: NativeOutcome[] = [
 
 export function openDispatcher(options: DispatcherOptions): Dispatcher {
   if (!isQualificationTransport(options.transport)) throw Error("live-not-armed");
-  return openEngine(options, "mechanical", 5000);
+  // No correspondence source: it cannot open a marked correspondence journal.
+  return openEngine(options, "mechanical", 5000, undefined, null);
 }
 
 /** Internal built-in transport seam; the public qualification factory stays qualification-only. */
@@ -66,7 +67,7 @@ export function openSupervisedDispatcher(
   },
 ): Dispatcher {
   if (!isSupervisedTransport(options.transport)) throw Error("live-not-armed");
-  return openEngine(options, "supervised", 120000, options.beforeInvoke);
+  return openEngine(options, "supervised", 120000, options.beforeInvoke, null);
 }
 
 /** Internal seam for correspondence windows (supervised) and their offline emulation (mechanical). */
@@ -74,23 +75,34 @@ export function openCorrespondenceDispatcher<P>(
   options: Omit<DispatcherOptions, "transport"> & {
     transport: CorrespondenceTransport;
     beforeInvoke?: () => RefusalReason | undefined;
+    /** Duty windows and qualification runs keep separate journals. */
+    qualification?: boolean;
+    /** Claude versions this correspondence journal may run: the allowlist's (plus, for a
+     * qualification run, the version being qualified). */
+    claudeVersions: readonly string[];
   },
 ): CorrespondenceEngine<P> {
   if (!isCorrespondenceTransport(options.transport)) throw Error("live-not-armed");
   const live = options.transport.mode === "supervised";
+  if (options.qualification && !live) throw Error("live-not-armed");
   return openEngine<P>(
     options,
     live ? "supervised" : "mechanical",
     120000,
     options.beforeInvoke,
-    // The journal records its source; a live window and an emulation never share one.
-    live ? "live" : "emulated",
+    // The journal records its source; duty, qualification and emulation never share one.
+    options.qualification ? "qualification" : live ? "live" : "emulated",
+    options.claudeVersions,
   ) as CorrespondenceEngine<P>;
 }
 /** A correspondence engine also journals why an unknown turn was refused. */
 export type CorrespondenceEngine<P> = Dispatcher<P> & {
   turnRefusal(deliveryId: string): CorrespondenceTurnRefusal | undefined;
+  /** Claude's process group for a refused live turn, when the watchdog reported it. */
+  turnProcessGroup(deliveryId: string): number | undefined;
 };
+/** Who opened a journal. `null` is an advisory or supervised opener with no correspondence marker. */
+type JournalSource = "emulated" | "live" | "qualification" | null;
 
 function openEngine<P = RelayedCanaryProposal>(
   options: Omit<DispatcherOptions, "transport"> & {
@@ -98,11 +110,12 @@ function openEngine<P = RelayedCanaryProposal>(
   },
   mode: "mechanical" | "supervised",
   timeoutMs: number,
-  beforeInvoke?: () => RefusalReason | undefined,
-  journalSource?: "emulated" | "live",
+  beforeInvoke: (() => RefusalReason | undefined) | undefined,
+  journalSource: JournalSource,
+  claudeVersions?: readonly string[],
 ): Dispatcher<P> {
   if (!isAbsolute(options.stateFile)) throw Error("invalid-state-path");
-  validateConfiguration(options);
+  validateConfiguration(options, claudeVersions);
   // Detach authority from mutable objects owned by a caller. It is never drawn from a delivery.
   const config: DispatchConfiguration = structuredClone({
     bindings: options.bindings,
@@ -136,8 +149,34 @@ function openEngine<P = RelayedCanaryProposal>(
     throw error;
   }
   try {
-    db.exec(`PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;
-    CREATE TABLE IF NOT EXISTS invocation_meta(version INTEGER NOT NULL CHECK(version=1));
+    db.exec("PRAGMA journal_mode=DELETE; PRAGMA synchronous=FULL;");
+    // One transaction: check the source first, and create nothing if it is refused, so a refused
+    // open leaves the journal unchanged.
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const tables = new Set(
+        db
+          .prepare("SELECT name FROM sqlite_master WHERE type='table'")
+          .all()
+          .map((r) => r.name),
+      );
+      const marked = tables.has("journal_source")
+        ? db.prepare("SELECT source FROM journal_source").get()?.source
+        : undefined;
+      const rows = tables.has("invocations")
+        ? db.prepare("SELECT count(*) AS n FROM invocations").get()?.n
+        : 0;
+      // A marked journal opens only for its own source. A correspondence opener also refuses an
+      // unmarked journal that already holds rows: its source is unknown.
+      if (
+        journalSource === null
+          ? marked !== undefined
+          : marked !== undefined
+            ? marked !== journalSource
+            : rows !== 0
+      )
+        throw Error("journal-source-mismatch");
+      db.exec(`CREATE TABLE IF NOT EXISTS invocation_meta(version INTEGER NOT NULL CHECK(version=1));
     INSERT INTO invocation_meta SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM invocation_meta);
     CREATE TABLE IF NOT EXISTS invocations(
       delivery_id TEXT PRIMARY KEY, dispatch_id TEXT UNIQUE NOT NULL, request_digest TEXT NOT NULL,
@@ -149,24 +188,19 @@ function openEngine<P = RelayedCanaryProposal>(
     CREATE TABLE IF NOT EXISTS budgets(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS grant_usage(scope TEXT PRIMARY KEY,lim INTEGER NOT NULL,used INTEGER NOT NULL);
     CREATE TABLE IF NOT EXISTS advisory_proposals(dispatch_id TEXT PRIMARY KEY,proposal TEXT NOT NULL);`);
-    if (journalSource) {
-      // Correspondence journals only; the advisory and supervised journal schema is unchanged.
-      db.exec(`CREATE TABLE IF NOT EXISTS journal_source(
-        only INTEGER PRIMARY KEY CHECK(only=1), source TEXT NOT NULL CHECK(source IN ('emulated','live')));
-      CREATE TABLE IF NOT EXISTS turn_refusals(dispatch_id TEXT PRIMARY KEY,reason TEXT NOT NULL);`);
-      db.exec("BEGIN IMMEDIATE");
-      try {
-        const marked = db.prepare("SELECT source FROM journal_source").get();
-        const rows = db.prepare("SELECT count(*) AS n FROM invocations").get();
-        // An unmarked journal that already holds rows has an unknown source: refuse it.
-        if (marked ? marked.source !== journalSource : rows?.n !== 0)
-          throw Error("journal-source-mismatch");
-        if (!marked) db.prepare("INSERT INTO journal_source VALUES(1,?)").run(journalSource);
-        db.exec("COMMIT");
-      } catch (error) {
-        db.exec("ROLLBACK");
-        throw error;
+      if (journalSource !== null) {
+        // Correspondence journals only; the advisory and supervised journal schema is unchanged.
+        db.exec(`CREATE TABLE IF NOT EXISTS journal_source(only INTEGER PRIMARY KEY CHECK(only=1),
+          source TEXT NOT NULL CHECK(source IN ('emulated','live','qualification')));
+        CREATE TABLE IF NOT EXISTS turn_refusals(dispatch_id TEXT PRIMARY KEY,reason TEXT NOT NULL,
+          process_group INTEGER);`);
+        if (marked === undefined)
+          db.prepare("INSERT INTO journal_source VALUES(1,?)").run(journalSource);
       }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
     }
   } catch (error) {
     db.close();
@@ -356,7 +390,8 @@ function openEngine<P = RelayedCanaryProposal>(
           return result;
         });
       active.add(dispatchId);
-      let refusal: string | undefined;
+      let refusal: string | undefined,
+        processGroup: number | null = null;
       try {
         const observation = await transport.resume({
           binding,
@@ -380,8 +415,11 @@ function openEngine<P = RelayedCanaryProposal>(
         });
         const outcome = observation.outcome;
         const reported = (observation as { refusal?: unknown }).refusal;
+        const group = (observation as { processGroup?: unknown }).processGroup;
         if (journalSource && typeof reported === "string" && /^[a-z-]{1,64}$/.test(reported))
           refusal = reported;
+        if (typeof group === "number" && Number.isSafeInteger(group) && group > 1)
+          processGroup = group;
         if (outcome !== "unknown")
           return transaction(() => {
             const result = observe({
@@ -405,7 +443,11 @@ function openEngine<P = RelayedCanaryProposal>(
       return transaction(() => {
         db.prepare("UPDATE invocations SET state='unknown' WHERE dispatch_id=?").run(dispatchId);
         if (refusal)
-          db.prepare("INSERT OR IGNORE INTO turn_refusals VALUES(?,?)").run(dispatchId, refusal);
+          db.prepare("INSERT OR IGNORE INTO turn_refusals VALUES(?,?,?)").run(
+            dispatchId,
+            refusal,
+            processGroup,
+          );
         return disposition(
           db.prepare("SELECT * FROM invocations WHERE dispatch_id=?").get(dispatchId),
         );
@@ -452,7 +494,7 @@ function openEngine<P = RelayedCanaryProposal>(
       db.close();
     },
   };
-  if (!journalSource) return engine;
+  if (journalSource === null) return engine;
   return {
     ...engine,
     turnRefusal: (deliveryId: string) => {
@@ -465,6 +507,14 @@ function openEngine<P = RelayedCanaryProposal>(
       return typeof row?.reason === "string"
         ? (row.reason as CorrespondenceTurnRefusal)
         : undefined;
+    },
+    turnProcessGroup: (deliveryId: string) => {
+      const row = db
+        .prepare(
+          "SELECT process_group FROM turn_refusals JOIN invocations USING(dispatch_id) WHERE delivery_id=?",
+        )
+        .get(deliveryId);
+      return typeof row?.process_group === "number" ? row.process_group : undefined;
     },
   } as Dispatcher<P>;
 }
