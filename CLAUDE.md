@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
 
-> **Default agent posture: grill before coding.** See `domain-knowledge/agent-defaults.md`. Before any non-trivial change, restate the request in one sentence, surface 2–3 assumptions, and ask the highest-leverage clarifying question. Skip only for trivial tasks (typos, direct lookups, explicit "just do it"). Cost of one question is far below cost of building the wrong thing.
+> **Default agent posture: establish alignment, then carry it forward.** Read `domain-knowledge/agent-defaults.md`. Grill before new non-trivial work whose intent or boundaries remain unresolved. Skip a new grill for trivial work, read-only investigation, explicit "just do it", or work already covered by an agreed charter and its delegated judgment. A new session or device does not reset established approval; current explicit holds still govern. Own unfinished charter work through its next action, owner and checkpoint, including after an individual request closes.
 
 > **Log deviations as you hit them.** When an edge case forces you off the agreed plan mid-task, take the conservative option, append a one-line bullet under `## Deviations` in `implementation-notes.md` at the repo root (create it if absent), and keep going — don't stop to re-plan and don't silently absorb it. Log the gap between plan and reality, not routine choices the plan already covered. The `deviation-log.mjs` Stop hook reads that file independently and records what it finds; `node scripts/hooks/deviation-log.mjs --recurrence` rolls the ledger up into the ADR backlog (the same deviation in ≥3 repos is a missing convention, not three edge cases). **This is a discovery rate, never a defect rate** — more deviations logged is better, and suppressing one to lower the number destroys the signal. See adr:harness-loop-instrumentation.
 
@@ -337,7 +337,7 @@ The files:
 
 - `CONTEXT.md` — **ubiquitous language layer (ADR-0044)**: 6 bounded contexts (Shell+Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components), aggregates inside each, cross-context workflows, universal invariants, naming disambiguation
 - `GLOSSARY.md` — A→Z one-liners for every non-obvious term, with source ADR/file cross-references
-- `agent-defaults.md` — default grilling posture: restate, surface assumptions, ask the highest-leverage question, wait. Applies to every ojfbot session
+- `agent-defaults.md` — align unresolved new work; preserve established charter authority, current holds and next-action ownership across sessions
 - `frame-os-context.md` — **agent context brief**: product vision, two demo tracks, full repo inventory, shell blockers, roadmap phases, architectural decisions, env vars, constraints
 - `cv-builder-architecture.md` — monorepo packages, agent graph structure, P0 blockers, `.agents/` system, open issues map
 - `langgraph-patterns.md` — state schema rules, node/routing invariants, checkpointer behavior, common failure signatures

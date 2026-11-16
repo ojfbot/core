@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-16 (charter continuity): alignment defaults could restart human confirmation for already-chartered work, and the user-scope template repeated that rule. Added explicit carry-forward and bounded-discretion guidance in both sources, with a note in the existing conductor map; no installed instructions, runtime policy, authority gate or delivery status changed.
+
 - 2026-11-16 (core#608 publication): the plan treated the isolated clone's origin as the publication remote, but cloning from the source checkout made origin local, and Git refused a push to its checked-out branch. Preserved the source checkout and selected the verified GitHub repository URL for non-force publication after an expected-head check.
 - 2026-11-16 (core#608 integration): the reviewed 0.4.1 branch predates the repo-sync changes on main, and both branches appended deviation sections at the same location. Preserved both sections and merged current main without changing any file under `packages/native-dispatch`.
 - 2026-11-16 (core#608 verification): the dependency cache lacks some locked tarballs, so an offline frozen-lockfile install cannot finish. Validation uses Node 24.22.2 and a frozen-lockfile install with registry access, without changing dependency versions.
@@ -679,3 +681,9 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - The lock design assumed mkdir locks with stale-lock reclaim would be enough; three Codex rounds kept finding reclaim races, then a /usr/bin/lockf supervisor could die and free the lock while its worker ran, so the worker now takes flock(2) itself through a python3 shim that exec()s it, which ties the lock to the worker process and needs no reclaim.
 
 - 0.4.2 source promotion (2026-11-16): the history-only plan assumed unchanged test sources, but CI observed an empty metadata file between fixture creation and write; with owner approval, publish synthetic metadata by sibling write and atomic rename, preserving production and package inputs.
+
+## Deviations — charter continuation review (16 November 2026)
+
+- Fresh review found that request disposition alone could still leave an unfinished charter idle; require its next action, one owner and checkpoint, plus acknowledged handoff or a visible coverage gap. Core also reconciles its root alignment summary and adds a thin Codex entry point because shared guidance was not discoverable there. Documentation only; no runtime authority is added.
+
+- Claude review exposed missing positive relay-verification criteria and ambiguous merge-gate precedence; document verified human delegation and preserve required independent review. Resolve additive conflicts against current main without changing runtime files. Core uses a repository AGENTS.md entry point and explicit current-session loading; the existing user-scope installer remains Claude-only, so no fleet-wide Codex auto-loading is claimed.

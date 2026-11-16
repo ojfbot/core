@@ -33,6 +33,40 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ## Notes
 
+### Charter continuity and visible uncertainty, 2026-11-16
+
+The operator requires conductors to carry an agreed charter toward its goal with
+fewer routine human relays. Charters must allow bounded implementation judgment
+as facts change, while identifying the discoveries and decisions that need human
+judgment. A new session, revised procedure or completed check does not itself
+require the owner to repeat an established decision.
+
+Record the outcome, allowed effects and targets, invariants, delegated choices,
+limits, conditional transitions, review rule and explicit holds. Agents may resolve
+implementation uncertainty inside that scope. Current human restrictions and
+owner-reserved decisions remain authoritative; correspondence is not a new grant.
+This note does not supersede this map's existing human gates or approve runtime work.
+
+Use the existing placement rule: success plus runnable check belongs in delivery;
+a stated unanswered question belongs in wayfinder; a question not yet statable
+remains "Not yet specified" fog. Describe depth through upstream assumptions,
+blocked work, available evidence, reversible probes and bounded effort/exposure,
+including uncertainty in those estimates. No numeric depth threshold is decided here.
+
+The [shared defaults](../../domain-knowledge/agent-defaults.md) and LocalHelp's
+canonical request/charter guidance carry the agent-facing operating lessons. They
+must distinguish transport arrival, agent pickup, verified effect and consumed
+result. Source guidance, installation/loading and observed behavior are separate
+evidence states. This is not a claim of autonomous wake or execution capability.
+
+These concerns stay with **What authority the conductor holds** (#313),
+**What "consumed" means for a loop's output** (#316), **Who watches the conductor,
+and when is it retired** (#318), portability (#311) and census (#315).
+Enforcement of delegated boundaries, a trustworthy
+cross-session authority reference, follow-up coverage and calibration of investigation
+limits remain evidence/decision work in those obligations. No ticket is closed,
+new program started, delivery slice registered or authority widened by this note.
+
 ### Skill observation extension, 2026-10-02
 
 The operator confirmed that skill observation covers all Claude and Codex sessions,
