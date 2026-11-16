@@ -858,6 +858,33 @@ describe("owner window", () => {
     });
   });
 
+  // Owner, 16 November: an ACL on an ancestor (a home folder's `everyone deny delete`) was reported
+  // as runtime-approval-invalid or environment-mismatch.
+  it("names an ACL on an ancestor of the approval, journal or TMPDIR as acl-unqualified", async () => {
+    vi.mocked(checkNativeProfile).mockImplementation(() => {});
+    const o = options(prepareCorrespondencePlan(rawPlan()));
+    approve(o);
+    aclPaths.push(dir);
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "acl-unqualified"));
+    aclPaths.length = 0;
+    // TMPDIR under a folder with an ACL.
+    aclPaths.push(temporary);
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "acl-unqualified"));
+    aclPaths.length = 0;
+    // The qualification run reads its approval first.
+    const plan = rawPlan();
+    const q = options(prepareCorrespondenceQualificationPlan(plan), join(dir, "q.sqlite"));
+    approve(q, 600000, "owner-approved-correspondence-qualification");
+    aclPaths.push(dir);
+    expect(
+      await qualifyClaudeCorrespondence({
+        prepared: q.prepared,
+        runtimeApprovalFile: q.runtimeApprovalFile,
+        deviceId: "yuri",
+      }),
+    ).toEqual(held(q, "acl-unqualified"));
+  });
+
   it("holds without an approval, and with an approval of the wrong length", () => {
     const o = options(prepareCorrespondencePlan(rawPlan()));
     expect(openCorrespondenceWindow(o)).toEqual(held(o, "runtime-approval-missing"));
@@ -916,7 +943,8 @@ describe("owner window", () => {
       | "nonzero"
       | "trailing"
       | "escaped-holder"
-      | "escaped-detached";
+      | "escaped-detached"
+      | "socket";
     // No provider SDK, network or credentials: a local script that speaks Claude's stream-json the
     // way 2.1.308's --json-schema does: one StructuredOutput call whose input is structured_output.
     const fake = (behavior: Behavior, version = "2.1.286") => `
@@ -933,7 +961,8 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   // fd 3 is the watchdog's control channel; Claude must not hold it.
   let fd3=false; try{fs.writeSync(3,'group 1'+String.fromCharCode(10)+'done 0'+String.fromCharCode(10));fd3=true;}catch{}
   fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
-    pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR}));
+    pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR,
+    HARBOR_KITE:process.env.CLAUDE_CODE_HARBOR_KITE}));
   if(behavior==='escaped-detached'){
     // A descendant in a new session (setsid), with stdio redirected: invisible to the group kill.
     cp.spawn(process.execPath,['-e',"require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "escaped"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore',detached:true}).unref();
@@ -949,7 +978,11 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   const answer={packetDigest:d,decision:'reply',reason:null,text:'Received.',needs:null,gaps:null};
   const tools=behavior==='tools-offered'?['StructuredOutput','Bash']:behavior==='no-tools'?[]:['StructuredOutput'];
   emit({type:'system',subtype:'init',session_id:s,model:args[args.indexOf('--model')+1],claude_code_version:version,tools,
-    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],agents:[],skills:[],plugins:[]});
+    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],agents:[],skills:[],plugins:[],
+    // The keys 2.1.308's print mode adds, as Core's flags and environment leave them.
+    capabilities:['interrupt_receipt_v1','ui_surface_v1'],original_cwd:process.cwd(),additional_directories:[],
+    ...(behavior==='socket'?{messaging_socket_path:'/tmp/cc-socks/'+process.pid+'.sock'}:{}),
+    fast_mode_state:'off',fast_mode_disabled_reason:'not_first_party',per_turn_effort_active:false,view_mode:'default'});
   if(behavior==='descendant'||behavior==='slow-term') descendant();
   if(behavior==='slow-term') process.on('SIGTERM',()=>setTimeout(()=>process.exit(0),1500));
   if(behavior==='hang'||behavior==='descendant'||behavior==='slow-term'){setInterval(()=>{},1000);return;}
@@ -1001,6 +1034,22 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         await new Promise((r) => setTimeout(r, 20));
       }
     };
+
+    // Claude 2.1.308: the cross-session inbox would let other local sessions message a duty turn.
+    it("turns Claude's cross-session messaging off for every turn", async () => {
+      const { o, dispatcher } = ready("reply");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      expect(childInfo().HARBOR_KITE).toBe("0");
+    });
+
+    it("refuses a turn whose init reports a messaging socket", async () => {
+      const { o, dispatcher } = ready("socket");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({ kind: "unknown" });
+      expect(dispatcher.turnRefusal("delivery-1")).toBe("init-messaging-socket");
+    });
 
     it("runs a supervised turn on a new session and accepts the checked proposal", async () => {
       const { o, dispatcher } = ready("reply");
@@ -1291,9 +1340,10 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       ]) {
         const o = options(prepareCorrespondencePlan(rawPlan({ environment }, bin)));
         approve(o);
+        // An ACL is named as such; every other unsafe TMPDIR is an environment mismatch.
         expect([environment.TMPDIR, openCorrespondenceWindow(o)]).toEqual([
           environment.TMPDIR,
-          held(o, "environment-mismatch"),
+          held(o, environment.TMPDIR === withAcl ? "acl-unqualified" : "environment-mismatch"),
         ]);
       }
     });

@@ -672,7 +672,10 @@ export async function qualifyClaudeCorrespondence(options: {
     stateFile = JSON.parse(
       readPrivateFile(options.runtimeApprovalFile, 8192).toString("utf8"),
     ).invocationStateFile;
-  } catch {
+  } catch (error) {
+    // An ACL on the approval or a parent (a home folder's) is named as such, not as invalid.
+    if (error instanceof Error && error.message === "acl-unqualified")
+      return held("acl-unqualified");
     return held("runtime-approval-invalid");
   }
   if (typeof stateFile !== "string" || !isAbsolute(stateFile))
@@ -743,6 +746,7 @@ async function runQualificationTurn(
       disposition.outcome === "completed";
     const traceOptions = {
       binarySHA256: profile.binarySHA256,
+      cwd: realpathSync(binding.cwd),
       ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
     };
     // Only the real-transport path (qualifyClaudeCorrespondence) records; emulation never does.
