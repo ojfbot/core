@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import type { ChildProcess } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import { object } from "./admission.js";
@@ -174,6 +175,50 @@ setImmediate(() => {
   });
 });
 `;
+/**
+ * Set in the watchdog's and Claude's environment to the turn's fresh session UUID. Descendants
+ * inherit it, so one that leaves Claude's process group can still be found and killed.
+ */
+export const CORRESPONDENCE_TURN_MARKER = "CORE_CORRESPONDENCE_TURN";
+
+/**
+ * PIDs of processes whose environment carries this turn's marker: `/proc/<pid>/environ` on Linux,
+ * `ps -ax -E -ww` on macOS (which shows the environment of this user's processes, except Apple
+ * platform binaries such as `/bin/sleep`). Bounded in time.
+ * `undefined` when the table could not be read, which counts as unconfirmed.
+ */
+export function findTurnProcesses(session: string): number[] | undefined {
+  const marker = `${CORRESPONDENCE_TURN_MARKER}=${session}`;
+  const found: number[] = [];
+  if (existsSync("/proc/self/environ")) {
+    const deadline = Date.now() + 2000;
+    for (const name of readdirSync("/proc")) {
+      if (Date.now() > deadline) return undefined;
+      if (!/^\d+$/.test(name) || Number(name) === process.pid) continue;
+      try {
+        if (readFileSync(`/proc/${name}/environ`, "utf8").split("\0").includes(marker))
+          found.push(Number(name));
+      } catch {
+        // Gone, or another user's process: it cannot carry our marker.
+      }
+    }
+    return found;
+  }
+  const result = spawnSync("/bin/ps", ["-ax", "-E", "-ww", "-o", "pid=,command="], {
+    encoding: "utf8",
+    env: { LANG: "C", LC_ALL: "C" },
+    timeout: 2000,
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  if (result.status !== 0 || result.error || typeof result.stdout !== "string") return undefined;
+  for (const line of result.stdout.split("\n")) {
+    const m = /^\s*(\d+)\s(.*)$/.exec(line);
+    if (!m || Number(m[1]) === process.pid) continue;
+    if (m[2].split(" ").includes(marker)) found.push(Number(m[1]));
+  }
+  return found;
+}
+
 /** The watchdog's longest own escalation: 200 ms grace plus up to 2 s of SIGKILL polling. */
 const WATCHDOG_ESCALATION_MS = 2400;
 /** How long to wait for the pipes to close once every process is stopped or gone. */
@@ -251,9 +296,10 @@ export function createCorrespondenceTransport(
         if (isCorrespondencePrelaunch(error)) throw error;
         throw new CorrespondencePrelaunchError("held");
       }
+      // The marker travels to Claude and every descendant, whatever group or session it joins.
       const child = spawnCorrespondenceWatchdog(limitMs, pinned.binaryRealPath, args, {
         cwd: fixed.cwd,
-        env: environment,
+        env: { ...environment, [CORRESPONDENCE_TURN_MARKER]: session },
       });
       const stdin = child.stdin!,
         stdout = child.stdout!,
@@ -402,6 +448,21 @@ export function createCorrespondenceTransport(
         await cleanup;
       }
       if (exitCode === null && child.exitCode !== null) exitCode = child.exitCode;
+      // Before any proposal: nothing carrying this turn's marker may still run.
+      const escaped = findTurnProcesses(session);
+      if (escaped === undefined) refusal = "stop-unconfirmed";
+      else if (escaped.length) {
+        for (const pid of escaped)
+          try {
+            process.kill(pid, "SIGKILL");
+          } catch {
+            // Gone already; the rescan decides.
+          }
+        await delay(100);
+        const left = findTurnProcesses(session);
+        if (left === undefined || left.length) refusal = "stop-unconfirmed";
+        else refuse("descendant-escaped");
+      }
       const verdict = checker.verdict();
       if (!refusal && verdict.kind === "refused") refuse(verdict.reason);
       if (!refusal && buffer.trim()) refuse("trailing-output");

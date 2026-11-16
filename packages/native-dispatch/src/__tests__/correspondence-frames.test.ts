@@ -29,6 +29,7 @@ import {
   prepareCorrespondenceQualificationPlan,
   qualifyClaudeCorrespondenceEmulation,
   replayCorrespondenceTrace,
+  replayEmulatedCorrespondenceTrace,
   serializeCorrespondenceTrace,
   traceFromFrames,
   writeCorrespondenceTrace,
@@ -112,7 +113,7 @@ function rawFrames(): Array<Record<string, unknown>> {
 }
 /** The trace qualification commits for an accepted turn: the answer only after it was accepted. */
 const synthetic = (frames = rawFrames()): CorrespondenceTrace =>
-  traceFromFrames(frames, { binarySHA256: BINARY, acceptedAnswer: answer });
+  traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY, acceptedAnswer: answer });
 
 type Frames = Array<Record<string, unknown>>;
 const clone = (t: CorrespondenceTrace): CorrespondenceTrace => structuredClone(t);
@@ -324,7 +325,7 @@ describe("frame checker", () => {
     const frames = rawFrames();
     frames[3].is_error = "SECRET-TOKEN";
     expect(run(frames)).toEqual({ kind: "refused", reason: "invalid-result" });
-    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
+    const trace = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
     expect(result(trace).is_error).toBe("non-boolean");
     expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
     expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
@@ -338,7 +339,9 @@ describe("frame checker", () => {
     frames[0].model = "model with SECRET-TOKEN";
     (frames[1].message as { content: Array<Record<string, unknown>> }).content[0].type =
       "text SECRET-TOKEN";
-    const text = serializeCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }));
+    const text = serializeCorrespondenceTrace(
+      traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
+    );
     expect(text).not.toContain("SECRET-TOKEN");
     expect(text).toContain('"model": "invalid"');
   });
@@ -348,7 +351,7 @@ describe("frame checker", () => {
     const frames = rawFrames();
     Object.assign(frames[0], { capabilities: ["SECRET-TOKEN"] });
     expect(run(frames)).toEqual({ kind: "refused", reason: "unexpected-init-key" });
-    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
+    const trace = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
     expect(init(trace).unexpected_init_keys).toEqual(["capabilities"]);
     expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
     expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
@@ -363,7 +366,10 @@ describe("frame checker", () => {
     frames[0].tools = [CLAUDE_OUTPUT_TOOL, CLAUDE_OUTPUT_TOOL];
     expect(run(frames)).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
     expect(
-      replayCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
+      replayCorrespondenceTrace(
+        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
+        PINNED,
+      ),
     ).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
   });
 
@@ -419,7 +425,10 @@ describe("frame checker", () => {
     expect(run(frames)).toEqual({ kind: "refused", reason });
     // The cut trace keeps enough for replay to refuse it the same way.
     expect(
-      replayCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
+      replayCorrespondenceTrace(
+        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY }),
+        PINNED,
+      ),
     ).toEqual({
       kind: "refused",
       reason,
@@ -481,19 +490,19 @@ describe("trace format", () => {
     });
     for (const options of [{}, { acceptedAnswer: answer }]) {
       const text = serializeCorrespondenceTrace(
-        traceFromFrames(frames, { binarySHA256: BINARY, ...options }),
+        traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY, ...options }),
       );
       for (const leaked of ["SECRET-TOKEN", "PrivateTool", "private-server", "private-command"])
         expect(text).not.toContain(leaked);
     }
-    const refused = traceFromFrames(frames, { binarySHA256: BINARY });
+    const refused = traceFromFrames(frames, { source: "recorded", binarySHA256: BINARY });
     expect(init(refused).tools).toEqual({
       count: 2,
       sha256: sha(["PrivateTool", "StructuredOutput"].join("\n")),
     });
     expect(init(refused).mcp_servers).toEqual({ count: 1, empty: false });
     // Without an accepted answer, neither the call's input nor structured_output is kept.
-    const plain = traceFromFrames(rawFrames(), { binarySHA256: BINARY });
+    const plain = traceFromFrames(rawFrames(), { source: "recorded", binarySHA256: BINARY });
     expect(serializeCorrespondenceTrace(plain)).not.toContain("Received.");
     expect(result(plain)).toEqual({
       type: "result",
@@ -557,7 +566,7 @@ describe("correspondence allowlist", () => {
     const frames = rawFrames();
     Object.assign(frames[0], { claude_code_version: version, model });
     return serializeCorrespondenceTrace(
-      traceFromFrames(frames, { binarySHA256, acceptedAnswer: answer }),
+      traceFromFrames(frames, { source: "recorded", binarySHA256, acceptedAnswer: answer }),
     );
   };
   const entryFor = (version: string, trace = traceFor(version)) => ({
@@ -674,8 +683,13 @@ describe("correspondence allowlist", () => {
   });
 });
 
-/** A plan for the shipped package, with the real, empty allowlist (no mocks in this file). */
-function shippedPlan(dir: string, nativeVersion = "2.1.308") {
+/** A well-formed version the shipped allowlist does not list, whatever it lists. */
+const UNLISTED = Array.from({ length: 100 }, (_, i) => `0.0.${i + 1}`).find(
+  (v) => !CLAUDE_CORRESPONDENCE_QUALIFIED.some((e) => e.nativeVersion === v),
+)!;
+
+/** A plan for the shipped package, with the real allowlist (no mocks in this file). */
+function shippedPlan(dir: string, nativeVersion = UNLISTED, tmp: string | null = null) {
   const cwd = join(dir, "cwd");
   mkdirSync(cwd, { recursive: true, mode: 0o700 });
   return {
@@ -711,7 +725,7 @@ function shippedPlan(dir: string, nativeVersion = "2.1.308") {
     ],
     limits: { topLevelTurns: 2, windowMs: 60000, requestTimeoutMs: 120000 },
     supervision: { kind: "owner-attended" },
-    environment: { HOME: dir, CODEX_HOME: null, TMPDIR: null },
+    environment: { HOME: dir, CODEX_HOME: null, TMPDIR: tmp },
     declaredUnproved: ["dollars", "outputTokens", "providerInternalRequests"],
   };
 }
@@ -724,12 +738,28 @@ const withDir = async (run: (dir: string) => Promise<void> | void) => {
   }
 };
 
-// Claude review 5 (round 2): with the real, empty allowlist the emulation could not run.
-describe("emulation with the shipped (empty) allowlist", () => {
+// Codex round 4, item 4: a null TMPDIR left Claude on the shared /tmp.
+describe("pinned TMPDIR", () => {
+  it("is required for duty and qualification plans, not for emulation", () =>
+    withDir((dir) => {
+      const listed = { ...shippedPlan(dir) };
+      for (const prepare of [prepareCorrespondencePlan, prepareCorrespondenceQualificationPlan])
+        expect(() => prepare(listed)).toThrow("tmpdir-required");
+      expect(() => prepareCorrespondenceEmulationPlan(shippedPlan(dir))).not.toThrow();
+      expect(() =>
+        prepareCorrespondenceQualificationPlan(shippedPlan(dir, UNLISTED, dir)),
+      ).not.toThrow();
+    }));
+});
+
+// Claude review 5 (round 2): with the real allowlist the emulation could not run. Codex round 4,
+// item 3: these tests must not depend on that allowlist staying empty.
+describe("emulation with the shipped allowlist", () => {
   it("runs a duty emulation without a qualified version", () =>
     withDir(async (dir) => {
-      expect(CLAUDE_CORRESPONDENCE_QUALIFIED).toHaveLength(0);
-      expect(() => prepareCorrespondencePlan(shippedPlan(dir))).toThrow("unqualified-profile");
+      expect(() => prepareCorrespondencePlan(shippedPlan(dir, UNLISTED, dir))).toThrow(
+        "unqualified-profile",
+      );
       const prepared = prepareCorrespondenceEmulationPlan(shippedPlan(dir));
       const run = openCorrespondenceEmulation({
         prepared,
@@ -784,7 +814,7 @@ describe("emulation with the shipped (empty) allowlist", () => {
   // LocalHelp item 18: the whole qualification trace path, offline.
   it("proves the qualification trace path offline: record, write, hash and replay", () =>
     withDir(async (dir) => {
-      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9"));
+      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9", dir));
       const result = await qualifyClaudeCorrespondenceEmulation({
         prepared,
         stateFile: join(dir, "emulated.sqlite"),
@@ -803,23 +833,36 @@ describe("emulation with the shipped (empty) allowlist", () => {
       expect(statSync(out).mode & 0o777).toBe(0o600);
       const bytes = readFileSync(out, "utf8");
       expect(sha(bytes)).toBe(result.traceSHA256);
-      expect(result.allowlistEntry).toEqual({
-        nativeVersion: "9.9.9",
-        model: MODEL,
-        binarySHA256: BINARY,
-        traceSHA256: result.traceSHA256,
-        trace: bytes,
-      });
-      // The printed entry qualifies the version, through the real gate.
-      expect(() =>
-        checkCorrespondenceQualification(profile999(), [result.allowlistEntry!]),
-      ).not.toThrow();
       expect(() => writeCorrespondenceTrace(out, result.traceText)).toThrow();
+      // Claude round 4, item 1: an emulated run proves the mechanics, never a version.
+      expect(result.allowlistEntry).toBeUndefined();
+      expect(JSON.parse(bytes).source).toBe("emulated");
+      const pin = { model: MODEL, nativeVersion: "9.9.9", binarySHA256: BINARY };
+      expect(replayCorrespondenceTrace(JSON.parse(bytes), pin)).toEqual({
+        kind: "refused",
+        reason: "emulated-trace",
+      });
+      expect(checkCorrespondenceTraceBytes(bytes, pin)).toBe("emulated-trace");
+      // Only the explicit emulation replay accepts it.
+      expect(replayEmulatedCorrespondenceTrace(JSON.parse(bytes), pin).kind).toBe("accepted");
+      // A hand-made entry around the emulated bytes is refused by the real gate.
+      expect(() =>
+        checkCorrespondenceQualification(profile999(), [
+          { ...pin, traceSHA256: result.traceSHA256, trace: bytes },
+        ]),
+      ).toThrow("native-profile-unqualified");
+      // And relabelling it as recorded breaks the pinned hash.
+      const relabelled = bytes.replace('"source": "emulated"', '"source": "recorded"');
+      expect(() =>
+        checkCorrespondenceQualification(profile999(), [
+          { ...pin, traceSHA256: result.traceSHA256, trace: relabelled },
+        ]),
+      ).toThrow("native-profile-unqualified");
     }));
 
   it("reports a refused emulated qualification with no answer in the trace", () =>
     withDir(async (dir) => {
-      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9"));
+      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9", dir));
       const result = await qualifyClaudeCorrespondenceEmulation({
         prepared,
         stateFile: join(dir, "emulated.sqlite"),

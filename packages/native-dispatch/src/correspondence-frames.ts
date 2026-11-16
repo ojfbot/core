@@ -50,7 +50,9 @@ export type CorrespondenceFrameRefusal =
   | "no-tool-call"
   | "no-result"
   /** Replay only: the trace was recorded from another binary than the one pinned. */
-  | "binary-mismatch";
+  | "binary-mismatch"
+  /** Replay for allowlisting only: the trace came from an emulation, not a real recording. */
+  | "emulated-trace";
 
 /** A frame refusal, or a process-level reason the native turn could not be accepted. */
 export type CorrespondenceTurnRefusal =
@@ -61,6 +63,7 @@ export type CorrespondenceTurnRefusal =
   | "exit-nonzero"
   | "trailing-output"
   | "process-error"
+  | "descendant-escaped"
   | "stop-unconfirmed";
 
 export type CorrespondenceFrameVerdict =
@@ -253,6 +256,11 @@ export function createCorrespondenceFrameChecker(
 export const CORRESPONDENCE_TRACE_FORMAT = "claude-correspondence-trace-v3";
 export interface CorrespondenceTrace {
   format: typeof CORRESPONDENCE_TRACE_FORMAT;
+  /**
+   * "recorded" for a real Claude turn, "emulated" for scripted frames. It is part of the hashed
+   * bytes, so an emulated trace cannot be relabelled without changing its SHA-256.
+   */
+  source: "recorded" | "emulated";
   /** SHA-256 of the pinned binary that produced the trace. */
   binary_sha256: string;
   frames: unknown[];
@@ -303,11 +311,12 @@ function toolSummary(node: Record<string, unknown>): Record<string, unknown> {
  */
 export function traceFromFrames(
   frames: readonly unknown[],
-  options: { binarySHA256: string; acceptedAnswer?: unknown },
+  options: { source: "recorded" | "emulated"; binarySHA256: string; acceptedAnswer?: unknown },
 ): CorrespondenceTrace {
   const answer = options.acceptedAnswer;
   return {
     format: CORRESPONDENCE_TRACE_FORMAT,
+    source: options.source === "recorded" ? "recorded" : "emulated",
     binary_sha256: /^[a-f0-9]{64}$/.test(options.binarySHA256) ? options.binarySHA256 : "invalid",
     frames: frames.slice(0, TRACE_MAX_FRAMES + 1).map((m) => {
       if (!record(m)) return null;
@@ -421,10 +430,33 @@ function rehydrate(f: unknown): unknown {
 }
 
 /**
- * Replays a cut-down trace through the same frame checker the live transport uses, against the
- * model and version the plan pins (never the trace's own claims).
+ * Replays a recorded trace through the same frame checker the live transport uses, against the
+ * model, version and binary the plan pins (never the trace's own claims). This is the replay that
+ * allowlisting relies on: an emulated trace is refused with `emulated-trace`.
  */
 export function replayCorrespondenceTrace(
+  trace: unknown,
+  expected: { model: string; nativeVersion: string; binarySHA256: string },
+): CorrespondenceFrameVerdict {
+  if (record(trace) && trace.source !== "recorded")
+    return { kind: "refused", reason: "emulated-trace" };
+  return replay(trace, expected);
+}
+
+/**
+ * EMULATION ONLY. The same replay for a trace from qualifyClaudeCorrespondenceEmulation, to prove
+ * the mechanics offline. It refuses a recorded trace, and nothing it accepts can qualify a version.
+ */
+export function replayEmulatedCorrespondenceTrace(
+  trace: unknown,
+  expected: { model: string; nativeVersion: string; binarySHA256: string },
+): CorrespondenceFrameVerdict {
+  if (!record(trace) || trace.source !== "emulated")
+    return { kind: "refused", reason: "invalid-frame" };
+  return replay(trace, expected);
+}
+
+function replay(
   trace: unknown,
   expected: { model: string; nativeVersion: string; binarySHA256: string },
 ): CorrespondenceFrameVerdict {
@@ -432,7 +464,7 @@ export function replayCorrespondenceTrace(
     return { kind: "refused", reason: "binary-mismatch" };
   if (
     !record(trace) ||
-    Object.keys(trace).sort().join(",") !== "binary_sha256,format,frames" ||
+    Object.keys(trace).sort().join(",") !== "binary_sha256,format,frames,source" ||
     trace.format !== CORRESPONDENCE_TRACE_FORMAT ||
     !Array.isArray(trace.frames) ||
     trace.frames.length > TRACE_MAX_FRAMES
