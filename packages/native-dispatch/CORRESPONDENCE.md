@@ -27,7 +27,9 @@ nothing from HelpDesk.
   the plan in the same environment the launchd job runs with: a `HOME` or `CODEX_HOME` that differs
   from the job's holds the window with `environment-mismatch`.
 - **TMPDIR.** Pinned by the plan and set for Claude, exactly as checked; it is not compared with
-  the controller's. `null` leaves it unset for Claude. A pinned folder must be the owner's own
+  the controller's. Duty and qualification plans must pin one: `null` is refused when the plan is
+  prepared (`tmpdir-required`), because Claude would fall back to the shared `/tmp`. Only an
+  emulation plan may leave it `null`. A pinned folder must be the owner's own
   private folder: its own realpath (no symlink anywhere in it and no trailing slash: on macOS use
   `/private/var/folders/…/T`, not `/var/folders/…/T/`), owned by the owner with mode exactly 0700,
   and without an ACL. Shared folders such as `/private/tmp` or `/Users/Shared`, and any root-owned
@@ -109,33 +111,34 @@ is the one checker: the live transport, trace replay and qualification all use i
 Each refusal below ends the turn as `unknown` with no proposal. The reason is journaled; read it with
 `dispatcher.turnRefusal(deliveryId)`.
 
-| Reason                     | Meaning                                                   |
-| -------------------------- | --------------------------------------------------------- |
-| `unexpected-frame`         | A frame kind not on the allowlist, e.g. `stream_event`    |
-| `init-version-mismatch`    | Init reports another Claude version than the plan's       |
-| `init-tools-mismatch`      | Init tools are not exactly the output tool                |
-| `init-surface-not-empty`   | An MCP server, slash command, agent, skill or plugin      |
-| `unexpected-init-key`      | An init key not on `CORRESPONDENCE_INIT_KEYS`             |
-| `invalid-result`           | A result whose `is_error` is not a boolean                |
-| `tool-name-mismatch`       | Another tool, a server or MCP block, or one out of place  |
-| `tool-second-call`         | A second tool-use block                                   |
-| `tool-call-without-output` | The output tool was called, but no `structured_output`    |
-| `output-without-tool-call` | `structured_output` with no call                          |
-| `tool-input-mismatch`      | The call's input differs from `structured_output`         |
-| `no-tool-call`             | Neither a call nor `structured_output`, e.g. a text reply |
-| `init-model-mismatch`      | Init reports another model                                |
-| `invalid-frame`            | A line that is not a well-formed frame                    |
-| `wrong-session`            | A frame from another session                              |
-| `frame-before-init`        | A frame before init                                       |
-| `init-repeated`            | A second init frame                                       |
-| `frame-after-result`       | A frame after the result                                  |
-| `no-result`                | The stream ended without a result                         |
-| `deadline`, `aborted`      | The turn's limit passed, or the caller aborted            |
-| `output-overflow`          | More than 256 KiB of output                               |
-| `exit-nonzero`             | The process exited nonzero                                |
-| `trailing-output`          | Bytes after the last complete line                        |
-| `process-error`            | The process could not be spawned                          |
-| `stop-unconfirmed`         | Claude's group or a holder of its stdout may still run    |
+| Reason                     | Meaning                                                    |
+| -------------------------- | ---------------------------------------------------------- |
+| `unexpected-frame`         | A frame kind not on the allowlist, e.g. `stream_event`     |
+| `init-version-mismatch`    | Init reports another Claude version than the plan's        |
+| `init-tools-mismatch`      | Init tools are not exactly the output tool                 |
+| `init-surface-not-empty`   | An MCP server, slash command, agent, skill or plugin       |
+| `unexpected-init-key`      | An init key not on `CORRESPONDENCE_INIT_KEYS`              |
+| `invalid-result`           | A result whose `is_error` is not a boolean                 |
+| `tool-name-mismatch`       | Another tool, a server or MCP block, or one out of place   |
+| `tool-second-call`         | A second tool-use block                                    |
+| `tool-call-without-output` | The output tool was called, but no `structured_output`     |
+| `output-without-tool-call` | `structured_output` with no call                           |
+| `tool-input-mismatch`      | The call's input differs from `structured_output`          |
+| `no-tool-call`             | Neither a call nor `structured_output`, e.g. a text reply  |
+| `init-model-mismatch`      | Init reports another model                                 |
+| `invalid-frame`            | A line that is not a well-formed frame                     |
+| `wrong-session`            | A frame from another session                               |
+| `frame-before-init`        | A frame before init                                        |
+| `init-repeated`            | A second init frame                                        |
+| `frame-after-result`       | A frame after the result                                   |
+| `no-result`                | The stream ended without a result                          |
+| `deadline`, `aborted`      | The turn's limit passed, or the caller aborted             |
+| `output-overflow`          | More than 256 KiB of output                                |
+| `exit-nonzero`             | The process exited nonzero                                 |
+| `trailing-output`          | Bytes after the last complete line                         |
+| `process-error`            | The process could not be spawned                           |
+| `descendant-escaped`       | A process from the turn left Claude's group; it was killed |
+| `stop-unconfirmed`         | Claude's group or a holder of its stdout may still run     |
 
 ## Process lifetime
 
@@ -166,6 +169,16 @@ same happens 1 s after the watchdog exits if the pipes are still open. `dispatch
 within the limit plus about 5 s, and `dispatcher.turnProcessGroup(deliveryId)` gives the group to
 check. A probe of a group ID that the system has already reused is a residual risk: the controller
 signals the group only while its probe succeeds, within seconds of the turn.
+
+Every process of the turn carries `CORE_CORRESPONDENCE_TURN=<session UUID>` in its environment,
+set on the watchdog and inherited by Claude and its descendants. After the group kill, and before
+any proposal is accepted, the controller scans the process table for that marker
+(`/proc/<pid>/environ` on Linux, `ps -ax -E -ww` on macOS, bounded to 2 s) and SIGKILLs anything
+it finds. A completed turn with such a process becomes `unknown` with `descendant-escaped` and no
+proposal; if a marked process survives the kill, or the table cannot be read, the turn is
+`stop-unconfirmed`. Residual risk: a process that both clears its environment and leaves Claude's
+group is not found, and on macOS `ps` does not show the environment of Apple platform binaries
+(such as `/bin/sleep`). Both are out of scope because the model has no tool to start a process.
 
 A turn refused before any process starts (a binary, approval or environment check just before
 launch, or an expired window) is refunded and journaled as a refusal, never as unknown.
@@ -218,8 +231,10 @@ approval.
 cut down by `traceFromFrames(frames, { binarySHA256, acceptedAnswer })` and written by
 `serializeCorrespondenceTrace` (two-space JSON with a final newline). Its SHA-256 is over those
 exact bytes. The file is
-`{ "format": "claude-correspondence-trace-v3", "binary_sha256": "…", "frames": [...] }`, with the
-pinned binary's SHA-256 and one entry per stream-json frame. Only a closed set of fields is copied,
+`{ "format": "claude-correspondence-trace-v3", "source": "recorded", "binary_sha256": "…",
+"frames": [...] }`, with the pinned binary's SHA-256 and one entry per stream-json frame. `source`
+is `recorded` for a real Claude turn and `emulated` for scripted frames; it is inside the hashed
+bytes, so an emulated trace cannot be relabelled without changing its SHA-256. Only a closed set of fields is copied,
 each in its expected shape: names (frame, block and tool types and names) only as identifiers,
 the model and version only as selectors (otherwise `"invalid"`), and `is_error` only as a boolean
 (otherwise `"non-boolean"`):
@@ -241,7 +256,9 @@ Tool input is never copied, except that the single StructuredOutput call's input
 `parseCorrespondenceAnswer`. A refused trace keeps only names, counts and block types. No session,
 account, usage, cost or identifier is kept. `replayCorrespondenceTrace(trace, { model,
 nativeVersion, binarySHA256 })` restores the frames' shape and feeds them to the real checker
-against the plan's model, version and binary, never the trace's own claims.
+against the plan's model, version and binary, never the trace's own claims. It refuses an emulated
+trace with `emulated-trace`; only the emulation-only `replayEmulatedCorrespondenceTrace` replays
+one.
 
 **The gate.** A duty window opens a Claude profile only when an allowlist entry has its exact
 version, binary SHA-256 and model; the entry's embedded trace matches the entry's trace SHA-256,
@@ -294,8 +311,11 @@ allowlist and can open nothing but an emulation. `status()` reports `realProvide
 journal is marked `emulated`.
 
 `qualifyClaudeCorrespondenceEmulation({ prepared, stateFile, frames })` proves the qualification
-trace path offline: the same request, dispatcher, frame checker, trace cut, SHA-256, replay and
-allowlist entry, with scripted stream-json frames instead of a Claude process. It needs no
-approval, binary, managed-policy check or `HOME`, and its journal is marked `emulated`, so it cannot
-touch a live or qualification journal. `writeCorrespondenceTrace` writes the trace as the script
-does. An emulated trace proves nothing about a real Claude version.
+mechanics offline: the same request, dispatcher, frame checker, trace cut, SHA-256 and replay, with
+scripted stream-json frames instead of a Claude process. It needs no approval, binary,
+managed-policy check or `HOME`, and its journal is marked `emulated`, so it cannot touch a live or
+qualification journal. `writeCorrespondenceTrace` writes the trace as the script does. Its trace is
+marked `"source": "emulated"`, it returns no allowlist entry, and the gate refuses its bytes even in
+a hand-made entry. **For LocalHelp:** the emulated path proves the mechanics only; a real
+qualification turn (`qualifyClaudeCorrespondence`, through the script) is the only route to an
+allowlist entry.

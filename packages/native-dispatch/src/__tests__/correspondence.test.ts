@@ -177,7 +177,7 @@ function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "c
         structured_output: qualificationAnswer,
       },
     ],
-    { binarySHA256: bin.sha, acceptedAnswer: qualificationAnswer },
+    { source: "recorded", binarySHA256: bin.sha, acceptedAnswer: qualificationAnswer },
   );
   const text = serializeCorrespondenceTrace(trace);
   const others = allow.entries.filter((e) => e.nativeVersion !== nativeVersion);
@@ -504,7 +504,7 @@ describe("plan", () => {
       { supervision: { kind: "owner-attended", codexHostFileReadRiskAccepted: true } },
     ],
     ["unattended supervision", { supervision: { kind: "unattended" } }],
-    ["a CODEX_HOME", { environment: { HOME: "/tmp", CODEX_HOME: "/tmp", TMPDIR: null } }],
+    ["a CODEX_HOME", { environment: { HOME: "/tmp", CODEX_HOME: "/tmp", TMPDIR: "/tmp" } }],
     ["no schema kind", { kind: "advisory-review" }],
   ])("refuses %s", (_, change) => {
     expect(() => prepareCorrespondencePlan(rawPlan(change))).toThrow("invalid-correspondence-plan");
@@ -932,7 +932,8 @@ describe("owner window", () => {
       | "overflow"
       | "nonzero"
       | "trailing"
-      | "escaped-holder";
+      | "escaped-holder"
+      | "escaped-detached";
     // No provider SDK, network or credentials: a local script that speaks Claude's stream-json the
     // way 2.1.308's --json-schema does: one StructuredOutput call whose input is structured_output.
     const fake = (behavior: Behavior, version = "2.1.286") => `
@@ -950,6 +951,11 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   let fd3=false; try{fs.writeSync(3,'group 1'+String.fromCharCode(10)+'done 0'+String.fromCharCode(10));fd3=true;}catch{}
   fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
     pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR}));
+  if(behavior==='escaped-detached'){
+    // A descendant in a new session (setsid), with stdio redirected: invisible to the group kill.
+    cp.spawn(process.execPath,['-e',"require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "escaped"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore',detached:true}).unref();
+    const t0=Date.now(); while(!fs.existsSync(${JSON.stringify(join(dir, "escaped"))}) && Date.now()-t0<3000){}
+  }
   if(behavior==='escaped-holder'){
     // A descendant that leaves Claude's group but keeps stdout open.
     cp.spawn(process.execPath,['-e',"require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "escaped"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:['ignore','inherit','ignore'],detached:true}).unref();
@@ -1161,9 +1167,33 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         expect(dispatcher.turnRefusal("delivery-1")).toBe("stop-unconfirmed");
         // No invocation is left active: the window can close.
         expect(dispatcher.status().active).toBe(0);
+        // The marker scan found the holder and killed it.
+        expect(alive(Number(readFileSync(join(dir, "escaped"), "utf8")))).toBe(false);
       } finally {
         const escaped = join(dir, "escaped");
-        if (existsSync(escaped)) realProcess.kill(Number(readFileSync(escaped, "utf8")), "SIGKILL");
+        if (existsSync(escaped)) {
+          const pid = Number(readFileSync(escaped, "utf8"));
+          if (alive(pid)) realProcess.kill(pid, "SIGKILL");
+        }
+      }
+    }, 15000);
+
+    // Codex round 4, item 2: a descendant that left Claude's group survived a completed turn.
+    it("refuses a completed turn whose descendant escaped the group, and kills it", async () => {
+      const { o, dispatcher } = ready("escaped-detached");
+      const escaped = join(dir, "escaped");
+      try {
+        expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+          kind: "unknown",
+        });
+        expect(dispatcher.turnRefusal("delivery-1")).toBe("descendant-escaped");
+        expect(dispatcher.agentProposal("delivery-1")).toBeUndefined();
+        expect(alive(Number(readFileSync(escaped, "utf8")))).toBe(false);
+      } finally {
+        if (existsSync(escaped)) {
+          const pid = Number(readFileSync(escaped, "utf8"));
+          if (alive(pid)) realProcess.kill(pid, "SIGKILL");
+        }
       }
     }, 15000);
 

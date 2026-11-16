@@ -31,6 +31,7 @@ import {
   CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
+  checkEmulatedCorrespondenceTraceBytes,
   isClaudeVersion,
   qualifiedCorrespondenceVersions,
 } from "./correspondence-qualification.js";
@@ -200,6 +201,13 @@ function prepare(
   for (const item of [...value.profiles, ...value.bindings])
     if (object(item) && REVOKED_PROVIDERS.includes(item.provider as Provider))
       fail("revoked-provider");
+  // Duty and qualification turns run a real Claude: it needs its own private TMPDIR, not /tmp.
+  if (
+    mode !== "correspondence-emulation-prepared" &&
+    object(value.environment) &&
+    value.environment.TMPDIR === null
+  )
+    fail("tmpdir-required");
   if (
     value.profiles.length < 1 ||
     value.profiles.length > 2 ||
@@ -599,8 +607,9 @@ export function writeCorrespondenceTrace(path: string, traceText: string): void 
  * EMULATION ONLY. The qualification path offline: the same request, dispatcher, frame checker,
  * trace cut, hash and replay as qualifyClaudeCorrespondence, but the turn's frames come from
  * `frames` instead of a Claude process. It needs no approval, binary, managed-policy check or HOME,
- * and its journal is marked `emulated`, so it cannot open a live or qualification journal, and its
- * trace proves nothing about a real Claude version.
+ * and its journal is marked `emulated`, so it cannot open a live or qualification journal. Its
+ * trace is marked `"source": "emulated"` inside the hashed bytes, so the real replay and the gate
+ * refuse it, and it returns no allowlist entry: only a real qualification turn yields one.
  */
 export async function qualifyClaudeCorrespondenceEmulation(options: {
   /** From prepareCorrespondenceQualificationPlan. */
@@ -630,7 +639,7 @@ export async function qualifyClaudeCorrespondenceEmulation(options: {
     transport: emulator.transport,
     claudeVersions: prepared.plan.profiles.map((p) => p.nativeVersion),
   });
-  return runQualificationTurn(prepared, wrap(dispatcher), recorded);
+  return runQualificationTurn(prepared, wrap(dispatcher), recorded, "emulated");
 }
 
 /**
@@ -675,7 +684,7 @@ export async function qualifyClaudeCorrespondence(options: {
     { kind: "qualification", recordFrame: (frame) => frames.push(frame) },
   );
   if (opened.kind === "held") return opened;
-  return runQualificationTurn(prepared, opened.dispatcher, frames);
+  return runQualificationTurn(prepared, opened.dispatcher, frames, "recorded");
 }
 
 /** The one qualification turn, shared by the real and the emulated run. */
@@ -683,6 +692,7 @@ async function runQualificationTurn(
   prepared: PreparedCorrespondencePlan,
   dispatcher: CorrespondenceDispatcher,
   frames: unknown[],
+  source: "recorded" | "emulated",
 ): Promise<CorrespondenceQualification> {
   const { planDigest, plan } = prepared;
   const binding = plan.bindings[0],
@@ -729,11 +739,15 @@ async function runQualificationTurn(
       disposition.outcome === "completed";
     const traceText = serializeCorrespondenceTrace(
       traceFromFrames(frames, {
+        source,
         binarySHA256: profile.binarySHA256,
         ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
       }),
     );
-    const replayRefusal = checkCorrespondenceTraceBytes(traceText, {
+    // An emulated trace replays only through the emulation-only check; the gate refuses it.
+    const replayRefusal = (
+      source === "recorded" ? checkCorrespondenceTraceBytes : checkEmulatedCorrespondenceTraceBytes
+    )(traceText, {
       model: profile.model,
       nativeVersion: profile.nativeVersion,
       binarySHA256: profile.binarySHA256,
@@ -759,8 +773,9 @@ async function runQualificationTurn(
       proposal,
       verdict: refused === undefined ? "accepted" : { refused },
       // The allowlist entry to add, with the trace embedded, once the trace file is committed.
+      // Only a real recorded turn yields one; an emulation proves the mechanics, never a version.
       allowlistEntry:
-        refused === undefined
+        refused === undefined && source === "recorded"
           ? {
               nativeVersion: profile.nativeVersion,
               model: profile.model,

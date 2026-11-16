@@ -6,7 +6,10 @@ import {
   deepFreeze,
 } from "./correspondence-allowlist.js";
 import type { QualifiedClaudeCorrespondence } from "./correspondence-allowlist.js";
-import { replayCorrespondenceTrace } from "./correspondence-frames.js";
+import {
+  replayCorrespondenceTrace,
+  replayEmulatedCorrespondenceTrace,
+} from "./correspondence-frames.js";
 import { parseCorrespondenceAnswer, parseCorrespondencePacket } from "./correspondence-protocol.js";
 import type { CorrespondencePacket } from "./correspondence-types.js";
 import type { DispatchRequest } from "./types.js";
@@ -112,13 +115,29 @@ export function checkCorrespondenceTraceBytes(
   bytes: Buffer | string,
   expected: { model: string; nativeVersion: string; binarySHA256: string },
 ): string | undefined {
+  return checkTraceBytes(bytes, expected, replayCorrespondenceTrace);
+}
+
+/** EMULATION ONLY: the same check for an emulated trace. Nothing it accepts qualifies a version. */
+export function checkEmulatedCorrespondenceTraceBytes(
+  bytes: Buffer | string,
+  expected: { model: string; nativeVersion: string; binarySHA256: string },
+): string | undefined {
+  return checkTraceBytes(bytes, expected, replayEmulatedCorrespondenceTrace);
+}
+
+function checkTraceBytes(
+  bytes: Buffer | string,
+  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  replay: typeof replayCorrespondenceTrace,
+): string | undefined {
   let trace: unknown;
   try {
     trace = JSON.parse(bytes.toString());
   } catch {
     return "invalid-frame";
   }
-  const verdict = replayCorrespondenceTrace(trace, expected);
+  const verdict = replay(trace, expected);
   if (verdict.kind === "refused") return verdict.reason;
   if (verdict.kind === "failed") return "result-error";
   const { request, packet } = qualificationRequest();
