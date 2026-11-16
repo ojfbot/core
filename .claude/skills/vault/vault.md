@@ -12,7 +12,7 @@ description: >
   log), `research <topic>` (active web/context7 research → raw/ + source page → concept/synthesis page),
   `query <question>` (answer from the wiki with citations, file substantive explorations back), `lint`
   (health-check the wiki), `cultivate` (the serendipity pass — hunt cross-cluster connections, weave links,
-  author ≤2–3 synthesis pages; runs daily on the selfco-box), `sync [--since=7d]` (fold the ojfbot activity
+  author ≤2–3 synthesis pages; manually authorized only), `sync [--since=7d]` (fold the ojfbot activity
   feed into repo entity pages),
   `handoff` (fold the current session into the vault — summary + full text of every artifact), `orient`,
   `note <title>`. There's also a copy-paste export prompt at `~/selfco/prompts/session-handoff.md` for
@@ -46,10 +46,13 @@ codebase."** You own `wiki/`; the user reads it.
   deterministic helpers. All page authoring/synthesis is done by you, here.
 - **Idempotent, non-destructive.** Re-running `init` only adds what's missing. Never overwrite a hand-edited page;
   treat user edits as authoritative. `log.md` and `raw/` are append-only — nothing deletes from them.
-- **Mind the git mirror.** `~/selfco` is pushed to a private GitHub repo (`ojfbot/selfco`) — that mirror is what the
-  Claude *apps* (web / iPhone / Mac desktop) reach via the GitHub connector, and writes from there land as commits.
-  So when this skill writes from the Mac: `git -C $V pull --rebase --autostash` *before*, and `git -C $V push`
-  *after* its commit, whenever `$V` has a remote (the scripts do this; do it yourself if writing pages directly).
+- **Write only to the canonical Sync-backed vault.** Effective 2026-10-29, `~/selfco` is the production local
+  path and is intentionally not a Git checkout. Obsidian Sync is the routine transport. Do not run Git
+  pull/push/autocommit or target a staging/restore/backup copy. Notion remains the planned durable chat inbox:
+  accept only explicitly `ready` rows, ignore draft/unset rows, queue by Notion page ID on Mini, keep failures
+  retryable until the Mini CLI verifies exact hosted Obsidian Sync version/content, and only then acknowledge
+  terminal `landed`. The defective historical transport stays off; replacement is not deployed. Historical
+  GitHub and recovery assets stay preserved until a separate owner-approved recovery/export change.
 - **No secrets.** Never write tokens, `.env` values, or credentials into the vault.
 - **Canvas nodes _and edge labels_ are sized/spaced to content — enforced, not eyeballed.** Whenever you create or edit a `.canvas`, finish with `python {skill}/scripts/canvas-fit.py <file> --vault $V` (grow-only / push-apart: text nodes → wrapped rendered lines, file-nodes → ≥420×310, node overlaps pushed down, **left↔right edge-label gaps widened so the caption clears both nodes**, groups re-expanded; never shrinks a node). An edge label renders as unboxed text at the gap midpoint, so when two horizontally-adjacent nodes are closer than the label is wide it spills under them — keep the gap ≥ the label width (the fitter does this for you). Vertical/corner labels aren't auto-moved; if one sits under a third node the fitter prints a `WARNING` to widen the gap or shorten the label by hand. `--check` exits 1 without writing, and **`lint.py --gate` runs `--check` over every hand-authored `.canvas`, so an unfit canvas blocks the gate** (run canvases under `canvas/runs/` are the renderer's domain, out of gate scope). ADR-0088 rev B.
 - **Don't call it a "second brain."** "The vault" / "the wiki" / "source, entity, concept, synthesis pages".
@@ -144,16 +147,14 @@ missing cross-refs, data gaps. Report findings grouped by type. Only mutate the 
 so), then append `## [date] lint | <n findings, m fixed>` to `wiki/log.md`.
 With `--gate` (adr:lint-shadow-to-gate) the script exits 1 on the two deterministic blocking classes — broken
 `[[links]]` and raw-without-source outside `raw/inbox/` (the inbox is an advisory filing queue;
-orphans/stale stay advisory) — and never fixes anything. The selfco-box runs it for gated
-ingest, note, and cultivate commits. Its LLM-free transport pass lands inbox captures
-without invoking the gate; the exception lets those pending captures coexist with later
-gated filing work. Other unfiled raw items still block, including raw material a legacy
-`note` job writes without a source page. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
+orphans/stale stay advisory) — and never fixes anything. Run the gate manually for an explicitly authorized
+write. The planned Notion inbox bridge is not active transport or a writer until separately deployed. Other unfiled raw items
+still block. Escape valve: `SELFCO_LINT_GATE_OVERRIDE=1`.
 
 ### `cultivate`
 The serendipity pass — `lint` keeps the wiki correct; `cultivate` makes it compound (full procedure in
-`$V/CLAUDE.md` § Workflows). Runs unattended daily on the selfco-box (`selfco-box cultivate`, vendored
-procedure: `selfco-box/src/prompts/cultivate-procedure.md`) and on demand here. Two candidate channels
+`$V/CLAUDE.md` § Workflows). Run it manually only when explicitly authorized; no unattended schedule is
+currently authorized. Two candidate channels
 feed the run, both suggestion-only into `wiki/_suggested-links.md`: `lint.py --suggest-links`
 (structural, Adamic-Adar on co-citation; `--band-sample` mixes the score tail in, since the head is
 hub-mediated near-siblings) and `semantic-suggest.py` (embeddings; prototype,
@@ -203,11 +204,13 @@ full web-`research` stay here — they need the python scripts + the ojfbot repo
 in a chat agent that has *no* connector at all (Dia, plain claude.ai), use the copy-paste prompt
 `{V:-~/selfco}/prompts/session-handoff.md` (canonical source: `{skill}/templates/session-handoff-prompt.md`) — it
 makes that agent emit a `--- BEGIN selfco handoff bundle ---` block; bring it back here and `/vault ingest` it.
-The Agent Skill reads the vault's
-`CLAUDE.md` for the schema and writes via whatever vault tools the app has — the **GitHub connector** (`ojfbot/selfco`
-repo; works on web + iPhone + desktop; each write is a commit) or a **local `mcp-obsidian` server** (Mac desktop;
-live Obsidian index). GitHub is the source of truth; `~/selfco` on the Mac is a clone — keep it pulled/pushed (this
-skill does; `{skill}/scripts/autocommit.sh` covers writes that bypass it).
+The Agent Skill must read the vault's `CLAUDE.md` for the schema. Web and mobile agents without an explicitly
+approved direct connector to the active Sync-backed vault are read-only and may prepare a reviewable artifact
+for an authorized local writer. Notion remains the planned durable chat inbox: accept only `ready` rows, ignore
+draft/unset rows, and keep failures in a retryable Mini queue keyed by page ID. Terminal `landed` requires Mini
+CLI exact hosted Obsidian Sync receipt. The defective historical transport stays off; replacement is not deployed.
+Git is not its transport. On
+Mini, an explicitly authorized local agent writes directly to `~/selfco`; Obsidian Sync carries the change.
 
 ## Output format
 
@@ -241,7 +244,7 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 
 ## Gotchas
 
-- **Write the git pull/push around every page write, or the Claude apps will clobber your work.** GitHub (`ojfbot/selfco`) is the source of truth; `~/selfco` on the Mac is just a clone, and the web/iPhone apps commit straight to GitHub. Skip the `git -C $V pull --rebase --autostash` *before* and `git -C $V push` *after*, and the next app-originated write either conflicts or silently overwrites — the scripts do this, so you must too when authoring pages directly.
+- **Never reintroduce GitHub into the routine vault path.** The production vault is the active Sync-backed `~/selfco` directory and is intentionally not a Git checkout. GitHub, old remotes, backups and restore copies are preserved recovery/history assets, not places to pull from or push to during routine authoring.
 - **`raw/` is append-only and immutable — "fixing" a source there is corruption, not maintenance.** The instinct to clean up a messy ingested transcript or correct a typo in a raw file destroys the source of record. New material is *added*; corrections live in the `wiki/` page that cites it, never in `raw/`.
 - **Link, never paste.** Pulling an ADR body, a daily-logger article, or a source file's text into a wiki page duplicates content that will drift out of sync the moment the original changes. Reference by `[[path]]`/link — this is a hard constraint, and pasting is the most common way agents quietly violate it.
 - **Prefer the Obsidian MCP, but probe exactly once.** MCP writes hit the live index (backlinks, Dataview, graph); filesystem writes don't refresh it until Obsidian reopens. Probe availability with one `vault_list` call at the start — if it fails, emit the fallback alert and use filesystem tools for the rest of the session. Re-probing after a failure burns turns on a connection that isn't coming back this session.
@@ -255,7 +258,7 @@ Next: <one suggestion — e.g. "open ~/selfco in Obsidian", "/vault lint", "git 
 - `${SELFCO_VAULT:-$HOME/selfco}/CLAUDE.md` — **the schema** (operating manual; generated from `templates/vault-claude-md.md`)
 - `knowledge/wiki-schema.md` — dev summary of the schema + the `sync` data sources
 - `knowledge/obsidian-graph-setup.md` — graph-UI tuning (path color groups), Excalibrain/mindmap/Graphify, the Karpathy gist
-- `knowledge/connectors.md` — reaching the vault from the Claude apps (GitHub connector / mcp-obsidian / Phase-B tunnel)
+- `knowledge/connectors.md` — connector design; Git transport claims are superseded, while the Notion inbox requires redesign for Sync-backed local landing, deduplication and acknowledgments
 - `consumer/SKILL.md` + `consumer/README.md` — the consumer-app `/vault` Agent Skill (ingest/query/note/orient/handoff)
 - `templates/{vault-claude-md,source,entity,concept,synthesis,session-handoff-prompt}.md`
 - `scripts/{init-vault.py, migrate-v1.py, collect.py, install-obsidian-plugins.sh, lint.py, semantic-suggest.py, canvas-fit.py, ingest.py, autocommit.sh}` — `ingest.py` auto-detects YouTube URLs and lands the transcript in `raw/` via `yt-dlp` (`brew install yt-dlp`)
