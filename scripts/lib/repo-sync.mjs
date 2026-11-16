@@ -21,14 +21,14 @@ const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' };
 // Writes never run repository hooks unattended (a hung post-merge or reference-transaction hook
 // would wedge the LaunchAgent) and never auto-gc (gc runs `worktree prune`).
 const WRITE_CONFIG = ['-c', 'core.hooksPath=/dev/null', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false',
-  '-c', 'merge.autoStash=false'];
+  '-c', 'merge.autoStash=false', '-c', 'core.fsmonitor=false'];
 // Local writes (update-ref, ff merge) get no timeout: killing git mid-checkout leaves a half-updated
 // worktree, and with hooks disabled nothing external can hang them.
 const WRITE_TIMEOUT_MS = 0;
 
-export function git(cwd, args, { timeoutMs = 60_000, readOnly = true } = {}) {
-  const full = readOnly ? ['--no-optional-locks', ...args] : [...WRITE_CONFIG, ...args];
-  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs || undefined });
+export function git(cwd, args, { timeoutMs = 60_000, readOnly = true, input } = {}) {
+  const full = readOnly ? ['--no-optional-locks', '-c', 'core.fsmonitor=false', ...args] : [...WRITE_CONFIG, ...args];
+  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs || undefined, input });
   return {
     ok: r.status === 0,
     code: r.status,
@@ -42,9 +42,9 @@ export function redact(text) {
   const line = String(text).split('\n').find(Boolean) || '';
   return line
     .replace(/(\w+:\/\/)[^/@\s]+@/g, '$1***@')
-    .replace(/((?:access_|private_|auth_)?(?:token|password|passwd|secret|api_?key|key|auth|signature|sig)=)[^&\s'"]+/gi, '$1***')
-    .replace(/\b(Bearer|Basic|token)\s+[A-Za-z0-9._~+\/=-]{8,}/g, '$1 ***')
-    .replace(/\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, '***')
+    .replace(/((?:access_|private_|auth_)?(?:token|password|passwd|pwd|secret|api_?key|key|auth|signature|sig|credential)s?\s*[=:]\s*)(["']?)[^\s"'&]*\2/gi, '$1$2***$2')
+    .replace(/\b(bearer|basic|token)\s+["']?[^\s"']+["']?/gi, '$1 ***')
+    .replace(/\b(gh[pousr]_[A-Za-z0-9]{10,}|github_pat_[A-Za-z0-9_]{10,})\b/g, '***')
     .slice(0, 300);
 }
 
@@ -130,6 +130,24 @@ export function branchBusyElsewhere(worktrees, branch) {
   return null;
 }
 
+/** true if any path changed between a and b has a filter attribute; null if it can't be told. */
+export function changedPathsUseFilter(worktreePath, a, b) {
+  const d = git(worktreePath, ['diff', '--name-only', '-z', '--no-renames', a, b]);
+  if (!d.ok) return null;
+  if (!d.out) return false;
+  for (const source of [null, b]) {
+    const args = ['check-attr', '-z', '--stdin', 'filter'];
+    if (source) args.splice(1, 0, `--source=${source}`);
+    const r = git(worktreePath, args, { input: d.out });
+    if (!r.ok) return null;
+    const parts = r.out.split('\0');
+    for (let i = 2; i < parts.length; i += 3) {
+      if (parts[i] && parts[i] !== 'unspecified' && parts[i] !== 'unset') return true;
+    }
+  }
+  return false;
+}
+
 /** Who holds <branch> right now: { holder } (maybe null), or { unknown: true } if it can't be told. */
 function ownership(repo, branch) {
   const wts = listWorktrees(repo);
@@ -197,6 +215,13 @@ export function syncMain(repo, { remote = 'origin', branch = 'main', fetch = tru
   const head = git(holder.path, ['symbolic-ref', '--quiet', 'HEAD']);
   if (!head.ok || head.out !== `refs/heads/${branch}`) {
     return { ...res, action: 'skipped-ownership-changed', after: local };
+  }
+  // Checkout filters (e.g. git-lfs smudge/process) run external programs that could stall a
+  // write with no timeout. Fast-forward the worktree only when no changed path uses a filter,
+  // judged by both the current and the incoming .gitattributes.
+  const filtered = changedPathsUseFilter(holder.path, local, target);
+  if (filtered !== false) {
+    return { ...res, action: filtered === null ? 'skipped-filter-check-failed' : 'skipped-filtered-paths', after: local };
   }
   const m = git(holder.path, ['merge', '--ff-only', '--no-autostash', '--no-overwrite-ignore', '--quiet', target],
     { readOnly: false, timeoutMs: WRITE_TIMEOUT_MS });
