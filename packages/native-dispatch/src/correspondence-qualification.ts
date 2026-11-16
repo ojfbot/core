@@ -20,48 +20,50 @@ const sha256 = (input: string | Buffer) => createHash("sha256").update(input).di
 export { CLAUDE_CORRESPONDENCE_QUALIFIED, CORRESPONDENCE_TRACE_DIRECTORY };
 export type { QualifiedClaudeCorrespondence };
 
-/** Entries installed by the test-only hook; the gate refuses every one of them. */
-const testOnlyEntries = new WeakSet<object>();
-
 function frozenCopy(
   entries: readonly QualifiedClaudeCorrespondence[],
-  testOnly = false,
 ): readonly QualifiedClaudeCorrespondence[] {
-  return deepFreeze(
-    entries.map((e) => {
-      const copy = {
-        nativeVersion: String(e.nativeVersion),
-        model: String(e.model),
-        binarySHA256: String(e.binarySHA256),
-        traceSHA256: String(e.traceSHA256),
-        trace: String(e.trace),
-      };
-      if (testOnly) testOnlyEntries.add(copy);
-      return copy;
-    }),
-  );
+  const copies: QualifiedClaudeCorrespondence[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    copies.push({
+      nativeVersion: String(e.nativeVersion),
+      model: String(e.model),
+      binarySHA256: String(e.binarySHA256),
+      traceSHA256: String(e.traceSHA256),
+      trace: String(e.trace),
+    });
+  }
+  return deepFreeze(copies);
 }
-/** The gate reads only this frozen internal copy, taken when the module loads. */
-let active = frozenCopy(CLAUDE_CORRESPONDENCE_QUALIFIED);
+/** The gate reads only this frozen copy of the shipped allowlist, taken when the module loads. */
+const SHIPPED = frozenCopy(CLAUDE_CORRESPONDENCE_QUALIFIED);
+/** Versions for plan preparation: the shipped ones, or those the test-only hook installed. */
+let preparationVersions: readonly string[] = Object.freeze(SHIPPED.map((e) => e.nativeVersion));
 
 /**
- * TEST ONLY. Replaces the active allowlist, and returns a function that restores the shipped one.
- * The package's main entry does not export this; only the `@core/native-dispatch/testing` subpath
- * does. Its versions count for plan preparation, but the gate refuses every entry it installs: a
- * test can never make a live window accept a version.
+ * TEST ONLY. Sets the Claude versions plan preparation accepts, from fixture entries, and returns
+ * a function that restores the shipped ones. The package's main entry does not export this; only
+ * the `@core/native-dispatch/testing` subpath does. It never touches the gate: the gate reads only
+ * the frozen shipped allowlist, so a test can never make a live window accept a version.
  */
 export function replaceCorrespondenceAllowlistForTesting(
   entries: readonly QualifiedClaudeCorrespondence[],
 ): () => void {
-  active = frozenCopy(entries, true);
+  // A plain index loop over a copy: the caller's own `map` or iterator is never called.
+  const versions: string[] = [];
+  const copy = Array.prototype.slice.call(entries) as unknown[];
+  for (let i = 0; i < copy.length; i++)
+    versions.push(String((copy[i] as { nativeVersion?: unknown } | null)?.nativeVersion));
+  preparationVersions = Object.freeze(versions);
   return () => {
-    active = frozenCopy(CLAUDE_CORRESPONDENCE_QUALIFIED);
+    preparationVersions = Object.freeze(SHIPPED.map((e) => e.nativeVersion));
   };
 }
 
 /** Claude versions a correspondence plan, dispatcher and duty window may use: the allowlist's. */
 export function qualifiedCorrespondenceVersions(): string[] {
-  return active.map((e) => e.nativeVersion);
+  return [...preparationVersions];
 }
 /** A well-formed Claude version, the only kind a qualification plan may name. */
 export function isClaudeVersion(value: unknown): value is string {
@@ -167,7 +169,7 @@ function checkTraceBytes(
  */
 export function checkCorrespondenceQualification(
   profile: Pick<SubscriptionCanaryProfile, "provider" | "nativeVersion" | "binarySHA256" | "model">,
-  allowlist: readonly QualifiedClaudeCorrespondence[] = active,
+  allowlist: readonly QualifiedClaudeCorrespondence[] = SHIPPED,
 ): void {
   const entry = allowlist.find(
     (e) =>
@@ -178,8 +180,6 @@ export function checkCorrespondenceQualification(
   if (
     profile.provider !== "claude-code" ||
     !entry ||
-    // Entries from the test-only hook never qualify a version.
-    testOnlyEntries.has(entry) ||
     sha256(entry.trace) !== entry.traceSHA256 ||
     checkCorrespondenceTraceBytes(entry.trace, {
       model: profile.model,

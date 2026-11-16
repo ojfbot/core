@@ -329,9 +329,18 @@ export function recordedTraceFromFrames(
   frames: readonly unknown[],
   options: { binarySHA256: string; acceptedAnswer?: unknown },
 ): CorrespondenceTrace {
-  const trace = cutTrace(frames, options, "recorded");
+  // Frozen plain data, so the marked object can never gain a getter, toJSON or new fields.
+  const trace = deepFreezeTrace(cutTrace(frames, options, "recorded"));
   recordedTraces.add(trace);
   return trace;
+}
+
+function deepFreezeTrace<T>(value: T): T {
+  if (value !== null && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const v of Object.values(value)) deepFreezeTrace(v);
+    Object.freeze(value);
+  }
+  return value;
 }
 
 function cutTrace(
@@ -424,9 +433,30 @@ function cutTrace(
 
 /** The committed byte form of a trace. Its SHA-256 is what the allowlist pins. */
 export function serializeCorrespondenceTrace(trace: CorrespondenceTrace): string {
-  // A "recorded" trace serializes only if a real recording built it.
-  if (trace.source !== "emulated" && !recordedTraces.has(trace)) throw Error("trace-not-recorded");
-  return JSON.stringify(trace, null, 2) + "\n";
+  // A plain-data snapshot first: each known field is read once, structuredClone copies only data
+  // (it calls no toJSON and refuses functions and proxies), and only the snapshot is serialized.
+  let snapshot: CorrespondenceTrace;
+  try {
+    snapshot = structuredClone({
+      format: trace.format,
+      source: trace.source,
+      binary_sha256: trace.binary_sha256,
+      frames: trace.frames,
+    });
+  } catch {
+    throw Error("invalid-trace");
+  }
+  if (
+    snapshot.format !== CORRESPONDENCE_TRACE_FORMAT ||
+    typeof snapshot.binary_sha256 !== "string" ||
+    !Array.isArray(snapshot.frames) ||
+    (snapshot.source !== "emulated" && snapshot.source !== "recorded")
+  )
+    throw Error("invalid-trace");
+  // A "recorded" snapshot only from the frozen object a real recording built.
+  if (snapshot.source === "recorded" && !recordedTraces.has(trace))
+    throw Error("trace-not-recorded");
+  return JSON.stringify(snapshot, null, 2) + "\n";
 }
 
 /** Turns a cut-down trace frame back into the raw shape the checker reads. */

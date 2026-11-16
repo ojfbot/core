@@ -920,7 +920,9 @@ const profile999 = () => ({
 });
 
 // Codex round 5: a "recorded" trace could be forged through the public traceFromFrames.
-describe("no public way to produce an accepted trace", () => {
+// Covers the package's exports and serializer only: trace bytes carry no proof of origin, and
+// hand-written bytes are outside what any code check can stop (see "Trust boundary").
+describe("the package API never builds recorded trace bytes", () => {
   /** Reviewed: any new export must be added here, and checked against this rule. */
   const MAIN_EXPORTS = [
     "ADVISORY_OUTPUT_SCHEMA",
@@ -995,7 +997,7 @@ describe("no public way to produce an accepted trace", () => {
       expect(key).not.toMatch(/recorded/i);
   });
 
-  it("makes every trace it can build emulated, which the gate refuses", () => {
+  it("package serializer only: public builders yield emulated traces, which the gate refuses", () => {
     const trace = traceFromFrames(rawFrames(), { binarySHA256: BINARY, acceptedAnswer: answer });
     expect(trace.source).toBe("emulated");
     const text = serializeCorrespondenceTrace(trace);
@@ -1044,6 +1046,73 @@ describe("no public way to produce an accepted trace", () => {
     const body = readFileSync(join(src, "correspondence.ts"), "utf8");
     expect(body.match(/recordedTraceFromFrames\(/g)).toHaveLength(1);
     expect(body.match(/runQualificationTurn\([^)]*"recorded"\)/g)).toHaveLength(1);
+  });
+});
+// Final Codex check: two in-process bypasses of the recorded-trace lock.
+describe("package serializer and hook: recorded-trace lock", () => {
+  const emulated = () =>
+    traceFromFrames(rawFrames(), { binarySHA256: BINARY, acceptedAnswer: answer });
+  const gateRefuses = (text: string) => {
+    const entry = { ...PINNED, traceSHA256: sha(text), trace: text };
+    expect(() => checkCorrespondenceQualification(PINNED_PROFILE, [entry])).toThrow(
+      "native-profile-unqualified",
+    );
+  };
+
+  it("serializes a snapshot, so toJSON cannot relabel a trace as recorded", () => {
+    const t = emulated();
+    const forged = Object.assign({}, t, { toJSON: () => ({ ...t, source: "recorded" }) });
+    const text = serializeCorrespondenceTrace(forged);
+    expect(JSON.parse(text).source).toBe("emulated");
+    gateRefuses(text);
+  });
+
+  it("reads source once, so a changing getter cannot relabel a trace", () => {
+    const t = emulated();
+    let reads = 0;
+    const forged = { ...t } as Record<string, unknown>;
+    Object.defineProperty(forged, "source", {
+      get: () => (reads++ === 0 ? "emulated" : "recorded"),
+      enumerable: true,
+    });
+    const text = serializeCorrespondenceTrace(forged as unknown as CorrespondenceTrace);
+    expect(reads).toBe(1);
+    expect(JSON.parse(text).source).toBe("emulated");
+    gateRefuses(text);
+    // A getter that says "recorded" from the start is not a recorded trace either.
+    const always = { ...t } as Record<string, unknown>;
+    Object.defineProperty(always, "source", { get: () => "recorded", enumerable: true });
+    expect(() => serializeCorrespondenceTrace(always as unknown as CorrespondenceTrace)).toThrow(
+      "trace-not-recorded",
+    );
+  });
+
+  it("refuses functions and proxies in a trace", () => {
+    const t = emulated();
+    expect(() => serializeCorrespondenceTrace({ ...t, frames: [{ toJSON: () => ({}) }] })).toThrow(
+      "invalid-trace",
+    );
+    expect(() => serializeCorrespondenceTrace(new Proxy(t, {}))).not.toThrow();
+    expect(() =>
+      serializeCorrespondenceTrace({ ...t, frames: new Proxy([], {}) as unknown[] }),
+    ).toThrow("invalid-trace");
+  });
+
+  it("keeps the gate on the shipped allowlist, whatever the hook is given", () => {
+    const entry = { ...FIXTURE_PIN, traceSHA256: sha(FIXTURE_TEXT), trace: FIXTURE_TEXT };
+    const fixtureProfile = { provider: "claude-code" as const, ...FIXTURE_PIN };
+    // A caller array whose own `map` hands back unmarked, gate-acceptable copies.
+    const hostile = [entry];
+    Object.defineProperty(hostile, "map", { value: () => [{ ...entry }] });
+    const restore = replaceCorrespondenceAllowlistForTesting(hostile);
+    try {
+      expect(qualifiedCorrespondenceVersions()).toEqual(["9.9.9"]);
+      expect(() => checkCorrespondenceQualification(fixtureProfile)).toThrow(
+        "native-profile-unqualified",
+      );
+    } finally {
+      restore();
+    }
   });
 });
 const PINNED_PROFILE = { provider: "claude-code" as const, ...PINNED };
