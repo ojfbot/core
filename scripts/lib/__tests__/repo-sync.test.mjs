@@ -1,9 +1,9 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { driftReport, renderMarkdown, runRepoSync, syncMain } from '../repo-sync.mjs';
+import { driftReport, redact, renderMarkdown, runRepoSync, syncMain } from '../repo-sync.mjs';
 
 const ENV = {
   ...process.env,
@@ -124,6 +124,27 @@ describe('syncMain', () => {
     expect(sha(clone, 'main')).toBe(before);
   });
 
+  it('treats an unreadable rebase marker as busy, never as absent', () => {
+    commit(upstream, 'a.txt', 'two\n', 'c2');
+    g(clone, 'fetch', '-q', 'origin');
+    g(clone, 'switch', '-q', '-c', 'feature');
+    const wt = path.join(tmp, 'wt-x');
+    g(clone, 'worktree', 'add', '-q', '--detach', wt);
+    const gd = g(wt, 'rev-parse', '--absolute-git-dir');
+    mkdirSync(path.join(gd, 'rebase-merge'));
+    const head = path.join(gd, 'rebase-merge', 'head-name');
+    writeFileSync(head, 'refs/heads/main\n');
+    chmodSync(head, 0o000);
+    try {
+      const before = sha(clone, 'main');
+      const r = syncMain(clone, { fetch: false });
+      expect(r.action).toBe('skipped-branch-in-rebase-or-bisect');
+      expect(sha(clone, 'main')).toBe(before);
+    } finally {
+      chmodSync(head, 0o600);
+    }
+  });
+
   it('reports local-ahead without moving anything', () => {
     commit(clone, 'local.txt', 'l\n', 'local only');
     const r = syncMain(clone);
@@ -167,6 +188,38 @@ describe('repo-sync CLI', () => {
     expect(readFileSync(path.join(lock, 'owner'), 'utf8')).toBe(`${process.pid} someone-else`);
   });
 
+  it('skips with exit 3 while a live run holds the state lock', () => {
+    const state = path.join(tmp, 'state');
+    mkdirSync(path.join(state, 'run.lock'), { recursive: true });
+    writeFileSync(path.join(state, 'run.lock', 'owner'), `${process.pid} other`);
+    expect(run(state).status).toBe(3);
+    expect(existsSync(path.join(state, 'latest.json'))).toBe(false);
+  });
+
+  it('reclaims a stale lock whose owner process is gone', () => {
+    const state = path.join(tmp, 'state');
+    const lock = path.join(clone, '.git', 'repo-sync.lock');
+    mkdirSync(lock);
+    writeFileSync(path.join(lock, 'owner'), '999999 crashed-run');
+    const old = new Date(Date.now() - 60 * 60 * 1000);
+    utimesSync(lock, old, old);
+    expect(run(state).status).toBe(0);
+    expect(existsSync(lock)).toBe(false);
+    expect(existsSync(`${lock}.reclaim`)).toBe(false);
+  });
+
+  it('does not reclaim while another reclaimer holds the reclaim mutex', () => {
+    const state = path.join(tmp, 'state');
+    const lock = path.join(clone, '.git', 'repo-sync.lock');
+    mkdirSync(lock);
+    writeFileSync(path.join(lock, 'owner'), '999999 crashed-run');
+    const old = new Date(Date.now() - 60 * 60 * 1000);
+    utimesSync(lock, old, old);
+    mkdirSync(`${lock}.reclaim`);
+    expect(run(state).status).toBe(3);
+    expect(readFileSync(path.join(lock, 'owner'), 'utf8')).toBe('999999 crashed-run');
+  });
+
   it('writes reports owner-only (0600) in a 0700 state dir', () => {
     const state = path.join(tmp, 'state');
     expect(run(state).status).toBe(0);
@@ -206,5 +259,13 @@ describe('driftReport', () => {
     expect(g(clone, 'worktree', 'list', '--porcelain')).toContain('wt-gone');
     expect(existsSync(wt)).toBe(false);
     expect(renderMarkdown([r])).toContain('1 prunable');
+  });
+});
+
+describe('redact', () => {
+  it('strips URL userinfo, query credentials, bearer tokens and GitHub tokens, one line', () => {
+    const t = redact('fatal: https://u:pw@host/x?token=SECRET&a=1 Authorization: Bearer abcdefgh12345678 ghp_' + 'a'.repeat(30) + '\nsecond line');
+    expect(t).not.toMatch(/pw@|SECRET|abcdefgh12345678|ghp_a/);
+    expect(t).not.toContain('second line');
   });
 });

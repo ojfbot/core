@@ -66,9 +66,20 @@ done
 # checkout must already contain scripts/repo-sync.mjs. Installing changes this Mac's
 # scheduled jobs: run it only with the owner's yes. --repo-sync-dry-run prints the plist.
 if [[ -n "$REPO_SYNC" ]]; then
-  # Main working tree = first `worktree list` entry (does not assume .git sits beside it).
-  MAIN_CORE="$(git -C "$CORE_DIR" worktree list --porcelain | sed -n '1s/^worktree //p')"
-  if [[ -z "$MAIN_CORE" ]]; then echo "Error: cannot resolve core's main working tree" >&2; exit 1; fi
+  # Main working tree: if this checkout IS the main one (git-dir == common-dir) use it directly,
+  # which also covers --separate-git-dir layouts; otherwise take the first `worktree list` entry
+  # and confirm it really belongs to this repository.
+  OWN_GITDIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-dir)"
+  COMMON_DIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-common-dir)"
+  if [[ "$OWN_GITDIR" == "$COMMON_DIR" ]]; then
+    MAIN_CORE="$(git -C "$CORE_DIR" rev-parse --show-toplevel)"
+  else
+    MAIN_CORE="$(git -C "$CORE_DIR" worktree list --porcelain | sed -n '1s/^worktree //p')"
+    if [[ -z "$MAIN_CORE" || "$(git -C "$MAIN_CORE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" != "$COMMON_DIR" ]]; then
+      echo "Error: cannot resolve core's main working tree from this worktree; run the installer from the main checkout" >&2
+      exit 1
+    fi
+  fi
   # Resolve symlinks: version managers (fnm) put a per-shell path on PATH that is deleted when
   # the installing shell exits; launchd needs the real, persistent binary.
   NODE_BIN="$(command -v node || true)"
