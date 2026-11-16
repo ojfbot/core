@@ -39,18 +39,23 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
 - **Ownership checks:** if the worktree listing fails, ownership counts as unknown and the run
   skips. Ownership is re-checked just before `update-ref`. Before merging, the run confirms that
   the worktree holding `main` is still on `main`.
-- **Locking:** a state-dir lock (`<state-dir>/run.lock`) serializes whole runs, report publication
-  included, so `latest.json`, `latest.md` and `runs.jsonl` always describe one run. A per-repository
-  lock (`<git-common-dir>/repo-sync.lock`) keeps runs with different state dirs off the same repo.
-  Each lock holds a pid and a token. A run can reclaim a lock only when it is older than 25 minutes
-  *and* its pid is gone, and only while holding the exclusive `<lock>.reclaim` mutex. It re-checks
-  staleness inside the mutex, so two reclaimers can't both win. A run releases a lock only while it
-  still holds its own token.
+- **Locking:** kernel `flock(2)` locks taken by `/usr/bin/lockf` around a re-exec of the script.
+  One sits on `<state-dir>/run.flock` and serializes whole runs, report publication included. One per
+  repository sits on `<git-common-dir>/repo-sync.flock` and keeps runs with different state dirs off
+  the same repo. The kernel releases them when the process exits or is killed, so no stale lock can
+  outlive a crash, and there is no reclaim logic to race. (launchd also never starts a second
+  instance of the same job while one is running.)
+- **Checkout filters:** filters such as git-lfs `smudge`/`process` run external programs, which a
+  write with no timeout must not wait on. In the worktree holding `main`, the run fast-forwards
+  only if no changed path has a `filter` attribute under either the current or the incoming
+  `.gitattributes`. Otherwise it reports `skipped-filtered-paths`. `core.fsmonitor` is off for
+  every git call. The `update-ref` path checks nothing out, so filters never apply there.
 - **Unreadable markers:** if a rebase or bisect marker is unreadable (anything except ENOENT), the
   branch counts as busy and the run skips. A missing marker counts as absent.
 - **Reports** are written 0600 in a 0700 directory. Git stderr is cut to one line of at most 300
-  characters, with redactions: URL userinfo, `token=` / `password=` / `secret=` / `key=` style
-  parameters, `Bearer` / `Basic` / `token` header values, and GitHub token shapes.
+  characters, with redactions: URL userinfo; `token`, `password`, `secret`, `key` and similar
+  parameters, quoted or not, with `=` or `:`; `bearer`, `basic` and `token` values in any case; and
+  GitHub token shapes. Redaction is best effort; the 0600 mode is the real protection.
 
 ### Known limits
 
@@ -59,14 +64,21 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
   `~/.claude/repo-sync/launchd.err.log`, and liveness flags `runs.jsonl` silence after 36 h.
 - Code merged to `main` reaches each Mac's next run once `main` is fast-forwarded *and* checked
   out there. That is the same trust boundary as pulling `main`: the PR review gate.
-- **Accepted residual race (the owner should know):** git has no atomic "move this ref only if no
-  worktree has it checked out", and no atomic "fast-forward only if HEAD is still `main`". Both
-  ownership checks run just before their write but are not atomic with it. Between the last check
-  and `update-ref`, a few milliseconds remain in which a session could check `main` out. The compare-and-swap keeps the ref consistent; that worktree's tree
-  would then lag its ref (recoverable with `git status` / `git reset --keep`, done by a person).
-  Likewise, a session that switches branches in the instant between the `symbolic-ref` check and
-  `merge` would have that branch fast-forwarded instead. Yojimbo's `core-main-ff.sh` hook had the
-  same window.
+- **Residual race (Codex rates it Medium; the owner accepts it or not):** git has no atomic "move
+  this ref only if no worktree has it checked out", and no atomic "fast-forward only if HEAD is
+  still `main`". Both ownership checks run immediately before their write, but neither is atomic
+  with it, and the gap has no guaranteed bound. Two outcomes are possible:
+  1. A session checks `main` out between the last check and `update-ref`. Its HEAD then points at
+     the new commit while its index and files are still the old commit's. `git status` only shows
+     this. To repair it, take the old commit from `latest.json` (`main.before`) or `git reflog main`,
+     then, in that worktree, run `git read-tree -m -u <before> HEAD`. That is a two-way merge from the
+     old tree to the new one, and it refuses if local edits conflict. (A plain `git reset --keep`
+     targets the already-advanced HEAD and can leave the old files looking like unstaged changes.)
+  2. A session switches branches between the `symbolic-ref` check and `merge`. That branch is then
+     fast-forwarded to `origin/main` instead. Only a fast-forward is possible, so no commits are lost.
+     It is undone with `git reset --keep <previous>` from that branch's reflog.
+
+  Yojimbo's `core-main-ff.sh` hook had the same window for outcome 2.
 - When flipping the loops.md entry to `status: live`, add
   `installed_ref: ~/Library/LaunchAgents/com.ojfbot.repo-sync.plist`. It is left out while disabled
   because loops-lint errors on an installed_ref that is absent on disk.

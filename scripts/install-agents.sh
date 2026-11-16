@@ -75,7 +75,11 @@ if [[ -n "$REPO_SYNC" ]]; then
     MAIN_CORE="$(git -C "$CORE_DIR" rev-parse --show-toplevel)"
   else
     MAIN_CORE="$(git -C "$CORE_DIR" worktree list --porcelain | sed -n '1s/^worktree //p')"
-    if [[ -z "$MAIN_CORE" || "$(git -C "$MAIN_CORE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" != "$COMMON_DIR" ]]; then
+    # The candidate must be a real working tree whose top level is itself (a --separate-git-dir
+    # common dir such as /metadata/core.git is not) and must share this repository's common dir.
+    if [[ -z "$MAIN_CORE" \
+       || "$(git -C "$MAIN_CORE" rev-parse --show-toplevel 2>/dev/null)" != "$MAIN_CORE" \
+       || "$(git -C "$MAIN_CORE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" != "$COMMON_DIR" ]]; then
       echo "Error: cannot resolve core's main working tree from this worktree; run the installer from the main checkout" >&2
       exit 1
     fi

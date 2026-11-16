@@ -1,5 +1,5 @@
-import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, utimesSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -145,6 +145,16 @@ describe('syncMain', () => {
     }
   });
 
+  it('does not fast-forward a checked-out main when a changed path uses a checkout filter', () => {
+    commit(upstream, '.gitattributes', '*.bin filter=lfs\n', 'attrs');
+    g(clone, 'pull', '-q', '--ff-only');
+    commit(upstream, 'big.bin', 'pointer\n', 'adds filtered file');
+    const before = sha(clone, 'main');
+    const r = syncMain(clone);
+    expect(r.action).toBe('skipped-filtered-paths');
+    expect(sha(clone, 'main')).toBe(before);
+  });
+
   it('reports local-ahead without moving anything', () => {
     commit(clone, 'local.txt', 'l\n', 'local only');
     const r = syncMain(clone);
@@ -169,55 +179,41 @@ describe('repo-sync CLI', () => {
   const CLI = path.resolve(__dirname, '..', '..', 'repo-sync.mjs');
   const run = (state) => spawnSync(process.execPath, [CLI, '--repo', clone, '--state-dir', state, '--no-fetch'],
     { env: ENV, encoding: 'utf8' });
+  // Hold a kernel flock the way a concurrent run would, until the returned function kills it.
+  const hold = (file) => {
+    const p = spawn('/usr/bin/lockf', ['-k', '-t', '0', file, '/bin/sleep', '30'], { stdio: 'ignore' });
+    execFileSync('/bin/sleep', ['0.5']);
+    return () => { p.kill('SIGKILL'); execFileSync('/bin/sleep', ['0.3']); };
+  };
 
-  it('writes latest.json, latest.md and runs.jsonl and releases its lock', () => {
+  it('writes latest.json, latest.md and runs.jsonl', () => {
     const state = path.join(tmp, 'state');
     const r = run(state);
     expect(r.status).toBe(0);
     for (const f of ['latest.json', 'latest.md', 'runs.jsonl']) expect(existsSync(path.join(state, f))).toBe(true);
-    expect(existsSync(path.join(clone, '.git', 'repo-sync.lock'))).toBe(false);
   });
 
-  it('skips with exit 3 while a live run holds the repository lock, and leaves that lock in place', () => {
+  it('skips with exit 3 while another process holds the repository lock, and runs once it dies', () => {
     const state = path.join(tmp, 'state');
-    const lock = path.join(clone, '.git', 'repo-sync.lock');
-    mkdirSync(lock);
-    writeFileSync(path.join(lock, 'owner'), `${process.pid} someone-else`);
-    const r = run(state);
-    expect(r.status).toBe(3);
-    expect(readFileSync(path.join(lock, 'owner'), 'utf8')).toBe(`${process.pid} someone-else`);
+    const release = hold(path.join(clone, '.git', 'repo-sync.flock'));
+    try {
+      expect(run(state).status).toBe(3);
+      expect(existsSync(path.join(state, 'latest.json'))).toBe(false);
+    } finally {
+      release();
+    }
+    expect(run(state).status).toBe(0); // kernel released the lock with the holder: nothing stale
   });
 
-  it('skips with exit 3 while a live run holds the state lock', () => {
+  it('skips with exit 3 while another process holds the state lock', () => {
     const state = path.join(tmp, 'state');
-    mkdirSync(path.join(state, 'run.lock'), { recursive: true });
-    writeFileSync(path.join(state, 'run.lock', 'owner'), `${process.pid} other`);
-    expect(run(state).status).toBe(3);
-    expect(existsSync(path.join(state, 'latest.json'))).toBe(false);
-  });
-
-  it('reclaims a stale lock whose owner process is gone', () => {
-    const state = path.join(tmp, 'state');
-    const lock = path.join(clone, '.git', 'repo-sync.lock');
-    mkdirSync(lock);
-    writeFileSync(path.join(lock, 'owner'), '999999 crashed-run');
-    const old = new Date(Date.now() - 60 * 60 * 1000);
-    utimesSync(lock, old, old);
-    expect(run(state).status).toBe(0);
-    expect(existsSync(lock)).toBe(false);
-    expect(existsSync(`${lock}.reclaim`)).toBe(false);
-  });
-
-  it('does not reclaim while another reclaimer holds the reclaim mutex', () => {
-    const state = path.join(tmp, 'state');
-    const lock = path.join(clone, '.git', 'repo-sync.lock');
-    mkdirSync(lock);
-    writeFileSync(path.join(lock, 'owner'), '999999 crashed-run');
-    const old = new Date(Date.now() - 60 * 60 * 1000);
-    utimesSync(lock, old, old);
-    mkdirSync(`${lock}.reclaim`);
-    expect(run(state).status).toBe(3);
-    expect(readFileSync(path.join(lock, 'owner'), 'utf8')).toBe('999999 crashed-run');
+    mkdirSync(state, { recursive: true });
+    const release = hold(path.join(state, 'run.flock'));
+    try {
+      expect(run(state).status).toBe(3);
+    } finally {
+      release();
+    }
   });
 
   it('writes reports owner-only (0600) in a 0700 state dir', () => {
@@ -267,5 +263,10 @@ describe('redact', () => {
     const t = redact('fatal: https://u:pw@host/x?token=SECRET&a=1 Authorization: Bearer abcdefgh12345678 ghp_' + 'a'.repeat(30) + '\nsecond line');
     expect(t).not.toMatch(/pw@|SECRET|abcdefgh12345678|ghp_a/);
     expect(t).not.toContain('second line');
+  });
+
+  it('redacts quoted values, lowercase bearer and short basic values', () => {
+    const t = redact(`token="q1w2e3" password='pw9' authorization: bearer abc basic dXM6cA==`);
+    expect(t).not.toMatch(/q1w2e3|pw9|abc\b|dXM6cA/);
   });
 });
