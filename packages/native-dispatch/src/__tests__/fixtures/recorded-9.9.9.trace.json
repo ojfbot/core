@@ -1,5 +1,5 @@
 {
-  "format": "claude-correspondence-trace-v3",
+  "format": "claude-correspondence-trace-v4",
   "source": "recorded",
   "binary_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
   "frames": [
@@ -8,7 +8,9 @@
       "subtype": "init",
       "model": "claude-model",
       "claude_code_version": "9.9.9",
-      "tools": ["StructuredOutput"],
+      "tools": [
+        "StructuredOutput"
+      ],
       "mcp_servers": {
         "count": 0,
         "empty": true
@@ -17,18 +19,12 @@
         "count": 0,
         "empty": true
       },
-      "agents": {
-        "count": 0,
-        "empty": true
-      },
       "skills": {
         "count": 0,
         "empty": true
       },
-      "plugins": {
-        "count": 0,
-        "empty": true
-      }
+      "agents": [],
+      "plugins": []
     },
     {
       "type": "assistant",

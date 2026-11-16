@@ -1,0 +1,46 @@
+{
+  "format": "claude-correspondence-trace-v3",
+  "source": "recorded",
+  "binary_sha256": "ca923c86ac84b30574a82331a05b6e066c27477a926ceaffe46a845a33e4dd37",
+  "frames": [
+    {
+      "type": "system",
+      "subtype": "init",
+      "model": "claude-sonnet-5-5",
+      "claude_code_version": "2.1.308",
+      "tools": [
+        "StructuredOutput"
+      ],
+      "mcp_servers": {
+        "count": 0,
+        "empty": true
+      },
+      "slash_commands": {
+        "count": 0,
+        "empty": true
+      },
+      "agents": {
+        "count": 5,
+        "empty": false
+      },
+      "skills": {
+        "count": 0,
+        "empty": true
+      },
+      "plugins": {
+        "count": 3,
+        "empty": false
+      },
+      "unexpected_init_keys": [
+        "capabilities",
+        "original_cwd",
+        "additional_directories",
+        "messaging_socket_path",
+        "fast_mode_state",
+        "fast_mode_disabled_reason",
+        "per_turn_effort_active",
+        "view_mode"
+      ]
+    }
+  ]
+}

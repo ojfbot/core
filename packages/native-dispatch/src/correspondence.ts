@@ -35,6 +35,7 @@ import {
   CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
+  correspondenceBuiltins,
   checkEmulatedCorrespondenceTraceBytes,
   isClaudeVersion,
   qualifiedCorrespondenceVersions,
@@ -537,6 +538,11 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
       checkEnvironment();
     },
     mode.kind === "qualification" ? mode.recordFrame : undefined,
+    // A duty window compares against the entry's pinned built-ins (empty if it lists none).
+    // Qualification has no entry yet: it records them for review instead.
+    mode.kind === "qualification"
+      ? undefined
+      : (p) => correspondenceBuiltins(p) ?? { agents: [], plugins: [] },
   );
   const qualificationThread = parseCorrespondencePacket(CORRESPONDENCE_QUALIFICATION_PACKET).request
     .thread_id;
@@ -672,7 +678,10 @@ export async function qualifyClaudeCorrespondence(options: {
     stateFile = JSON.parse(
       readPrivateFile(options.runtimeApprovalFile, 8192).toString("utf8"),
     ).invocationStateFile;
-  } catch {
+  } catch (error) {
+    // An ACL on the approval or a parent (a home folder's) is named as such, not as invalid.
+    if (error instanceof Error && error.message === "acl-unqualified")
+      return held("acl-unqualified");
     return held("runtime-approval-invalid");
   }
   if (typeof stateFile !== "string" || !isAbsolute(stateFile))
@@ -689,6 +698,19 @@ export async function qualifyClaudeCorrespondence(options: {
   );
   if (opened.kind === "held") return opened;
   return runQualificationTurn(prepared, opened.dispatcher, frames, "recorded");
+}
+
+/** The sorted built-in names a trace's init recorded, for the entry the qualification prints. */
+function recordedBuiltins(traceText: string): {
+  builtinAgents: string[];
+  builtinPlugins: string[];
+} {
+  const init = (JSON.parse(traceText) as { frames: unknown[] }).frames.find(
+    (f) => object(f) && f.type === "system" && f.subtype === "init",
+  ) as Record<string, unknown> | undefined;
+  const list = (v: unknown) =>
+    Array.isArray(v) && v.every((n) => typeof n === "string") ? [...(v as string[])].sort() : [];
+  return { builtinAgents: list(init?.agents), builtinPlugins: list(init?.plugins) };
 }
 
 /** The one qualification turn, shared by the real and the emulated run. */
@@ -743,6 +765,7 @@ async function runQualificationTurn(
       disposition.outcome === "completed";
     const traceOptions = {
       binarySHA256: profile.binarySHA256,
+      cwd: realpathSync(binding.cwd),
       ...(accepted ? { acceptedAnswer: result?.structured_output } : {}),
     };
     // Only the real-transport path (qualifyClaudeCorrespondence) records; emulation never does.
@@ -789,6 +812,8 @@ async function runQualificationTurn(
               binarySHA256: profile.binarySHA256,
               traceSHA256,
               trace: traceText,
+              // The built-ins exactly as the recorded trace lists them.
+              ...recordedBuiltins(traceText),
             }
           : undefined,
     };

@@ -1,6 +1,6 @@
 # Correspondence duty
 
-Version 0.4.1. Contract: LocalHelp `docs/correspondence-duty.md` (v1 with the 15 November amendments,
+Version 0.4.2. Contract: LocalHelp `docs/correspondence-duty.md` (v1 with the 15 November amendments,
 HelpDesk thread `cca89987-fda6-433f-999d-f73987025c13`, #6141 and #6144). Charter: vault
 `diagrams/circusgreen-duty-soak-charter-20261115.md`.
 
@@ -22,6 +22,11 @@ nothing from HelpDesk.
 - **Limits.** `topLevelTurns` 1–40 as one budget for the whole window
   (`correspondence:<windowId>:<deviceId>`); `windowMs` 60,000–5,400,000; `requestTimeoutMs` 120,000.
 - **Supervision.** `owner-attended` only, without `codexHostFileReadRiskAccepted`.
+- **No ACLs, so nothing under `~`.** macOS gives home folders the ACL `group:everyone deny delete`,
+  and Core refuses any ACL on the approval file, the journal, the working folder, `TMPDIR` or any
+  of their parents. Keep all of them outside `~` (for example under `/private/var/folders/…/T`).
+  Such a hold is reported as `acl-unqualified`, not as an invalid approval or an environment
+  mismatch.
 - **Environment.** `HOME` and `CODEX_HOME` must match the controller's own environment exactly, and
   `CODEX_HOME` must be null in the plan, so the controller must run with `CODEX_HOME` unset. Prepare
   the plan in the same environment the launchd job runs with: a `HOME` or `CODEX_HOME` that differs
@@ -91,12 +96,47 @@ is the one checker: the live transport, trace replay and qualification all use i
   subtypes). Anything else, `stream_event` included, refuses the turn with `unexpected-frame`. A
   version that emits another frame kind needs a reviewed change to that list.
 - **Init.** The first frame is `system/init` with the plan's model, the plan's exact Claude version
-  in `claude_code_version`, and this session. Every key must be on `CORRESPONDENCE_INIT_KEYS`, the
-  keys 2.1.308 reports; any other key (a new surface, or a conditional one such as
-  `plugin_errors`, `mcp_server_errors` or `capabilities`) refuses the turn. Its `tools` must be
-  exactly `["StructuredOutput"]`; a duplicate is refused. `mcp_servers` must be empty, and so must
-  `slash_commands`, `terminal_slash_commands`, `agents`, `skills` and `plugins` whenever they are
-  listed.
+  in `claude_code_version`, and this session. Every key must be on `CORRESPONDENCE_INIT_KEYS` or
+  `CORRESPONDENCE_CHECKED_INIT_KEYS`; any other key (a new surface, or a conditional one such as
+  `plugin_errors`, `mcp_server_errors`, `startup_timing` or `memory_paths`) refuses the turn
+  (`unexpected-init-key`). Its `tools` must be exactly `["StructuredOutput"]`; a duplicate is
+  refused. `mcp_servers` must be empty, and so must `slash_commands`, `terminal_slash_commands`
+  and `skills` whenever they are listed.
+- **Built-in agents and plugins, pinned by exact name.** Safe mode disables installed plugins and
+  user-supplied agents, but Claude Code still loads its built-ins: 2.1.308 lists five built-in agent
+  types (such as `general-purpose`, `Explore` and `Plan`) and three built-in plugins (such as
+  `cc-plugin-easel`). The model cannot invoke them: it has no Agent tool (its only tool is
+  `StructuredOutput`, with `--tools ""`), and hooks are off. Owner's decision, 16 November: "Pin
+  exact names". Each allowlist entry carries `builtinAgents` and `builtinPlugins`, the exact sorted
+  name sets from its recorded qualification trace, and every duty turn must report exactly those
+  sets: an addition, removal, rename or duplicate refuses the turn (`init-builtins-mismatch`), live
+  and in replay. Agents are agent-type strings; for plugins only `name` is read, never a path,
+  source or version (built-in plugins ship inside the binary, whose SHA-256 is already pinned).
+  Anything that is not a plain name of at most 64 characters, in a list of at most 64, refuses the
+  turn (`init-value-unexpected`). A qualification turn has no entry yet, so it records the names
+  instead of refusing them; the entry it prints carries them, and only a committed entry opens a
+  duty window.
+- **Print-mode init keys (2.1.308).** Each may be absent; when present it must pass its check:
+
+  | Key                         | Meaning                                           | Check                                  |
+  | --------------------------- | ------------------------------------------------- | -------------------------------------- |
+  | `capabilities`              | SDK protocol features the CLI supports, not tools | Array of at most 64 `snake_case` names |
+  | `original_cwd`              | The folder Claude started in                      | Equals the turn's folder (realpath)    |
+  | `additional_directories`    | Extra working folders (`--add-dir`, settings)     | `[]`                                   |
+  | `messaging_socket_path`     | The cross-session inbox socket                    | `null` (Core turns the inbox off)      |
+  | `fast_mode_state`           | Fast-output mode                                  | `off`, `on` or `cooldown`              |
+  | `fast_mode_disabled_reason` | Why fast mode is off                              | `null` or a short `snake_case` code    |
+  | `per_turn_effort_active`    | Per-turn effort switching                         | A boolean                              |
+  | `view_mode`                 | Interactive view                                  | `default` or `focus`                   |
+
+  A failed check refuses the turn: `init-messaging-socket`, `init-cwd-mismatch`, or otherwise
+  `init-value-unexpected`.
+
+- **No cross-session messaging.** Claude Code 2.1.308 binds a Unix-socket "cross-session inbox"
+  through which other local Claude sessions can deliver messages, and files, into a session. Core
+  sets `CLAUDE_CODE_HARBOR_KITE=0` in Claude's environment (`CORRESPONDENCE_MESSAGING_OFF`), which
+  turns that gate off: the inbox is never bound, nor late-bound when a remote flag refresh arrives,
+  and the init frame has no `messaging_socket_path`.
 - **Calls.** Every allowed frame is searched at any depth, nested `event` objects included, for a
   `tool_use`, `server_tool_use` or other `*tool_use` block (as in a `content_block_start`) and a
   tool-input `content_block_delta`; each one counts. Across the whole turn there is at most one,
@@ -116,7 +156,11 @@ Each refusal below ends the turn as `unknown` with no proposal. The reason is jo
 | `unexpected-frame`         | A frame kind not on the allowlist, e.g. `stream_event`     |
 | `init-version-mismatch`    | Init reports another Claude version than the plan's        |
 | `init-tools-mismatch`      | Init tools are not exactly the output tool                 |
-| `init-surface-not-empty`   | An MCP server, slash command, agent, skill or plugin       |
+| `init-surface-not-empty`   | An MCP server, slash command or skill                      |
+| `init-builtins-mismatch`   | Built-in agents or plugins differ from the pinned sets     |
+| `init-messaging-socket`    | Init reports a cross-session messaging socket              |
+| `init-cwd-mismatch`        | `original_cwd` is not the turn's folder                    |
+| `init-value-unexpected`    | A checked init key failed its check                        |
 | `unexpected-init-key`      | An init key not on `CORRESPONDENCE_INIT_KEYS`              |
 | `invalid-result`           | A result whose `is_error` is not a boolean                 |
 | `tool-name-mismatch`       | Another tool, a server or MCP block, or one out of place   |
@@ -235,7 +279,7 @@ its constructor is internal and exported from neither the main entry nor `testin
 plain-data snapshot and refuses a `recorded` one the real path did not build. This does not make
 the bytes unforgeable: see [Trust boundary](#trust-boundary). Its SHA-256 is over those exact
 bytes. The file is
-`{ "format": "claude-correspondence-trace-v3", "source": "recorded", "binary_sha256": "…",
+`{ "format": "claude-correspondence-trace-v4", "source": "recorded", "binary_sha256": "…",
 "frames": [...] }`, with the pinned binary's SHA-256 and one entry per stream-json frame. `source`
 is `recorded` for a real Claude turn and `emulated` for scripted frames; it is inside the hashed
 bytes, so an emulated trace cannot be relabelled without changing its SHA-256. Only a closed set of fields is copied,
@@ -246,8 +290,11 @@ the model and version only as selectors (otherwise `"invalid"`), and `is_error` 
 - every frame keeps only `type` and `subtype`;
 - `system/init` also keeps `model` and `claude_code_version`; `tools` keeps its names only when it is
   exactly `["StructuredOutput"]`, otherwise `{count, sha256}` of the sorted names; `mcp_servers`
-  and the other init lists keep only `{count, empty}`; an unknown init key is kept by name only, in
-  `unexpected_init_keys`;
+  and the other init lists keep only `{count, empty}`; `agents` and `plugins` keep only their sorted
+  names (or `{count, valid: false}`); an unknown init key is kept by name only, in
+  `unexpected_init_keys`; every value-checked or unknown init key also gets a shape in
+  `init_key_shapes`: its type, its length (string, array or object) and whether Core allowed it,
+  never its content, so a refusal can be diagnosed without another turn;
 - `assistant` keeps `message.content`, where a tool-use block keeps its `type` and `name` and any
   other block only its `type`;
 - `result` keeps `is_error` and `has_structured_output`;
@@ -271,7 +318,8 @@ copied to another version is refused); the answer is for the fixed qualification
 binary itself reports that version (`--version`, in the static checks).
 
 **Allowlist.** `CLAUDE_CORRESPONDENCE_QUALIFIED` in `src/correspondence-allowlist.ts`, a data-only
-module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace }`, with the trace's exact
+module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace, builtinAgents,
+builtinPlugins }`, with the trace's exact
 bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
 file stays the reviewed source, and a test checks that each embedded trace equals its file. The
 list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It is empty: no

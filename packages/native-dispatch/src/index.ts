@@ -86,6 +86,7 @@ export {
   CLAUDE_OUTPUT_TOOL,
   CORRESPONDENCE_ALLOWED_FRAMES,
   CORRESPONDENCE_INIT_KEYS,
+  CORRESPONDENCE_CHECKED_INIT_KEYS,
   CORRESPONDENCE_TRACE_FORMAT,
   createCorrespondenceFrameChecker,
   replayCorrespondenceTrace,
@@ -98,6 +99,7 @@ export type {
   CorrespondenceFrameVerdict,
   CorrespondenceTrace,
   CorrespondenceTurnRefusal,
+  CorrespondenceBuiltins,
 } from "./correspondence-frames.js";
 export {
   CLAUDE_CORRESPONDENCE_QUALIFIED,
@@ -126,6 +128,7 @@ export {
   spawnCorrespondenceWatchdog,
   findTurnProcesses,
   CORRESPONDENCE_TURN_MARKER,
+  CORRESPONDENCE_MESSAGING_OFF,
   CORRESPONDENCE_WATCHDOG_SOURCE,
 } from "./correspondence-native.js";
 export type {

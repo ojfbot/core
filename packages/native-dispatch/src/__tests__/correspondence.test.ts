@@ -43,7 +43,10 @@ import {
 } from "../index.js";
 import { checkBinary, checkNativeProfile } from "../supervised-files.js";
 import { replaceCorrespondenceAllowlistForTesting } from "../testing.js";
-import { checkCorrespondenceQualification } from "../correspondence-qualification.js";
+import {
+  checkCorrespondenceQualification,
+  correspondenceBuiltins,
+} from "../correspondence-qualification.js";
 import type {
   CorrespondenceDispatcher,
   CorrespondenceEmulatorScript,
@@ -63,6 +66,8 @@ const allow = {
     binarySHA256: string;
     traceSHA256: string;
     trace: string;
+    builtinAgents: string[];
+    builtinPlugins: string[];
   }>,
   restore: () => {},
 };
@@ -79,6 +84,7 @@ vi.mock("../correspondence-qualification.js", async (importOriginal) => {
   return {
     ...actual,
     checkCorrespondenceQualification: vi.fn(actual.checkCorrespondenceQualification),
+    correspondenceBuiltins: vi.fn(actual.correspondenceBuiltins),
   };
 });
 vi.mock("../supervised-files.js", async (importOriginal) => {
@@ -94,11 +100,16 @@ const qualifyOriginal = vi.mocked(checkNativeProfile).getMockImplementation()!;
 const binaryOriginal = vi.mocked(checkBinary).getMockImplementation()!;
 const gateOriginal = vi.mocked(checkCorrespondenceQualification).getMockImplementation()!;
 /** The test-local gate stub: accepts only the fakes qualifyFake registered. */
-const stubGate = () =>
+const stubGate = () => {
   vi.mocked(checkCorrespondenceQualification).mockImplementation((profile, allowlist) => {
     if (stubbedFakes.has(fakeKey(profile))) return;
     return allowlist ? gateOriginal(profile, allowlist) : gateOriginal(profile);
   });
+  // The pinned built-ins a stubbed fake's (test-only) entry would carry.
+  vi.mocked(correspondenceBuiltins).mockImplementation((profile) =>
+    stubbedBuiltins.get(fakeKey(profile)),
+  );
+};
 const realProcess = process;
 // Vite 5 rewrites node:sqlite, so load the builtin directly, as the dispatcher does.
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
@@ -131,6 +142,8 @@ beforeEach(() => {
     binarySHA256: "0".repeat(64),
     traceSHA256: "0".repeat(64),
     trace: "",
+    builtinAgents: [],
+    builtinPlugins: [],
   });
   applyAllowlist();
   stubGate();
@@ -145,6 +158,7 @@ afterEach(() => {
   allow.restore();
   allow.restore = () => {};
   stubbedFakes.clear();
+  stubbedBuiltins.clear();
   vi.restoreAllMocks();
   rmSync(dir, { recursive: true, force: true });
 });
@@ -155,13 +169,19 @@ afterEach(() => {
  * opens only through this test-local stub; every other profile goes to the real gate.
  */
 const stubbedFakes = new Set<string>();
+const stubbedBuiltins = new Map<string, { agents: string[]; plugins: string[] }>();
 const fakeKey = (p: { nativeVersion: string; binarySHA256: string; model: string }) =>
   `${p.nativeVersion} ${p.binarySHA256} ${p.model}`;
 /**
  * Lists a fake binary's version through the test hook, so plans prepare, and stubs the gate for
  * exactly that version, binary and model.
  */
-function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "claude-model") {
+function qualifyFake(
+  bin: { sha: string },
+  nativeVersion = "2.1.286",
+  model = "claude-model",
+  builtins: { agents: string[]; plugins: string[] } = { agents: [], plugins: [] },
+) {
   const others = allow.entries.filter((e) => e.nativeVersion !== nativeVersion);
   allow.entries.splice(0, allow.entries.length, ...others, {
     nativeVersion,
@@ -169,10 +189,26 @@ function qualifyFake(bin: { sha: string }, nativeVersion = "2.1.286", model = "c
     binarySHA256: bin.sha,
     traceSHA256: "0".repeat(64),
     trace: "",
+    builtinAgents: builtins.agents,
+    builtinPlugins: builtins.plugins,
   });
   applyAllowlist();
-  stubbedFakes.add(fakeKey({ nativeVersion, binarySHA256: bin.sha, model }));
+  const key = fakeKey({ nativeVersion, binarySHA256: bin.sha, model });
+  stubbedFakes.add(key);
+  stubbedBuiltins.set(key, {
+    agents: [...builtins.agents].sort(),
+    plugins: [...builtins.plugins].sort(),
+  });
 }
+/** The 2.1.308 safe-mode built-ins, as the "builtins" fake reports them. */
+const BUILTIN_AGENTS = [
+  "general-purpose",
+  "Explore",
+  "Plan",
+  "statusline-setup",
+  "claude-code-guide",
+];
+const BUILTIN_PLUGINS = ["cc-plugin-easel", "cc-plugin-plugin-authoring", "cc-plugin-sec-default"];
 
 function packet(
   n: number,
@@ -858,6 +894,33 @@ describe("owner window", () => {
     });
   });
 
+  // Owner, 16 November: an ACL on an ancestor (a home folder's `everyone deny delete`) was reported
+  // as runtime-approval-invalid or environment-mismatch.
+  it("names an ACL on an ancestor of the approval, journal or TMPDIR as acl-unqualified", async () => {
+    vi.mocked(checkNativeProfile).mockImplementation(() => {});
+    const o = options(prepareCorrespondencePlan(rawPlan()));
+    approve(o);
+    aclPaths.push(dir);
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "acl-unqualified"));
+    aclPaths.length = 0;
+    // TMPDIR under a folder with an ACL.
+    aclPaths.push(temporary);
+    expect(openCorrespondenceWindow(o)).toEqual(held(o, "acl-unqualified"));
+    aclPaths.length = 0;
+    // The qualification run reads its approval first.
+    const plan = rawPlan();
+    const q = options(prepareCorrespondenceQualificationPlan(plan), join(dir, "q.sqlite"));
+    approve(q, 600000, "owner-approved-correspondence-qualification");
+    aclPaths.push(dir);
+    expect(
+      await qualifyClaudeCorrespondence({
+        prepared: q.prepared,
+        runtimeApprovalFile: q.runtimeApprovalFile,
+        deviceId: "yuri",
+      }),
+    ).toEqual(held(q, "acl-unqualified"));
+  });
+
   it("holds without an approval, and with an approval of the wrong length", () => {
     const o = options(prepareCorrespondencePlan(rawPlan()));
     expect(openCorrespondenceWindow(o)).toEqual(held(o, "runtime-approval-missing"));
@@ -916,7 +979,9 @@ describe("owner window", () => {
       | "nonzero"
       | "trailing"
       | "escaped-holder"
-      | "escaped-detached";
+      | "escaped-detached"
+      | "socket"
+      | "builtins";
     // No provider SDK, network or credentials: a local script that speaks Claude's stream-json the
     // way 2.1.308's --json-schema does: one StructuredOutput call whose input is structured_output.
     const fake = (behavior: Behavior, version = "2.1.286") => `
@@ -933,7 +998,8 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   // fd 3 is the watchdog's control channel; Claude must not hold it.
   let fd3=false; try{fs.writeSync(3,'group 1'+String.fromCharCode(10)+'done 0'+String.fromCharCode(10));fd3=true;}catch{}
   fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
-    pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR}));
+    pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR,
+    HARBOR_KITE:process.env.CLAUDE_CODE_HARBOR_KITE}));
   if(behavior==='escaped-detached'){
     // A descendant in a new session (setsid), with stdio redirected: invisible to the group kill.
     cp.spawn(process.execPath,['-e',"require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "escaped"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore',detached:true}).unref();
@@ -949,7 +1015,13 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   const answer={packetDigest:d,decision:'reply',reason:null,text:'Received.',needs:null,gaps:null};
   const tools=behavior==='tools-offered'?['StructuredOutput','Bash']:behavior==='no-tools'?[]:['StructuredOutput'];
   emit({type:'system',subtype:'init',session_id:s,model:args[args.indexOf('--model')+1],claude_code_version:version,tools,
-    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],agents:[],skills:[],plugins:[]});
+    mcp_servers:behavior==='mcp'?[{name:'x',status:'connected'}]:[],slash_commands:[],skills:[],
+    agents:behavior==='builtins'?${JSON.stringify(["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide"])}:[],
+    plugins:behavior==='builtins'?${JSON.stringify(["cc-plugin-easel", "cc-plugin-plugin-authoring", "cc-plugin-sec-default"])}.map(n=>({name:n,path:'/Users/someone/.claude/'+n,source:n+'@builtin',version:'2.1.308'})):[],
+    // The keys 2.1.308's print mode adds, as Core's flags and environment leave them.
+    capabilities:['interrupt_receipt_v1','ui_surface_v1'],original_cwd:process.cwd(),additional_directories:[],
+    ...(behavior==='socket'?{messaging_socket_path:'/tmp/cc-socks/'+process.pid+'.sock'}:{}),
+    fast_mode_state:'off',fast_mode_disabled_reason:'not_first_party',per_turn_effort_active:false,view_mode:'default'});
   if(behavior==='descendant'||behavior==='slow-term') descendant();
   if(behavior==='slow-term') process.on('SIGTERM',()=>setTimeout(()=>process.exit(0),1500));
   if(behavior==='hang'||behavior==='descendant'||behavior==='slow-term'){setInterval(()=>{},1000);return;}
@@ -1001,6 +1073,54 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         await new Promise((r) => setTimeout(r, 20));
       }
     };
+
+    // Claude 2.1.308: the cross-session inbox would let other local sessions message a duty turn.
+    it("turns Claude's cross-session messaging off for every turn", async () => {
+      const { o, dispatcher } = ready("reply");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      expect(childInfo().HARBOR_KITE).toBe("0");
+    });
+
+    // Owner, 16 November: "Pin exact names".
+    it("accepts the pinned built-ins and refuses any change to them", async () => {
+      vi.mocked(checkNativeProfile).mockImplementation(() => {});
+      const bin = fakeBinary("builtins");
+      qualifyFake(bin, "2.1.286", "claude-model", {
+        agents: BUILTIN_AGENTS,
+        plugins: BUILTIN_PLUGINS,
+      });
+      const o = options(prepareCorrespondencePlan(rawPlan({}, bin)));
+      approve(o);
+      const opened = openCorrespondenceWindow(o);
+      if (opened.kind !== "ready") throw Error("not ready: " + JSON.stringify(opened));
+      expect(await opened.dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      opened.dispatcher.close();
+      rmSync(o.stateFile);
+      // The same turn against a pin that lacks one plugin.
+      qualifyFake(bin, "2.1.286", "claude-model", {
+        agents: BUILTIN_AGENTS,
+        plugins: BUILTIN_PLUGINS.slice(1),
+      });
+      const again = openCorrespondenceWindow(o);
+      if (again.kind !== "ready") throw Error("not ready: " + JSON.stringify(again));
+      open.push(again.dispatcher);
+      expect(await again.dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({
+        kind: "unknown",
+      });
+      expect(again.dispatcher.turnRefusal("delivery-1")).toBe("init-builtins-mismatch");
+    });
+
+    it("refuses a turn whose init reports a messaging socket", async () => {
+      const { o, dispatcher } = ready("socket");
+      expect(await dispatcher.dispatch(request(o.prepared, 1))).toMatchObject({ kind: "unknown" });
+      expect(dispatcher.turnRefusal("delivery-1")).toBe("init-messaging-socket");
+    });
 
     it("runs a supervised turn on a new session and accepts the checked proposal", async () => {
       const { o, dispatcher } = ready("reply");
@@ -1291,9 +1411,10 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       ]) {
         const o = options(prepareCorrespondencePlan(rawPlan({ environment }, bin)));
         approve(o);
+        // An ACL is named as such; every other unsafe TMPDIR is an environment mismatch.
         expect([environment.TMPDIR, openCorrespondenceWindow(o)]).toEqual([
           environment.TMPDIR,
-          held(o, "environment-mismatch"),
+          held(o, environment.TMPDIR === withAcl ? "acl-unqualified" : "environment-mismatch"),
         ]);
       }
     });
@@ -1477,6 +1598,27 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
       });
 
       // Claude reviews 8/9, Codex 8: the bypass must keep the version, help and policy checks.
+      it("fills the entry's pinned built-ins from the recorded trace", async () => {
+        const o = prepared("builtins");
+        approveQualification(o);
+        const result = await qualify(o);
+        if (result.kind !== "ran") throw Error("not run: " + JSON.stringify(result));
+        // Unpinned during qualification, so the built-ins are recorded, not refused.
+        expect(result.verdict).toBe("accepted");
+        expect(result.allowlistEntry?.builtinAgents).toEqual([...BUILTIN_AGENTS].sort());
+        expect(result.allowlistEntry?.builtinPlugins).toEqual([...BUILTIN_PLUGINS].sort());
+        const init = JSON.parse(result.traceText).frames[0];
+        expect(init.agents).toEqual([...BUILTIN_AGENTS].sort());
+        expect(init.plugins).toEqual([...BUILTIN_PLUGINS].sort());
+        expect(result.traceText).not.toContain("/Users/someone");
+        // The entry it prints, with its trace, passes the real gate for exactly this binary.
+        const profile = o.prepared.plan.profiles[0];
+        expect(() => gateOriginal(profile, [result.allowlistEntry!])).not.toThrow();
+        expect(() =>
+          gateOriginal(profile, [{ ...result.allowlistEntry!, builtinAgents: ["Plan"] }]),
+        ).toThrow("native-profile-unqualified");
+      });
+
       it("records exactly one turn on the fixed packet, bypassing only the trace gate", async () => {
         // 2.1.308 is not allowlisted here, and checkNativeProfile is the real one.
         const o = prepared("reply");
