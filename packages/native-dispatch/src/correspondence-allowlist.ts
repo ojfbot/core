@@ -10,6 +10,12 @@ export interface QualifiedClaudeCorrespondence {
   /** SHA-256 of `trace`. */
   traceSHA256: string;
   /**
+   * The built-in agent and plugin names safe mode still loads, exactly as the trace recorded them
+   * (sorted). Every duty turn must report exactly these (owner, 16 November: "Pin exact names").
+   */
+  builtinAgents: readonly string[];
+  builtinPlugins: readonly string[];
+  /**
    * The trace's exact bytes, embedded so they travel with the code into bundles. They must equal
    * the reviewed source `qualification/claude/<nativeVersion>.trace.json`; a test checks it.
    */

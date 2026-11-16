@@ -13,7 +13,7 @@ import {
   CorrespondenceFrameError,
   createCorrespondenceFrameChecker,
 } from "./correspondence-frames.js";
-import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
+import type { CorrespondenceBuiltins, CorrespondenceTurnRefusal } from "./correspondence-frames.js";
 import { checkBinary } from "./supervised-files.js";
 import type { NativeObservation } from "./native.js";
 import type { SubscriptionCanaryProfile } from "./canary-types.js";
@@ -280,6 +280,8 @@ export function createCorrespondenceTransport(
   beforeLaunch: () => void,
   /** Qualification only: receives every parsed frame, for the cut-down trace. */
   recordFrame?: (frame: unknown) => void,
+  /** The pinned built-ins for a profile; undefined (qualification) records them unpinned. */
+  builtinsFor?: (profile: SubscriptionCanaryProfile) => CorrespondenceBuiltins,
 ): CorrespondenceTransport {
   const transport: CorrespondenceTransport = {
     mode: "supervised",
@@ -322,6 +324,7 @@ export function createCorrespondenceTransport(
         nativeVersion: pinned.nativeVersion,
         // The dispatcher's binding holds the folder's realpath, as Claude reports it.
         cwd: binding.cwd,
+        ...(builtinsFor ? { builtins: builtinsFor(pinned) } : {}),
       });
       let refusal: CorrespondenceTurnRefusal | undefined,
         total = 0,

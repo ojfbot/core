@@ -10,6 +10,7 @@ import {
   replayCorrespondenceTrace,
   replayEmulatedCorrespondenceTrace,
 } from "./correspondence-frames.js";
+import type { CorrespondenceBuiltins } from "./correspondence-frames.js";
 import { parseCorrespondenceAnswer, parseCorrespondencePacket } from "./correspondence-protocol.js";
 import type { CorrespondencePacket } from "./correspondence-types.js";
 import type { DispatchRequest } from "./types.js";
@@ -19,6 +20,15 @@ const sha256 = (input: string | Buffer) => createHash("sha256").update(input).di
 
 export { CLAUDE_CORRESPONDENCE_QUALIFIED, CORRESPONDENCE_TRACE_DIRECTORY };
 export type { QualifiedClaudeCorrespondence };
+
+/** A pinned name list, copied and sorted; anything but strings becomes a never-matching marker. */
+function names(value: unknown): string[] {
+  if (!Array.isArray(value)) return ["\u0000invalid"];
+  const out: string[] = [];
+  for (let i = 0; i < value.length; i++)
+    out.push(typeof value[i] === "string" ? value[i] : "\u0000invalid");
+  return out.sort();
+}
 
 function frozenCopy(
   entries: readonly QualifiedClaudeCorrespondence[],
@@ -32,6 +42,8 @@ function frozenCopy(
       binarySHA256: String(e.binarySHA256),
       traceSHA256: String(e.traceSHA256),
       trace: String(e.trace),
+      builtinAgents: names(e.builtinAgents),
+      builtinPlugins: names(e.builtinPlugins),
     });
   }
   return deepFreeze(copies);
@@ -124,7 +136,12 @@ function qualificationRequest(): { request: DispatchRequest; packet: Corresponde
  */
 export function checkCorrespondenceTraceBytes(
   bytes: Buffer | string,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
 ): string | undefined {
   return checkTraceBytes(bytes, expected, replayCorrespondenceTrace);
 }
@@ -132,14 +149,24 @@ export function checkCorrespondenceTraceBytes(
 /** EMULATION ONLY: the same check for an emulated trace. Nothing it accepts qualifies a version. */
 export function checkEmulatedCorrespondenceTraceBytes(
   bytes: Buffer | string,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
 ): string | undefined {
   return checkTraceBytes(bytes, expected, replayEmulatedCorrespondenceTrace);
 }
 
 function checkTraceBytes(
   bytes: Buffer | string,
-  expected: { model: string; nativeVersion: string; binarySHA256: string },
+  expected: {
+    model: string;
+    nativeVersion: string;
+    binarySHA256: string;
+    builtins?: CorrespondenceBuiltins;
+  },
   replay: typeof replayCorrespondenceTrace,
 ): string | undefined {
   let trace: unknown;
@@ -167,6 +194,22 @@ function checkTraceBytes(
  * version (so a trace copied to another version is refused). The binary's own reported version is
  * checked separately by checkNativeProfile. Anything else is `native-profile-unqualified`.
  */
+/**
+ * The pinned built-in agents and plugins of the shipped allowlist entry for this profile, or
+ * undefined when it has none (the gate then refuses the profile anyway).
+ */
+export function correspondenceBuiltins(
+  profile: Pick<SubscriptionCanaryProfile, "nativeVersion" | "binarySHA256" | "model">,
+): CorrespondenceBuiltins | undefined {
+  const entry = SHIPPED.find(
+    (e) =>
+      e.nativeVersion === profile.nativeVersion &&
+      e.binarySHA256 === profile.binarySHA256 &&
+      e.model === profile.model,
+  );
+  return entry ? { agents: entry.builtinAgents, plugins: entry.builtinPlugins } : undefined;
+}
+
 export function checkCorrespondenceQualification(
   profile: Pick<SubscriptionCanaryProfile, "provider" | "nativeVersion" | "binarySHA256" | "model">,
   allowlist: readonly QualifiedClaudeCorrespondence[] = SHIPPED,
@@ -181,10 +224,12 @@ export function checkCorrespondenceQualification(
     profile.provider !== "claude-code" ||
     !entry ||
     sha256(entry.trace) !== entry.traceSHA256 ||
+    // The entry's pinned built-ins must be exactly the ones its trace recorded.
     checkCorrespondenceTraceBytes(entry.trace, {
       model: profile.model,
       nativeVersion: profile.nativeVersion,
       binarySHA256: profile.binarySHA256,
+      builtins: { agents: names(entry.builtinAgents), plugins: names(entry.builtinPlugins) },
     }) !== undefined
   )
     throw Error("native-profile-unqualified");

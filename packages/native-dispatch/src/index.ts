@@ -99,6 +99,7 @@ export type {
   CorrespondenceFrameVerdict,
   CorrespondenceTrace,
   CorrespondenceTurnRefusal,
+  CorrespondenceBuiltins,
 } from "./correspondence-frames.js";
 export {
   CLAUDE_CORRESPONDENCE_QUALIFIED,

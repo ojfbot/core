@@ -174,8 +174,8 @@ const mutations: Array<[string, (t: CorrespondenceTrace) => void, string]> = [
     (t) => (init(t).slash_commands = { count: 1, empty: false }),
     "init-surface-not-empty",
   ],
-  ["an agent", (t) => (init(t).agents = { count: 3, empty: false }), "init-surface-not-empty"],
-  ["a plugin", (t) => (init(t).plugins = { count: 1, empty: false }), "init-surface-not-empty"],
+  ["an agent the pin lacks", (t) => (init(t).agents = ["my-agent"]), "init-builtins-mismatch"],
+  ["a plugin the pin lacks", (t) => (init(t).plugins = ["my-plugin"]), "init-builtins-mismatch"],
   ["another model", (t) => (init(t).model = "other-model"), "init-model-mismatch"],
   ["another version", (t) => (init(t).claude_code_version = "2.1.400"), "init-version-mismatch"],
   [
@@ -265,12 +265,23 @@ function committed(): Array<[string, CorrespondenceTrace, string, string]> {
       return [f, JSON.parse(text) as CorrespondenceTrace, text, f.replace(/\.trace\.json$/, "")];
     });
 }
-type Pin = { model: string; nativeVersion: string; binarySHA256: string };
+type Pin = {
+  model: string;
+  nativeVersion: string;
+  binarySHA256: string;
+  builtins?: { agents: string[]; plugins: string[] };
+};
+const NO_BUILTINS = { agents: [] as string[], plugins: [] as string[] };
 /** A committed trace's pin comes from its allowlist entry, never from the trace itself. */
 const pinOf = (version: string): Pin => {
   const entry = CLAUDE_CORRESPONDENCE_QUALIFIED.find((e) => e.nativeVersion === version);
   if (!entry) throw Error(`committed trace ${version} has no allowlist entry`);
-  return { model: entry.model, nativeVersion: version, binarySHA256: entry.binarySHA256 };
+  return {
+    model: entry.model,
+    nativeVersion: version,
+    binarySHA256: entry.binarySHA256,
+    builtins: { agents: [...entry.builtinAgents], plugins: [...entry.builtinPlugins] },
+  };
 };
 /**
  * The recorded fixture: a reviewed, committed file made once by the internal recorded-trace
@@ -284,8 +295,18 @@ const FIXTURE_PIN: Pin = { model: MODEL, nativeVersion: "9.9.9", binarySHA256: B
 type Replay = typeof replayCorrespondenceTrace;
 /** Each trace with its pin and its replay: recorded ones through the real replay. */
 const traces: Array<[string, CorrespondenceTrace, Pin, Replay]> = [
-  ["synthetic 2.1.308-shaped trace", synthetic(), PINNED, replayEmulatedCorrespondenceTrace],
-  ["recorded fixture", JSON.parse(FIXTURE_TEXT), FIXTURE_PIN, replayCorrespondenceTrace],
+  [
+    "synthetic 2.1.308-shaped trace",
+    synthetic(),
+    { ...PINNED, builtins: NO_BUILTINS },
+    replayEmulatedCorrespondenceTrace,
+  ],
+  [
+    "recorded fixture",
+    JSON.parse(FIXTURE_TEXT),
+    { ...FIXTURE_PIN, builtins: NO_BUILTINS },
+    replayCorrespondenceTrace,
+  ],
   ...committed().map(([f, t, , v]): [string, CorrespondenceTrace, Pin, Replay] => [
     f,
     t,
@@ -321,6 +342,106 @@ const withInit = (extra: Record<string, unknown>) => {
   Object.assign(frames[0], PRINT_MODE_KEYS, extra);
   return frames;
 };
+
+/** Built-ins safe mode still loads in 2.1.308, as init reports them (plugins are objects). */
+const AGENTS = ["general-purpose", "Explore", "Plan", "statusline-setup", "claude-code-guide"];
+const PLUGINS = ["cc-plugin-easel", "cc-plugin-plugin-authoring", "cc-plugin-sec-default"];
+const BUILTINS = { agents: [...AGENTS].sort(), plugins: [...PLUGINS].sort() };
+const pluginObjects = (names: string[]) =>
+  names.map((name) => ({
+    name,
+    path: `/Users/someone/private/plugins/${name}`,
+    source: `${name}@builtin`,
+    version: "1.2.3",
+  }));
+const withBuiltins = (agents = AGENTS, plugins = PLUGINS, extra: Record<string, unknown> = {}) =>
+  withInit({ agents, plugins: pluginObjects(plugins), ...extra });
+function runPinned(frames: unknown[], builtins = BUILTINS) {
+  const checker = createCorrespondenceFrameChecker({
+    sessionId: SESSION,
+    cwd: CWD,
+    ...PINNED,
+    builtins,
+  });
+  try {
+    for (const f of frames) checker.frame(f);
+  } catch {
+    // The verdict carries the first refusal.
+  }
+  return checker.verdict();
+}
+
+// Owner, 16 November: "Pin exact names". Safe mode still loads built-in agents and plugins.
+describe("pinned built-in agents and plugins", () => {
+  it("accepts exactly the pinned names, in any order", () => {
+    expect(runPinned(withBuiltins())).toEqual({ kind: "accepted", structuredOutput: answer });
+    expect(runPinned(withBuiltins([...AGENTS].reverse(), [...PLUGINS].reverse())).kind).toBe(
+      "accepted",
+    );
+  });
+
+  it.each([
+    ["an extra agent", [...AGENTS, "my-agent"], PLUGINS],
+    ["a missing plugin", AGENTS, PLUGINS.slice(1)],
+    [
+      "a renamed agent",
+      ["general-purpose", "Explore", "Plan", "statusline-setup", "guide"],
+      PLUGINS,
+    ],
+    ["a renamed plugin", AGENTS, ["cc-plugin-easel", "cc-plugin-plugin-authoring", "sec"]],
+    ["a duplicated agent", [...AGENTS, "Plan"], PLUGINS],
+  ])("refuses %s, live and in replay", (_, agents, plugins) => {
+    const frames = withBuiltins(agents, plugins);
+    expect(runPinned(frames)).toEqual({ kind: "refused", reason: "init-builtins-mismatch" });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY, cwd: CWD });
+    expect(replayEmulatedCorrespondenceTrace(trace, { ...PINNED, builtins: BUILTINS })).toEqual({
+      kind: "refused",
+      reason: "init-builtins-mismatch",
+    });
+  });
+
+  it("records the names unpinned, as a qualification turn does, and refuses non-names", () => {
+    expect(run(withBuiltins()).kind).toBe("accepted");
+    for (const bad of [
+      { agents: [{ agentType: "x" }] },
+      { agents: ["has space"] },
+      { agents: ["a".repeat(65)] },
+      { agents: Array.from({ length: 65 }, (_, i) => `agent-${i}`) },
+      { plugins: ["cc-plugin-easel"] },
+      { plugins: [{ path: "/x" }] },
+    ])
+      expect([bad, run(withInit(bad))]).toEqual([
+        bad,
+        { kind: "refused", reason: "init-value-unexpected" },
+      ]);
+  });
+
+  it("records only the sorted names in the trace", () => {
+    const trace = traceFromFrames(withBuiltins(), { binarySHA256: BINARY, cwd: CWD });
+    expect(init(trace).agents).toEqual(BUILTINS.agents);
+    expect(init(trace).plugins).toEqual(BUILTINS.plugins);
+    const text = serializeCorrespondenceTrace(trace);
+    for (const leaked of [
+      "/Users/someone",
+      "@builtin",
+      "1.2.3",
+      '"path"',
+      '"version"',
+      '"source": "cc',
+    ])
+      expect(text).not.toContain(leaked);
+    // Unpinned replay accepts it; pinned replay compares the recorded names.
+    const accepted = traceFromFrames(withBuiltins(), {
+      binarySHA256: BINARY,
+      cwd: CWD,
+      acceptedAnswer: answer,
+    });
+    expect(replayEmulatedCorrespondenceTrace(accepted, PINNED).kind).toBe("accepted");
+    expect(
+      replayEmulatedCorrespondenceTrace(accepted, { ...PINNED, builtins: BUILTINS }).kind,
+    ).toBe("accepted");
+  });
+});
 
 // Claude 2.1.308's first real qualification turn: eight init keys Core did not know.
 describe("2.1.308 print-mode init keys", () => {
@@ -566,9 +687,9 @@ describe("trace format", () => {
         tools: ["StructuredOutput"],
         mcp_servers: { count: 0, empty: true },
         slash_commands: { count: 0, empty: true },
-        agents: { count: 0, empty: true },
+        agents: [],
         skills: { count: 0, empty: true },
-        plugins: { count: 0, empty: true },
+        plugins: [],
       },
       {
         type: "assistant",
@@ -688,6 +809,8 @@ describe("correspondence allowlist", () => {
     binarySHA256: BINARY,
     traceSHA256: sha(trace),
     trace,
+    builtinAgents: [] as string[],
+    builtinPlugins: [] as string[],
   });
 
   it("refuses 2.1.286 and 2.1.308 until their traces are committed", () => {
@@ -730,13 +853,7 @@ describe("correspondence allowlist", () => {
       const bytes = readFileSync(correspondenceTracePath(entry.nativeVersion), "utf8");
       expect(entry.trace).toBe(bytes);
       expect(sha(bytes)).toBe(entry.traceSHA256);
-      expect(
-        checkCorrespondenceTraceBytes(bytes, {
-          model: entry.model,
-          nativeVersion: entry.nativeVersion,
-          binarySHA256: entry.binarySHA256,
-        }),
-      ).toBeUndefined();
+      expect(checkCorrespondenceTraceBytes(bytes, pinOf(entry.nativeVersion))).toBeUndefined();
       checked += 1;
     }
     // The loop must not pass vacuously once the list has entries.
@@ -760,6 +877,16 @@ describe("correspondence allowlist", () => {
   });
 
   // Claude reviews 4 and 12 (round 2): traces and entries were not tied together.
+  it("refuses an entry whose pinned built-ins differ from its trace's", () => {
+    for (const change of [
+      { builtinAgents: ["general-purpose"] },
+      { builtinPlugins: ["cc-plugin-easel"] },
+    ])
+      expect(() =>
+        checkCorrespondenceQualification(profile("9.9.9"), [{ ...entryFor("9.9.9"), ...change }]),
+      ).toThrow("native-profile-unqualified");
+  });
+
   it("refuses a trace recorded from another binary than its entry's", () => {
     // The fixture records binary "b"×64; an entry and profile for binary "c"×64 are refused.
     const c = "c".repeat(64);
@@ -963,14 +1090,26 @@ describe("emulation with the shipped allowlist", () => {
       // A hand-made entry around the emulated bytes is refused by the real gate.
       expect(() =>
         checkCorrespondenceQualification(profile999(), [
-          { ...pin, traceSHA256: result.traceSHA256, trace: bytes },
+          {
+            ...pin,
+            builtinAgents: [],
+            builtinPlugins: [],
+            traceSHA256: result.traceSHA256,
+            trace: bytes,
+          },
         ]),
       ).toThrow("native-profile-unqualified");
       // And relabelling it as recorded breaks the pinned hash.
       const relabelled = bytes.replace('"source": "emulated"', '"source": "recorded"');
       expect(() =>
         checkCorrespondenceQualification(profile999(), [
-          { ...pin, traceSHA256: result.traceSHA256, trace: relabelled },
+          {
+            ...pin,
+            builtinAgents: [],
+            builtinPlugins: [],
+            traceSHA256: result.traceSHA256,
+            trace: relabelled,
+          },
         ]),
       ).toThrow("native-profile-unqualified");
     }));
@@ -1108,6 +1247,8 @@ describe("the package API never builds recorded trace bytes", () => {
       binarySHA256: BINARY,
       traceSHA256: sha(text),
       trace: text,
+      builtinAgents: [],
+      builtinPlugins: [],
     };
     expect(() => checkCorrespondenceQualification(PINNED_PROFILE, [entry])).toThrow(
       "native-profile-unqualified",
@@ -1123,6 +1264,8 @@ describe("the package API never builds recorded trace bytes", () => {
       ...FIXTURE_PIN,
       traceSHA256: sha(FIXTURE_TEXT),
       trace: FIXTURE_TEXT,
+      builtinAgents: [],
+      builtinPlugins: [],
     };
     // The reviewed fixture itself passes the gate as an explicit, committed entry...
     const fixtureProfile = { provider: "claude-code" as const, ...FIXTURE_PIN };
@@ -1154,7 +1297,13 @@ describe("package serializer and hook: recorded-trace lock", () => {
   const emulated = () =>
     traceFromFrames(rawFrames(), { binarySHA256: BINARY, acceptedAnswer: answer });
   const gateRefuses = (text: string) => {
-    const entry = { ...PINNED, traceSHA256: sha(text), trace: text };
+    const entry = {
+      ...PINNED,
+      builtinAgents: [],
+      builtinPlugins: [],
+      traceSHA256: sha(text),
+      trace: text,
+    };
     expect(() => checkCorrespondenceQualification(PINNED_PROFILE, [entry])).toThrow(
       "native-profile-unqualified",
     );
@@ -1200,7 +1349,13 @@ describe("package serializer and hook: recorded-trace lock", () => {
   });
 
   it("keeps the gate on the shipped allowlist, whatever the hook is given", () => {
-    const entry = { ...FIXTURE_PIN, traceSHA256: sha(FIXTURE_TEXT), trace: FIXTURE_TEXT };
+    const entry = {
+      ...FIXTURE_PIN,
+      builtinAgents: [],
+      builtinPlugins: [],
+      traceSHA256: sha(FIXTURE_TEXT),
+      trace: FIXTURE_TEXT,
+    };
     const fixtureProfile = { provider: "claude-code" as const, ...FIXTURE_PIN };
     // A caller array whose own `map` hands back unmarked, gate-acceptable copies.
     const hostile = [entry];
