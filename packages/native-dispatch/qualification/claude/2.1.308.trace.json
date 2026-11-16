@@ -1,0 +1,116 @@
+{
+  "format": "claude-correspondence-trace-v4",
+  "source": "recorded",
+  "binary_sha256": "ca923c86ac84b30574a82331a05b6e066c27477a926ceaffe46a845a33e4dd37",
+  "frames": [
+    {
+      "type": "system",
+      "subtype": "init",
+      "model": "claude-sonnet-5-5",
+      "claude_code_version": "2.1.308",
+      "tools": [
+        "StructuredOutput"
+      ],
+      "mcp_servers": {
+        "count": 0,
+        "empty": true
+      },
+      "slash_commands": {
+        "count": 0,
+        "empty": true
+      },
+      "skills": {
+        "count": 0,
+        "empty": true
+      },
+      "agents": [
+        "Explore",
+        "Plan",
+        "claude",
+        "general-purpose",
+        "web-fetch"
+      ],
+      "plugins": [
+        "cc-plugin-agents-md",
+        "cc-plugin-easel",
+        "cc-plugin-plugin-authoring",
+        "cc-plugin-telemetry"
+      ],
+      "init_key_shapes": {
+        "capabilities": {
+          "type": "array",
+          "length": 13,
+          "allowed": true
+        },
+        "original_cwd": {
+          "type": "string",
+          "length": 60,
+          "allowed": true
+        },
+        "additional_directories": {
+          "type": "array",
+          "length": 0,
+          "allowed": true
+        },
+        "fast_mode_state": {
+          "type": "string",
+          "length": 3,
+          "allowed": true
+        },
+        "fast_mode_disabled_reason": {
+          "type": "string",
+          "length": 19,
+          "allowed": true
+        },
+        "per_turn_effort_active": {
+          "type": "boolean",
+          "allowed": true
+        },
+        "view_mode": {
+          "type": "string",
+          "length": 7,
+          "allowed": true
+        }
+      }
+    },
+    {
+      "type": "assistant",
+      "message": {
+        "content": [
+          {
+            "type": "tool_use",
+            "name": "StructuredOutput",
+            "input": {
+              "packetDigest": "3c0e6a82c4d4c387f4b8948aae1b56d2906b4155aef253a0299548b0eb4956b5",
+              "decision": "reply",
+              "reason": null,
+              "text": "Confirmed: I received the qualification packet.",
+              "needs": null,
+              "gaps": null
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "user"
+    },
+    {
+      "type": "rate_limit_event"
+    },
+    {
+      "type": "result",
+      "subtype": "success",
+      "is_error": false,
+      "has_structured_output": true,
+      "structured_output": {
+        "packetDigest": "3c0e6a82c4d4c387f4b8948aae1b56d2906b4155aef253a0299548b0eb4956b5",
+        "decision": "reply",
+        "reason": null,
+        "text": "Confirmed: I received the qualification packet.",
+        "needs": null,
+        "gaps": null
+      }
+    }
+  ]
+}

@@ -104,8 +104,11 @@ is the one checker: the live transport, trace replay and qualification all use i
   and `skills` whenever they are listed.
 - **Built-in agents and plugins, pinned by exact name.** Safe mode disables installed plugins and
   user-supplied agents, but Claude Code still loads its built-ins: 2.1.308 lists five built-in agent
-  types (such as `general-purpose`, `Explore` and `Plan`) and three built-in plugins (such as
-  `cc-plugin-easel`). The model cannot invoke them: it has no Agent tool (its only tool is
+  types (such as `general-purpose`, `Explore` and `Plan`) and several built-in plugins from a table
+  inside the binary (such as `cc-plugin-easel`). Which of the binary's built-in plugins are enabled
+  can change without a binary change: on Yojimbo on 16 November the same 2.1.308 binary reported
+  three plugins at about 05:36Z and four at about 18:57Z. A change like that refuses duty turns
+  until the version is requalified; it fails closed. The model cannot invoke them: it has no Agent tool (its only tool is
   `StructuredOutput`, with `--tools ""`), and hooks are off. Owner's decision, 16 November: "Pin
   exact names". Each allowlist entry carries `builtinAgents` and `builtinPlugins`, the exact sorted
   name sets from its recorded qualification trace, and every duty turn must report exactly those
@@ -322,8 +325,8 @@ module, lists `{ nativeVersion, model, binarySHA256, traceSHA256, trace, builtin
 builtinPlugins }`, with the trace's exact
 bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
 file stays the reviewed source, and a test checks that each embedded trace equals its file. The
-list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It is empty: no
-real trace exists yet, so 2.1.286 and 2.1.308 are refused. Adding a version is one data entry, which
+list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It holds 2.1.308
+(`claude-sonnet-5-5`), qualified on Yojimbo on 16 November 2026; every other version is refused. Adding a version is one data entry, which
 the qualification script prints. Tests that need a fixture version use
 `replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
 subpath; the main entry does not export it. It sets only the versions plan preparation accepts; the
