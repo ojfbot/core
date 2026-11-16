@@ -326,7 +326,9 @@ builtinPlugins }`, with the trace's exact
 bytes embedded so they travel with the code into single-file bundles; the committed `.trace.json`
 file stays the reviewed source, and a test checks that each embedded trace equals its file. The
 list is deep-frozen, and the gate reads a frozen copy taken when the module loads. It holds 2.1.308
-(`claude-sonnet-5-5`), qualified on Yojimbo on 16 November 2026; every other version is refused. Adding a version is one data entry, which
+(Yojimbo) and 2.1.286 (Yuri), both `claude-sonnet-5-5`, qualified on 16 November 2026; every other
+version is refused. Each entry pins its own observed built-ins: Yuri's 2.1.286 reported three plugins
+(`cc-plugin-agents-md`, `cc-plugin-plugin-authoring`, `cc-plugin-telemetry`), Yojimbo's 2.1.308 four. Adding a version is one data entry, which
 the qualification script prints. Tests that need a fixture version use
 `replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
 subpath; the main entry does not export it. It sets only the versions plan preparation accepts; the
