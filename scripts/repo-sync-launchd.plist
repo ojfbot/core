@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  repo-sync (decisions/loops/loops.md slug: repo-sync) — TEMPLATE, not loadable as-is.
+  Thin connector only: it fires the versioned script every 30 minutes; all logic lives in
+  scripts/repo-sync.mjs. FleetRunner has no recurring scheduler yet; when it does, this
+  connector is retired in favour of a FleetRunner job (see implementation-notes.md).
+  Render + load with:  scripts/install-agents.sh --repo-sync
+  (substitutes __NODE__, __CORE_DIR__, __HOME__; installing changes this Mac's scheduled
+  jobs, so it needs the owner's yes on that Mac).
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ojfbot.repo-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__NODE__</string>
+        <string>__CORE_DIR__/scripts/repo-sync.mjs</string>
+        <string>--repo</string>
+        <string>__CORE_DIR__</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>1800</integer>
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.claude/repo-sync/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.claude/repo-sync/launchd.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__CORE_DIR__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>HOME</key>
+        <string>__HOME__</string>
+    </dict>
+</dict>
+</plist>

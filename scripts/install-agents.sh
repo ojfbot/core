@@ -45,17 +45,54 @@ TARGET_ARG=""
 USER_SCOPE=false
 WITH_SELFCO=false
 TELEMETRY_DIR=""
+REPO_SYNC=""
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=true ;;
     --user-scope) USER_SCOPE=true ;;
     --with-selfco) WITH_SELFCO=true ;;
+    --repo-sync) REPO_SYNC=install ;;
+    --repo-sync-dry-run) REPO_SYNC=dry-run ;;
     --telemetry-dir=) echo "Error: --telemetry-dir needs an absolute path" >&2; exit 1 ;;
     --telemetry-dir=*) TELEMETRY_DIR="${arg#*=}" ;;
     *) TARGET_ARG="$arg" ;;
   esac
 done
+
+# --repo-sync: render scripts/repo-sync-launchd.plist for this Mac and load it (loops.md
+# slug: repo-sync). Standalone — does nothing else and exits. The plist points at the MAIN
+# checkout of core (resolved via git-common-dir, so running from a worktree is fine); that
+# checkout must already contain scripts/repo-sync.mjs. Installing changes this Mac's
+# scheduled jobs: run it only with the owner's yes. --repo-sync-dry-run prints the plist.
+if [[ -n "$REPO_SYNC" ]]; then
+  COMMON_DIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-common-dir)"
+  MAIN_CORE="$(dirname "$COMMON_DIR")"
+  NODE_BIN="$(command -v node || true)"
+  LABEL="com.ojfbot.repo-sync"
+  DEST="$HOME/Library/LaunchAgents/$LABEL.plist"
+  if [[ -z "$NODE_BIN" ]]; then echo "Error: node not found on PATH" >&2; exit 1; fi
+  if [[ ! -f "$MAIN_CORE/scripts/repo-sync.mjs" ]]; then
+    echo "Error: $MAIN_CORE/scripts/repo-sync.mjs is missing — the main checkout must carry the" >&2
+    echo "  repo-sync script (check out or rebase onto a main that includes it) before installing." >&2
+    exit 1
+  fi
+  RENDERED="$(sed -e "s|__NODE__|$NODE_BIN|g" -e "s|__CORE_DIR__|$MAIN_CORE|g" -e "s|__HOME__|$HOME|g" \
+    "$SCRIPT_DIR/repo-sync-launchd.plist")"
+  if [[ "$REPO_SYNC" == "dry-run" ]]; then
+    printf '%s\n' "$RENDERED"
+    echo "(dry run — would write $DEST and load it into gui/$(id -u))" >&2
+    exit 0
+  fi
+  mkdir -p "$HOME/.claude/repo-sync" "$HOME/Library/LaunchAgents"
+  printf '%s\n' "$RENDERED" > "$DEST"
+  plutil -lint "$DEST" >/dev/null
+  launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+  launchctl bootstrap "gui/$(id -u)" "$DEST"
+  echo "repo-sync installed: $DEST (every 30 min; report at ~/.claude/repo-sync/latest.md)"
+  echo "Once installed on the Macs it covers, flip decisions/loops/loops.md repo-sync to status: live."
+  exit 0
+fi
 
 # Telemetry is a separate opt-in. Resolve and validate its destination before any writes.
 if [[ -n "$TELEMETRY_DIR" ]]; then
