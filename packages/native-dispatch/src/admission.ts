@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { isAbsolute } from "node:path";
+import { parseCorrespondencePacket } from "./correspondence-protocol.js";
+import { CORRESPONDENCE_PACKET_MAX_BYTES } from "./correspondence-types.js";
 import type {
   DispatchGrant,
   DispatchRequest,
@@ -70,11 +72,12 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
     typeof sequence !== "number" ||
     !Number.isSafeInteger(sequence) ||
     sequence < 0 ||
-    workflow !== "advisory-review" ||
+    (workflow !== "advisory-review" && workflow !== "correspondence") ||
     !strings(resources) ||
     !object(task) ||
     typeof task.input !== "string" ||
-    Buffer.byteLength(task.input) > 4096 ||
+    Buffer.byteLength(task.input) >
+      (workflow === "correspondence" ? CORRESPONDENCE_PACKET_MAX_BYTES : 4096) ||
     typeof task.inputDigest !== "string" ||
     !/^[a-f0-9]{64}$/.test(task.inputDigest) ||
     digest(task.input) !== task.inputDigest
@@ -94,18 +97,33 @@ export function parseDispatchRequest(value: unknown): DispatchRequest {
     !isIdentifier(profileRevision)
   )
     throw Error("invalid-request");
-  const pointer: unknown = JSON.parse(task.input);
-  if (
-    !object(pointer) ||
-    Object.keys(pointer).sort().join(",") !==
-      "bindingRevision,message_id,sequence,stream_id,thread_id" ||
-    pointer.message_id !== messageId ||
-    pointer.thread_id !== threadId ||
-    pointer.sequence !== sequence ||
-    pointer.stream_id !== streamId ||
-    pointer.bindingRevision !== bindingRevision
-  )
-    throw Error("invalid-request");
+  if (workflow === "correspondence") {
+    let packet;
+    try {
+      packet = parseCorrespondencePacket(task.input);
+    } catch {
+      throw Error("invalid-request");
+    }
+    if (
+      packet.request.message_id !== messageId ||
+      packet.request.thread_id !== threadId ||
+      packet.request.sequence !== sequence
+    )
+      throw Error("invalid-request");
+  } else {
+    const pointer: unknown = JSON.parse(task.input);
+    if (
+      !object(pointer) ||
+      Object.keys(pointer).sort().join(",") !==
+        "bindingRevision,message_id,sequence,stream_id,thread_id" ||
+      pointer.message_id !== messageId ||
+      pointer.thread_id !== threadId ||
+      pointer.sequence !== sequence ||
+      pointer.stream_id !== streamId ||
+      pointer.bindingRevision !== bindingRevision
+    )
+      throw Error("invalid-request");
+  }
   return {
     deliveryId,
     streamId,
@@ -140,7 +158,11 @@ export function validateConfiguration(config: DispatchConfiguration): void {
       b.cwd.includes("\0") ||
       !isIdentifier(b.profileRevision) ||
       !strings(b.resources) ||
-      typeof b.held !== "boolean"
+      typeof b.held !== "boolean" ||
+      !(
+        b.sessionPolicy === undefined ||
+        ["initial-fixed", "existing-fixed", "fresh-per-dispatch"].includes(b.sessionPolicy)
+      )
     )
       throw Error("invalid-binding");
     aliases.add(b.alias);
@@ -167,8 +189,10 @@ export function validateConfiguration(config: DispatchConfiguration): void {
       ![g.charterId, g.revision, g.bindingAlias].every(isIdentifier) ||
       !text(g.budgetScope) ||
       grants.has(key) ||
-      g.operation !== "native-resume" ||
-      g.workflow !== "advisory-review" ||
+      !(
+        (g.operation === "native-resume" && g.workflow === "advisory-review") ||
+        (g.operation === "native-fresh" && g.workflow === "correspondence")
+      ) ||
       !["mechanical", "supervised"].includes(g.mode) ||
       !strings(g.resources) ||
       typeof g.held !== "boolean" ||
@@ -213,7 +237,11 @@ export function decide(
       g.bindingAlias === binding.alias &&
       g.workflow === request.workflow,
   );
-  if (!grant) return { kind: "refused", reason: "grant-mismatch" };
+  if (
+    !grant ||
+    (grant.operation === "native-fresh") !== (binding.sessionPolicy === "fresh-per-dispatch")
+  )
+    return { kind: "refused", reason: "grant-mismatch" };
   if (grant.mode !== mode) return { kind: "refused", reason: "live-not-armed" };
   if (binding.held || grant.held) return { kind: "refused", reason: "held" };
   if (now < grant.validFromMs) return { kind: "refused", reason: "not-yet-valid" };

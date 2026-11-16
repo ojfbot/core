@@ -15,6 +15,8 @@ import { isQualificationTransport } from "./native.js";
 import type { QualificationTransport } from "./native.js";
 import { isSupervisedTransport } from "./supervised-native.js";
 import type { SupervisedTransport } from "./supervised-native.js";
+import { isCorrespondenceTransport } from "./correspondence-native.js";
+import type { CorrespondenceTransport } from "./correspondence-native.js";
 import type { RelayedCanaryProposal } from "./advisory.js";
 import type {
   DispatchDisposition,
@@ -34,11 +36,11 @@ export interface DispatcherOptions extends DispatchConfiguration {
   transport: QualificationTransport;
   now?: () => number;
 }
-export interface Dispatcher {
+export interface Dispatcher<P = RelayedCanaryProposal> {
   dispatch(request: unknown, options?: { signal?: AbortSignal }): Promise<DispatchDisposition>;
   reconcile(evidence: NativeEvidence): DispatchDisposition;
   lookup(deliveryId: string): DispatchDisposition | undefined;
-  agentProposal(deliveryId: string): RelayedCanaryProposal | undefined;
+  agentProposal(deliveryId: string): P | undefined;
   status(): DispatcherStatus;
   close(): void;
 }
@@ -66,14 +68,26 @@ export function openSupervisedDispatcher(
   return openEngine(options, "supervised", 120000, options.beforeInvoke);
 }
 
-function openEngine(
+/** Internal seam for correspondence windows (supervised) and their offline emulation (mechanical). */
+export function openCorrespondenceDispatcher<P>(
   options: Omit<DispatcherOptions, "transport"> & {
-    transport: QualificationTransport | SupervisedTransport;
+    transport: CorrespondenceTransport;
+    beforeInvoke?: () => RefusalReason | undefined;
+  },
+): Dispatcher<P> {
+  if (!isCorrespondenceTransport(options.transport)) throw Error("live-not-armed");
+  const mode = options.transport.mode === "supervised" ? "supervised" : "mechanical";
+  return openEngine<P>(options, mode, 120000, options.beforeInvoke);
+}
+
+function openEngine<P = RelayedCanaryProposal>(
+  options: Omit<DispatcherOptions, "transport"> & {
+    transport: QualificationTransport | SupervisedTransport | CorrespondenceTransport;
   },
   mode: "mechanical" | "supervised",
   timeoutMs: number,
   beforeInvoke?: () => RefusalReason | undefined,
-): Dispatcher {
+): Dispatcher<P> {
   if (!isAbsolute(options.stateFile)) throw Error("invalid-state-path");
   validateConfiguration(options);
   // Detach authority from mutable objects owned by a caller. It is never drawn from a delivery.
@@ -211,12 +225,17 @@ function openEngine(
           return { kind: "prior" as const, result: { kind: "refused" as const, reason: hold } };
         const admission = decide(request, config, admittedAt, mode);
         if (admission.kind === "refused") return { kind: "prior" as const, result: admission };
-        const { binding, grant, profile } = admission;
-        const sessionKey = JSON.stringify([
-          binding.deviceId,
-          binding.provider,
-          binding.nativeSessionId,
-        ]);
+        const { grant, profile } = admission;
+        // A fresh-per-dispatch binding gets a new native session, journaled before any launch.
+        const fresh = grant.operation === "native-fresh";
+        const binding = fresh
+          ? { ...admission.binding, nativeSessionId: randomUUID() }
+          : admission.binding;
+        const sessionKey = JSON.stringify(
+          fresh
+            ? [binding.deviceId, binding.provider, "fresh-per-dispatch", binding.alias]
+            : [binding.deviceId, binding.provider, binding.nativeSessionId],
+        );
         const held =
           mode === "supervised"
             ? db.prepare("SELECT dispatch_id FROM controllers LIMIT 1").get()
@@ -371,7 +390,7 @@ function openEngine(
       if (!row) return undefined;
       if (typeof row.proposal !== "string") throw Error("invalid-advisory-state");
       // This owner-private record is written only after parseCanaryProposal accepts the native data.
-      return JSON.parse(row.proposal) as RelayedCanaryProposal;
+      return JSON.parse(row.proposal) as P;
     },
     status: () => {
       const count = db
