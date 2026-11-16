@@ -11,11 +11,12 @@
 // frame checker, in the qualification journal the approval names (one turn, separate from every
 // duty journal). No HelpDesk data is read, and no duty listener is opened. The trace is written
 // only to <out.trace.json>, with mode 0600.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve } from "node:path";
 import {
   prepareCorrespondenceQualificationPlan,
   qualifyClaudeCorrespondence,
+  writeCorrespondenceTrace,
 } from "../dist/index.js";
 
 const [planFile, approvalFile, outputFile] = process.argv.slice(2);
@@ -45,7 +46,7 @@ if (result.kind === "not-run") {
   console.log(`not run: ${JSON.stringify(result.disposition)}`);
   process.exit(1);
 }
-writeFileSync(output, result.traceText, { flag: "wx", mode: 0o600 });
+writeCorrespondenceTrace(output, result.traceText);
 console.log(`version: ${result.nativeVersion}`);
 console.log(`trace: ${output}`);
 console.log(`sha256: ${result.traceSHA256}`);
@@ -54,4 +55,6 @@ console.log(
 );
 const accepted = result.verdict === "accepted";
 console.log(`verdict: ${accepted ? "accepted" : `refused (${result.verdict.refused})`}`);
+// The entry to add to src/correspondence-allowlist.ts, trace embedded, once the trace is committed.
+if (result.allowlistEntry) console.log(`allowlist entry: ${JSON.stringify(result.allowlistEntry)}`);
 process.exit(accepted ? 0 : 2);

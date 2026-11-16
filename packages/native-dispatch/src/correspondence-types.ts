@@ -109,7 +109,10 @@ export interface CorrespondencePlan {
 
 export interface PreparedCorrespondencePlan {
   /** Qualification plans are prepared separately and can open only a qualification run. */
-  mode: "correspondence-prepared" | "correspondence-qualification-prepared";
+  mode:
+    | "correspondence-prepared"
+    | "correspondence-qualification-prepared"
+    | "correspondence-emulation-prepared";
   plan: CorrespondencePlan;
   planDigest: string;
   liveEligible: false;

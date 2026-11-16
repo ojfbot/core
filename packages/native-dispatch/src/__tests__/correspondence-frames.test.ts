@@ -1,5 +1,14 @@
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -10,19 +19,29 @@ import {
   CORRESPONDENCE_TRACE_DIRECTORY,
   checkCorrespondenceQualification,
   checkCorrespondenceTraceBytes,
+  correspondenceGrantRevision,
   correspondenceTracePath,
   createCorrespondenceFrameChecker,
+  digest,
+  openCorrespondenceEmulation,
+  prepareCorrespondenceEmulationPlan,
+  prepareCorrespondencePlan,
+  prepareCorrespondenceQualificationPlan,
+  qualifyClaudeCorrespondenceEmulation,
   replayCorrespondenceTrace,
   serializeCorrespondenceTrace,
   traceFromFrames,
+  writeCorrespondenceTrace,
 } from "../index.js";
+import { replaceCorrespondenceAllowlistForTesting } from "../testing.js";
 import type { CorrespondenceTrace } from "../index.js";
 
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
 const SESSION = "00000000-0000-4000-8000-000000000042";
 const MODEL = "claude-model";
 const VERSION = "2.1.308";
-const PINNED = { model: MODEL, nativeVersion: VERSION };
+const BINARY = "b".repeat(64);
+const PINNED = { model: MODEL, nativeVersion: VERSION, binarySHA256: BINARY };
 const answer = {
   packetDigest: CORRESPONDENCE_QUALIFICATION_PACKET_SHA256,
   decision: "reply",
@@ -93,7 +112,7 @@ function rawFrames(): Array<Record<string, unknown>> {
 }
 /** The trace qualification commits for an accepted turn: the answer only after it was accepted. */
 const synthetic = (frames = rawFrames()): CorrespondenceTrace =>
-  traceFromFrames(frames, { acceptedAnswer: answer });
+  traceFromFrames(frames, { binarySHA256: BINARY, acceptedAnswer: answer });
 
 type Frames = Array<Record<string, unknown>>;
 const clone = (t: CorrespondenceTrace): CorrespondenceTrace => structuredClone(t);
@@ -123,6 +142,18 @@ const insertBefore = (t: CorrespondenceTrace, type: string, frame: Record<string
 
 const mutations: Array<[string, (t: CorrespondenceTrace) => void, string]> = [
   ["an extra tool", (t) => (init(t).tools as string[]).push("Bash"), "init-tools-mismatch"],
+  [
+    "a duplicated output tool",
+    (t) => (init(t).tools as string[]).push(CLAUDE_OUTPUT_TOOL),
+    "init-tools-mismatch",
+  ],
+  [
+    "an unknown init key",
+    (t) => (init(t).unexpected_init_keys = ["capabilities"]),
+    "unexpected-init-key",
+  ],
+  ["a non-boolean is_error", (t) => (result(t).is_error = "non-boolean"), "invalid-result"],
+  ["an error result subtype", (t) => (result(t).subtype = "error_max_turns"), "failed"],
   ["no output tool", (t) => (init(t).tools = { count: 0, sha256: sha("") }), "init-tools-mismatch"],
   [
     "an MCP server",
@@ -225,17 +256,17 @@ function committed(): Array<[string, CorrespondenceTrace, string, string]> {
       return [f, JSON.parse(text) as CorrespondenceTrace, text, f.replace(/\.trace\.json$/, "")];
     });
 }
-const modelOf = (t: CorrespondenceTrace) => String(init(t).model);
+type Pin = { model: string; nativeVersion: string; binarySHA256: string };
+/** A committed trace's pin comes from its allowlist entry, never from the trace itself. */
+const pinOf = (version: string): Pin => {
+  const entry = CLAUDE_CORRESPONDENCE_QUALIFIED.find((e) => e.nativeVersion === version);
+  if (!entry) throw Error(`committed trace ${version} has no allowlist entry`);
+  return { model: entry.model, nativeVersion: version, binarySHA256: entry.binarySHA256 };
+};
 /** The synthetic trace shaped like the binary, plus every committed trace, with its pin. */
-const traces: Array<[string, CorrespondenceTrace, { model: string; nativeVersion: string }]> = [
+const traces: Array<[string, CorrespondenceTrace, Pin]> = [
   ["synthetic 2.1.308-shaped trace", synthetic(), PINNED],
-  ...committed().map(
-    ([f, t, , v]): [string, CorrespondenceTrace, { model: string; nativeVersion: string }] => [
-      f,
-      t,
-      { model: modelOf(t), nativeVersion: v },
-    ],
-  ),
+  ...committed().map(([f, t, , v]): [string, CorrespondenceTrace, Pin] => [f, t, pinOf(v)]),
 ];
 
 function run(frames: unknown[]) {
@@ -278,6 +309,62 @@ describe("frame checker", () => {
     const frames = rawFrames();
     frames[3].is_error = true;
     expect(run(frames)).toEqual({ kind: "failed" });
+  });
+
+  // Claude review 1 (round 2): any result subtype was accepted.
+  it("accepts a proposal only from a success result with is_error false", () => {
+    const frames = rawFrames();
+    frames[3].subtype = "error_max_turns";
+    frames[3].is_error = false;
+    expect(run(frames)).toEqual({ kind: "failed" });
+  });
+
+  // Codex review 4 (round 2): a non-boolean is_error could carry text into a trace.
+  it("refuses a non-boolean is_error, and records it only as non-boolean", () => {
+    const frames = rawFrames();
+    frames[3].is_error = "SECRET-TOKEN";
+    expect(run(frames)).toEqual({ kind: "refused", reason: "invalid-result" });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
+    expect(result(trace).is_error).toBe("non-boolean");
+    expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
+    expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
+      kind: "refused",
+      reason: "invalid-result",
+    });
+  });
+
+  it("copies only identifier-shaped names and selectors into a trace", () => {
+    const frames = rawFrames();
+    frames[0].model = "model with SECRET-TOKEN";
+    (frames[1].message as { content: Array<Record<string, unknown>> }).content[0].type =
+      "text SECRET-TOKEN";
+    const text = serializeCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }));
+    expect(text).not.toContain("SECRET-TOKEN");
+    expect(text).toContain('"model": "invalid"');
+  });
+
+  // Claude review 2 (round 2): a new init surface would not show.
+  it("refuses an unknown init key, and records it in the trace by name only", () => {
+    const frames = rawFrames();
+    Object.assign(frames[0], { capabilities: ["SECRET-TOKEN"] });
+    expect(run(frames)).toEqual({ kind: "refused", reason: "unexpected-init-key" });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY });
+    expect(init(trace).unexpected_init_keys).toEqual(["capabilities"]);
+    expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
+    expect(replayCorrespondenceTrace(trace, PINNED)).toEqual({
+      kind: "refused",
+      reason: "unexpected-init-key",
+    });
+  });
+
+  // Codex review 5 and Claude review 3 (round 2): a duplicate output tool matched as a set.
+  it("refuses a duplicated StructuredOutput, live and in replay", () => {
+    const frames = rawFrames();
+    frames[0].tools = [CLAUDE_OUTPUT_TOOL, CLAUDE_OUTPUT_TOOL];
+    expect(run(frames)).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
+    expect(
+      replayCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
+    ).toEqual({ kind: "refused", reason: "init-tools-mismatch" });
   });
 
   // Codex review 1: a tool call in a frame other than the assistant message was not seen.
@@ -331,7 +418,9 @@ describe("frame checker", () => {
     frames.splice(1, 0, hidden);
     expect(run(frames)).toEqual({ kind: "refused", reason });
     // The cut trace keeps enough for replay to refuse it the same way.
-    expect(replayCorrespondenceTrace(traceFromFrames(frames), PINNED)).toEqual({
+    expect(
+      replayCorrespondenceTrace(traceFromFrames(frames, { binarySHA256: BINARY }), PINNED),
+    ).toEqual({
       kind: "refused",
       reason,
     });
@@ -391,19 +480,22 @@ describe("trace format", () => {
       input: { command: "cat ~/SECRET-TOKEN" },
     });
     for (const options of [{}, { acceptedAnswer: answer }]) {
-      const text = serializeCorrespondenceTrace(traceFromFrames(frames, options));
+      const text = serializeCorrespondenceTrace(
+        traceFromFrames(frames, { binarySHA256: BINARY, ...options }),
+      );
       for (const leaked of ["SECRET-TOKEN", "PrivateTool", "private-server", "private-command"])
         expect(text).not.toContain(leaked);
     }
-    const refused = traceFromFrames(frames);
+    const refused = traceFromFrames(frames, { binarySHA256: BINARY });
     expect(init(refused).tools).toEqual({
       count: 2,
       sha256: sha(["PrivateTool", "StructuredOutput"].join("\n")),
     });
     expect(init(refused).mcp_servers).toEqual({ count: 1, empty: false });
     // Without an accepted answer, neither the call's input nor structured_output is kept.
-    expect(serializeCorrespondenceTrace(traceFromFrames(rawFrames()))).not.toContain("Received.");
-    expect(result(traceFromFrames(rawFrames()))).toEqual({
+    const plain = traceFromFrames(rawFrames(), { binarySHA256: BINARY });
+    expect(serializeCorrespondenceTrace(plain)).not.toContain("Received.");
+    expect(result(plain)).toEqual({
       type: "result",
       subtype: "success",
       is_error: false,
@@ -420,6 +512,12 @@ describe("trace format", () => {
       kind: "refused",
       reason: "invalid-frame",
     });
+  });
+
+  it("refuses a trace recorded from another binary", () => {
+    expect(
+      replayCorrespondenceTrace(synthetic(), { ...PINNED, binarySHA256: "c".repeat(64) }),
+    ).toEqual({ kind: "refused", reason: "binary-mismatch" });
   });
 
   it("checks the model and version against the plan, not against the trace's own init", () => {
@@ -441,31 +539,34 @@ describe("trace format", () => {
     it.each(mutations)("refuses %s", (__, mutate, reason) => {
       const t = clone(trace);
       mutate(t);
-      expect(replayCorrespondenceTrace(t, pin)).toEqual({ kind: "refused", reason });
+      expect(replayCorrespondenceTrace(t, pin)).toEqual(
+        reason === "failed" ? { kind: "failed" } : { kind: "refused", reason },
+      );
     });
   });
 });
 
 describe("correspondence allowlist", () => {
-  const profile = (nativeVersion: string, binarySHA256 = "b".repeat(64), model = MODEL) => ({
+  const profile = (nativeVersion: string, binarySHA256 = BINARY, model = MODEL) => ({
     provider: "claude-code" as const,
     nativeVersion,
     binarySHA256,
     model,
   });
-  const fixture = (run: (dir: string) => void) => {
-    const dir = mkdtempSync(join(tmpdir(), "trace-fixture-"));
-    try {
-      run(dir);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  };
-  const traceFor = (version: string, model = MODEL) => {
+  const traceFor = (version: string, model = MODEL, binarySHA256 = BINARY) => {
     const frames = rawFrames();
     Object.assign(frames[0], { claude_code_version: version, model });
-    return serializeCorrespondenceTrace(synthetic(frames));
+    return serializeCorrespondenceTrace(
+      traceFromFrames(frames, { binarySHA256, acceptedAnswer: answer }),
+    );
   };
+  const entryFor = (version: string, trace = traceFor(version)) => ({
+    nativeVersion: version,
+    model: MODEL,
+    binarySHA256: BINARY,
+    traceSHA256: sha(trace),
+    trace,
+  });
 
   it("refuses 2.1.286 and 2.1.308 until their traces are committed", () => {
     for (const v of ["2.1.286", "2.1.308"])
@@ -475,16 +576,39 @@ describe("correspondence allowlist", () => {
         );
   });
 
-  it("pins every allowlisted version to a committed trace with the same hash", () => {
+  // Claude review 5 (round 2) and LocalHelp item 17: the export could be changed at runtime.
+  it("is deep-frozen, and the gate reads its own frozen copy", () => {
+    expect(Object.isFrozen(CLAUDE_CORRESPONDENCE_QUALIFIED)).toBe(true);
+    expect(() =>
+      (CLAUDE_CORRESPONDENCE_QUALIFIED as unknown as unknown[]).push(entryFor("9.9.9")),
+    ).toThrow();
+    expect(() => checkCorrespondenceQualification(profile("9.9.9"))).toThrow(
+      "native-profile-unqualified",
+    );
+    // Only the test-only hook, from the `testing` subpath, replaces it.
+    const restore = replaceCorrespondenceAllowlistForTesting([entryFor("9.9.9")]);
+    try {
+      expect(() => checkCorrespondenceQualification(profile("9.9.9"))).not.toThrow();
+    } finally {
+      restore();
+    }
+    expect(() => checkCorrespondenceQualification(profile("9.9.9"))).toThrow(
+      "native-profile-unqualified",
+    );
+  });
+
+  // LocalHelp item 16: traces travel with the code; the committed files are the reviewed source.
+  it("embeds each allowlisted trace byte for byte as committed", () => {
     let checked = 0;
     for (const entry of CLAUDE_CORRESPONDENCE_QUALIFIED) {
-      const bytes = readFileSync(correspondenceTracePath(entry.nativeVersion));
-      const trace = JSON.parse(bytes.toString()) as CorrespondenceTrace;
+      const bytes = readFileSync(correspondenceTracePath(entry.nativeVersion), "utf8");
+      expect(entry.trace).toBe(bytes);
       expect(sha(bytes)).toBe(entry.traceSHA256);
       expect(
         checkCorrespondenceTraceBytes(bytes, {
-          model: modelOf(trace),
+          model: entry.model,
           nativeVersion: entry.nativeVersion,
+          binarySHA256: entry.binarySHA256,
         }),
       ).toBeUndefined();
       checked += 1;
@@ -492,82 +616,51 @@ describe("correspondence allowlist", () => {
     // The loop must not pass vacuously once the list has entries.
     expect(checked).toBe(CLAUDE_CORRESPONDENCE_QUALIFIED.length);
     if (CLAUDE_CORRESPONDENCE_QUALIFIED.length) expect(checked).toBeGreaterThan(0);
+    // And every committed trace has its entry.
+    for (const [, , , version] of committed()) expect(() => pinOf(version)).not.toThrow();
   });
 
-  it("qualifies a version only with its binary hash and a matching, accepted trace", () =>
-    fixture((dir) => {
-      const text = traceFor("9.9.9");
-      writeFileSync(join(dir, "9.9.9.trace.json"), text);
-      const entry = {
-        nativeVersion: "9.9.9",
-        binarySHA256: "b".repeat(64),
-        traceSHA256: sha(text),
-      };
-      expect(() => checkCorrespondenceQualification(profile("9.9.9"), [entry], dir)).not.toThrow();
-      for (const [p, e] of [
-        [profile("9.9.9", "c".repeat(64)), entry],
-        [profile("9.9.9"), { ...entry, traceSHA256: "0".repeat(64) }],
-        [profile("9.9.9", "b".repeat(64), "other-model"), entry],
-      ] as const)
-        expect(() => checkCorrespondenceQualification(p, [e], dir)).toThrow(
-          "native-profile-unqualified",
-        );
-    }));
+  it("qualifies a version only with its binary, its model and a matching, accepted trace", () => {
+    const entry = entryFor("9.9.9");
+    expect(() => checkCorrespondenceQualification(profile("9.9.9"), [entry])).not.toThrow();
+    for (const [p, e] of [
+      [profile("9.9.9", "c".repeat(64)), entry],
+      [profile("9.9.9", BINARY, "other-model"), entry],
+      [profile("9.9.9"), { ...entry, model: "other-model" }],
+      [profile("9.9.9"), { ...entry, traceSHA256: "0".repeat(64) }],
+      [profile("9.9.9"), { ...entry, trace: "" }],
+    ] as const)
+      expect(() => checkCorrespondenceQualification(p, [e])).toThrow("native-profile-unqualified");
+  });
 
-  it("refuses an allowlisted version whose trace is missing, and only for that reason", () =>
-    fixture((dir) => {
-      const text = traceFor("9.9.9");
-      const entry = {
-        nativeVersion: "9.9.9",
-        binarySHA256: "b".repeat(64),
-        traceSHA256: sha(text),
-      };
-      expect(() => checkCorrespondenceQualification(profile("9.9.9"), [entry], dir)).toThrow(
-        "native-profile-unqualified",
-      );
-      writeFileSync(join(dir, "9.9.9.trace.json"), text);
-      expect(() => checkCorrespondenceQualification(profile("9.9.9"), [entry], dir)).not.toThrow();
-    }));
+  // Claude reviews 4 and 12 (round 2): traces and entries were not tied together.
+  it("refuses a trace recorded from another binary than its entry's", () => {
+    const other = traceFor("9.9.9", MODEL, "c".repeat(64));
+    expect(() =>
+      checkCorrespondenceQualification(profile("9.9.9"), [entryFor("9.9.9", other)]),
+    ).toThrow("native-profile-unqualified");
+  });
 
   // Claude review 2: a trace was not bound to a version, a model or a real recording.
-  it("refuses a trace copied or renamed to another version", () =>
-    fixture((dir) => {
-      const text = traceFor("2.1.308");
-      writeFileSync(join(dir, "2.1.400.trace.json"), text);
-      const copied = {
-        nativeVersion: "2.1.400",
-        binarySHA256: "b".repeat(64),
-        traceSHA256: sha(text),
-      };
-      expect(() => checkCorrespondenceQualification(profile("2.1.400"), [copied], dir)).toThrow(
-        "native-profile-unqualified",
-      );
-      const synthetic999 = traceFor("9.9.9");
-      writeFileSync(join(dir, "9.9.8.trace.json"), synthetic999);
-      const reused = {
-        nativeVersion: "9.9.8",
-        binarySHA256: "b".repeat(64),
-        traceSHA256: sha(synthetic999),
-      };
-      expect(() => checkCorrespondenceQualification(profile("9.9.8"), [reused], dir)).toThrow(
-        "native-profile-unqualified",
-      );
-    }));
+  it("refuses a trace copied or renamed to another version", () => {
+    expect(() =>
+      checkCorrespondenceQualification(profile("2.1.400"), [
+        entryFor("2.1.400", traceFor("2.1.308")),
+      ]),
+    ).toThrow("native-profile-unqualified");
+    expect(() =>
+      checkCorrespondenceQualification(profile("9.9.8"), [entryFor("9.9.8", traceFor("9.9.9"))]),
+    ).toThrow("native-profile-unqualified");
+  });
 
-  it("refuses a committed trace that no longer replays, even with a matching hash", () =>
-    fixture((dir) => {
-      const bad = JSON.parse(traceFor("9.9.7")) as CorrespondenceTrace;
-      callOf(bad).name = "Bash";
-      const badText = serializeCorrespondenceTrace(bad);
-      writeFileSync(join(dir, "9.9.7.trace.json"), badText);
-      expect(() =>
-        checkCorrespondenceQualification(
-          profile("9.9.7"),
-          [{ nativeVersion: "9.9.7", binarySHA256: "b".repeat(64), traceSHA256: sha(badText) }],
-          dir,
-        ),
-      ).toThrow("native-profile-unqualified");
-    }));
+  it("refuses an embedded trace that no longer replays, even with a matching hash", () => {
+    const bad = JSON.parse(traceFor("9.9.7")) as CorrespondenceTrace;
+    callOf(bad).name = "Bash";
+    const badText = serializeCorrespondenceTrace(bad);
+    expect(() =>
+      checkCorrespondenceQualification(profile("9.9.7"), [entryFor("9.9.7", badText)]),
+    ).toThrow("native-profile-unqualified");
+  });
 
   it("requires the trace to answer the fixed qualification packet", () => {
     const t = clone(synthetic());
@@ -579,4 +672,190 @@ describe("correspondence allowlist", () => {
       "invalid-agent-proposal",
     );
   });
+});
+
+/** A plan for the shipped package, with the real, empty allowlist (no mocks in this file). */
+function shippedPlan(dir: string, nativeVersion = "2.1.308") {
+  const cwd = join(dir, "cwd");
+  mkdirSync(cwd, { recursive: true, mode: 0o700 });
+  return {
+    schemaVersion: 1,
+    kind: "correspondence",
+    revision: "plan-1",
+    windowId: "window-1",
+    deviceId: "yuri",
+    profiles: [
+      {
+        provider: "claude-code",
+        revision: "claude-1",
+        binaryRealPath: "/opt/claude/claude",
+        binarySHA256: BINARY,
+        nativeVersion,
+        model: MODEL,
+        effort: "low",
+        authMode: "existing-subscription",
+        customizationPolicy: "none",
+      },
+    ],
+    bindings: [
+      {
+        alias: "duty",
+        revision: "binding-1",
+        deviceId: "yuri",
+        provider: "claude-code",
+        profileRevision: "claude-1",
+        sessionPolicy: "fresh-per-dispatch",
+        cwd,
+        resources: ["helpdesk:thread:*"],
+      },
+    ],
+    limits: { topLevelTurns: 2, windowMs: 60000, requestTimeoutMs: 120000 },
+    supervision: { kind: "owner-attended" },
+    environment: { HOME: dir, CODEX_HOME: null, TMPDIR: null },
+    declaredUnproved: ["dollars", "outputTokens", "providerInternalRequests"],
+  };
+}
+const withDir = async (run: (dir: string) => Promise<void> | void) => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "shipped-fixture-")));
+  try {
+    await run(dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+};
+
+// Claude review 5 (round 2): with the real, empty allowlist the emulation could not run.
+describe("emulation with the shipped (empty) allowlist", () => {
+  it("runs a duty emulation without a qualified version", () =>
+    withDir(async (dir) => {
+      expect(CLAUDE_CORRESPONDENCE_QUALIFIED).toHaveLength(0);
+      expect(() => prepareCorrespondencePlan(shippedPlan(dir))).toThrow("unqualified-profile");
+      const prepared = prepareCorrespondenceEmulationPlan(shippedPlan(dir));
+      const run = openCorrespondenceEmulation({
+        prepared,
+        stateFile: join(dir, "state.sqlite"),
+        now: () => 1000,
+        script: (_, t) => ({
+          kind: "answer",
+          answer: { ...answer, packetDigest: t.packetDigest },
+        }),
+      });
+      try {
+        const packetText = JSON.stringify({
+          kind: "correspondence-packet",
+          version: 1,
+          duty: { device_id: "yuri", session_id: "duty" },
+          request: {
+            message_id: "00000000-0000-4000-8000-000000000001",
+            thread_id: "00000000-0000-4000-8000-000000000900",
+            sequence: 1,
+            subject: "Soak",
+            sender: { device_id: "yojimbo", session_id: null },
+            body: "Hello",
+          },
+          thread: [],
+          omitted: { earlier_messages: 0, truncated_bodies: 0 },
+          context_round: { used: 0, limit: 3 },
+          best_effort: false,
+        });
+        const result = await run.dispatcher.dispatch({
+          deliveryId: "delivery-1",
+          streamId: "00000000-0000-4000-8000-000000000800",
+          eventId: "00000000-0000-4000-8000-000000001001",
+          messageId: "00000000-0000-4000-8000-000000000001",
+          threadId: "00000000-0000-4000-8000-000000000900",
+          sequence: 1,
+          recipient: "duty",
+          bindingRevision: "binding-1",
+          charterId: "window-1",
+          grantRevision: correspondenceGrantRevision(prepared, "duty"),
+          profileRevision: "claude-1",
+          workflow: "correspondence",
+          resources: ["helpdesk:thread:00000000-0000-4000-8000-000000000900"],
+          task: { input: packetText, inputDigest: digest(packetText) },
+        });
+        expect(result).toMatchObject({ kind: "observed", outcome: "completed" });
+        expect(run.dispatcher.status()).toMatchObject({ realProviderCalls: 0 });
+      } finally {
+        run.dispatcher.close();
+      }
+    }));
+
+  // LocalHelp item 18: the whole qualification trace path, offline.
+  it("proves the qualification trace path offline: record, write, hash and replay", () =>
+    withDir(async (dir) => {
+      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9"));
+      const result = await qualifyClaudeCorrespondenceEmulation({
+        prepared,
+        stateFile: join(dir, "emulated.sqlite"),
+        now: () => 1000,
+        frames: (_, turn) =>
+          rawFrames().map((f) => ({
+            ...f,
+            session_id: turn.nativeSessionId,
+            ...(f.type === "system" ? { claude_code_version: "9.9.9" } : {}),
+          })),
+      });
+      if (result.kind !== "ran") throw Error("not run: " + JSON.stringify(result));
+      expect(result.verdict).toBe("accepted");
+      const out = join(dir, "9.9.9.trace.json");
+      writeCorrespondenceTrace(out, result.traceText);
+      expect(statSync(out).mode & 0o777).toBe(0o600);
+      const bytes = readFileSync(out, "utf8");
+      expect(sha(bytes)).toBe(result.traceSHA256);
+      expect(result.allowlistEntry).toEqual({
+        nativeVersion: "9.9.9",
+        model: MODEL,
+        binarySHA256: BINARY,
+        traceSHA256: result.traceSHA256,
+        trace: bytes,
+      });
+      // The printed entry qualifies the version, through the real gate.
+      expect(() =>
+        checkCorrespondenceQualification(profile999(), [result.allowlistEntry!]),
+      ).not.toThrow();
+      expect(() => writeCorrespondenceTrace(out, result.traceText)).toThrow();
+    }));
+
+  it("reports a refused emulated qualification with no answer in the trace", () =>
+    withDir(async (dir) => {
+      const prepared = prepareCorrespondenceQualificationPlan(shippedPlan(dir, "9.9.9"));
+      const result = await qualifyClaudeCorrespondenceEmulation({
+        prepared,
+        stateFile: join(dir, "emulated.sqlite"),
+        now: () => 1000,
+        frames: (_, turn) => {
+          const frames: Array<Record<string, unknown>> = rawFrames().map((f) => ({
+            ...f,
+            session_id: turn.nativeSessionId,
+            ...(f.type === "system" ? { claude_code_version: "9.9.9" } : {}),
+          }));
+          frames.splice(1, 0, {
+            type: "user",
+            session_id: turn.nativeSessionId,
+            message: {
+              content: [{ type: "tool_use", name: "Bash", input: { c: "SECRET-TOKEN" } }],
+            },
+          });
+          return frames;
+        },
+      });
+      expect(result).toMatchObject({
+        kind: "ran",
+        turnRefusal: "tool-name-mismatch",
+        replayRefusal: "tool-name-mismatch",
+        verdict: { refused: "tool-name-mismatch" },
+        allowlistEntry: undefined,
+      });
+      if (result.kind === "ran") {
+        expect(result.traceText).not.toContain("SECRET-TOKEN");
+        expect(result.traceText).not.toContain("Received.");
+      }
+    }));
+});
+const profile999 = () => ({
+  provider: "claude-code" as const,
+  nativeVersion: "9.9.9",
+  binarySHA256: BINARY,
+  model: MODEL,
 });

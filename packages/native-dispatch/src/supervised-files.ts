@@ -279,29 +279,64 @@ export function checkNativeEnvironment(
 
 /**
  * Correspondence pins TMPDIR in the plan and sets it for the child instead of comparing it with the
- * controller's. The pinned folder must be its own realpath (no symlink anywhere in it), have no
- * ACL, and be either the owner's own folder with mode exactly 0700 or a root-owned sticky folder.
- * Every parent up to `/` must be owned by the owner or root and not writable by group or others,
- * unless it is root-owned and sticky. Claude gets exactly this checked path.
+ * controller's. The pinned folder must be the owner's own private folder: its own realpath (no
+ * symlink anywhere in it), owned by this user with mode exactly 0700, and without an ACL. Shared
+ * folders such as `/private/tmp` or `/Users/Shared`, and any root-owned sticky folder, are refused.
+ * Every parent up to `/` must be owned by this user or root and not writable by group or others,
+ * unless it is root-owned and sticky. Parents are checked in-process, with one ACL listing for the
+ * whole path. Claude gets exactly this checked path.
  */
 export function checkPinnedTemporaryDirectory(path: string | null): void {
   if (path === null) return;
+  const fds: Array<{ path: string; fd: number }> = [];
   try {
     if (!isAbsolute(path) || realpathSync(path) !== path) throw Error("environment-mismatch");
-    const fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_DIRECTORY);
-    try {
-      const s = fstatSync(fd);
-      const own = s.uid === process.getuid?.() && (s.mode & 0o7777) === 0o700;
-      const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
-      if (!s.isDirectory() || !(own || stickyRoot)) throw Error("environment-mismatch");
-      noAcl(path, fd);
-    } finally {
-      closeSync(fd);
+    const uid = process.getuid?.();
+    for (let p = path; ; p = dirname(p)) {
+      fds.push({
+        path: p,
+        fd: openSync(p, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_DIRECTORY),
+      });
+      if (p === dirname(p)) break;
     }
-    checkAncestors(path);
+    for (const [i, { fd }] of fds.entries()) {
+      const s = fstatSync(fd);
+      if (!s.isDirectory()) throw Error("environment-mismatch");
+      if (i === 0) {
+        if (s.uid !== uid || (s.mode & 0o7777) !== 0o700) throw Error("environment-mismatch");
+      } else {
+        const stickyRoot = s.uid === 0 && Boolean(s.mode & 0o1000);
+        if ((s.uid !== uid && s.uid !== 0) || (s.mode & 0o022 && !stickyRoot))
+          throw Error("environment-mismatch");
+      }
+    }
+    noAclAll(fds);
   } catch {
     throw Error("environment-mismatch");
+  } finally {
+    for (const { fd } of fds) closeSync(fd);
   }
+}
+
+/** One `/bin/ls -lde` for several open paths: none may carry an ACL, and none may have moved. */
+function noAclAll(entries: ReadonlyArray<{ path: string; fd: number }>): void {
+  if (process.platform !== "darwin") throw Error("acl-unqualified");
+  const before = entries.map(({ fd }) => fstatSync(fd));
+  const result = spawnSync("/bin/ls", ["-lde", ...entries.map((e) => e.path)], {
+    encoding: "utf8",
+    env: { LANG: "C", LC_ALL: "C" },
+    timeout: 1000,
+    maxBuffer: 65536,
+  });
+  const lines = result.stdout?.split("\n").filter(Boolean) ?? [];
+  if (
+    result.status !== 0 ||
+    result.error ||
+    lines.length !== entries.length ||
+    lines.some((line) => /\+/.test(line.slice(0, 12))) ||
+    entries.some(({ path }, i) => !same(before[i], statSync(path)))
+  )
+    throw Error("acl-unqualified");
 }
 
 export function nativeEnvironment(environment?: SupervisedEnvironment): NodeJS.ProcessEnv {
