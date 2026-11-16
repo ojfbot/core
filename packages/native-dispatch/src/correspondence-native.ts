@@ -182,6 +182,13 @@ setImmediate(() => {
 export const CORRESPONDENCE_TURN_MARKER = "CORE_CORRESPONDENCE_TURN";
 
 /**
+ * Claude Code's cross-session messaging gate (2.1.308): with it off, the UDS inbox that lets other
+ * local Claude sessions deliver messages into a session is never bound, nor late-bound, and the
+ * init frame carries no `messaging_socket_path`.
+ */
+export const CORRESPONDENCE_MESSAGING_OFF = ["CLAUDE_CODE_HARBOR_KITE", "0"] as const;
+
+/**
  * PIDs of processes whose environment carries this turn's marker: `/proc/<pid>/environ` on Linux,
  * `ps -ax -E -ww` on macOS (which shows the environment of this user's processes, except Apple
  * platform binaries such as `/bin/sleep`). Bounded in time.
@@ -299,7 +306,12 @@ export function createCorrespondenceTransport(
       // The marker travels to Claude and every descendant, whatever group or session it joins.
       const child = spawnCorrespondenceWatchdog(limitMs, pinned.binaryRealPath, args, {
         cwd: fixed.cwd,
-        env: { ...environment, [CORRESPONDENCE_TURN_MARKER]: session },
+        env: {
+          ...environment,
+          [CORRESPONDENCE_TURN_MARKER]: session,
+          // Turns Claude's cross-session inbox off: no other local session can message the turn.
+          [CORRESPONDENCE_MESSAGING_OFF[0]]: CORRESPONDENCE_MESSAGING_OFF[1],
+        },
       });
       const stdin = child.stdin!,
         stdout = child.stdout!,
@@ -308,6 +320,8 @@ export function createCorrespondenceTransport(
         sessionId: session,
         model: pinned.model,
         nativeVersion: pinned.nativeVersion,
+        // The dispatcher's binding holds the folder's realpath, as Claude reports it.
+        cwd: binding.cwd,
       });
       let refusal: CorrespondenceTurnRefusal | undefined,
         total = 0,
@@ -586,6 +600,7 @@ export function createCorrespondenceFrameEmulator(
         sessionId: session,
         model: profile.model,
         nativeVersion: profile.nativeVersion,
+        cwd: binding.cwd,
       });
       let refusal: CorrespondenceTurnRefusal | undefined;
       for (const frame of frames) {

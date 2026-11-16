@@ -311,7 +311,9 @@ export function checkPinnedTemporaryDirectory(path: string | null): void {
       }
     }
     noAclAll(fds);
-  } catch {
+  } catch (error) {
+    // An ACL anywhere in the path (a home folder's `everyone deny delete`) is named as such.
+    if (error instanceof Error && error.message === "acl-unqualified") throw error;
     throw Error("environment-mismatch");
   } finally {
     for (const { fd } of fds) closeSync(fd);

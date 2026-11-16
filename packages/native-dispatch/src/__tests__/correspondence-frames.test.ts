@@ -42,6 +42,8 @@ import type { CorrespondenceTrace } from "../index.js";
 
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
 const SESSION = "00000000-0000-4000-8000-000000000042";
+/** The turn's working folder, as Claude reports it in `original_cwd`. */
+const CWD = "/private/var/folders/xy/fixture/T/duty-cwd";
 const MODEL = "claude-model";
 const VERSION = "2.1.308";
 const BINARY = "b".repeat(64);
@@ -156,7 +158,7 @@ const mutations: Array<[string, (t: CorrespondenceTrace) => void, string]> = [
   ],
   [
     "an unknown init key",
-    (t) => (init(t).unexpected_init_keys = ["capabilities"]),
+    (t) => (init(t).unexpected_init_keys = ["plugin_errors"]),
     "unexpected-init-key",
   ],
   ["a non-boolean is_error", (t) => (result(t).is_error = "non-boolean"), "invalid-result"],
@@ -295,7 +297,7 @@ const traces: Array<[string, CorrespondenceTrace, Pin, Replay]> = [
 const handSerialize = (t: unknown) => JSON.stringify(t, null, 2) + "\n";
 
 function run(frames: unknown[]) {
-  const checker = createCorrespondenceFrameChecker({ sessionId: SESSION, ...PINNED });
+  const checker = createCorrespondenceFrameChecker({ sessionId: SESSION, cwd: CWD, ...PINNED });
   try {
     for (const f of frames) checker.frame(f);
   } catch {
@@ -303,6 +305,103 @@ function run(frames: unknown[]) {
   }
   return checker.verdict();
 }
+
+/** The init keys Claude 2.1.308's print mode added, with the values Core's flags allow. */
+const PRINT_MODE_KEYS = {
+  capabilities: ["interrupt_receipt_v1", "msg_lifecycle_v1", "ui_surface_v1"],
+  original_cwd: CWD,
+  additional_directories: [],
+  fast_mode_state: "off",
+  fast_mode_disabled_reason: "not_first_party",
+  per_turn_effort_active: false,
+  view_mode: "default",
+};
+const withInit = (extra: Record<string, unknown>) => {
+  const frames = rawFrames();
+  Object.assign(frames[0], PRINT_MODE_KEYS, extra);
+  return frames;
+};
+
+// Claude 2.1.308's first real qualification turn: eight init keys Core did not know.
+describe("2.1.308 print-mode init keys", () => {
+  it("accepts them with the values Core's flags allow, and without them", () => {
+    expect(run(withInit({}))).toEqual({ kind: "accepted", structuredOutput: answer });
+    // messaging_socket_path absent, as CLAUDE_CODE_HARBOR_KITE=0 leaves it, or null.
+    expect(run(withInit({ messaging_socket_path: null })).kind).toBe("accepted");
+    expect(run(withInit({ fast_mode_disabled_reason: null, view_mode: "focus" })).kind).toBe(
+      "accepted",
+    );
+  });
+
+  it.each([
+    [
+      "a messaging socket",
+      { messaging_socket_path: "/tmp/cc-socks/42.sock" },
+      "init-messaging-socket",
+    ],
+    ["another original cwd", { original_cwd: "/Users/someone/project" }, "init-cwd-mismatch"],
+    [
+      "an additional directory",
+      { additional_directories: ["/Users/someone"] },
+      "init-value-unexpected",
+    ],
+    ["a non-array of directories", { additional_directories: "/x" }, "init-value-unexpected"],
+    ["an unknown fast mode state", { fast_mode_state: "turbo" }, "init-value-unexpected"],
+    ["a non-string disabled reason", { fast_mode_disabled_reason: 3 }, "init-value-unexpected"],
+    ["a non-boolean effort flag", { per_turn_effort_active: "yes" }, "init-value-unexpected"],
+    ["an unknown view mode", { view_mode: "split" }, "init-value-unexpected"],
+    ["a malformed capability", { capabilities: ["Not A Capability"] }, "init-value-unexpected"],
+    ["a non-array of capabilities", { capabilities: "ui_surface_v1" }, "init-value-unexpected"],
+    ["an unknown key", { startup_timing: { ms: 1 } }, "unexpected-init-key"],
+  ])("refuses %s, live and in replay, without copying the value", (_, extra, reason) => {
+    const frames = withInit(extra);
+    expect(run(frames)).toEqual({ kind: "refused", reason });
+    const trace = traceFromFrames(frames, { binarySHA256: BINARY, cwd: CWD });
+    const text = serializeCorrespondenceTrace(trace);
+    for (const leaked of ["cc-socks", "/Users/someone", "turbo", "split", "Not A Capability"])
+      expect(text).not.toContain(leaked);
+    expect(replayEmulatedCorrespondenceTrace(trace, PINNED)).toEqual({ kind: "refused", reason });
+  });
+
+  it("records each new or unknown init key as a shape only", () => {
+    const frames = withInit({ messaging_socket_path: "/tmp/cc-socks/42.sock", startup_timing: {} });
+    const shapes = init(
+      traceFromFrames(frames, { binarySHA256: BINARY, cwd: CWD }),
+    ).init_key_shapes;
+    expect(shapes).toEqual({
+      capabilities: { type: "array", length: 3, allowed: true },
+      original_cwd: { type: "string", length: CWD.length, allowed: true },
+      additional_directories: { type: "array", length: 0, allowed: true },
+      messaging_socket_path: { type: "string", length: 21, allowed: false },
+      fast_mode_state: { type: "string", length: 3, allowed: true },
+      fast_mode_disabled_reason: { type: "string", length: 15, allowed: true },
+      per_turn_effort_active: { type: "boolean", allowed: true },
+      view_mode: { type: "string", length: 7, allowed: true },
+      startup_timing: { type: "object", length: 0, allowed: false },
+    });
+    // An accepted trace with these keys still replays as accepted.
+    expect(
+      replayEmulatedCorrespondenceTrace(
+        traceFromFrames(withInit({}), { binarySHA256: BINARY, acceptedAnswer: answer, cwd: CWD }),
+        PINNED,
+      ).kind,
+    ).toBe("accepted");
+  });
+
+  it("keeps the trace recorded on 2.1.308 under the old rules refused", () => {
+    const evidence = readFileSync(
+      join(import.meta.dirname, "fixtures/evidence-2.1.308-v3.trace.json"),
+      "utf8",
+    );
+    expect(
+      checkCorrespondenceTraceBytes(evidence, {
+        model: "claude-sonnet-5-5",
+        nativeVersion: "2.1.308",
+        binarySHA256: "ca923c86ac84b30574a82331a05b6e066c27477a926ceaffe46a845a33e4dd37",
+      }),
+    ).toBe("invalid-frame");
+  });
+});
 
 describe("frame checker", () => {
   it("accepts one StructuredOutput call whose input is the structured_output", () => {
@@ -371,10 +470,10 @@ describe("frame checker", () => {
   // Claude review 2 (round 2): a new init surface would not show.
   it("refuses an unknown init key, and records it in the trace by name only", () => {
     const frames = rawFrames();
-    Object.assign(frames[0], { capabilities: ["SECRET-TOKEN"] });
+    Object.assign(frames[0], { plugin_errors: ["SECRET-TOKEN"] });
     expect(run(frames)).toEqual({ kind: "refused", reason: "unexpected-init-key" });
     const trace = traceFromFrames(frames, { binarySHA256: BINARY });
-    expect(init(trace).unexpected_init_keys).toEqual(["capabilities"]);
+    expect(init(trace).unexpected_init_keys).toEqual(["plugin_errors"]);
     expect(serializeCorrespondenceTrace(trace)).not.toContain("SECRET-TOKEN");
     expect(replayEmulatedCorrespondenceTrace(trace, PINNED)).toEqual({
       kind: "refused",
@@ -929,6 +1028,8 @@ describe("the package API never builds recorded trace bytes", () => {
     "CLAUDE_CORRESPONDENCE_QUALIFIED",
     "CLAUDE_OUTPUT_TOOL",
     "CORRESPONDENCE_ALLOWED_FRAMES",
+    "CORRESPONDENCE_CHECKED_INIT_KEYS",
+    "CORRESPONDENCE_MESSAGING_OFF",
     "CORRESPONDENCE_INIT_KEYS",
     "CORRESPONDENCE_INSTRUCTIONS_V2",
     "CORRESPONDENCE_INSTRUCTIONS_V2_SHA256",
