@@ -33,15 +33,24 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
   `maintenance.auto=false`, because auto-gc would run `git worktree prune`.
 - **Writes** (`update-ref`, `merge --ff-only`) run with `core.hooksPath=/dev/null`, so no
   repository hooks run unattended. They also run with `merge.autoStash=false` / `--no-autostash`
-  and `--no-overwrite-ignore`, with a 5-minute timeout.
+  and `--no-overwrite-ignore`. They have no timeout, because killing git mid-checkout would leave a
+  half-updated worktree, and with hooks disabled nothing external can hang them. Fetch keeps a
+  2-minute timeout.
 - **Ownership checks:** if the worktree listing fails, ownership counts as unknown and the run
   skips. Ownership is re-checked just before `update-ref`. Before merging, the run confirms that
   the worktree holding `main` is still on `main`.
-- **Locking:** there is one lock per repository, at `<git-common-dir>/repo-sync.lock`, holding a
-  pid and a token. A run takes over a lock only if it is older than 25 minutes *and* its pid is
-  gone. A run releases the lock only while it still holds its own token.
-- **Reports** are written 0600 in a 0700 directory. Git stderr is cut to one line, with URL
-  credentials redacted.
+- **Locking:** a state-dir lock (`<state-dir>/run.lock`) serializes whole runs, report publication
+  included, so `latest.json`, `latest.md` and `runs.jsonl` always describe one run. A per-repository
+  lock (`<git-common-dir>/repo-sync.lock`) keeps runs with different state dirs off the same repo.
+  Each lock holds a pid and a token. A run can reclaim a lock only when it is older than 25 minutes
+  *and* its pid is gone, and only while holding the exclusive `<lock>.reclaim` mutex. It re-checks
+  staleness inside the mutex, so two reclaimers can't both win. A run releases a lock only while it
+  still holds its own token.
+- **Unreadable markers:** if a rebase or bisect marker is unreadable (anything except ENOENT), the
+  branch counts as busy and the run skips. A missing marker counts as absent.
+- **Reports** are written 0600 in a 0700 directory. Git stderr is cut to one line of at most 300
+  characters, with redactions: URL userinfo, `token=` / `password=` / `secret=` / `key=` style
+  parameters, `Bearer` / `Basic` / `token` header values, and GitHub token shapes.
 
 ### Known limits
 
@@ -50,9 +59,14 @@ It **never** rebases, stashes, resets, pushes, deletes branches or prunes worktr
   `~/.claude/repo-sync/launchd.err.log`, and liveness flags `runs.jsonl` silence after 36 h.
 - Code merged to `main` reaches each Mac's next run once `main` is fast-forwarded *and* checked
   out there. That is the same trust boundary as pulling `main`: the PR review gate.
-- Between the last ownership re-check and `update-ref`, a few milliseconds remain in which a
-  session could check `main` out. The compare-and-swap keeps the ref consistent; that worktree's tree
-  would then lag its ref. Git offers no atomic "update only if not checked out", so this is not closed.
+- **Accepted residual race (the owner should know):** git has no atomic "move this ref only if no
+  worktree has it checked out", and no atomic "fast-forward only if HEAD is still `main`". Both
+  ownership checks run just before their write but are not atomic with it. Between the last check
+  and `update-ref`, a few milliseconds remain in which a session could check `main` out. The compare-and-swap keeps the ref consistent; that worktree's tree
+  would then lag its ref (recoverable with `git status` / `git reset --keep`, done by a person).
+  Likewise, a session that switches branches in the instant between the `symbolic-ref` check and
+  `merge` would have that branch fast-forwarded instead. Yojimbo's `core-main-ff.sh` hook had the
+  same window.
 - When flipping the loops.md entry to `status: live`, add
   `installed_ref: ~/Library/LaunchAgents/com.ojfbot.repo-sync.plist`. It is left out while disabled
   because loops-lint errors on an installed_ref that is absent on disk.

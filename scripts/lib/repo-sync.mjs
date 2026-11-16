@@ -22,11 +22,13 @@ const GIT_ENV = { ...process.env, GIT_TERMINAL_PROMPT: '0', LC_ALL: 'C' };
 // would wedge the LaunchAgent) and never auto-gc (gc runs `worktree prune`).
 const WRITE_CONFIG = ['-c', 'core.hooksPath=/dev/null', '-c', 'gc.auto=0', '-c', 'maintenance.auto=false',
   '-c', 'merge.autoStash=false'];
-const WRITE_TIMEOUT_MS = 5 * 60_000;
+// Local writes (update-ref, ff merge) get no timeout: killing git mid-checkout leaves a half-updated
+// worktree, and with hooks disabled nothing external can hang them.
+const WRITE_TIMEOUT_MS = 0;
 
 export function git(cwd, args, { timeoutMs = 60_000, readOnly = true } = {}) {
   const full = readOnly ? ['--no-optional-locks', ...args] : [...WRITE_CONFIG, ...args];
-  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs });
+  const r = spawnSync('git', full, { cwd, env: GIT_ENV, encoding: 'utf8', timeout: timeoutMs || undefined });
   return {
     ok: r.status === 0,
     code: r.status,
@@ -38,11 +40,21 @@ export function git(cwd, args, { timeoutMs = 60_000, readOnly = true } = {}) {
 /** Strip URL credentials and keep stderr to one short line for reports. */
 export function redact(text) {
   const line = String(text).split('\n').find(Boolean) || '';
-  return line.replace(/(\w+:\/\/)[^/@\s]+@/g, '$1***@').slice(0, 300);
+  return line
+    .replace(/(\w+:\/\/)[^/@\s]+@/g, '$1***@')
+    .replace(/((?:access_|private_|auth_)?(?:token|password|passwd|secret|api_?key|key|auth|signature|sig)=)[^&\s'"]+/gi, '$1***')
+    .replace(/\b(Bearer|Basic|token)\s+[A-Za-z0-9._~+\/=-]{8,}/g, '$1 ***')
+    .replace(/\b(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, '***')
+    .slice(0, 300);
 }
 
+const UNREADABLE = Symbol('unreadable');
+/** File contents, null if absent (ENOENT/ENOTDIR — e.g. another session just finished), or
+ * UNREADABLE for any other error, which callers must treat as "busy", never as absent. */
 function readSafe(file) {
-  try { return readFileSync(file, 'utf8').trim(); } catch { return null; }
+  try { return readFileSync(file, 'utf8').trim(); } catch (e) {
+    return e && (e.code === 'ENOENT' || e.code === 'ENOTDIR') ? null : UNREADABLE;
+  }
 }
 
 function revParse(repo, ref) {
@@ -77,12 +89,6 @@ export function listWorktrees(repo) {
   return out;
 }
 
-/** The main working tree (first `worktree list` entry); does not assume .git sits beside it. */
-export function mainWorktree(anyPath) {
-  const wts = listWorktrees(anyPath);
-  return wts && wts.length ? wts[0].path : null;
-}
-
 /** Name of a merge/rebase/cherry-pick/revert/bisect in progress in this worktree, or null. */
 export function inProgressOp(worktreePath) {
   const r = git(worktreePath, ['rev-parse', '--absolute-git-dir']);
@@ -115,10 +121,11 @@ export function branchBusyElsewhere(worktrees, branch) {
     const r = git(w.path, ['rev-parse', '--absolute-git-dir']);
     if (!r.ok) continue;
     for (const dir of ['rebase-merge', 'rebase-apply']) {
-      if (readSafe(path.join(r.out, dir, 'head-name')) === full) return w.path;
+      const head = readSafe(path.join(r.out, dir, 'head-name'));
+      if (head === UNREADABLE || head === full) return w.path;
     }
     const orig = readSafe(path.join(r.out, 'BISECT_START'));
-    if (orig === branch || orig === full) return w.path;
+    if (orig === UNREADABLE || orig === branch || orig === full) return w.path;
   }
   return null;
 }
