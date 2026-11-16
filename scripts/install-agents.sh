@@ -68,10 +68,24 @@ done
 if [[ -n "$REPO_SYNC" ]]; then
   COMMON_DIR="$(git -C "$CORE_DIR" rev-parse --path-format=absolute --git-common-dir)"
   MAIN_CORE="$(dirname "$COMMON_DIR")"
+  # Resolve symlinks: version managers (fnm) put a per-shell path on PATH that is deleted when
+  # the installing shell exits; launchd needs the real, persistent binary.
   NODE_BIN="$(command -v node || true)"
+  [[ -n "$NODE_BIN" ]] && NODE_BIN="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$NODE_BIN")"
   LABEL="com.ojfbot.repo-sync"
   DEST="$HOME/Library/LaunchAgents/$LABEL.plist"
-  if [[ -z "$NODE_BIN" ]]; then echo "Error: node not found on PATH" >&2; exit 1; fi
+  if [[ -z "$NODE_BIN" || ! -x "$NODE_BIN" ]]; then echo "Error: node not found on PATH" >&2; exit 1; fi
+  if [[ "$NODE_BIN" == *fnm_multishells* ]]; then
+    echo "Error: node resolves to a per-shell fnm path ($NODE_BIN); install a persistent node first" >&2
+    exit 1
+  fi
+  # Paths are substituted into sed and XML unescaped: refuse characters that would break either.
+  for p in "$NODE_BIN" "$MAIN_CORE" "$HOME"; do
+    if [[ "$p" =~ [\|\&\<\>\"\'] ]]; then
+      echo "Error: path contains a character repo-sync's installer does not escape: $p" >&2
+      exit 1
+    fi
+  done
   if [[ ! -f "$MAIN_CORE/scripts/repo-sync.mjs" ]]; then
     echo "Error: $MAIN_CORE/scripts/repo-sync.mjs is missing — the main checkout must carry the" >&2
     echo "  repo-sync script (check out or rebase onto a main that includes it) before installing." >&2
@@ -85,10 +99,22 @@ if [[ -n "$REPO_SYNC" ]]; then
     exit 0
   fi
   mkdir -p "$HOME/.claude/repo-sync" "$HOME/Library/LaunchAgents"
-  printf '%s\n' "$RENDERED" > "$DEST"
-  plutil -lint "$DEST" >/dev/null
+  TMP_PLIST="$(mktemp "${TMPDIR:-/tmp}/repo-sync-plist.XXXXXX")"
+  printf '%s\n' "$RENDERED" > "$TMP_PLIST"
+  plutil -lint "$TMP_PLIST" >/dev/null
+  mv "$TMP_PLIST" "$DEST"
   launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
-  launchctl bootstrap "gui/$(id -u)" "$DEST"
+  # bootout returns before the job is fully gone; an immediate bootstrap can fail with EIO.
+  loaded=false
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if launchctl bootstrap "gui/$(id -u)" "$DEST" 2>/dev/null; then loaded=true; break; fi
+    sleep 1
+  done
+  if [[ "$loaded" != "true" ]]; then
+    echo "Error: launchctl bootstrap failed; plist is at $DEST — load it with:" >&2
+    echo "  launchctl bootstrap gui/$(id -u) $DEST" >&2
+    exit 1
+  fi
   echo "repo-sync installed: $DEST (every 30 min; report at ~/.claude/repo-sync/latest.md)"
   echo "Once installed on the Macs it covers, flip decisions/loops/loops.md repo-sync to status: live."
   exit 0

@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -56,14 +56,40 @@ describe('syncMain', () => {
     expect(readFileSync(path.join(clone, 'a.txt'), 'utf8')).toBe('two\n');
   });
 
-  it('keeps uncommitted edits and reports ff-refused when incoming commits touch them', () => {
+  it('leaves a checked-out main with uncommitted tracked edits alone', () => {
     commit(upstream, 'a.txt', 'two\n', 'c2');
     writeFileSync(path.join(clone, 'a.txt'), 'mine\n');
     const before = sha(clone, 'main');
     const r = syncMain(clone);
-    expect(r.action).toBe('ff-refused');
+    expect(r.action).toBe('skipped-dirty-worktree');
     expect(sha(clone, 'main')).toBe(before);
     expect(readFileSync(path.join(clone, 'a.txt'), 'utf8')).toBe('mine\n');
+  });
+
+  it('reports ff-refused and keeps an untracked file the incoming commit would overwrite', () => {
+    commit(upstream, 'new.txt', 'theirs\n', 'c2 adds new.txt');
+    writeFileSync(path.join(clone, 'new.txt'), 'mine\n');
+    const before = sha(clone, 'main');
+    const r = syncMain(clone);
+    expect(r.action).toBe('ff-refused');
+    expect(sha(clone, 'main')).toBe(before);
+    expect(readFileSync(path.join(clone, 'new.txt'), 'utf8')).toBe('mine\n');
+  });
+
+  it('does not move main while another worktree is rebasing it (detached HEAD)', () => {
+    commit(upstream, 'a.txt', 'two\n', 'c2');
+    g(clone, 'fetch', '-q', 'origin');
+    commit(clone, 'b.txt', 'b1\n', 'local b1');
+    g(clone, 'switch', '-q', '-c', 'other', 'HEAD~1');
+    commit(clone, 'b.txt', 'b-other\n', 'conflicting b');
+    g(clone, 'switch', '-q', 'main');
+    try { g(clone, 'rebase', '-q', 'other'); } catch { /* conflict leaves the rebase in progress */ }
+    expect(existsSync(path.join(g(clone, 'rev-parse', '--absolute-git-dir'), 'rebase-merge'))).toBe(true);
+    g(clone, 'update-ref', 'refs/heads/main', sha(clone, 'origin/main~1'));
+    const before = sha(clone, 'main');
+    const r = syncMain(clone, { fetch: false });
+    expect(r.action).toBe('skipped-branch-in-rebase-or-bisect');
+    expect(sha(clone, 'main')).toBe(before);
   });
 
   it('reports divergence and leaves main alone', () => {
@@ -93,6 +119,29 @@ describe('syncMain', () => {
   it('reports fetch failure without throwing', () => {
     g(clone, 'remote', 'set-url', 'origin', path.join(tmp, 'missing'));
     expect(syncMain(clone).action).toBe('fetch-failed');
+  });
+});
+
+describe('repo-sync CLI', () => {
+  const CLI = path.resolve(__dirname, '..', '..', 'repo-sync.mjs');
+  const run = (state) => spawnSync(process.execPath, [CLI, '--repo', clone, '--state-dir', state, '--no-fetch'],
+    { env: ENV, encoding: 'utf8' });
+
+  it('writes latest.json, latest.md and runs.jsonl and releases its lock', () => {
+    const state = path.join(tmp, 'state');
+    const r = run(state);
+    expect(r.status).toBe(0);
+    for (const f of ['latest.json', 'latest.md', 'runs.jsonl']) expect(existsSync(path.join(state, f))).toBe(true);
+    expect(existsSync(path.join(state, 'run.lock'))).toBe(false);
+  });
+
+  it('skips with exit 3 while a fresh lock is held, and leaves that lock in place', () => {
+    const state = path.join(tmp, 'state');
+    mkdirSync(path.join(state, 'run.lock'), { recursive: true });
+    writeFileSync(path.join(state, 'run.lock', 'owner'), 'someone-else');
+    const r = run(state);
+    expect(r.status).toBe(3);
+    expect(readFileSync(path.join(state, 'run.lock', 'owner'), 'utf8')).toBe('someone-else');
   });
 });
 
