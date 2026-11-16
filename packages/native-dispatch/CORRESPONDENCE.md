@@ -228,8 +228,11 @@ approval.
 ## Qualifying a Claude version
 
 **Trace format.** `qualification/claude/<version>.trace.json` holds one real correspondence turn,
-cut down by `traceFromFrames(frames, { binarySHA256, acceptedAnswer })` and written by
-`serializeCorrespondenceTrace` (two-space JSON with a final newline). Its SHA-256 is over those
+cut down and written (two-space JSON with a final newline) by `qualifyClaudeCorrespondence`'s real
+transport path. That path is the only code that can build a `recorded` trace: its constructor is
+internal and exported from neither the main entry nor `testing`. The public `traceFromFrames`
+builds only `emulated` traces, and `serializeCorrespondenceTrace` refuses a `recorded` trace that
+the real path did not build. Its SHA-256 is over those
 exact bytes. The file is
 `{ "format": "claude-correspondence-trace-v3", "source": "recorded", "binary_sha256": "…",
 "frames": [...] }`, with the pinned binary's SHA-256 and one entry per stream-json frame. `source`
@@ -274,7 +277,9 @@ list is deep-frozen, and the gate reads a frozen copy taken when the module load
 real trace exists yet, so 2.1.286 and 2.1.308 are refused. Adding a version is one data entry, which
 the qualification script prints. Tests that need a fixture version use
 `replaceCorrespondenceAllowlistForTesting` from the test-only `@core/native-dispatch/testing`
-subpath; the main entry does not export it.
+subpath; the main entry does not export it. Its versions count for preparing a plan, but the gate
+refuses every entry it installs, so no test path can make a live window accept a version. A real
+accepted entry comes only from a real qualification turn or from a committed, reviewed file.
 
 **Recording.** The owner approves one qualification run with
 `kind: "owner-approved-correspondence-qualification"`, the same fields as a window approval, a
