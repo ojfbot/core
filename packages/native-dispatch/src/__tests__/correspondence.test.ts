@@ -997,9 +997,10 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
   const pgidOf=(p)=>cp.execFileSync('ps',['-o','pgid=','-p',String(p)],{encoding:'utf8'}).trim();
   // fd 3 is the watchdog's control channel; Claude must not hold it.
   let fd3=false; try{fs.writeSync(3,'group 1'+String.fromCharCode(10)+'done 0'+String.fromCharCode(10));fd3=true;}catch{}
-  fs.writeFileSync(${JSON.stringify(join(dir, "child"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
+  fs.writeFileSync(${JSON.stringify(join(dir, "child.tmp"))}, JSON.stringify({pid:process.pid,ppid:process.ppid,
     pgid:pgidOf(process.pid),parentPgid:pgidOf(process.ppid),fd3,TMPDIR:process.env.TMPDIR,
     HARBOR_KITE:process.env.CLAUDE_CODE_HARBOR_KITE}));
+  fs.renameSync(${JSON.stringify(join(dir, "child.tmp"))}, ${JSON.stringify(join(dir, "child"))});
   if(behavior==='escaped-detached'){
     // A descendant in a new session (setsid), with stdio redirected: invisible to the group kill.
     cp.spawn(process.execPath,['-e',"require('fs').writeFileSync("+JSON.stringify(${JSON.stringify(join(dir, "escaped"))})+",String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore',detached:true}).unref();
