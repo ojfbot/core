@@ -10,7 +10,7 @@ export const releaseInfo =
   typeof __FLEET_RELEASE__ === "undefined"
     ? {
         name: "fleet-runner",
-        version: "0.1.0",
+        version: "0.2.0",
         commit: "source",
         node_floor: "24.22.2",
         bundled: false,

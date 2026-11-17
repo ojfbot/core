@@ -1,4 +1,26 @@
 #!/usr/bin/env node
+import { launchLedgerProof } from "./ledger-proof-launcher.js";
+import { parseProofRelay, postProofRelay, readProofRelay } from "./ledger-proof-relay.js";
+import {
+  parsePowerPlan,
+  prepareProofWake,
+  proofHostProbe,
+  runProofSleep,
+} from "./ledger-proof-power.js";
+import {
+  readPrivateJson,
+  object,
+  parseLedgerProof,
+  readProofSnapshot,
+  proofHash,
+} from "./ledger-proof.js";
+import { ProofJournal } from "./ledger-proof-state.js";
+import {
+  loadProofRuntime,
+  runProofSupervisor,
+  runProofWatchdog,
+  runProofWorker,
+} from "./ledger-proof-runtime.js";
 import { fleetClient } from "./client.js";
 import { consoleServer } from "./console.js";
 import { statusView, currentSnapshot } from "./status.js";
@@ -20,7 +42,7 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { errorCode } from "./diagnostics.js";
 import { generateToken } from "./auth.js";
-import { JobStore } from "./jobs.js";
+import { canonicalJson, JobStore } from "./jobs.js";
 import { fleetServer } from "./server.js";
 import { createRecoveryBundle, restoreRecoveryBundle, verifyRecoveryBundle } from "./recovery.js";
 import { loadWorkerSettings } from "./worker-settings.js";
@@ -43,6 +65,85 @@ function isLocalLan(address: string): boolean {
 
 async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
+  if (
+    (command === "ledger-proof-relay" || command === "ledger-proof-power") &&
+    values.length === 5 &&
+    values[1] === "--settings" &&
+    values[3] === "--sha256"
+  ) {
+    process.umask(0o077);
+    const raw = readPrivateJson(values[2]!);
+    if (proofHash(canonicalJson(raw)) !== values[4])
+      throw Error("proof-helper-settings-digest-mismatch");
+    const config = object(raw),
+      proof = parseLedgerProof(config.proof),
+      action = values[0];
+    let result: unknown;
+    if (command === "ledger-proof-relay") {
+      const relay = parseProofRelay(config.relay, proof);
+      if (action === "post")
+        result = await postProofRelay(relay, JSON.parse(readFileSync(0, "utf8")));
+      else if (action === "ready" || action === "fault")
+        result = await readProofRelay(relay, action);
+      else if (action === "evidence") {
+        const input = object(JSON.parse(readFileSync(0, "utf8")));
+        if (input.proofId !== proof.proofId || (input.phase !== "ready" && input.phase !== "fault"))
+          throw Error("proof-relay-input-mismatch");
+        result = await readProofRelay(relay, input.phase);
+      } else throw Error("invalid-proof-relay-action");
+    } else {
+      const plan = parsePowerPlan(config.power, proof);
+      if (action === "prepare") result = await prepareProofWake(plan);
+      else if (action === "probe-primary" || action === "probe-fallback")
+        result = await proofHostProbe(plan, action === "probe-primary");
+      else if (action === "sleep")
+        result = await runProofSleep(plan, JSON.parse(readFileSync(0, "utf8")));
+      else throw Error("invalid-proof-power-action");
+    }
+    console.log(JSON.stringify(result));
+    return;
+  }
+  if (command === "ledger-proof-snapshot" && values.length === 2) {
+    process.stdout.write(`${JSON.stringify(readProofSnapshot(values[0]!, values[1]!))}\n`);
+    return;
+  }
+  if (
+    command === "ledger-proof" &&
+    values.length === 5 &&
+    values[1] === "--settings" &&
+    values[3] === "--sha256"
+  ) {
+    process.umask(0o077);
+    const [action] = values;
+    const config = loadProofRuntime(values[2]!, values[4]!);
+    const binding = { ...config, role: config.role === "watchdog" ? "supervisor" : config.role };
+    const journal = new ProofJournal(config.stateFile, binding, action === "init");
+    const stopped = new AbortController();
+    const cancel = () => stopped.abort();
+    process.on("SIGTERM", cancel);
+    process.on("SIGINT", cancel);
+    try {
+      if (action === "init") {
+        console.log(
+          JSON.stringify({ initialized: true, bindingSha256: proofHash(canonicalJson(binding)) }),
+        );
+      } else if (action === "launch") {
+        await launchLedgerProof(config, journal, values[2]!, values[4]!, stopped.signal);
+      } else if (action === "run") {
+        if (config.settings.caFile && process.env.NODE_EXTRA_CA_CERTS !== config.settings.caFile)
+          throw Error("proof-ca-startup-required");
+        if (config.role === "supervisor") await runProofSupervisor(config, journal, stopped.signal);
+        else if (config.role === "watchdog")
+          await runProofWatchdog(config, journal, stopped.signal);
+        else await runProofWorker(config, journal, stopped.signal);
+      } else throw Error("invalid-proof-action");
+    } finally {
+      journal.close();
+      process.off("SIGTERM", cancel);
+      process.off("SIGINT", cancel);
+    }
+    return;
+  }
   if (command === "version" && values.length === 0) {
     console.log(JSON.stringify(releaseInfo, null, 2));
     return;
