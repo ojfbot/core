@@ -772,11 +772,12 @@ function recordedBuiltins(traceText: string): {
 }
 
 /** The one qualification turn, shared by the real and the emulated run. */
-async function runQualificationTurn(
+export async function runQualificationTurn(
   prepared: PreparedCorrespondencePlan,
   dispatcher: CorrespondenceDispatcher,
   frames: unknown[],
   source: "recorded" | "emulated",
+  grant?: { charterId: string; grantRevision: string },
 ): Promise<CorrespondenceQualification> {
   const { planDigest, plan } = prepared;
   const binding = plan.bindings[0],
@@ -793,8 +794,8 @@ async function runQualificationTurn(
     sequence: packet.request.sequence,
     recipient: binding.alias,
     bindingRevision: binding.revision,
-    charterId: plan.windowId,
-    grantRevision: qualificationGrantRevision(prepared, binding.alias),
+    charterId: grant?.charterId ?? plan.windowId,
+    grantRevision: grant?.grantRevision ?? qualificationGrantRevision(prepared, binding.alias),
     profileRevision: binding.profileRevision,
     workflow: "correspondence",
     resources: [`helpdesk:thread:${packet.request.thread_id}`],
@@ -920,7 +921,13 @@ export function openCorrespondenceEmulation(options: {
 
 /** What reviewCorrespondenceJournal reports. */
 export interface CorrespondenceJournalReview {
-  source: "live" | "emulated" | "qualification" | "unmarked";
+  source:
+    | "live"
+    | "emulated"
+    | "qualification"
+    | "standing-live"
+    | "standing-emulated"
+    | "unmarked";
   reservations: number;
   /** Turns that are not observed: they hold the journal's controller. */
   unresolved: Array<{
@@ -970,7 +977,11 @@ export function reviewCorrespondenceJournal(stateFile: string): CorrespondenceJo
       ? db.prepare("SELECT source FROM journal_source").get()?.source
       : undefined;
     const source =
-      marked === "live" || marked === "emulated" || marked === "qualification"
+      marked === "live" ||
+      marked === "emulated" ||
+      marked === "qualification" ||
+      marked === "standing-live" ||
+      marked === "standing-emulated"
         ? marked
         : "unmarked";
     if (!tables.has("invocations")) return { source, reservations: 0, unresolved: [] };

@@ -1,6 +1,6 @@
 # Native dispatch contract
 
-`@core/native-dispatch` 0.4.2 supplies admission and durable invocation safety to the HelpDesk
+`@core/native-dispatch` 0.5.0 supplies admission and durable invocation safety to the HelpDesk
 device receiver. LocalHelp owns replay, the receiver inbox, checkpoints and correspondence receipts.
 Core owns the invocation journal. The package adds no delivery queue or scheduler and changes no
 FleetRunner compute behavior. It implements the applicable semantics of
@@ -26,6 +26,11 @@ emulators with the current Node executable and an empty environment. There is no
 live-arm flag, credential option, provider fallback or model retry. An arbitrary transport object is
 refused at runtime, including a copied qualification transport. The fixtures contain no network or
 filesystem operations and stop themselves after ten seconds if their controller disappears.
+
+Version 0.5.0 adds standing correspondence with exact policy scope, rolling usage accounting,
+durable authority closure and read-only recovery of completed proposals after authority closes.
+It remains a source candidate until independent review and separate activation gates pass.
+Native Codex remains revoked; no new provider or arbitrary execution route is introduced.
 
 ## Public API
 

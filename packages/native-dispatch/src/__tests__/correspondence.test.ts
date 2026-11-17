@@ -16,6 +16,12 @@ import { createRequire } from "node:module";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  prepareStandingCorrespondencePolicy,
+  prepareStandingCorrespondenceQualificationPolicy,
+  initializeStandingCorrespondenceJournal,
+  openStandingCorrespondence,
+  standingCorrespondenceGrantRevision,
+  qualifyStandingClaudeCorrespondence,
   listenerStatusContext,
   parseListenerStatusContext,
   parseCorrespondenceRuntimeApproval,
@@ -1096,6 +1102,109 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         await new Promise((r) => setTimeout(r, 20));
       }
     };
+
+    it("shares the standing live journal and quota between synthetic qualification and duty without changing native commands", async () => {
+      vi.mocked(checkNativeProfile).mockImplementation(() => {});
+      const bin = fakeBinary("reply");
+      qualifyFake(bin);
+      const finite = rawPlan({}, bin);
+      const policy = {
+        schemaVersion: 1,
+        kind: "standing-correspondence-policy",
+        revision: "standing-1",
+        lineageId: "standing-lineage",
+        deviceId: finite.deviceId,
+        profiles: finite.profiles,
+        bindings: finite.bindings,
+        origins: [{ deviceId: "yojimbo", sessionId: "claude-953561e4" }],
+        capabilities: ["correspondence"],
+        environment: finite.environment,
+        sourceRevision: "b".repeat(40),
+        limits: { hourlyTurns: 2, dailyTurns: 8, requestTimeoutMs: 120000 },
+      };
+      const prepared = prepareStandingCorrespondencePolicy(policy);
+      const qualification = prepareStandingCorrespondenceQualificationPolicy(policy);
+      const stateFile = join(dir, "standing.sqlite"),
+        runtimeApprovalFile = join(dir, "standing-approval.json"),
+        revocationFile = join(dir, "standing-revocation.json");
+      const revocation = JSON.stringify({
+        schemaVersion: 1,
+        lineageId: policy.lineageId,
+        deviceId: policy.deviceId,
+        revoked: false,
+      });
+      writeFileSync(revocationFile, revocation, { mode: 0o600 });
+      const { journalInstanceId } = initializeStandingCorrespondenceJournal({
+        prepared,
+        stateFile,
+        source: "live",
+      });
+      const approveStanding = (purpose: string) =>
+        writeFileSync(
+          runtimeApprovalFile,
+          JSON.stringify({
+            kind: "owner-approved-standing-correspondence",
+            purpose,
+            grantId: "standing-qualification-one",
+            policyDigest: prepared.policyDigest,
+            lineageId: policy.lineageId,
+            deviceId: policy.deviceId,
+            invocationStateFile: stateFile,
+            journalInstanceId,
+            startsAtMs: Date.now() - 1000,
+            expiresAtMs: Date.now() + 600000,
+            ownerNativeApprovalRef: "synthetic-owner-authority",
+            revocationFile,
+            revocationDigest: digest(revocation),
+          }),
+          { mode: 0o600 },
+        );
+      approveStanding("qualification");
+      expect(
+        await qualifyStandingClaudeCorrespondence({
+          prepared: qualification,
+          stateFile,
+          runtimeApprovalFile,
+          deviceId: policy.deviceId,
+        }),
+      ).toMatchObject({ kind: "ran", verdict: "accepted" });
+      approveStanding("duty");
+      const result = openStandingCorrespondence({
+        prepared,
+        stateFile,
+        runtimeApprovalFile,
+        deviceId: policy.deviceId,
+      });
+      if (result.kind !== "ready") throw Error(JSON.stringify(result));
+      expect(result.dispatcher.journalInstanceId).toBe(journalInstanceId);
+      open.push(result.dispatcher);
+      const make = (n: number) => ({
+        ...request(prepareCorrespondencePlan(finite), n),
+        charterId: policy.lineageId,
+        grantRevision: standingCorrespondenceGrantRevision(prepared, "yuri-claude-duty"),
+      });
+      const settings = { authenticatedOrigin: policy.origins[0] };
+      expect(await result.dispatcher.dispatch(make(1), settings)).toMatchObject({
+        kind: "observed",
+        outcome: "completed",
+      });
+      expect(await result.dispatcher.dispatch(make(2), settings)).toEqual({
+        kind: "refused",
+        reason: "standing-hourly-limit",
+      });
+      const launches = readFileSync(join(dir, "launches"), "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      expect(launches).toHaveLength(2);
+      for (const args of launches) {
+        expect(args.slice(0, 2)).toEqual(["--print", "--session-id"]);
+        expect(args[args.indexOf("--tools") + 1]).toBe("");
+        expect(args[args.indexOf("--json-schema") + 1]).toBe(
+          JSON.stringify(CORRESPONDENCE_OUTPUT_SCHEMA),
+        );
+      }
+    });
 
     // Claude 2.1.308: the cross-session inbox would let other local sessions message a duty turn.
     it("turns Claude's cross-session messaging off for every turn", async () => {

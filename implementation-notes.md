@@ -8,6 +8,12 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-17: The standing correspondence source introduces a new public API, so its canonical candidate is 0.5.0. Earlier embedded-0.4.5 previews were private test fixtures only; consumer repinning must use the committed 0.5.0 package and preserve separate activation gates.
+
+- 2026-11-17 (standing correspondence): legacy qualification deliberately uses a separate journal, so reusing that opener would evade a standing slice quota. Added a distinct standing qualification path sharing the standing invocation transaction, controller and rolling lineage while preserving the existing command/frame contract and legacy finite approvals. First bootstrap is explicit and precedes the slice’s first effect; missing runtime lineage holds, and separately closed historical charters are not imported. Synthetic tests only; no runtime grant or provider invocation.
+
+- 2026-11-17: Standing-listener source preparation found the inherited shell on Node 24.22.1 below the package engine; source checks use the existing pinned 24.22.2 without changing host configuration. Offline dependency resolution lacked a tarball; locked pnpm installation succeeded. Synthetic correspondence process-stop regressions require test-only process-inspection access outside the default sandbox; initial stop-unconfirmed outcomes are retained, not classified as live qualification failures.
+
 - 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.
 - 2026-11-16 (focused isolation fixtures): sandboxed process-table checks cannot confirm synthetic child cleanup, producing stop-unconfirmed. Run the unchanged local Node fixtures with process visibility; no Claude binary or provider is involved.
 
@@ -691,3 +697,17 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - Fresh review found that request disposition alone could still leave an unfinished charter idle; require its next action, one owner and checkpoint, plus acknowledged handoff or a visible coverage gap. Core also reconciles its root alignment summary and adds a thin Codex entry point because shared guidance was not discoverable there. Documentation only; no runtime authority is added.
 
 - Claude review exposed missing positive relay-verification criteria and ambiguous merge-gate precedence; document verified human delegation and preserve required independent review. Resolve additive conflicts against current main without changing runtime files. Core uses a repository AGENTS.md entry point and explicit current-session loading; the existing user-scope installer remains Claude-only, so no fleet-wide Codex auto-loading is claimed.
+
+
+## Deviations — standing listener source correction
+
+- Review found that closed authority hid already committed correspondence proposals; add a one-shot read-only recovery API and durable packet-digest bindings so terminal delivery needs no renewed invocation authority.
+- The unreleased standing schema now requires approval-path/digest and packet-input tables: runtime opens fail closed on missing tables instead of attempting a migration that could erase closure or accounting evidence.
+
+- 2026-11-17: The first root test run in the fresh worktree lacked built workflow/FleetRunner artifacts. Built workspace prerequisites and reran the suite; retained the failed setup run and baseline root-typecheck diagnostics in private evidence rather than skipping checks.
+
+- 2026-11-17: Root integration retained an unchanged FleetRunner helper-cleanup timing failure from the full suite; all 14 tests in that file passed in one isolated rerun. Root typecheck reports the same 23 diagnostics as the unchanged base. Draft publication records these limitations; required CI and independent review remain gates.
+
+- Linux CI exposed a macOS-only host assumption in standing correspondence tests. Match the existing correspondence suite's test-local platform/ACL observations, retain production file checks, and explicitly verify ACL and non-Darwin native refusal; no production check or required test is disabled.
+
+- Review reproduced byte-identical approval replay after explicit same-path journal replacement. Bind approvals and original delivery recovery to a random durable bootstrap instance; unreleased state without that identity holds rather than being silently migrated or granted a fresh allowance.

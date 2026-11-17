@@ -144,3 +144,27 @@ export type { DutyWorkflow } from "./types.js";
 
 /** Version of the bundled dispatch implementation, for bounded local status evidence. */
 export const NATIVE_DISPATCH_VERSION = "0.4.5";
+
+export {
+  prepareStandingCorrespondencePolicy,
+  prepareStandingCorrespondenceEmulationPolicy,
+  prepareStandingCorrespondenceQualificationPolicy,
+  initializeStandingCorrespondenceJournal,
+  parseStandingCorrespondenceApproval,
+  standingCorrespondenceGrantRevision,
+  readStandingCorrespondenceRecovery,
+  openStandingCorrespondence,
+  openStandingCorrespondenceEmulation,
+  qualifyStandingClaudeCorrespondence,
+  qualifyStandingClaudeCorrespondenceEmulation,
+} from "./standing-correspondence.js";
+export type {
+  StandingCorrespondencePolicy,
+  PreparedStandingCorrespondencePolicy,
+  StandingCorrespondenceApproval,
+  StandingCorrespondenceOptions,
+  StandingCorrespondenceDispatcher,
+  StandingCorrespondenceHold,
+  StandingCorrespondenceOpen,
+  StandingCorrespondenceRecovery,
+} from "./standing-correspondence.js";
