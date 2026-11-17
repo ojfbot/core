@@ -80,8 +80,11 @@ required for a live PASS.
 
 The journal reserves external effects before execution. Lost send acknowledgements
 reuse the saved HelpDesk command ID and bytes; changed bytes conflict. Unknown
-native effects hold rather than launch again. A terminal report is durable before
-network delivery, and delivery is distinct from later agent or human consumption.
+native effects hold rather than launch again. The first terminal report and its command ID are frozen together before network
+delivery. An acknowledgement loss or restart after expiry replays those exact bytes;
+it cannot replace PASS with HELD or create another terminal command. Later cleanup
+status is separate and cannot change the first terminal report. Delivery is distinct
+from later agent or human consumption.
 At expiry or a terminal outcome, the independent watchdog stops only its frozen
 proof targets, preserves state, verifies the protected baseline and reports PASS
 or HELD. Unverified cleanup cannot produce PASS.

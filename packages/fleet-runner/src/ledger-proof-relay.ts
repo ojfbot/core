@@ -160,6 +160,8 @@ export async function postProofRelay(relay: ProofRelay, input: unknown): Promise
     "nextAction",
     "resultSha256",
     "runtimeModelCalls",
+    "terminalCommandId",
+    "cleanupVerified",
     "runnerCode",
     "runnerVersion",
   ]);
