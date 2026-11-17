@@ -695,3 +695,9 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - CG307-U1 pins the existing schema-4 proof image; current source JobStore opens schema 5. The new proof-state reader uses readonly SQLite and explicitly requires schema 4 for admission instead of opening JobStore or migrating the isolated target.
 
 - CG307-U1 originally planned to infer the last renewal from polling. Existing lease-expired audit detail already records the exact expiry; the readonly helper now exposes that numeric fact privately and verifies the reclaim bound against it, without any public API or schema change.
+
+- Initial exact-head review found workers could inspect a not-yet-admitted queue at T0, terminal state could be overwritten during watchdog cleanup, and cleanup failures could suppress the alert. The correction waits before full admission verification, makes terminal state first-writer-wins, and persists/posts a held cleanup report while reusing completed stop effects.
+- Linux setup-node may expose an executable through a writable or symlinked install. Helper-process tests now use a private byte-identical owner-controlled copy; production file-integrity checks remain strict.
+
+- Review correctly identified that launchd cannot rely on an interactive sudo timestamp. The correction uses one explicit pre-arm macOS administrator action for the exact wake selector and a finite stop-only cleanup command. Native sleep is unprivileged; no standing sudoers rule or daemon is installed. Root cleanup reads only a one-way cancellation flag and never executes user-file code.
+- The second initial review required an independent manifest pin, exactly one stale event after acceptance corroborated through the signed service route, and scheduled-wake time/reason evidence. These are included in the same correction round; network changes reported by the owner remain a separate pre-arm readiness condition.

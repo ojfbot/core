@@ -2,6 +2,7 @@
 import { launchLedgerProof } from "./ledger-proof-launcher.js";
 import { parseProofRelay, postProofRelay, readProofRelay } from "./ledger-proof-relay.js";
 import {
+  cancelProofWake,
   parsePowerPlan,
   prepareProofWake,
   proofHostProbe,
@@ -94,6 +95,7 @@ async function main(args: string[]): Promise<void> {
     } else {
       const plan = parsePowerPlan(config.power, proof);
       if (action === "prepare") result = await prepareProofWake(plan);
+      else if (action === "cancel") result = await cancelProofWake(plan);
       else if (action === "probe-primary" || action === "probe-fallback")
         result = await proofHostProbe(plan, action === "probe-primary");
       else if (action === "sleep")
