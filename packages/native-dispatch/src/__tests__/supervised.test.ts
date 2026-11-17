@@ -405,7 +405,7 @@ it.each([
     managedPreferenceAbsent({
       domain: "com.openai.codex",
       key: "config_toml_base64",
-      result: { status, error, stderr: test.text },
+      result: { status, ...(error === undefined ? {} : { error }), stderr: test.text },
     }),
   ).toBe(false);
 });

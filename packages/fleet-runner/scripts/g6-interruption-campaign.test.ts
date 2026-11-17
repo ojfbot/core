@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { request as httpRequest, type IncomingMessage } from "node:http";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -126,7 +126,7 @@ async function fixture(caseId: string) {
   return { dir, outputDir, dbPath, now, get store() { return store; }, set store(value: JobStoreType) { store = value; }, server, owner, workerA, workerB, attempts, close, reopenStore, claim, enqueue, recordRenewal, reclaimAfterPoll };
 }
 
-function childKillSource(modulePath: string, key: string, fence: number, outDir: string, bytes: Buffer) {
+function childKillSource(modulePath: string, _key: string, _fence: number, _outDir: string, bytes: Buffer) {
   return `import { JobStore, writeOutput } from ${JSON.stringify(pathToFileURL(modulePath).href)};
 const [dbPath, at, outputDir, jobKey, fence, worker, data] = process.argv.slice(1);
 const store = new JobStore(dbPath, { now: () => Number(at), leaseMs: ${LEASE_MS} });
@@ -154,7 +154,7 @@ function generateJobsModule(dir: string, killAfterDbUpdate: boolean) {
   return modulePath;
 }
 
-function killChild(f, key: string, job: Claim, bytes: Buffer, killPoint: "after_output_before_db_update" | "after_db_update_before_transaction_commit") {
+function killChild(f: Awaited<ReturnType<typeof fixture>>, key: string, job: Claim, bytes: Buffer, killPoint: "after_output_before_db_update" | "after_db_update_before_transaction_commit") {
   const modulePath = generateJobsModule(f.dir, killPoint === "after_db_update_before_transaction_commit");
   const script = childKillSource(modulePath, key, job.fence, f.outputDir, bytes)
     .replace("__KILL_POINT__", killPoint === "after_output_before_db_update" ? 'process.kill(process.pid, "SIGKILL");' : "");

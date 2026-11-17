@@ -228,7 +228,7 @@ it("refuses invalid pointers, stale authority, holds, resources and classical wo
     [{ resources: ["private-store"] }, "resource-denied"],
     [{ workflow: "classical" }, "invalid-request"],
     [{ task: { input: r.task.input, inputDigest: "0".repeat(64) } }, "invalid-request"],
-  ]) {
+  ] satisfies Array<[Record<string, unknown>, string]>) {
     const candidate = { ...r, ...patch };
     if ("bindingRevision" in patch) {
       const input = JSON.stringify({

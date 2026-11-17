@@ -1,3 +1,4 @@
+import { once } from "node:events";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
@@ -144,7 +145,6 @@ it("uses verified HTTPS and rejects an untrusted certificate without bypassing v
         stdio: "ignore",
       },
     );
-    const { once } = await import("node:events");
     const [code] = await once(child, "exit");
     expect(code).toBe(0);
   } finally {

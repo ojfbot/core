@@ -86,9 +86,9 @@ it("uses one revision for CLI/browser projections; fails stale on outage, old or
   });
   await new Promise((resolve) => setImmediate(resolve));
   expect(nodes.get("health")!.textContent).toBe("Service ready");
-  expect(nodes.get("revision")!.textContent).toContain(
-    statusView(value as ReturnType<typeof snapshot>, "status").revision,
-  );
+  const projected = statusView(value as ReturnType<typeof snapshot>, "status");
+  if (!("revision" in projected) || typeof projected.revision !== "string") throw Error("invalid-revision-fixture");
+  expect(nodes.get("revision")!.textContent).toContain(projected.revision);
   await tick!();
   expect(nodes.get("workers")!.children).toHaveLength(1);
   outage = true;
