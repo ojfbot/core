@@ -1,7 +1,7 @@
 // Queue tests lifted from BookcaseDiscovery test/jobs.test.ts under AGPL-3.0-only.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createRequire, syncBuiltinESMExports } from "node:module";

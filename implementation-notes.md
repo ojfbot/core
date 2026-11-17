@@ -703,3 +703,5 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - The second initial review required an independent manifest pin, exactly one stale event after acceptance corroborated through the signed service route, and scheduled-wake time/reason evidence. These are included in the same correction round; network changes reported by the owner remain a separate pre-arm readiness condition.
 
 - Final review reproduced terminal-report replacement after a lost accepted acknowledgement and restart past expiry. The directly approved follow-up freezes report bytes and command ID atomically, replays the same terminal command, and keeps later cleanup observations separate.
+
+- The required root typecheck exposed23 unchanged test-fixture errors despite successful package builds. The approved follow-up repairs only fixture typing and unused bindings instead of excluding tests or waiving the gate; all369 emitted production files remain byte-identical across the typing repair.

@@ -32,6 +32,14 @@ const job: Claim = {
 
 function setup() {
   const client = {
+    status: vi.fn<FleetClient["status"]>(),
+    statusEvents: vi.fn<FleetClient["statusEvents"]>(),
+    workerControl: vi.fn<FleetClient["workerControl"]>(),
+    control: vi.fn<FleetClient["control"]>(),
+    releaseRecoveryHold: vi.fn<FleetClient["releaseRecoveryHold"]>(),
+    presence: vi.fn<FleetClient["presence"]>(),
+    uploadInput: vi.fn<FleetClient["uploadInput"]>(),
+    downloadInput: vi.fn<FleetClient["downloadInput"]>(),
     claim: vi.fn<FleetClient["claim"]>().mockResolvedValue(null),
     complete: vi.fn<FleetClient["complete"]>().mockResolvedValue(true),
     heartbeat: vi.fn<FleetClient["heartbeat"]>().mockResolvedValue(true),
