@@ -406,3 +406,104 @@ starting another invocation.
 The native instruction text, process flags, tools, frame checks, pinned binary and
 recorded qualification are unchanged. This mode does not enable model file access,
 commands, autonomous software development or indefinite unattended operation.
+
+
+## Standing correspondence: one durable slice lineage
+
+Standing correspondence is a separate capability policy and opener. It preserves the
+existing native command, instruction bytes, frame contract, qualified Claude gate and
+Codex revocation. Existing attended windows, finite unattended status and legacy
+qualification keep their approval contracts. Standing does not turn a signed packet into
+an execution grant or authorize coding tasks.
+
+The public source APIs are `prepareStandingCorrespondencePolicy`,
+`initializeStandingCorrespondenceJournal`, `parseStandingCorrespondenceApproval`,
+`standingCorrespondenceGrantRevision` and `openStandingCorrespondence`. Preparation
+returns `liveEligible: false`; neither source preparation nor journal initialization is
+runtime authorization. `prepareStandingCorrespondenceEmulationPolicy` and
+`openStandingCorrespondenceEmulation` exercise the same admission/accounting with an
+in-process fake, in a journal marked `standing-emulated`; that journal cannot become live.
+
+The policy binds its revision and stable lineage, device, source revision, one exact
+Claude profile, one or more exact session aliases, exact thread resources, exact origin
+device/session pairs, capabilities (`correspondence` and/or `listener-status`), isolated
+environment and rolling hourly/daily top-level turn limits. Session aliases follow the
+service rule: 3–32 lowercase letters, digits, underscore or hyphen, with an alphanumeric
+first character. Resource wildcards are refused. Other identifiers retain their existing
+rules. Numeric caps in a prepared policy are proposed configuration, not a human grant.
+
+The independently supplied private runtime approval binds `policyDigest`, `lineageId`,
+`deviceId`, the exact `invocationStateFile`, `grantId`, absolute start/end, an attributable
+owner approval reference, and a required private revocation file plus its approved digest.
+Its kind is `owner-approved-standing-correspondence`; `purpose` is `duty` or
+`qualification`. The revocation file is exactly
+`{schemaVersion:1,lineageId,deviceId,revoked:boolean}`. Missing, malformed, changed, expired
+or revoked authority fails closed. Reservation and prelaunch recheck it; an active turn
+also polls for closure and requests bounded abort. Once observed, closure of those exact
+approval bytes is retained in the journal across restart and clock rollback. A new human
+renewal may supply a new grant but cannot reset usage or exceed the original allocation.
+
+`dispatcher.dispatch(request, {authenticatedOrigin, signal?})` requires
+`authenticatedOrigin: {deviceId, sessionId}` from the adapter's authenticated journal
+writer. Core checks it against the packet sender and the policy origin allowlist before
+reservation. **Core does not authenticate HelpDesk signatures or a caller-supplied origin.**
+LocalHelp must verify journal writer identity and enrollment, retain original addressed
+recipients, and choose one deterministic authorized alias when several match. Do not derive
+this trusted argument from packet text. Requests use the policy lineage as `charterId` and
+`standingCorrespondenceGrantRevision(prepared, alias)` as `grantRevision`.
+
+Explicit first bootstrap is permitted only before this standing slice's first native
+effect. It creates the canonical per-host lineage journal and refuses an existing file;
+it never migrates or replaces unknown evidence. All subsequent qualification, proof,
+context and duty turns in this slice use that same journal and original per-host share.
+A missing existing lineage is a hold, never an invitation to initialize another path.
+Historical effects under separately closed finite charters remain separate evidence;
+this is not a whole-host history census, a provider billing quota, or permission to
+reopen an old unknown. An actually conflicting active controller must remain held.
+Deployment chooses one canonical standing journal per host; callers cannot obtain a
+second allowance by selecting another file under the same approved state-file binding.
+
+Rolling usage and invocation intent commit in one SQLite transaction. The same exclusive
+journal/controller covers every alias and both duty and standing qualification. A received
+message/context round has stable identity independent of alias, grant or policy revision;
+changed content conflicts and identical alias replays expose the original result. Started
+and unknown effects stay charged. Only a proven prelaunch refusal refunds, atomically with
+its terminal disposition. Corrupt/missing accounting, invocation/controller inconsistencies,
+clock rollback and attempted allocation increases hold. Old reservations are not pruned on
+renewal. The private journal is trusted local state; this is not tamper-proof accounting
+against an owner who rewrites its entire history.
+
+For standing qualification use `prepareStandingCorrespondenceQualificationPolicy` and
+`qualifyStandingClaudeCorrespondence` with a separate one-turn qualification grant and
+**the same standing state file**. `qualifyStandingClaudeCorrespondenceEmulation` uses raw
+synthetic frames and cannot yield a live qualification entry. Qualification can examine an
+unlisted candidate but duty still requires the committed allowlist gate. A repeat of the
+same qualification grant cannot buy another turn; an explicitly authorized correction uses
+its own grant while consuming the same rolling limits. Legacy qualification approvals and
+journals do not authorize or account for this standing slice. Qualification returns checked
+trace evidence for independent review; it does not install or automatically accept a profile.
+
+The native controller still serializes work. The adapter remains responsible for responsive
+intake, typed signed holds, its outbox and accepted journal readback while a turn is active.
+No API here grants background deployment, changes a listener, or claims that either host is
+awake, connected or running the new policy.
+
+### Closed-authority evidence recovery
+
+`readStandingCorrespondenceRecovery({ prepared, stateFile, deviceId, deliveryId,
+inputDigest })` reads an existing owner-private standing journal without opening
+an invocation controller or reading an approval. It returns `recorded` with a
+validated disposition and, when present, the checked relayed proposal; `missing`
+when no delivery binding exists; or a typed `held` result for mismatched or corrupt
+state. A recorded unknown remains unknown. No result permits a new invocation.
+The consumer must match its durable booking's packet digest, persist the recovered
+answer/outbox atomically, and flush already committed replies without requiring a
+live authority handle. Repeating a read neither spends nor refunds usage.
+
+Standing bootstrap now creates approval-path/digest and packet-input bindings in
+the same private journal. These unreleased schema additions are mandatory on
+reopen: missing tables are a hold, never an implicit migration or new allowance.
+Every observed authority closure, including an initial/reopen check and the final
+pre-spawn check, is durable. Restoring prior approval or revocation bytes cannot
+revive the closed grant. A separately authorized renewal can use a new approval
+while retaining the same journal lineage and rolling charges.

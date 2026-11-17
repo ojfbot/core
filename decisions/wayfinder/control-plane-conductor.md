@@ -33,6 +33,28 @@ before dispatch. This decision map registers no delivery slices or movement valu
 
 ## Notes
 
+### Standing correspondence source slice, 2026-11-17
+
+The existing LocalHelp resident listener and Core native-dispatch package carry the
+standing correspondence source slice. A local policy binds exact origins, addressed
+aliases, thread resources, qualified profiles, usage limits and expiry. One separately
+authorized deterministic action posts prescribed correspondence to an approved existing
+thread and recipient. FleetRunner retains application execution authority.
+
+The source work covers responsive intake during one bounded native turn, shared rolling
+usage, durable authority closure, typed holds with their original policy identity, and
+recovery of already-completed evidence after authority expires. Missing or corrupt
+journals hold without recreating an allowance. A source candidate, emulated regression,
+installation and observed apps-quit behavior are separate evidence states.
+
+The owner approved source corrections, checks and draft PRs. Standing deployment,
+qualification, provider usage and runtime activation remain a separate bounded decision.
+Current native Codex revocation remains in force. This note does not grant general
+code-changing execution, close existing decision tickets, move the frontier, or establish
+unattended runtime acceptance. Existing #315/#317 census/overlap, #311 portability,
+#313 authority and #318 gates retain their obligations.
+
+
 ### Charter continuity and visible uncertainty, 2026-11-16
 
 The operator requires conductors to carry an agreed charter toward its goal with

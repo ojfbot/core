@@ -70,7 +70,15 @@ export type RefusalReason =
   | "resource-denied"
   | "budget-exhausted"
   | "delivery-conflict"
-  | "live-not-armed";
+  | "live-not-armed"
+  | "standing-hourly-limit"
+  | "standing-daily-limit"
+  | "standing-clock-rollback"
+  | "standing-effect-conflict"
+  | "standing-origin-denied"
+  | "standing-policy-revoked"
+  | "standing-policy-changed"
+  | "standing-policy-missing";
 
 export type NativeOutcome =
   | "completed"
