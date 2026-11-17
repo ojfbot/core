@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { closeSync, existsSync, lstatSync, openSync } from "node:fs";
 import type * as SQLite from "node:sqlite";
 import { canonicalJson } from "./jobs.js";
-import { proofHash } from "./ledger-proof.js";
+import { exact, object, proofHash, string } from "./ledger-proof.js";
 
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof SQLite;
 /** One epoch per file. Initialization is explicit; removing state never grants a new epoch. */
@@ -64,7 +65,35 @@ export class ProofJournal {
       ) === 1
     );
   }
+  freezeTerminalReport(body: Record<string, unknown>): {
+    commandId: string;
+    body: Record<string, unknown>;
+  } {
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      let saved = this.get("terminal-outbox");
+      if (saved === undefined) {
+        if (this.get("report") !== undefined) throw Error("proof-report-lineage-missing");
+        saved = { commandId: randomUUID(), body };
+        this.db.prepare("INSERT INTO state VALUES ('terminal-outbox',?)").run(canonicalJson(saved));
+        this.db.prepare("INSERT INTO state VALUES ('report',?)").run(canonicalJson(body));
+      }
+      const record = exact(saved, ["commandId", "body"]);
+      const frozen = {
+        commandId: string(record.commandId, /^[a-f0-9-]{36}$/),
+        body: object(record.body),
+      };
+      if (canonicalJson(this.get("report")) !== canonicalJson(frozen.body))
+        throw Error("proof-report-binding-mismatch");
+      this.db.exec("COMMIT");
+      return frozen;
+    } catch (error) {
+      this.db.exec("ROLLBACK");
+      throw error;
+    }
+  }
   put(name: string, value: unknown): void {
+    if (name === "report" || name === "terminal-outbox") throw Error("proof-report-is-immutable");
     if (name === "terminal") {
       this.setTerminal(value);
       return;

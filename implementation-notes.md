@@ -701,3 +701,5 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 
 - Review correctly identified that launchd cannot rely on an interactive sudo timestamp. The correction uses one explicit pre-arm macOS administrator action for the exact wake selector and a finite stop-only cleanup command. Native sleep is unprivileged; no standing sudoers rule or daemon is installed. Root cleanup reads only a one-way cancellation flag and never executes user-file code.
 - The second initial review required an independent manifest pin, exactly one stale event after acceptance corroborated through the signed service route, and scheduled-wake time/reason evidence. These are included in the same correction round; network changes reported by the owner remain a separate pre-arm readiness condition.
+
+- Final review reproduced terminal-report replacement after a lost accepted acknowledgement and restart past expiry. The directly approved follow-up freezes report bytes and command ID atomically, replays the same terminal command, and keeps later cleanup observations separate.

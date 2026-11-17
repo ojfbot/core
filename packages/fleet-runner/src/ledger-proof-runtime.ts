@@ -288,9 +288,12 @@ async function post(
   journal: ProofJournal,
   name: string,
   body: unknown,
+  frozenCommandId?: string,
 ): Promise<void> {
   const commandIdName = `${name}-command-id`;
-  if (!journal.get(commandIdName)) journal.put(commandIdName, randomUUID());
+  if (!journal.get(commandIdName)) journal.put(commandIdName, frozenCommandId ?? randomUUID());
+  if (frozenCommandId && journal.get(commandIdName) !== frozenCommandId)
+    throw Error("proof-report-command-conflict");
   const commandId = string(journal.get(commandIdName));
   const input = { proofId: config.proof.proofId, commandId, body };
   if (journal.reserve(name, input) === "done") return;
@@ -883,14 +886,21 @@ export async function runProofWatchdog(
         nextAction: cleanupVerified ? "consume-retained-report" : "local-operator-cleanup-required",
         runtimeModelCalls: 0,
       };
-      journal.put("report", report);
-      await post(
-        config,
-        journal,
-        `terminal-report-${cleanupVerified ? outcome.toLowerCase() : "cleanup-held"}`,
-        report,
-      );
-      if (cleanupVerified) journal.put("cleanup-complete", Date.now());
+      const frozen = journal.freezeTerminalReport(report);
+      await post(config, journal, "terminal-report", frozen.body, frozen.commandId);
+      if (cleanupVerified) {
+        if (!journal.get("cleanup-complete")) journal.put("cleanup-complete", Date.now());
+        if (frozen.body.state === "HELD" && frozen.body.reason === "proof-cleanup-unverified") {
+          await post(config, journal, "cleanup-status", {
+            proofId: config.proof.proofId,
+            state: "cleanup-complete",
+            terminalCommandId: frozen.commandId,
+            cleanupVerified: true,
+            owner: "proof-supervisor",
+            nextAction: "consume-retained-report",
+          });
+        }
+      }
       return;
     }
     await delay(1000, undefined, { signal }).catch(() => {});

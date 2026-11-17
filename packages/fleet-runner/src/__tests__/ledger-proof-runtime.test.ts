@@ -365,3 +365,58 @@ it("recovers an acknowledged stop without executing it again", async () => {
   expect(stopCalls()).toBe(1);
   expect(posts).toHaveLength(1);
 });
+
+it("replays the identical accepted terminal report and command after an ACK loss and expiry", async () => {
+  journal.put("terminal", { outcome: "VERIFIED", atMs: now });
+  const original = hooks.command.getMockImplementation()!;
+  const accepted = new Map<string, unknown>();
+  let lost = true;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    if (!cmd.program.endsWith("post")) return original(cmd, input);
+    posts.push(input);
+    if (!accepted.has(input.commandId)) accepted.set(input.commandId, input.body);
+    else expect(input.body).toEqual(accepted.get(input.commandId));
+    if (lost) {
+      lost = false;
+      throw Error("accepted-response-lost");
+    }
+    return { accepted: true, commandId: input.commandId, sequence: 1, readbackVerified: true };
+  });
+  const dog = { ...config, role: "watchdog" as const };
+  await expect(runProofWatchdog(dog, journal, new AbortController().signal)).rejects.toThrow(
+    "accepted-response-lost",
+  );
+  const frozen = journal.get("report");
+  expect(frozen).toMatchObject({ state: "PASS" });
+  journal.close();
+  journal = new ProofJournal(config.stateFile, config.proof);
+  now = config.proof.endsAtMs + 1000;
+  await runProofWatchdog(dog, journal, new AbortController().signal);
+  expect(journal.get("report")).toEqual(frozen);
+  expect(posts[0]).toEqual(posts[1]);
+  expect(accepted.size).toBe(1);
+  expect(hooks.command.mock.calls.filter(([cmd]) => cmd.program.endsWith("stop"))).toHaveLength(1);
+  expect(() => journal.put("report", { state: "HELD" })).toThrow("proof-report-is-immutable");
+});
+
+it("keeps the first cleanup-held terminal report and publishes only a separate later cleanup status", async () => {
+  journal.put("terminal", { outcome: "VERIFIED", atMs: now });
+  const original = hooks.command.getMockImplementation()!;
+  let unavailable = true;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    if (cmd.program.endsWith("stop") && unavailable) throw Error("stop-unavailable");
+    return original(cmd, input);
+  });
+  const dog = { ...config, role: "watchdog" as const };
+  await runProofWatchdog(dog, journal, new AbortController().signal);
+  const first = journal.get("report");
+  expect(first).toMatchObject({ state: "HELD", reason: "proof-cleanup-unverified" });
+  unavailable = false;
+  await runProofWatchdog(dog, journal, new AbortController().signal);
+  expect(journal.get("report")).toEqual(first);
+  expect(posts.map((input) => (input as { body: { state: string } }).body.state)).toEqual([
+    "HELD",
+    "cleanup-complete",
+  ]);
+  expect(journal.get("cleanup-complete")).toBeDefined();
+});
