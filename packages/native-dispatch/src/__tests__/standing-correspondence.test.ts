@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { spawnSync } from "node:child_process";
 import {
   mkdtempSync,
   mkdirSync,
@@ -39,6 +40,10 @@ const lateLaunch = vi.hoisted(() => ({
   calls: 0,
   transports: new WeakSet<object>(),
 }));
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:child_process")>();
+  return { ...actual, spawnSync: vi.fn(actual.spawnSync) };
+});
 vi.mock("../correspondence-native.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../correspondence-native.js")>();
   return {
@@ -99,6 +104,9 @@ vi.mock("../supervised-files.js", async (importOriginal) => {
   };
 });
 const readOriginal = vi.mocked(readPrivateFile).getMockImplementation()!;
+const spawnOriginal = vi.mocked(spawnSync).getMockImplementation()!;
+const realProcess = process;
+let aclPaths: string[];
 const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as {
   DatabaseSync: typeof Database;
 };
@@ -109,6 +117,34 @@ const HOUR = 3600000,
 let dir: string, state: string, approvalPath: string, revokePath: string, clock: number;
 let opened: StandingCorrespondenceDispatcher[];
 beforeEach(() => {
+  // Match the existing correspondence fixtures: emulate only macOS ACL observations, while
+  // retaining the real private-file, ownership, mode, symlink and native authority checks.
+  aclPaths = [];
+  vi.stubGlobal(
+    "process",
+    new Proxy(realProcess, {
+      get: (target, key) => (key === "platform" ? "darwin" : Reflect.get(target, key)),
+    }),
+  );
+  vi.mocked(spawnSync).mockImplementation((file, args, options) => {
+    if (file === "/bin/ls")
+      return {
+        pid: 0,
+        output: [],
+        status: 0,
+        signal: null,
+        stdout: (args ?? [])
+          .slice(1)
+          .map((path) =>
+            aclPaths.includes(String(path))
+              ? "drwx------+ 1 fixture\n 0: user:other allow write\n"
+              : "drwx------ 1 fixture\n",
+          )
+          .join(""),
+        stderr: "",
+      };
+    return spawnOriginal(file, args, options);
+  });
   dir = realpathSync(mkdtempSync(join(tmpdir(), "standing-correspondence-")));
   for (const name of ["empty", "home", "temp"]) mkdirSync(join(dir, name), { mode: 0o700 });
   state = join(dir, "invocations.sqlite");
@@ -123,6 +159,8 @@ afterEach(() => {
   vi.mocked(readPrivateFile).mockImplementation(readOriginal);
   for (const dispatcher of opened) dispatcher.close();
   rmSync(dir, { recursive: true, force: true });
+  vi.mocked(spawnSync).mockImplementation(spawnOriginal);
+  vi.unstubAllGlobals();
 });
 function raw() {
   return {
@@ -845,3 +883,40 @@ it.each(["revoked", "missing", "changed", "expired"])(
     }
   },
 );
+
+it("retains strict ACL refusal at bootstrap and runtime reopening", () => {
+  const p = prepareStandingCorrespondenceEmulationPolicy(raw());
+  aclPaths.push(dir);
+  expect(() =>
+    initializeStandingCorrespondenceJournal({ prepared: p, stateFile: state, source: "emulated" }),
+  ).toThrow("acl-unqualified");
+  expect(existsSync(state)).toBe(false);
+  aclPaths.length = 0;
+  const r = start(p);
+  close(r.dispatcher);
+  aclPaths.push(dir);
+  expect(reopen(p)).toMatchObject({ kind: "held", holds: ["acl-unqualified"] });
+  expect(recover(p)).toMatchObject({ kind: "held", holds: ["acl-unqualified"] });
+  expect(query("SELECT count(*) AS n FROM invocations")).toEqual([{ n: 0 }]);
+});
+
+it("keeps the production native opener unqualified on non-Darwin hosts", () => {
+  const p = prepareStandingCorrespondencePolicy(raw());
+  initializeStandingCorrespondenceJournal({ prepared: p, stateFile: state, source: "live" });
+  grant(p, "duty", "non-darwin-fixture", Date.now() - 1000);
+  vi.stubGlobal(
+    "process",
+    new Proxy(realProcess, {
+      get: (target, key) => (key === "platform" ? "linux" : Reflect.get(target, key)),
+    }),
+  );
+  expect(
+    openStandingCorrespondence({
+      prepared: p,
+      stateFile: state,
+      runtimeApprovalFile: approvalPath,
+      deviceId: p.policy.deviceId,
+    }),
+  ).toMatchObject({ kind: "held", holds: ["acl-unqualified"] });
+  expect(query("SELECT count(*) AS n FROM invocations")).toEqual([{ n: 0 }]);
+});
