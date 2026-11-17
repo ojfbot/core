@@ -691,3 +691,7 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - Fresh review found that request disposition alone could still leave an unfinished charter idle; require its next action, one owner and checkpoint, plus acknowledged handoff or a visible coverage gap. Core also reconciles its root alignment summary and adds a thin Codex entry point because shared guidance was not discoverable there. Documentation only; no runtime authority is added.
 
 - Claude review exposed missing positive relay-verification criteria and ambiguous merge-gate precedence; document verified human delegation and preserve required independent review. Resolve additive conflicts against current main without changing runtime files. Core uses a repository AGENTS.md entry point and explicit current-session loading; the existing user-scope installer remains Claude-only, so no fleet-wide Codex auto-loading is claimed.
+
+- CG307-U1 pins the existing schema-4 proof image; current source JobStore opens schema 5. The new proof-state reader uses readonly SQLite and explicitly requires schema 4 for admission instead of opening JobStore or migrating the isolated target.
+
+- CG307-U1 originally planned to infer the last renewal from polling. Existing lease-expired audit detail already records the exact expiry; the readonly helper now exposes that numeric fact privately and verifies the reclaim bound against it, without any public API or schema change.

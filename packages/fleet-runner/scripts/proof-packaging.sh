@@ -297,14 +297,15 @@ for (const row of firstManifest.source.files) {
 }
 if (firstManifest.source.files.length !== hostContextFiles.size) throw new Error("clean-install source file list differs from staged build context");
 const artifacts = [];
+const packageVersion = (await readJson(join(repo, "packages/fleet-runner/package.json"))).version;
 for (const id of ["install-first", "install-second"]) {
-  const archive = join(evidence, id, "core-fleet-runner-0.1.0.tgz");
+  const archive = join(evidence, id, `core-fleet-runner-${packageVersion}.tgz`);
   const files = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" }).trim().split("\n").sort();
   for (const required of ["package/package.json", "package/LICENSE", "package/README.md", "package/deployment.md", "package/recovery.md"]) {
     if (!files.includes(required)) throw new Error(`${id} artifact is missing ${required}`);
   }
   if (!files.some((file) => file.startsWith("package/dist/"))) throw new Error(`${id} artifact has no compiled files`);
-  artifacts.push({ cleanInstall: id, path: `${id}/core-fleet-runner-0.1.0.tgz`, sha256: hash(await readFile(archive)), files, consumerInstall: await readJson(join(evidence, id, "package-consumer.json")) });
+  artifacts.push({ cleanInstall: id, path: `${id}/core-fleet-runner-${packageVersion}.tgz`, sha256: hash(await readFile(archive)), files, consumerInstall: await readJson(join(evidence, id, "package-consumer.json")) });
 }
 const imageInspect = await readJson(join(evidence, "runtime-image-inspect.json"));
 const image = imageInspect[0];
