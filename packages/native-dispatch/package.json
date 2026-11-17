@@ -1,7 +1,7 @@
 {
   "name": "@core/native-dispatch",
-  "version": "0.4.4",
-  "description": "Deterministic admission and durable invocation evidence for qualification and owner-attended HelpDesk duty bindings.",
+  "version": "0.4.5",
+  "description": "Deterministic admission and durable invocation evidence for qualified, bounded HelpDesk duty bindings.",
   "private": true,
   "type": "module",
   "main": "./dist/index.js",

@@ -1,5 +1,6 @@
 import type { Dispatcher } from "./dispatcher.js";
 import type { CorrespondenceTurnRefusal } from "./correspondence-frames.js";
+import type { ListenerStatusContext } from "./correspondence-status.js";
 import type { SubscriptionCanaryProfile } from "./canary-types.js";
 import type { DispatchDisposition, Provider } from "./types.js";
 import type { SupervisedCanaryHold, SupervisedEnvironment } from "./supervised-types.js";
@@ -44,6 +45,7 @@ export interface CorrespondencePacket {
   omitted: { earlier_messages: number; truncated_bodies: number };
   context_round: { used: number; limit: 3 };
   best_effort: boolean;
+  local_status?: ListenerStatusContext;
 }
 
 /** Model output. Every property required; unused ones are null. */
@@ -102,7 +104,9 @@ export interface CorrespondencePlan {
     requestTimeoutMs: 120000;
   };
   /** Claude-only: no codexHostFileReadRiskAccepted key, and environment.CODEX_HOME is null. */
-  supervision: { kind: "owner-attended"; codexHostFileReadRiskAccepted?: true };
+  supervision:
+    | { kind: "owner-attended"; codexHostFileReadRiskAccepted?: true }
+    | { kind: "preapproved-unattended-status"; requestMessageId: string };
   environment: SupervisedEnvironment;
   declaredUnproved: ["dollars", "outputTokens", "providerInternalRequests"];
 }
@@ -123,7 +127,10 @@ export interface CorrespondenceRuntimeApproval {
    * A duty window, or one qualification run (its own journal, one turn, 1–30 minutes). Neither kind
    * authorises the other.
    */
-  kind: "owner-approved-correspondence-window" | "owner-approved-correspondence-qualification";
+  kind:
+    | "owner-approved-correspondence-window"
+    | "owner-approved-unattended-status-window"
+    | "owner-approved-correspondence-qualification";
   planDigest: string;
   windowId: string;
   deviceId: string;

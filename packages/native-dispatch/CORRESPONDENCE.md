@@ -383,3 +383,26 @@ marked `"source": "emulated"`, it returns no allowlist entry, and the gate refus
 a hand-made entry. **For LocalHelp:** the emulated path proves the mechanics only; a real
 qualification turn (`qualifyClaudeCorrespondence`, through the script) is the only route to an
 allowlist entry.
+
+
+## Preapproved unattended status window
+
+A status-only plan may declare supervision
+`{ kind: "preapproved-unattended-status", requestMessageId: "<UUID>" }`.
+Core accepts exactly one Claude binding, one turn and a window of at most
+1,800,000 ms. Its distinct `owner-approved-unattended-status-window` approval
+binds the prepared plan digest, device, journal, start and deadline. Qualification
+plans cannot use this supervision kind. The pure approval parser can validate a
+future schedule without opening a native dispatcher.
+
+Before a new reservation, Core requires the exact selected request and a valid
+`local_status` snapshot observed no more than 60 seconds earlier, never in the
+future. The closed snapshot grammar allows only listener status time, versions,
+mode, counts and a SHA-256 over their ordered tuple. LocalHelp owns collection;
+Core never reads device status files. The entire packet remains digest-bound and
+limited to 32 KiB. Journal replay remains available after snapshot expiry without
+starting another invocation.
+
+The native instruction text, process flags, tools, frame checks, pinned binary and
+recorded qualification are unchanged. This mode does not enable model file access,
+commands, autonomous software development or indefinite unattended operation.
