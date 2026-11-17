@@ -2,19 +2,31 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { JobStore } from "../jobs.js";
+import { JobStore, type Claim } from "../jobs.js";
 import { LEDGER_RESULT, parseLedgerProof, proofHash, readProofSnapshot } from "../ledger-proof.js";
 import { ProofJournal } from "../ledger-proof-state.js";
 import {
   runProofSupervisor,
   runProofWatchdog,
+  runProofWorker,
   type ProofRuntime,
 } from "../ledger-proof-runtime.js";
 
-const hooks = vi.hoisted(() => ({ command: vi.fn(), client: vi.fn(), wait: vi.fn() }));
+const hooks = vi.hoisted(() => ({
+  command: vi.fn(),
+  client: vi.fn(),
+  wait: vi.fn(),
+  verify: vi.fn(),
+  handler: vi.fn(),
+}));
 vi.mock("../ledger-proof-command.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../ledger-proof-command.js")>()),
   runProofCommand: hooks.command,
+  verifyProofCommand: hooks.verify,
+}));
+vi.mock("../declared-worker.js", async (original) => ({
+  ...(await original<typeof import("../declared-worker.js")>()),
+  commandHandler: hooks.handler,
 }));
 vi.mock("../client.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../client.js")>()),
@@ -91,6 +103,7 @@ beforeEach(() => {
   fallbackClaim = undefined;
   hooks.client.mockReturnValue({
     enqueue: vi.fn((spec) => store.enqueue(spec)),
+    events: async () => store.events(0),
     control: vi.fn(async (worker, action) => {
       const result = store.controlWorker(worker, action);
       if (action === "resume" && worker === proof.primary && !primaryClaimed) {
@@ -158,6 +171,7 @@ beforeEach(() => {
         staleRejected: true,
         osSleepObserved: true,
         osWakeObserved: true,
+        scheduledWakeMatched: true,
         wakeEntryRemoved: true,
         powerPolicyUnchanged: true,
         protectedServicesUnchanged: true,
@@ -234,4 +248,120 @@ it("does not enqueue, resume or extend the epoch after the original deadline", a
   expect(hooks.client.mock.results[0]!.value.enqueue).not.toHaveBeenCalled();
   await runProofWatchdog({ ...config, role: "watchdog" }, journal, new AbortController().signal);
   expect(stopped).toBe(true);
+});
+
+it("keeps an actual worker idle through empty, partial and paused admission before running exactly one eligible attempt", async () => {
+  const proof = config.proof;
+  const workerConfig = {
+    ...config,
+    role: "fallback" as const,
+    settings: { ...config.settings, worker: proof.fallback },
+  };
+  now = start + 300_001;
+  store.controlWorker(proof.fallback, "pause");
+  let polls = 0;
+  hooks.wait.mockImplementation(async (ms) => {
+    now += ms;
+    polls++;
+    if (polls === 1) store.enqueue(ledgerSpecForWorker());
+    if (polls === 2) {
+      store.enqueue({
+        ...ledgerSpecForWorker(),
+        kind: "bookcase-ledger-sentinel",
+        requires: [`${proof.capability}-unreachable`],
+        maxAttempts: 1,
+      });
+      const actualNow = now;
+      now = start;
+      store.claim(proof.primary, [proof.capability], ["bookcase-ledger-replay"]);
+      now = actualNow;
+    }
+    if (polls === 3) store.controlWorker(proof.fallback, "resume");
+  });
+  function ledgerSpecForWorker() {
+    return {
+      kind: "bookcase-ledger-replay",
+      inputs: [],
+      params: { fixtureVersion: 1, fixtureSha256: proof.fixtureSha256, proofId: proof.proofId },
+      code: proof.code,
+      payload: null,
+      requires: [proof.capability],
+      priority: 0,
+      maxAttempts: 2,
+    };
+  }
+  const claim = vi.fn(
+    async () => store.claim(proof.fallback, [proof.capability], ["bookcase-ledger-replay"]) ?? null,
+  );
+  hooks.client.mockReturnValue({
+    claim,
+    workerControl: async () => store.workerControl(proof.fallback),
+    heartbeat: async () => true,
+    complete: async (job: Claim, _bytes: Buffer, sha256: string) =>
+      store.complete(job.key, job.fence, proof.fallback, {
+        file: `${job.key}.${job.fence}.jsonl`,
+        sha256,
+      }),
+    fail: async (job: Claim, code: string, retryable: boolean) =>
+      store.fail(job.key, job.fence, proof.fallback, code, retryable),
+    release: async (job: Claim) => store.release(job.key, job.fence, proof.fallback),
+  });
+  const app = vi.fn(async (job, context) => {
+    expect(polls).toBe(3);
+    expect(job.fence).toBe(2);
+    const file = `${job.key}.${job.fence}.jsonl`;
+    writeFileSync(join(context.outDir, file), LEDGER_RESULT);
+    return { file, sha256: proofHash(LEDGER_RESULT) };
+  });
+  hooks.handler.mockReturnValue(app);
+  await runProofWorker(workerConfig, journal, new AbortController().signal);
+  expect(app).toHaveBeenCalledTimes(1);
+  expect(claim).toHaveBeenCalledTimes(1);
+  expect((journal.get("terminal") as { outcome: string }).outcome).toBe("COMPLETE");
+});
+
+it("cannot replace a concurrent deadline hold with a verified terminal result", async () => {
+  await runProofSupervisor(config, journal, new AbortController().signal);
+  const original = hooks.command.getMockImplementation()!;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    if (cmd.program.endsWith("peers") && input.phase === "fault")
+      journal.put("terminal", { outcome: "HELD", reason: "proof-deadline" });
+    return original(cmd, input);
+  });
+  await expect(runProofSupervisor(config, journal, new AbortController().signal)).rejects.toThrow(
+    "proof-not-active",
+  );
+  expect(journal.get("terminal")).toEqual({ outcome: "HELD", reason: "proof-deadline" });
+  await runProofWatchdog({ ...config, role: "watchdog" }, journal, new AbortController().signal);
+  expect((journal.get("report") as { state: string }).state).toBe("HELD");
+});
+
+it("retains and sends a cleanup hold even when the stop route fails", async () => {
+  journal.put("terminal", { outcome: "VERIFIED" });
+  const original = hooks.command.getMockImplementation()!;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    if (cmd.program.endsWith("stop")) throw Error("unavailable");
+    return original(cmd, input);
+  });
+  await runProofWatchdog({ ...config, role: "watchdog" }, journal, new AbortController().signal);
+  expect(journal.get("report")).toMatchObject({
+    state: "HELD",
+    reason: "proof-cleanup-unverified",
+  });
+  expect(posts).toHaveLength(1);
+  expect(journal.get("cleanup-complete")).toBeUndefined();
+});
+
+it("recovers an acknowledged stop without executing it again", async () => {
+  journal.put("terminal", { outcome: "HELD", reason: "proof-deadline" });
+  const watchdog = { ...config, role: "watchdog" as const };
+  await runProofWatchdog(watchdog, journal, new AbortController().signal);
+  const stopCalls = () =>
+    hooks.command.mock.calls.filter(([cmd]) => cmd.program.endsWith("stop")).length;
+  expect(stopCalls()).toBe(1);
+  journal.close();
+  journal = new ProofJournal(config.stateFile, config.proof);
+  await runProofWatchdog(watchdog, journal, new AbortController().signal);
+  expect(stopCalls()).toBe(1);
+  expect(posts).toHaveLength(1);
 });

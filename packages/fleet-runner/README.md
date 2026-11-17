@@ -41,10 +41,14 @@ source checkout is used at runtime.
 - `ledger-proof-relay post|evidence --settings FILE --sha256 HASH` uses the installed
   signed HelpDesk adapter. `post` receives the reserved command ID and bounded
   report on stdin. `evidence` receives the proof ID and `ready` or `fault` phase.
-- `ledger-proof-power prepare|probe-primary|probe-fallback|sleep --settings FILE
+- `ledger-proof-power prepare|cancel|probe-primary|probe-fallback|sleep --settings FILE
   --sha256 HASH` binds one owned wake entry and the actual OS sleep/wake evidence.
-  `prepare` requires an existing noninteractive local privilege route. Missing
-  privilege holds before admission; this command does not configure access.
+  `prepare` uses one explicit pre-arm macOS administrator authorization. It creates
+  one owned wake and a fixed cleanup process that can only cancel that same event.
+  A one-way flag permits early cancellation, and the helper has an absolute deadline
+  plus a finite wait count. `cancel` removes the flag and verifies removal of the event.
+  Native sleep is unprivileged. No sudoers rule or persistent privileged service is
+  installed; failed authorization or unverified cleanup holds before admission.
 
 ### Settings contract
 

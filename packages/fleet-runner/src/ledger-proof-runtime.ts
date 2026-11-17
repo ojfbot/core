@@ -13,6 +13,7 @@ import { randomUUID } from "node:crypto";
 import { fleetClient, type FleetClient } from "./client.js";
 import { commandHandler } from "./declared-worker.js";
 import { canonicalJson, jobKey, JobError, type Claim, type JobOutput } from "./jobs.js";
+import { releaseInfo } from "./version.js";
 import { workOnce } from "./worker.js";
 import { parseWorkerSettings, type WorkerSettings } from "./worker-settings.js";
 import { ProofJournal } from "./ledger-proof-state.js";
@@ -313,6 +314,7 @@ export async function runProofWorker(
   if (config.role !== "primary" && config.role !== "fallback") throw Error("invalid-proof-role");
   const role = config.role;
   budget(config);
+  if (Date.now() < config.proof.startsAtMs - 180_000) throw Error("proof-prearm-too-early");
   if (journal.get("claimed")) throw Error("proof-attempt-already-started");
   const slot = openSync(config.cpuSlot, "wx", 0o600);
   writeFileSync(slot, `${process.pid}\n`);
@@ -344,9 +346,10 @@ export async function runProofWorker(
       });
       budget(config);
       await probe(config, combined);
-      const seen = await snapshot(config, journal);
+      const seen = await snapshot(config, journal, false);
+      if ((await client.workerControl(combined)).paused || seen.rows.length < 2) return null;
+      verifyAdmission(config.proof, seen);
       const row = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof)))!;
-      if ((await client.workerControl(combined)).paused) return null;
       if (role === "primary" && (row.status !== "ready" || row.attempts !== 0))
         throw Error("proof-primary-not-eligible");
       if (
@@ -359,6 +362,8 @@ export async function runProofWorker(
       )
         return null;
       active(config.proof, journal);
+      if (existsSync(config.pauseFile) || existsSync(config.reservationFile))
+        throw Error("proof-local-paused");
       const claim = await client.claim([config.proof.capability], ["bookcase-ledger-replay"]);
       if (claim) {
         verifyClaim(config.proof, claim, role, Date.now());
@@ -462,13 +467,28 @@ export async function runProofWorker(
         continue;
       }
       if (role === "primary" && result === "lease-lost" && current && journal.result("sleep")) {
-        const accepted = await snapshot(config, journal);
+        let accepted = await snapshot(config, journal);
+        const completionDeadline = Math.min(config.proof.endsAtMs, Date.now() + 120_000);
+        while (accepted.rows.find((r) => r.key === current!.key)?.status !== "done") {
+          active(config.proof, journal);
+          const row = accepted.rows.find((r) => r.key === current!.key)!;
+          if (
+            Date.now() >= completionDeadline ||
+            row.status !== "claimed" ||
+            row.worker !== config.proof.fallback ||
+            row.fence !== 2
+          )
+            throw Error("proof-fallback-not-accepted");
+          await delay(5000, undefined, { signal: combined });
+          accepted = await snapshot(config, journal);
+        }
         verifyAccepted(config.proof, accepted);
         const output = object(journal.get("computed"));
         const bytes = readFileSync(join(config.settings.outDir, string(output.file)));
         const input = { key: current.key, fence: current.fence, sha256: string(output.sha256) };
         if (journal.reserve("stale-complete", input) !== "new")
           throw Error("proof-stale-check-already-started");
+        active(config.proof, journal);
         const stale = await client.complete(current, bytes, input.sha256);
         if (stale !== false) throw Error("proof-stale-accepted");
         const unchanged = await snapshot(config, journal);
@@ -482,6 +502,7 @@ export async function runProofWorker(
           staleRejected: true,
           osSleepObserved: fault.osSleepObserved,
           osWakeObserved: fault.osWakeObserved,
+          scheduledWakeMatched: fault.scheduledWakeMatched,
           wakeEntryRemoved: fault.wakeEntryRemoved,
           powerPolicyUnchanged: fault.powerPolicyUnchanged,
           protectedServicesUnchanged: fault.protectedServicesUnchanged,
@@ -517,11 +538,14 @@ export async function runProofWorker(
   } finally {
     clearInterval(timer);
     stop.abort();
+    const wakeFlag = join(config.evidenceDir, "wake-active");
+    if (role === "primary" && existsSync(wakeFlag)) unlinkSync(wakeFlag);
     unlinkSync(config.cpuSlot);
   }
 }
 
 async function control(
+  config: ProofRuntime,
   journal: ProofJournal,
   client: FleetClient,
   name: string,
@@ -531,6 +555,7 @@ async function control(
   const input = { worker, action };
   if (journal.reserve(name, input) === "done") return;
   // A repeated pause/resume converges on exactly the same state after an acknowledgement loss.
+  if (action === "resume") active(config.proof, journal);
   const receipt = await client.control(worker, action);
   if (receipt.paused !== (action === "pause")) throw Error("proof-control-mismatch");
   journal.finish(name, { paused: receipt.paused });
@@ -551,6 +576,7 @@ async function admit(
     // ONE identical admission retry is allowed; a second unknown response is held, never reset.
     if (journal.reserve(`${name}-retry`, spec) !== "new") throw Error("proof-admission-unknown");
   }
+  active(config.proof, journal);
   const admitted = await client.enqueue(spec);
   if (admitted.key !== key || (state === "new" && !admitted.created))
     throw Error("proof-admission-mismatch");
@@ -577,6 +603,7 @@ function validateFault(proof: LedgerProof, value: Record<string, unknown>): void
     value.staleRejected !== true ||
     value.osSleepObserved !== true ||
     value.osWakeObserved !== true ||
+    value.scheduledWakeMatched !== true ||
     value.wakeEntryRemoved !== true ||
     value.powerPolicyUnchanged !== true ||
     value.protectedServicesUnchanged !== true ||
@@ -635,8 +662,8 @@ export async function runProofSupervisor(
             throw Error("proof-queue-not-empty");
           journal.finish("empty-queue", { empty: true });
         }
-        await control(journal, client, "pause-primary", config.proof.primary, "pause");
-        await control(journal, client, "pause-fallback", config.proof.fallback, "pause");
+        await control(config, journal, client, "pause-primary", config.proof.primary, "pause");
+        await control(config, journal, client, "pause-fallback", config.proof.fallback, "pause");
         await admit(config, journal, client, false);
       }
       await admit(config, journal, client, true);
@@ -650,7 +677,7 @@ export async function runProofSupervisor(
         });
         journal.finish("full-admission-verified", { verified: true });
       }
-      await control(journal, client, "enable-primary", config.proof.primary, "resume");
+      await control(config, journal, client, "enable-primary", config.proof.primary, "resume");
       const row = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof)))!;
       const sentinel = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof, true)))!;
       if (row.attempts === 0 && seen.serverNowMs > config.proof.startsAtMs + 30_000)
@@ -671,20 +698,27 @@ export async function runProofSupervisor(
         row.status === "failed"
       )
         throw Error("proof-unexpected-attempt");
-      if (seen.serverNowMs >= config.proof.startsAtMs + 120_000) {
-        if (!journal.get("sentinel-held"))
-          journal.put("sentinel-held", {
-            reason: "no-eligible-worker",
-            owner: "proof-supervisor",
-            nextAction: "retain-unclaimed-until-cleanup",
-            atMs: Date.now(),
-          });
-        await post(config, journal, "sentinel-alert", {
-          state: "HELD",
-          kind: "unclaimable-sentinel",
+      if (!journal.get("sentinel-held")) {
+        if (Date.now() > config.proof.startsAtMs + 100_000)
+          throw Error("proof-sentinel-hold-bound-missed");
+        journal.put("sentinel-held", {
           reason: "no-eligible-worker",
+          owner: "proof-supervisor",
           nextAction: "retain-unclaimed-until-cleanup",
+          atMs: Date.now(),
+          observedServerMs: seen.serverNowMs,
         });
+      }
+      await post(config, journal, "sentinel-alert", {
+        state: "HELD",
+        kind: "unclaimable-sentinel",
+        reason: "no-eligible-worker",
+        nextAction: "retain-unclaimed-until-cleanup",
+      });
+      if (!journal.get("sentinel-bound-verified")) {
+        if (Date.now() > config.proof.startsAtMs + 120_000)
+          throw Error("proof-sentinel-alert-bound-missed");
+        journal.put("sentinel-bound-verified", true);
       }
       if (row.status === "claimed" && row.worker === config.proof.primary) {
         if (row.attempts !== 1 || row.fence !== 1 || row.leaseExpires === null)
@@ -695,7 +729,14 @@ export async function runProofSupervisor(
           uncertainty: journal.get("snapshot-time"),
         });
         if (seen.serverNowMs >= row.leaseExpires)
-          await control(journal, client, "enable-fallback", config.proof.fallback, "resume");
+          await control(
+            config,
+            journal,
+            client,
+            "enable-fallback",
+            config.proof.fallback,
+            "resume",
+          );
       }
       if (row.status === "done") {
         verifyAccepted(config.proof, seen);
@@ -738,23 +779,38 @@ export async function runProofSupervisor(
         validateFault(config.proof, fault);
         const after = await snapshot(config, journal);
         verifyAccepted(config.proof, after);
+        const staleEvents = after.events.filter(
+          (e) => e.key === row.key && e.type === "rejected-stale",
+        );
+        const completedEvent = after.events.find(
+          (e) => e.key === row.key && e.type === "completed",
+        );
         if (
-          !after.events.some(
-            (e) =>
-              e.key === row.key &&
-              e.type === "rejected-stale" &&
-              e.fence === 1 &&
-              e.worker === config.proof.primary,
-          )
+          staleEvents.length !== 1 ||
+          staleEvents[0]!.fence !== 1 ||
+          staleEvents[0]!.worker !== config.proof.primary ||
+          !completedEvent ||
+          staleEvents[0]!.seq <= completedEvent.seq ||
+          staleEvents[0]!.ts < completedEvent.ts
         )
-          throw Error("proof-stale-rejection-missing");
+          throw Error("proof-stale-rejection-mismatch");
+        active(config.proof, journal);
+        const signedEvents = await client.events(0);
+        if (
+          canonicalJson(signedEvents) !==
+          canonicalJson(after.events.map(({ leaseExpiredAtMs: _expiry, ...event }) => event))
+        )
+          throw Error("proof-signed-events-mismatch");
         if (
           !journal.get("sentinel-held") ||
           !journal.result("sentinel-alert") ||
+          !journal.get("sentinel-bound-verified") ||
           !journal.get("restart-observed")
         )
           throw Error("proof-acceptance-incomplete");
-        journal.put("terminal", { outcome: "VERIFIED", atMs: Date.now(), accepted, fault });
+        active(config.proof, journal);
+        if (!journal.setTerminal({ outcome: "VERIFIED", atMs: Date.now(), accepted, fault }))
+          throw Error("proof-terminal-already-held");
         return;
       }
       await delay(5000, undefined, { signal });
@@ -782,35 +838,59 @@ export async function runProofWatchdog(
       if (!journal.get("terminal"))
         hold(journal, stale ? "proof-supervisor-unavailable" : "proof-deadline");
       const input = { proofId: config.proof.proofId, endsAtMs: config.proof.endsAtMs };
-      journal.reserve("stop-isolated-targets", input);
-      const stopped = object(await runProofCommand(config.commands.stop, input));
-      if (
-        stopped.proofId !== config.proof.proofId ||
-        stopped.containerStopped !== true ||
-        stopped.localProfileStopped !== true ||
-        stopped.capabilitiesRemoved !== true ||
-        stopped.baselineUnchanged !== true ||
-        stopped.scheduleRemoved !== true
-      )
-        throw Error("proof-cleanup-unverified");
-      journal.finish("stop-isolated-targets", stopped);
+      let cleanupVerified = false;
+      try {
+        const reserved = journal.reserve("stop-isolated-targets", input);
+        const stopped = object(
+          reserved === "done"
+            ? journal.result("stop-isolated-targets")
+            : await runProofCommand(config.commands.stop, input),
+        );
+        if (
+          stopped.proofId !== config.proof.proofId ||
+          stopped.containerStopped !== true ||
+          stopped.localProfileStopped !== true ||
+          stopped.capabilitiesRemoved !== true ||
+          stopped.baselineUnchanged !== true ||
+          stopped.scheduleRemoved !== true
+        )
+          throw Error("proof-cleanup-unverified");
+        if (reserved !== "done") journal.finish("stop-isolated-targets", stopped);
+        cleanupVerified = true;
+      } catch {
+        journal.put("cleanup-held", { reason: "proof-cleanup-unverified", atMs: Date.now() });
+      }
       const terminal = object(journal.get("terminal"));
-      const outcome = terminal.outcome === "VERIFIED" ? "PASS" : "HELD";
+      const outcome =
+        terminal.outcome === "VERIFIED" && cleanupVerified && Date.now() < config.proof.endsAtMs
+          ? "PASS"
+          : "HELD";
       const report = {
         proofId: config.proof.proofId,
         state: outcome,
         code: config.proof.code,
+        runnerCode: releaseInfo.commit,
+        runnerVersion: releaseInfo.version,
         fixtureSha256: config.proof.fixtureSha256,
         key: jobKey(ledgerSpec(config.proof)),
         resultSha256: object(journal.result("accepted") ?? {}).sha256 ?? null,
-        reason: outcome === "HELD" ? terminal.reason : null,
+        reason: !cleanupVerified
+          ? "proof-cleanup-unverified"
+          : outcome === "HELD"
+            ? (terminal.reason ?? "proof-deadline")
+            : null,
         owner: "proof-supervisor",
-        nextAction: "consume-retained-report",
+        nextAction: cleanupVerified ? "consume-retained-report" : "local-operator-cleanup-required",
         runtimeModelCalls: 0,
       };
       journal.put("report", report);
-      await post(config, journal, "terminal-report", report);
-      journal.put("cleanup-complete", Date.now());
+      await post(
+        config,
+        journal,
+        `terminal-report-${cleanupVerified ? outcome.toLowerCase() : "cleanup-held"}`,
+        report,
+      );
+      if (cleanupVerified) journal.put("cleanup-complete", Date.now());
       return;
     }
     await delay(1000, undefined, { signal }).catch(() => {});

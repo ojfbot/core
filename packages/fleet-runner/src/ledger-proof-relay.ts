@@ -160,6 +160,8 @@ export async function postProofRelay(relay: ProofRelay, input: unknown): Promise
     "nextAction",
     "resultSha256",
     "runtimeModelCalls",
+    "runnerCode",
+    "runnerVersion",
   ]);
   if (Object.keys(report).some((key) => !allowed.has(key))) throw Error("proof-relay-body-refused");
   const body = canonicalJson({

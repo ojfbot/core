@@ -55,7 +55,20 @@ export class ProofJournal {
     const row = this.db.prepare("SELECT value FROM state WHERE name=?").get(name);
     return row ? (JSON.parse(String(row.value)) as unknown) : undefined;
   }
+  setTerminal(value: unknown): boolean {
+    return (
+      Number(
+        this.db
+          .prepare("INSERT OR IGNORE INTO state(name,value) VALUES ('terminal',?)")
+          .run(canonicalJson(value)).changes,
+      ) === 1
+    );
+  }
   put(name: string, value: unknown): void {
+    if (name === "terminal") {
+      this.setTerminal(value);
+      return;
+    }
     this.db
       .prepare(
         "INSERT INTO state VALUES (?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value",
