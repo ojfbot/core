@@ -1134,7 +1134,11 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         revoked: false,
       });
       writeFileSync(revocationFile, revocation, { mode: 0o600 });
-      initializeStandingCorrespondenceJournal({ prepared, stateFile, source: "live" });
+      const { journalInstanceId } = initializeStandingCorrespondenceJournal({
+        prepared,
+        stateFile,
+        source: "live",
+      });
       const approveStanding = (purpose: string) =>
         writeFileSync(
           runtimeApprovalFile,
@@ -1146,6 +1150,7 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
             lineageId: policy.lineageId,
             deviceId: policy.deviceId,
             invocationStateFile: stateFile,
+            journalInstanceId,
             startsAtMs: Date.now() - 1000,
             expiresAtMs: Date.now() + 600000,
             ownerNativeApprovalRef: "synthetic-owner-authority",
@@ -1171,6 +1176,7 @@ let data='';process.stdin.on('data',x=>data+=x);process.stdin.on('end',()=>{
         deviceId: policy.deviceId,
       });
       if (result.kind !== "ready") throw Error(JSON.stringify(result));
+      expect(result.dispatcher.journalInstanceId).toBe(journalInstanceId);
       open.push(result.dispatcher);
       const make = (n: number) => ({
         ...request(prepareCorrespondencePlan(finite), n),

@@ -136,6 +136,7 @@ export interface StandingEnginePolicy {
   budget: StandingBudgetPolicy;
   source: "live" | "emulated";
   authorityId: string;
+  journalInstanceId?: string;
   checkActiveAuthority?: () => RefusalReason | undefined;
   identity(request: DispatchRequest): { effectId: string; payloadDigest: string };
   /** Only the explicit bootstrap entry point sets this. Never set by runtime reopen. */
@@ -230,11 +231,13 @@ function openEngine<P = RelayedCanaryProposal>(
       )
         throw Error("journal-source-mismatch");
       if (standing && !standing.bootstrap) {
-        validateStandingJournal(
+        const instance = validateStandingJournal(
           db,
           standing.budget,
           journalSource as "standing-live" | "standing-emulated",
         );
+        if (instance !== standing.journalInstanceId)
+          throw Error("standing-journal-instance-mismatch");
       }
       db.exec(`CREATE TABLE IF NOT EXISTS invocation_meta(version INTEGER NOT NULL CHECK(version=1));
     INSERT INTO invocation_meta SELECT 1 WHERE NOT EXISTS(SELECT 1 FROM invocation_meta);
@@ -258,7 +261,15 @@ function openEngine<P = RelayedCanaryProposal>(
           db.prepare("INSERT INTO journal_source VALUES(1,?)").run(journalSource);
       }
       if (standing?.bootstrap) {
+        if (!/^[a-f0-9]{64}$/.test(standing.journalInstanceId ?? ""))
+          throw Error("standing-budget-corrupt");
         initializeStandingBudget(db, standing.budget);
+        db.exec(
+          "CREATE TABLE standing_journal_instance(only INTEGER PRIMARY KEY CHECK(only=1), instance_id TEXT NOT NULL)",
+        );
+        db.prepare("INSERT INTO standing_journal_instance VALUES(1,?)").run(
+          standing.journalInstanceId!,
+        );
         db.exec(
           "CREATE TABLE standing_aliases(delivery_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL); CREATE TABLE standing_closed_grants(authority_id TEXT PRIMARY KEY, reason TEXT NOT NULL); CREATE TABLE standing_authorities(path TEXT PRIMARY KEY, authority_id TEXT NOT NULL); CREATE TABLE standing_inputs(delivery_id TEXT PRIMARY KEY, dispatch_id TEXT NOT NULL, input_digest TEXT NOT NULL)",
         );

@@ -88,7 +88,7 @@ export function validateStandingJournal(
   db: DatabaseSync,
   budget: StandingBudgetPolicy,
   journalSource: "standing-live" | "standing-emulated",
-): void {
+): string {
   const tables = new Set(
     db
       .prepare("SELECT name FROM sqlite_master WHERE type='table'")
@@ -108,8 +108,19 @@ export function validateStandingJournal(
     "standing_closed_grants",
     "standing_authorities",
     "standing_inputs",
+    "standing_journal_instance",
   ])
     if (!tables.has(name)) throw Error("standing-budget-corrupt");
+  const instances = db.prepare("SELECT * FROM standing_journal_instance").all();
+  const instance = instances[0];
+  if (
+    instances.length !== 1 ||
+    !instance ||
+    instance.only !== 1 ||
+    typeof instance.instance_id !== "string" ||
+    !/^[a-f0-9]{64}$/.test(instance.instance_id)
+  )
+    throw Error("standing-budget-corrupt");
   openStandingBudget(db, budget);
   const sources = db.prepare("SELECT * FROM journal_source").all();
   const versions = db.prepare("SELECT * FROM invocation_meta").all();
@@ -255,4 +266,5 @@ export function validateStandingJournal(
       !hashes.test(row.authority_id)
     )
       throw Error("standing-budget-corrupt");
+  return instance.instance_id;
 }

@@ -433,7 +433,7 @@ first character. Resource wildcards are refused. Other identifiers retain their 
 rules. Numeric caps in a prepared policy are proposed configuration, not a human grant.
 
 The independently supplied private runtime approval binds `policyDigest`, `lineageId`,
-`deviceId`, the exact `invocationStateFile`, `grantId`, absolute start/end, an attributable
+`deviceId`, the exact `invocationStateFile` and `journalInstanceId`, `grantId`, absolute start/end, an attributable
 owner approval reference, and a required private revocation file plus its approved digest.
 Its kind is `owner-approved-standing-correspondence`; `purpose` is `duty` or
 `qualification`. The revocation file is exactly
@@ -454,7 +454,12 @@ this trusted argument from packet text. Requests use the policy lineage as `char
 
 Explicit first bootstrap is permitted only before this standing slice's first native
 effect. It creates the canonical per-host lineage journal and refuses an existing file;
-it never migrates or replaces unknown evidence. All subsequent qualification, proof,
+it never migrates or replaces unknown evidence. It returns `{ journalInstanceId }`, a random
+64-character lowercase hexadecimal identity stored with that journal. The owner approval
+must bind this exact value. Deleting and explicitly reinitializing the same path produces
+a different identity: old approval bytes cannot reopen the replacement, even with an
+identical policy and lineage. A replacement does not authorize a fresh share for this slice.
+All subsequent qualification, proof,
 context and duty turns in this slice use that same journal and original per-host share.
 A missing existing lineage is a hold, never an invitation to initialize another path.
 Historical effects under separately closed finite charters remain separate evidence;
@@ -475,7 +480,7 @@ against an owner who rewrites its entire history.
 
 For standing qualification use `prepareStandingCorrespondenceQualificationPolicy` and
 `qualifyStandingClaudeCorrespondence` with a separate one-turn qualification grant and
-**the same standing state file**. `qualifyStandingClaudeCorrespondenceEmulation` uses raw
+**the same standing state file and journal instance**. `qualifyStandingClaudeCorrespondenceEmulation` uses raw
 synthetic frames and cannot yield a live qualification entry. Qualification can examine an
 unlisted candidate but duty still requires the committed allowlist gate. A repeat of the
 same qualification grant cannot buy another turn; an explicitly authorized correction uses
@@ -491,18 +496,24 @@ awake, connected or running the new policy.
 ### Closed-authority evidence recovery
 
 `readStandingCorrespondenceRecovery({ prepared, stateFile, deviceId, deliveryId,
-inputDigest })` reads an existing owner-private standing journal without opening
+inputDigest, journalInstanceId })` reads an existing owner-private standing journal without opening
 an invocation controller or reading an approval. It returns `recorded` with a
 validated disposition and, when present, the checked relayed proposal; `missing`
 when no delivery binding exists; or a typed `held` result for mismatched or corrupt
 state. A recorded unknown remains unknown. No result permits a new invocation.
-The consumer must match its durable booking's packet digest, persist the recovered
+A ready dispatcher exposes its readonly `journalInstanceId`. The consumer must persist
+that ID with the original delivery booking and supply it with the booking's packet digest
+for recovery, independently of the current approval. Missing or mismatched IDs hold; the
+reader never infers original identity from a replacement journal. Persist the recovered
 answer/outbox atomically, and flush already committed replies without requiring a
 live authority handle. Repeating a read neither spends nor refunds usage.
 
-Standing bootstrap now creates approval-path/digest and packet-input bindings in
+Standing bootstrap now creates a random journal-instance identity plus approval-path/digest and packet-input bindings in
 the same private journal. These unreleased schema additions are mandatory on
-reopen: missing tables are a hold, never an implicit migration or new allowance.
+reopen: missing tables or identity are a hold, never an implicit migration or new allowance.
+Older unreleased standing journals and approvals without the instance binding are not
+automatically upgraded. Retain their evidence; do not delete them or invent an identity to
+resume a slice whose existing history must be preserved.
 Every observed authority closure, including an initial/reopen check and the final
 pre-spawn check, is durable. Restoring prior approval or revocation bytes cannot
 revive the closed grant. A separately authorized renewal can use a new approval

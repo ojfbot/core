@@ -709,3 +709,5 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - 2026-11-17: Root integration retained an unchanged FleetRunner helper-cleanup timing failure from the full suite; all 14 tests in that file passed in one isolated rerun. Root typecheck reports the same 23 diagnostics as the unchanged base. Draft publication records these limitations; required CI and independent review remain gates.
 
 - Linux CI exposed a macOS-only host assumption in standing correspondence tests. Match the existing correspondence suite's test-local platform/ACL observations, retain production file checks, and explicitly verify ACL and non-Darwin native refusal; no production check or required test is disabled.
+
+- Review reproduced byte-identical approval replay after explicit same-path journal replacement. Bind approvals and original delivery recovery to a random durable bootstrap instance; unreleased state without that identity holds rather than being silently migrated or granted a fresh allowance.

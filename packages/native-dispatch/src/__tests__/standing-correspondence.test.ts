@@ -116,10 +116,12 @@ const HOUR = 3600000,
   DAY = 24 * HOUR;
 let dir: string, state: string, approvalPath: string, revokePath: string, clock: number;
 let opened: StandingCorrespondenceDispatcher[];
+let journalInstanceId: string;
 beforeEach(() => {
   // Match the existing correspondence fixtures: emulate only macOS ACL observations, while
   // retaining the real private-file, ownership, mode, symlink and native authority checks.
   aclPaths = [];
+  journalInstanceId = "0".repeat(64);
   vi.stubGlobal(
     "process",
     new Proxy(realProcess, {
@@ -205,6 +207,13 @@ function grant(
   grantId = "grant-1",
   start = 0,
 ) {
+  if (existsSync(state)) {
+    const db = new DatabaseSync(state, { readOnly: true });
+    journalInstanceId = String(
+      db.prepare("SELECT instance_id FROM standing_journal_instance").get()?.instance_id,
+    );
+    db.close();
+  }
   const revocation = JSON.stringify({
     schemaVersion: 1,
     deviceId: p.policy.deviceId,
@@ -222,6 +231,7 @@ function grant(
       lineageId: p.policy.lineageId,
       deviceId: p.policy.deviceId,
       invocationStateFile: state,
+      journalInstanceId,
       startsAtMs: start,
       expiresAtMs: start + (purpose === "qualification" ? 1800000 : DAY),
       ownerNativeApprovalRef: "synthetic-owner-authority",
@@ -411,6 +421,7 @@ it("shares rolling counters across aliases, restart, revision, grant and alias r
   const p = prepareStandingCorrespondenceEmulationPolicy(v);
   grant(p, "duty", "renewed-grant");
   const renewed = start(p, false);
+  expect(renewed.dispatcher.journalInstanceId).toBe(first.dispatcher.journalInstanceId);
   expect(await send(renewed.dispatcher, request(p, 3, "renewed-duty"))).toEqual({
     kind: "refused",
     reason: "standing-hourly-limit",
@@ -726,6 +737,7 @@ function recover(
     deviceId: p.policy.deviceId,
     deliveryId: request(p, n).deliveryId,
     inputDigest,
+    journalInstanceId,
   });
 }
 it.each(["revoked", "expired", "missing", "changed", "corrupt-revocation"])(
@@ -919,4 +931,124 @@ it("keeps the production native opener unqualified on non-Darwin hosts", () => {
     }),
   ).toMatchObject({ kind: "held", holds: ["acl-unqualified"] });
   expect(query("SELECT count(*) AS n FROM invocations")).toEqual([{ n: 0 }]);
+});
+
+it("binds old authority to its journal instance after quota exhaustion, closure and same-path replacement", async () => {
+  const r = start();
+  const originalInstance = r.dispatcher.journalInstanceId;
+  const originalApproval = readFileSync(approvalPath);
+  const originalRevocation = readFileSync(revokePath);
+  expect(originalInstance).toMatch(/^[a-f0-9]{64}$/);
+  expect(await send(r.dispatcher, request(r.p, 1))).toMatchObject({ kind: "observed" });
+  expect(await send(r.dispatcher, request(r.p, 2))).toMatchObject({ kind: "observed" });
+  expect(await send(r.dispatcher, request(r.p, 3))).toEqual({
+    kind: "refused",
+    reason: "standing-hourly-limit",
+  });
+  expect(r.invocations?.()).toBe(2);
+  close(r.dispatcher);
+  writeFileSync(
+    revokePath,
+    JSON.stringify({ ...JSON.parse(originalRevocation.toString()), revoked: true }),
+  );
+  expect(reopen(r.p)).toMatchObject({ kind: "held", holds: ["standing-policy-revoked"] });
+  writeFileSync(revokePath, originalRevocation);
+  expect(reopen(r.p)).toMatchObject({ kind: "held", holds: ["standing-policy-revoked"] });
+  expect(query("SELECT count(*) AS n FROM standing_budget_reservations")).toEqual([{ n: 2 }]);
+  expect(query("SELECT count(*) AS n FROM standing_closed_grants")).toEqual([{ n: 1 }]);
+  rmSync(state);
+  const replacement = initializeStandingCorrespondenceJournal({
+    prepared: r.p,
+    stateFile: state,
+    source: "emulated",
+  });
+  expect(replacement.journalInstanceId).not.toBe(originalInstance);
+  expect(readFileSync(approvalPath)).toEqual(originalApproval);
+  let calls = 0;
+  expect(
+    openStandingCorrespondenceEmulation({
+      prepared: r.p,
+      stateFile: state,
+      runtimeApprovalFile: approvalPath,
+      deviceId: r.p.policy.deviceId,
+      now: () => clock,
+      script: (...args) => {
+        calls++;
+        return answer(...args);
+      },
+    }),
+  ).toMatchObject({ kind: "held", holds: ["standing-journal-instance-mismatch"] });
+  expect(calls).toBe(0);
+  expect(recover(r.p)).toMatchObject({
+    kind: "held",
+    holds: ["standing-journal-instance-mismatch"],
+  });
+  expect(query("SELECT count(*) AS n FROM invocations")).toEqual([{ n: 0 }]);
+  expect(query("SELECT count(*) AS n FROM standing_budget_reservations")).toEqual([{ n: 0 }]);
+});
+
+it("refuses replay of a qualification approval against a replacement instance before any frame call", async () => {
+  const p = prepareStandingCorrespondenceQualificationPolicy(raw());
+  const original = initializeStandingCorrespondenceJournal({
+    prepared: p,
+    stateFile: state,
+    source: "emulated",
+  });
+  grant(p, "qualification");
+  rmSync(state);
+  const replacement = initializeStandingCorrespondenceJournal({
+    prepared: p,
+    stateFile: state,
+    source: "emulated",
+  });
+  expect(replacement.journalInstanceId).not.toBe(original.journalInstanceId);
+  let frames = 0;
+  expect(
+    await qualifyStandingClaudeCorrespondenceEmulation({
+      prepared: p,
+      stateFile: state,
+      runtimeApprovalFile: approvalPath,
+      deviceId: p.policy.deviceId,
+      now: () => clock,
+      frames: () => {
+        frames++;
+        return [];
+      },
+    }),
+  ).toMatchObject({ kind: "held", holds: ["standing-journal-instance-mismatch"] });
+  expect(frames).toBe(0);
+  expect(query("SELECT count(*) AS n FROM invocations")).toEqual([{ n: 0 }]);
+});
+
+it.each(["missing", "malformed"])(
+  "holds %s journal instance evidence without repairing it or losing charges",
+  async (kind) => {
+    const r = start();
+    await send(r.dispatcher, request(r.p, 1));
+    close(r.dispatcher);
+    const db = new DatabaseSync(state);
+    db.exec(
+      kind === "missing"
+        ? "DROP TABLE standing_journal_instance"
+        : "UPDATE standing_journal_instance SET instance_id='broken'",
+    );
+    db.close();
+    expect(reopen(r.p)).toMatchObject({ kind: "held", holds: ["standing-budget-corrupt"] });
+    expect(recover(r.p)).toMatchObject({ kind: "held", holds: ["standing-budget-corrupt"] });
+    expect(query("SELECT count(*) AS n FROM standing_budget_reservations")).toEqual([{ n: 1 }]);
+  },
+);
+
+it("requires the original instance in approval and recovery rather than guessing from current state", () => {
+  const r = start();
+  close(r.dispatcher);
+  const approval = JSON.parse(readFileSync(approvalPath, "utf8"));
+  delete approval.journalInstanceId;
+  writeFileSync(approvalPath, JSON.stringify(approval));
+  expect(reopen(r.p)).toMatchObject({ kind: "held", holds: ["runtime-approval-invalid"] });
+  const saved = journalInstanceId;
+  journalInstanceId = "";
+  expect(recover(r.p)).toMatchObject({ kind: "held", holds: ["invalid-request"] });
+  journalInstanceId = saved;
+  expect(recover(r.p)).toEqual({ kind: "missing" });
 });

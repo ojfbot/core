@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { parseStoredDisposition, validateStandingJournal } from "./standing-journal.js";
@@ -89,6 +90,8 @@ export interface StandingCorrespondenceApproval {
   lineageId: string;
   deviceId: string;
   invocationStateFile: string;
+  /** Exact bootstrap instance; a replacement journal cannot inherit this authority. */
+  journalInstanceId: string;
   startsAtMs: number;
   expiresAtMs: number;
   ownerNativeApprovalRef: string;
@@ -102,6 +105,8 @@ export interface StandingCorrespondenceOptions {
   deviceId: string;
 }
 export interface StandingCorrespondenceDispatcher extends CorrespondenceDispatcher {
+  /** Persist with the original delivery identity for authority-independent recovery. */
+  readonly journalInstanceId: string;
   /** Caller obtains this identity from the authenticated journal writer, never packet text. */
   dispatch(
     request: unknown,
@@ -114,6 +119,7 @@ export interface StandingCorrespondenceDispatcher extends CorrespondenceDispatch
 export type StandingCorrespondenceHold =
   | CorrespondenceHold
   | RefusalReason
+  | "standing-journal-instance-mismatch"
   | "standing-budget-missing"
   | "standing-budget-corrupt"
   | "standing-budget-policy-mismatch"
@@ -128,6 +134,7 @@ function holdCode(
   fallback: StandingCorrespondenceHold,
 ): StandingCorrespondenceHold {
   const known: StandingCorrespondenceHold[] = [
+    "standing-journal-instance-mismatch",
     "standing-budget-missing",
     "standing-budget-corrupt",
     "standing-budget-policy-mismatch",
@@ -406,7 +413,7 @@ export function initializeStandingCorrespondenceJournal(options: {
   prepared: PreparedStandingCorrespondencePolicy;
   stateFile: string;
   source: "live" | "emulated";
-}): void {
+}): { journalInstanceId: string } {
   const prepared = freeze(options.prepared);
   if (!isAbsolute(options.stateFile) || !["live", "emulated"].includes(options.source))
     throw Error("invalid-state-path");
@@ -416,6 +423,7 @@ export function initializeStandingCorrespondenceJournal(options: {
     options.stateFile
   )
     throw Error("unsafe-local-state");
+  const journalInstanceId = randomBytes(32).toString("hex");
   const emulator = createCorrespondenceEmulator(() => ({ kind: "hang" }));
   const p = prepared.policy;
   const approval = {
@@ -428,9 +436,10 @@ export function initializeStandingCorrespondenceJournal(options: {
     ...config(prepared, approval, "mechanical"),
     transport: emulator.transport,
     claudeVersions: p.profiles.map((x) => x.nativeVersion),
-    standing: { ...enginePolicy(prepared, options.source), bootstrap: true },
+    standing: { ...enginePolicy(prepared, options.source), journalInstanceId, bootstrap: true },
   });
   dispatcher.close();
+  return { journalInstanceId };
 }
 /** Validate authority as data. The local caller, not a peer packet, chooses this file. */
 export function parseStandingCorrespondenceApproval(
@@ -444,7 +453,7 @@ export function parseStandingCorrespondenceApproval(
     !object(value) ||
     !exact(
       value,
-      "deviceId,expiresAtMs,grantId,invocationStateFile,kind,lineageId,ownerNativeApprovalRef,policyDigest,purpose,revocationDigest,revocationFile,startsAtMs",
+      "deviceId,expiresAtMs,grantId,invocationStateFile,journalInstanceId,kind,lineageId,ownerNativeApprovalRef,policyDigest,purpose,revocationDigest,revocationFile,startsAtMs",
     ) ||
     value.kind !== "owner-approved-standing-correspondence" ||
     value.purpose !== purpose ||
@@ -453,6 +462,7 @@ export function parseStandingCorrespondenceApproval(
     value.lineageId !== p.lineageId ||
     value.deviceId !== p.deviceId ||
     value.invocationStateFile !== stateFile ||
+    !hash(value.journalInstanceId) ||
     !isAbsolute(stateFile) ||
     !Number.isSafeInteger(value.startsAtMs) ||
     Number(value.startsAtMs) < 0 ||
@@ -476,7 +486,7 @@ function withStandingJournal<T>(
   stateFile: string,
   source: "live" | "emulated",
   readOnly: boolean,
-  work: (db: Database) => T,
+  work: (db: Database, journalInstanceId: string) => T,
 ): T {
   if (!isAbsolute(stateFile)) throw Error("invalid-state-path");
   checkPrivateDirectory(dirname(stateFile));
@@ -493,12 +503,12 @@ function withStandingJournal<T>(
         db.exec("PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON");
     }
     db.exec(readOnly ? "BEGIN" : "BEGIN EXCLUSIVE");
-    validateStandingJournal(
+    const journalInstanceId = validateStandingJournal(
       db,
       enginePolicy(prepared, source).budget,
       source === "live" ? "standing-live" : "standing-emulated",
     );
-    const result = work(db);
+    const result = work(db, journalInstanceId);
     db.exec("COMMIT");
     return result;
   } catch (error) {
@@ -523,14 +533,21 @@ export function readStandingCorrespondenceRecovery(options: {
   deviceId: string;
   deliveryId: string;
   inputDigest: string;
+  /** Immutable original delivery binding, never inferred from replacement state or current approval. */
+  journalInstanceId: string;
 }): StandingCorrespondenceRecovery {
   try {
     const prepared = freeze(options.prepared);
     if (options.deviceId !== prepared.policy.deviceId) throw Error("device-mismatch");
-    if (!isIdentifier(options.deliveryId) || !hash(options.inputDigest))
+    if (
+      !isIdentifier(options.deliveryId) ||
+      !hash(options.inputDigest) ||
+      !hash(options.journalInstanceId)
+    )
       throw Error("invalid-request");
     const source = prepared.mode === "standing-emulation-prepared" ? "emulated" : "live";
-    return withStandingJournal(prepared, options.stateFile, source, true, (db) => {
+    return withStandingJournal(prepared, options.stateFile, source, true, (db, id) => {
+      if (id !== options.journalInstanceId) throw Error("standing-journal-instance-mismatch");
       const input = db
         .prepare("SELECT * FROM standing_inputs WHERE delivery_id=?")
         .get(options.deliveryId);
@@ -617,6 +634,7 @@ function open(
   const now = emulation?.now ?? Date.now;
   const environment = nativeEnvironment(p.environment);
   let expectedApproval: string | undefined;
+  let expectedJournalInstanceId: string | undefined;
   function authority() {
     if (!existsSync(options.runtimeApprovalFile)) throw Error("standing-policy-missing");
     const bytes = readPrivateFile(options.runtimeApprovalFile, 16384).toString("utf8");
@@ -629,6 +647,8 @@ function open(
       qualification ? "qualification" : "duty",
     );
     if (options.deviceId !== p.deviceId) throw Error("device-mismatch");
+    if (approval.journalInstanceId !== expectedJournalInstanceId)
+      throw Error("standing-journal-instance-mismatch");
     if (now() < approval.startsAtMs) throw Error("not-yet-valid");
     if (now() >= approval.expiresAtMs) throw Error("expired");
     const revocationBytes = readPrivateFile(approval.revocationFile, 4096).toString("utf8");
@@ -693,7 +713,8 @@ function open(
       options.stateFile,
       emulation ? "emulated" : "live",
       false,
-      (db) => {
+      (db, journalInstanceId) => {
+        expectedJournalInstanceId = journalInstanceId;
         const prior = db
           .prepare("SELECT authority_id FROM standing_authorities WHERE path=?")
           .get(options.runtimeApprovalFile);
@@ -733,11 +754,16 @@ function open(
               "standing-policy-revoked",
               "runtime-approval-invalid",
               "unsafe-local-state",
+              "standing-journal-instance-mismatch",
             ].includes(code)
           )
             close(
               expectedApproval,
-              ["runtime-approval-invalid", "unsafe-local-state"].includes(code)
+              [
+                "runtime-approval-invalid",
+                "unsafe-local-state",
+                "standing-journal-instance-mismatch",
+              ].includes(code)
                 ? "standing-policy-changed"
                 : code,
             );
@@ -791,6 +817,7 @@ function open(
       standing: {
         ...enginePolicy(prepared, emulation ? "emulated" : "live"),
         authorityId: expectedApproval!,
+        journalInstanceId: expectedJournalInstanceId!,
         checkActiveAuthority: inspect,
       },
       claudeVersions:
@@ -807,6 +834,7 @@ function open(
   }
   const dispatcher: StandingCorrespondenceDispatcher = {
     ...engine,
+    journalInstanceId: expectedJournalInstanceId!,
     dispatch: async (input, settings) => {
       let request: DispatchRequest;
       try {
