@@ -69,8 +69,11 @@ export type {
   CorrespondenceOptions,
   CorrespondenceHold,
 } from "./correspondence-types.js";
+export { listenerStatusContext, parseListenerStatusContext } from "./correspondence-status.js";
+export type { ListenerStatusContext, ListenerStatusSnapshot } from "./correspondence-status.js";
 export {
   prepareCorrespondencePlan,
+  parseCorrespondenceRuntimeApproval,
   correspondenceGrantRevision,
   openCorrespondenceWindow,
   openCorrespondenceEmulation,
@@ -138,3 +141,6 @@ export type {
   CorrespondenceFrameScript,
 } from "./correspondence-native.js";
 export type { DutyWorkflow } from "./types.js";
+
+/** Version of the bundled dispatch implementation, for bounded local status evidence. */
+export const NATIVE_DISPATCH_VERSION = "0.4.5";

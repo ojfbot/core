@@ -53,6 +53,7 @@ import type {
   CorrespondenceOpen,
   CorrespondenceOptions,
   CorrespondencePlan,
+  CorrespondenceRuntimeApproval,
   PreparedCorrespondencePlan,
   RelayedCorrespondenceProposal,
 } from "./correspondence-types.js";
@@ -252,8 +253,17 @@ function prepare(
     limits.requestTimeoutMs !== CORRESPONDENCE_REQUEST_TIMEOUT_MS ||
     // Claude-only: the Codex host-file risk acceptance must be absent.
     !object(supervision) ||
-    !exact(supervision, "kind") ||
-    supervision.kind !== "owner-attended" ||
+    !(
+      (exact(supervision, "kind") && supervision.kind === "owner-attended") ||
+      (exact(supervision, "kind,requestMessageId") &&
+        supervision.kind === "preapproved-unattended-status" &&
+        typeof supervision.requestMessageId === "string" &&
+        UUID.test(supervision.requestMessageId) &&
+        mode !== "correspondence-qualification-prepared" &&
+        profiles.length === 1 &&
+        limits.topLevelTurns === 1 &&
+        (limits.windowMs as number) <= 1800000)
+    ) ||
     !object(environment) ||
     !exact(environment, "CODEX_HOME,HOME,TMPDIR") ||
     environment.CODEX_HOME !== null ||
@@ -275,7 +285,13 @@ function prepare(
       windowMs: limits.windowMs as number,
       requestTimeoutMs: CORRESPONDENCE_REQUEST_TIMEOUT_MS,
     },
-    supervision: { kind: "owner-attended" },
+    supervision:
+      supervision.kind === "preapproved-unattended-status"
+        ? {
+            kind: "preapproved-unattended-status",
+            requestMessageId: identifier(supervision.requestMessageId),
+          }
+        : { kind: "owner-attended" },
     environment: {
       HOME: absolute(environment.HOME),
       CODEX_HOME: null,
@@ -383,6 +399,8 @@ function dutyBindings(prepared: PreparedCorrespondencePlan) {
 
 function wrap(
   dispatcher: ReturnType<typeof openCorrespondenceDispatcher<RelayedCorrespondenceProposal>>,
+  plan?: CorrespondencePlan,
+  now: () => number = Date.now,
 ): CorrespondenceDispatcher {
   return {
     ...dispatcher,
@@ -400,6 +418,20 @@ function wrap(
         )
       )
         return { kind: "refused", reason: "invalid-request" };
+      // Journal recovery must remain available after snapshot/window expiry; it never launches.
+      if (dispatcher.lookup(request.deliveryId)) return dispatcher.dispatch(request, settings);
+      if (plan?.supervision.kind === "preapproved-unattended-status") {
+        const packet = parseCorrespondencePacket(request.task.input);
+        const status = packet.local_status;
+        const age = status ? now() - status.observedAtMs : -1;
+        if (
+          request.messageId !== plan.supervision.requestMessageId ||
+          !status ||
+          age < 0 ||
+          age > 60000
+        )
+          return { kind: "refused", reason: "invalid-request" };
+      }
       return dispatcher.dispatch(request, settings);
     },
   };
@@ -432,6 +464,59 @@ type WindowMode =
   | { kind: "duty" }
   | { kind: "qualification"; recordFrame: (frame: unknown) => void };
 
+/** Validate a future approval without opening a dispatcher or starting a provider process. */
+export function parseCorrespondenceRuntimeApproval(
+  approval: unknown,
+  prepared: PreparedCorrespondencePlan,
+  stateFile: string,
+  qualification = false,
+): CorrespondenceRuntimeApproval {
+  const { plan, planDigest } = prepared;
+  const kind: CorrespondenceRuntimeApproval["kind"] = qualification
+    ? "owner-approved-correspondence-qualification"
+    : plan.supervision.kind === "preapproved-unattended-status"
+      ? "owner-approved-unattended-status-window"
+      : "owner-approved-correspondence-window";
+  if (
+    !isAbsolute(stateFile) ||
+    !object(approval) ||
+    !exact(
+      approval,
+      "deviceId,expiresAtMs,invocationStateFile,kind,ownerNativeApprovalRef,planDigest,startsAtMs,windowId",
+    ) ||
+    // A duty approval never authorises qualification, nor the reverse.
+    approval.kind !== kind ||
+    approval.planDigest !== planDigest ||
+    approval.windowId !== plan.windowId ||
+    approval.deviceId !== plan.deviceId ||
+    approval.invocationStateFile !== stateFile ||
+    typeof approval.startsAtMs !== "number" ||
+    typeof approval.expiresAtMs !== "number" ||
+    !Number.isSafeInteger(approval.startsAtMs) ||
+    !Number.isSafeInteger(approval.expiresAtMs) ||
+    !(qualification
+      ? approval.expiresAtMs - approval.startsAtMs >= 60000 &&
+        approval.expiresAtMs - approval.startsAtMs <= CORRESPONDENCE_QUALIFICATION_MAX_WINDOW_MS
+      : approval.expiresAtMs - approval.startsAtMs === plan.limits.windowMs) ||
+    typeof approval.ownerNativeApprovalRef !== "string" ||
+    !approval.ownerNativeApprovalRef ||
+    approval.ownerNativeApprovalRef.length > 512
+  )
+    throw Error("runtime-approval-invalid");
+
+  // All properties above were validated; return a fresh typed value, not caller-owned data.
+  return {
+    kind,
+    planDigest: approval.planDigest,
+    windowId: approval.windowId,
+    deviceId: approval.deviceId,
+    invocationStateFile: approval.invocationStateFile,
+    startsAtMs: approval.startsAtMs,
+    expiresAtMs: approval.expiresAtMs,
+    ownerNativeApprovalRef: approval.ownerNativeApprovalRef,
+  };
+}
+
 function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
   const { stateFile, runtimeApprovalFile, deviceId } = options;
   const qualification = mode.kind === "qualification";
@@ -457,41 +542,14 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
     } catch {
       throw Error("runtime-approval-invalid");
     }
-    if (
-      !isAbsolute(stateFile) ||
-      join(realpathSync(dirname(stateFile)), basename(stateFile)) !== stateFile ||
-      !object(approval) ||
-      !exact(
-        approval,
-        "deviceId,expiresAtMs,invocationStateFile,kind,ownerNativeApprovalRef,planDigest,startsAtMs,windowId",
-      ) ||
-      // A duty approval never authorises qualification, nor the reverse.
-      approval.kind !==
-        (qualification
-          ? "owner-approved-correspondence-qualification"
-          : "owner-approved-correspondence-window") ||
-      approval.planDigest !== planDigest ||
-      approval.windowId !== plan.windowId ||
-      approval.deviceId !== plan.deviceId ||
-      approval.invocationStateFile !== stateFile ||
-      typeof approval.startsAtMs !== "number" ||
-      typeof approval.expiresAtMs !== "number" ||
-      !Number.isSafeInteger(approval.startsAtMs) ||
-      !Number.isSafeInteger(approval.expiresAtMs) ||
-      !(qualification
-        ? approval.expiresAtMs - approval.startsAtMs >= 60000 &&
-          approval.expiresAtMs - approval.startsAtMs <= CORRESPONDENCE_QUALIFICATION_MAX_WINDOW_MS
-        : approval.expiresAtMs - approval.startsAtMs === plan.limits.windowMs) ||
-      typeof approval.ownerNativeApprovalRef !== "string" ||
-      !approval.ownerNativeApprovalRef ||
-      approval.ownerNativeApprovalRef.length > 512
-    )
+    if (join(realpathSync(dirname(stateFile)), basename(stateFile)) !== stateFile)
       throw Error("runtime-approval-invalid");
+    const parsed = parseCorrespondenceRuntimeApproval(approval, prepared, stateFile, qualification);
     const now = Date.now();
-    if (now < approval.startsAtMs || now >= approval.expiresAtMs) throw Error("window-not-active");
+    if (now < parsed.startsAtMs || now >= parsed.expiresAtMs) throw Error("window-not-active");
     return {
-      startsAtMs: approval.startsAtMs,
-      expiresAtMs: approval.expiresAtMs,
+      startsAtMs: parsed.startsAtMs,
+      expiresAtMs: parsed.expiresAtMs,
       digest: currentDigest,
     };
   }
@@ -579,7 +637,7 @@ function openWindow(options: CorrespondenceOptions, mode: WindowMode) {
       return { kind: "held" as const, planDigest, holds: ["journal-source-mismatch" as const] };
     throw error;
   }
-  return { kind: "ready" as const, planDigest, dispatcher: wrap(dispatcher) };
+  return { kind: "ready" as const, planDigest, dispatcher: wrap(dispatcher, plan) };
 }
 
 /** Only this local owner-window boundary can construct the built-in real correspondence transport. */
@@ -855,7 +913,7 @@ export function openCorrespondenceEmulation(options: {
   });
   return {
     planDigest: prepared.planDigest,
-    dispatcher: wrap(dispatcher),
+    dispatcher: wrap(dispatcher, prepared.plan, options.now),
     invocations: emulator.invocations,
   };
 }

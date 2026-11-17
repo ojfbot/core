@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { parseListenerStatusContext } from "./correspondence-status.js";
 import {
   CORRESPONDENCE_PACKET_MAX_BYTES,
   CORRESPONDENCE_TEXT_MAX_BYTES,
@@ -94,7 +95,12 @@ export function parseCorrespondencePacket(input: string): CorrespondencePacket {
   }
   if (
     !record(p) ||
-    !keys(p, "best_effort,context_round,duty,kind,omitted,request,thread,version") ||
+    !keys(
+      p,
+      "local_status" in p
+        ? "best_effort,context_round,duty,kind,local_status,omitted,request,thread,version"
+        : "best_effort,context_round,duty,kind,omitted,request,thread,version",
+    ) ||
     p.kind !== "correspondence-packet" ||
     p.version !== 1 ||
     !record(p.duty) ||
@@ -133,6 +139,7 @@ export function parseCorrespondencePacket(input: string): CorrespondencePacket {
     p.best_effort !== p.context_round.used >= 3
   )
     throw Error("invalid-packet");
+  if ("local_status" in p) parseListenerStatusContext(p.local_status);
   return p as unknown as CorrespondencePacket;
 }
 

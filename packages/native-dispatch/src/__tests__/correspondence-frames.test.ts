@@ -1163,6 +1163,10 @@ const profile999 = () => ({
 describe("the package API never builds recorded trace bytes", () => {
   /** Reviewed: any new export must be added here, and checked against this rule. */
   const MAIN_EXPORTS = [
+    "NATIVE_DISPATCH_VERSION",
+    "listenerStatusContext",
+    "parseListenerStatusContext",
+    "parseCorrespondenceRuntimeApproval",
     "ADVISORY_OUTPUT_SCHEMA",
     "CLAUDE_CORRESPONDENCE_QUALIFIED",
     "CLAUDE_OUTPUT_TOOL",

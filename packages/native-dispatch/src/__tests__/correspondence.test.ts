@@ -16,6 +16,10 @@ import { createRequire } from "node:module";
 import type { DatabaseSync as Database } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  listenerStatusContext,
+  parseListenerStatusContext,
+  parseCorrespondenceRuntimeApproval,
+  prepareCorrespondenceEmulationPlan,
   CORRESPONDENCE_INSTRUCTIONS_V2,
   CORRESPONDENCE_INSTRUCTIONS_V2_SHA256,
   CORRESPONDENCE_OUTPUT_SCHEMA,
@@ -1943,5 +1947,111 @@ describe("qualification script", () => {
     expect(status).toBe(1);
     expect(stdout.trim()).toBe("held: runtime-approval-missing");
     expect(existsSync(out)).toBe(false);
+  });
+});
+
+describe("preapproved unattended status", () => {
+  const unattended = () =>
+    rawPlan({
+      supervision: { kind: "preapproved-unattended-status", requestMessageId: uuid(1) },
+      limits: { topLevelTurns: 1, windowMs: 1800000, requestTimeoutMs: 120000 },
+    });
+  const status = (observedAtMs = 1000) =>
+    listenerStatusContext({
+      source: "listener-status",
+      observedAtMs,
+      deviceVersion: "0.9.4",
+      coreVersion: "0.4.5",
+      mode: "correspondence",
+      pending: 1,
+      unknown: 0,
+      queuedReplies: 0,
+    });
+
+  it("binds a bounded snapshot and rejects changed counters or extra/private fields", () => {
+    const value = status();
+    expect(parseListenerStatusContext(value)).toEqual(value);
+    expect(() => parseListenerStatusContext({ ...value, unknown: 1 })).toThrow(
+      "invalid-local-status",
+    );
+    expect(() => parseListenerStatusContext({ ...value, path: "/private/example" })).toThrow(
+      "invalid-local-status",
+    );
+    expect(() => parseListenerStatusContext({ ...value, pending: -1 })).toThrow(
+      "invalid-local-status",
+    );
+    expect(
+      parseCorrespondencePacket(JSON.stringify(packet(1, { local_status: value }))).local_status,
+    ).toEqual(value);
+  });
+
+  it("accepts exactly one turn and at most thirty minutes; cannot become qualification", () => {
+    expect(prepareCorrespondenceEmulationPlan(unattended()).plan.supervision.kind).toBe(
+      "preapproved-unattended-status",
+    );
+    for (const limits of [
+      { topLevelTurns: 2, windowMs: 1800000, requestTimeoutMs: 120000 },
+      { topLevelTurns: 1, windowMs: 1800001, requestTimeoutMs: 120000 },
+    ])
+      expect(() => prepareCorrespondenceEmulationPlan({ ...unattended(), limits })).toThrow();
+    expect(() => prepareCorrespondenceQualificationPlan(unattended())).toThrow();
+  });
+
+  it("validates a future unattended approval without opening a native window; attended approval is not reusable", () => {
+    const prepared = prepareCorrespondenceEmulationPlan(unattended());
+    const stateFile = join(dir, "new-state.sqlite");
+    const approval = {
+      kind: "owner-approved-unattended-status-window",
+      planDigest: prepared.planDigest,
+      windowId: prepared.plan.windowId,
+      deviceId: "yuri",
+      invocationStateFile: stateFile,
+      startsAtMs: Date.now() + 60000,
+      expiresAtMs: Date.now() + 1860000,
+      ownerNativeApprovalRef: "test-only",
+    };
+    approval.expiresAtMs = approval.startsAtMs + 1800000;
+    expect(parseCorrespondenceRuntimeApproval(approval, prepared, stateFile)).toEqual(approval);
+    expect(() =>
+      parseCorrespondenceRuntimeApproval(
+        { ...approval, kind: "owner-approved-correspondence-window" },
+        prepared,
+        stateFile,
+      ),
+    ).toThrow();
+  });
+
+  it("refuses wrong request, missing/stale snapshot before reservation; admits one fresh exact request once", async () => {
+    const prepared = prepareCorrespondenceEmulationPlan(unattended());
+    const run = openCorrespondenceEmulation({
+      prepared,
+      stateFile: join(dir, "unattended.sqlite"),
+      now: () => 100000,
+      startsAtMs: 100000,
+      script: (_, turn) => ({ kind: "answer", answer: reply(turn.packetDigest) }),
+    });
+    open.push(run.dispatcher);
+    const wrong = request(prepared, 2, packet(2, { local_status: status(100000) }));
+    expect(await run.dispatcher.dispatch(wrong)).toMatchObject({
+      kind: "refused",
+      reason: "invalid-request",
+    });
+    expect(await run.dispatcher.dispatch(request(prepared, 1))).toMatchObject({
+      kind: "refused",
+      reason: "invalid-request",
+    });
+    expect(
+      await run.dispatcher.dispatch(
+        request(prepared, 1, packet(1, { local_status: status(100001) })),
+      ),
+    ).toMatchObject({ kind: "refused" });
+    expect(
+      await run.dispatcher.dispatch(request(prepared, 1, packet(1, { local_status: status(0) }))),
+    ).toMatchObject({ kind: "refused" });
+    const exact = request(prepared, 1, packet(1, { local_status: status(100000) }));
+    const result = await run.dispatcher.dispatch(exact);
+    expect(result).toMatchObject({ kind: "observed", outcome: "completed" });
+    expect(await run.dispatcher.dispatch(exact)).toEqual(result);
+    expect(run.dispatcher.status().reservations).toBe(1);
   });
 });
