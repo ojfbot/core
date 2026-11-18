@@ -65,3 +65,79 @@ it("requires a real Sleep/Wake pair and ignores DarkWake or assertion prose", ()
   ).toThrow();
   expect(() => sleepEvents(`${sleep}\n${sleep}\n${wake}`, start)).toThrow();
 });
+
+const sleepAt = Date.UTC(2026, 0, 15, 5);
+const alarmAt = sleepAt + 420_000;
+const plannedWake = { wakeAtMs: alarmAt, foreignSchedule: "" };
+const scriptedSleep = "2026-01-14 23:00:00 -0600 Sleep Entering DarkWake due to Software Sleep";
+const fullWake = "2026-01-14 23:07:00 -0600 Wake DarkWake to FullWake due to HID Activity Using AC";
+const assertion =
+  '2026-01-14 23:07:00 -0600 Assertions PID 123(powerd) Created UserIsActive "com.apple.powermanagement.wakeschedule" 00:00:00 id:0x31';
+const evidence = (...events: string[]) => [scriptedSleep, ...events].join("\n");
+
+it("corroborates a HID-tagged full wake with the matching powerd scheduled-wake assertion", () => {
+  expect(sleepEvents(evidence(assertion, fullWake), sleepAt, plannedWake)).toEqual({
+    sleepAtMs: sleepAt,
+    wakeAtMs: alarmAt,
+    wakeReason: "HID Activity",
+    schedulerAssertionAtMs: alarmAt,
+  });
+});
+
+it.each([
+  ["bare HID activity", evidence(fullWake), "proof-scheduled-wake-assertion-missing"],
+  [
+    "an assertion after full wake",
+    evidence(fullWake, assertion),
+    "proof-scheduled-wake-assertion-missing",
+  ],
+  [
+    "an assertion before the alarm",
+    evidence(assertion.replace("23:07:00", "23:06:59"), fullWake),
+    "proof-scheduled-wake-assertion-missing",
+  ],
+  [
+    "a stale assertion before a later wake",
+    evidence(assertion, fullWake.replace("23:07:00", "23:07:03")),
+    "proof-scheduled-wake-assertion-missing",
+  ],
+  [
+    "an early full wake",
+    evidence(assertion, fullWake.replace("23:07:00", "23:06:59")),
+    "proof-wake-time-mismatch",
+  ],
+  [
+    "an assertion from another process",
+    evidence(assertion.replace("(powerd)", "(other)"), fullWake),
+    "proof-scheduled-wake-assertion-missing",
+  ],
+  [
+    "an expired assertion",
+    evidence(assertion.replace("Created", "TimedOut"), fullWake),
+    "proof-scheduled-wake-assertion-missing",
+  ],
+  [
+    "two plausible timer assertions",
+    evidence(assertion, assertion.replace("0x31", "0x32"), fullWake),
+    "proof-scheduled-wake-assertion-ambiguous",
+  ],
+])("rejects %s even at the scheduled time", (_name, log, reason) => {
+  expect(() => sleepEvents(log, sleepAt, plannedWake)).toThrow(reason);
+});
+
+it.each([
+  ["[event] wake at 01/14/2026 23:08:00 by 'other'", true],
+  ["[event] wakeorpoweron at 01/14/2026 23:09:20 by 'other' leeway secs: 30", true],
+  ["[event] wake at 01/14/2026 23:09:20 by 'leeway secs: 0' leeway secs: 30", true],
+  ["[event] wake at 02/31/2026 06:00:00 by 'other'", true],
+  ["Repeating power events:\n  wakepoweron at 11:07PM every day", true],
+  ["[event] wake at 01/14/2026 23:10:00 by 'other'", false],
+  ["Repeating power events:\n  wakepoweron at 11:07PM Thursday", false],
+  ["Repeating power events:\n  wakepoweron at 6:00AM every day", false],
+  ["[event] unknown at 01/14/2026 23:08:00 by 'other'", true],
+])("checks competing events for scheduler attribution: %s", (foreignSchedule, ambiguous) => {
+  const parse = () =>
+    sleepEvents(evidence(assertion, fullWake), sleepAt, { ...plannedWake, foreignSchedule });
+  if (ambiguous) expect(parse).toThrow("proof-wake-ownership-ambiguous");
+  else expect(parse()).toMatchObject({ wakeAtMs: alarmAt });
+});

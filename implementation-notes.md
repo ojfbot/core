@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- macOS recorded Yuri’s scheduled-wake assertion immediately before a full wake labeled HID Activity. Verify that path with the exact scheduler assertion and an unambiguous owned wake alongside the existing RTC or Alarm evidence.
+
 - The live scripted sleep allowed macOS to keep the primary renewing its lease, while the idle fallback could terminate on a readiness check before it was eligible for work. The script now stops its own renewals before sleep and evaluates fallback readiness when a claim can actually happen, retaining the blocking condition.
 
 - The wake-first rehearsal still left too little time for two machines to freeze and match the run after approval. Reserve a single wake earlier, then bind the same seven-minute sleep target after verified readback. Check the full wake receipt and remove the wake on a failed launcher or pre-admission cancellation.
