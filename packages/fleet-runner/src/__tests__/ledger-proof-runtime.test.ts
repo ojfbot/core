@@ -265,12 +265,26 @@ it("preserves the approved wake through the first idle stop and revokes it on la
   expect(journal.get("claimed")).toBeUndefined();
 });
 
-it("admits exactly two jobs, holds the sentinel, recovers after accepted-output restart and cleans up once", async () => {
+it("waits for both Macs, admits exactly two jobs, recovers after accepted-output restart and cleans up once", async () => {
+  const checkedCommand = hooks.command.getMockImplementation()!;
+  const client = hooks.client();
+  hooks.command.mockImplementation(async (cmd, input) => {
+    const result = await checkedCommand(cmd, input);
+    if (cmd.program.endsWith("probe") && now < start + 2000)
+      return { ...result, appsClosed: false };
+    if (cmd.program.endsWith("peers") && input.phase === "ready" && now < start + 5000)
+      return { ...result, primaryReady: false };
+    return result;
+  });
+  const enqueue = client.enqueue.getMockImplementation()!;
+  client.enqueue.mockImplementation((spec: Parameters<JobStore["enqueue"]>[0]) => {
+    expect(now).toBeGreaterThanOrEqual(start + 5000);
+    return enqueue(spec);
+  });
   await runProofSupervisor(config, journal, new AbortController().signal);
   expect(completed).toBe(true);
   expect(journal.get("restart-required")).toBe(true);
   expect(journal.result("sentinel-alert")).toBeDefined();
-  const client = hooks.client.mock.results[0]!.value;
   expect(client.enqueue).toHaveBeenCalledTimes(2);
   // Ordinary process restart, same durable binding and exact effect keys.
   journal.close();
