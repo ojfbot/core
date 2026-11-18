@@ -60,6 +60,7 @@ export function errorCode(error: unknown): string {
       "proof-wake-authorization-failed",
       "proof-wake-schedule-refused",
       "proof-wake-cleanup-unverified",
+      "proof-schedule-baseline-changed",
       "proof-wake-preparation-too-late",
       "proof-wake-readback-mismatch",
     ].includes(error.message)

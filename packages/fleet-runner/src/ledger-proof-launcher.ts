@@ -1,4 +1,6 @@
 import { spawn } from "node:child_process";
+import { rmSync } from "node:fs";
+import { join } from "node:path";
 import { ProofJournal } from "./ledger-proof-state.js";
 import type { ProofRuntime } from "./ledger-proof-runtime.js";
 
@@ -10,8 +12,6 @@ export async function launchLedgerProof(
   digest: string,
   signal: AbortSignal,
 ): Promise<void> {
-  if (config.role === "primary" && Date.now() >= config.proof.startsAtMs - 30_000)
-    throw Error("proof-idle-restart-margin-held");
   const run = (idleRestart: boolean): Promise<number> =>
     new Promise((resolve, reject) => {
       const child = spawn(
@@ -73,18 +73,27 @@ export async function launchLedgerProof(
       if (signal.aborted) stop();
     });
   if (journal.get("launcher-started")) throw Error("proof-launcher-already-started");
-  journal.put("launcher-started", Date.now());
-  if (config.role === "primary") {
-    if ((await run(true)) !== 0 || journal.get("idle-stopped") !== true || journal.get("claimed"))
-      throw Error("proof-idle-restart-unverified");
-  }
-  if (signal.aborted || Date.now() >= config.proof.endsAtMs) throw Error("proof-launcher-expired");
-  if ((await run(false)) !== 0) throw Error("proof-child-held");
-  if (config.role === "supervisor" && journal.get("restart-required") === true) {
+  try {
+    if (config.role === "primary" && Date.now() >= config.proof.startsAtMs - 30_000)
+      throw Error("proof-idle-restart-margin-held");
+    if (signal.aborted) throw Error("proof-launcher-expired");
+    journal.put("launcher-started", Date.now());
+    if (config.role === "primary") {
+      if ((await run(true)) !== 0 || journal.get("idle-stopped") !== true || journal.get("claimed"))
+        throw Error("proof-idle-restart-unverified");
+    }
     if (signal.aborted || Date.now() >= config.proof.endsAtMs)
-      throw Error("proof-supervisor-restart-expired");
-    if ((await run(false)) !== 0 || !journal.get("restart-observed"))
-      throw Error("proof-supervisor-restart-unverified");
+      throw Error("proof-launcher-expired");
+    if ((await run(false)) !== 0) throw Error("proof-child-held");
+    if (config.role === "supervisor" && journal.get("restart-required") === true) {
+      if (signal.aborted || Date.now() >= config.proof.endsAtMs)
+        throw Error("proof-supervisor-restart-expired");
+      if ((await run(false)) !== 0 || !journal.get("restart-observed"))
+        throw Error("proof-supervisor-restart-unverified");
+    }
+    journal.put("launcher-complete", Date.now());
+  } catch (error) {
+    if (config.role === "primary") rmSync(join(config.evidenceDir, "wake-active"), { force: true });
+    throw error;
   }
-  journal.put("launcher-complete", Date.now());
 }

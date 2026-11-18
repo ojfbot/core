@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- The wake-first rehearsal still left too little time for two machines to freeze and match the run after approval. Reserve a single wake earlier, then bind the same seven-minute sleep target after verified readback. Check the full wake receipt and remove the wake on a failed launcher or pre-admission cancellation.
+
 - 2026-11-17 (CG307-U1 wake handoff): the reserved run slot could expire while the owner was approving the wake, and an empty macOS schedule gained a display header on first use. Authorize and verify the exact wake before binding a run, and compare schedule entries instead of display headers.
 
 - 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.

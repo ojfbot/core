@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { canonicalJson } from "./jobs.js";
@@ -27,9 +27,10 @@ interface PowerPlan extends WakeRequest {
   proof: LedgerProof;
 }
 
-const AUTHORIZATION_TIMEOUT_MS = 120_000;
-const MIN_WAKE_LEAD_SECONDS = 600;
-const MAX_WAKE_LEAD_SECONDS = 840;
+export const AUTHORIZATION_TIMEOUT_MS = 120_000;
+export const WAKE_RESERVATION_SECONDS = 1500;
+export const MIN_WAKE_LEAD_SECONDS = 1200;
+export const MAX_WAKE_LEAD_SECONDS = 1560;
 const SCHEDULE_CHECK_MARGIN_MS = 5_000;
 
 export function parseWakeRequest(value: unknown): WakeRequest {
@@ -118,6 +119,7 @@ function shellQuote(value: string): string {
 /** The authorized root command reads only a revocation flag and touches only this exact wake selector. */
 export function wakeAuthorization(plan: WakeRequest): {
   command: string;
+  cleanup: string;
   cleanupAtMs: number;
   flag: string;
 } {
@@ -143,7 +145,10 @@ export function wakeAuthorization(plan: WakeRequest): {
     `if [ ! -e ${shellQuote(flag)} ]; then ${cancel} >/dev/null 2>&1; /usr/bin/printf '%s' window; exit 0; fi`,
     '/usr/bin/printf "%s" "$cleanup_pid"',
   ].join("; ");
-  return { command, cleanupAtMs, flag };
+  return { command, cleanup, cleanupAtMs, flag };
+}
+function rootShellCommand(line: string): string | undefined {
+  return /^\s*0\s+(?:\/bin\/)?sh -c (.*)$/.exec(line.trimEnd())?.[1];
 }
 function cleanupProcess(plan: WakeRequest, pid: number): boolean {
   const result = spawnSync("/bin/ps", ["-ww", "-p", String(pid), "-o", "uid=,command="], {
@@ -151,24 +156,53 @@ function cleanupProcess(plan: WakeRequest, pid: number): boolean {
     timeout: 5000,
   });
   if (result.error || result.status !== 0) return false;
-  return (
-    /^\s*0\s/.test(result.stdout) &&
-    result.stdout.includes(owner(plan)) &&
-    result.stdout.includes("/bin/sh -c") &&
-    result.stdout.includes("/usr/bin/pmset schedule cancel wake")
-  );
+  return rootShellCommand(result.stdout) === wakeAuthorization(plan).cleanup;
+}
+export function hasWakeHelper(plan: WakeRequest, inventory: string): boolean {
+  const { command, cleanup } = wakeAuthorization(plan);
+  return inventory.split("\n").some((line) => {
+    const shell = rootShellCommand(line);
+    return (
+      shell === command ||
+      shell === cleanup ||
+      line.trim().replace(/^0\s+/, "0 ") ===
+        `0 /usr/bin/pmset schedule cancel wake ${dateString(plan.wakeAtMs, false)} ${owner(plan)}`
+    );
+  });
 }
 function cleanupGone(plan: WakeRequest): boolean {
-  const file = join(plan.directory, "wake-prepared.json");
-  if (!existsSync(file)) return false;
-  const pid = integer(object(readPrivateJson(file)).cleanupPid);
-  const result = spawnSync("/bin/ps", ["-p", String(pid), "-o", "pid="], {
+  const result = spawnSync("/bin/ps", ["-ww", "-axo", "uid=,command="], {
     encoding: "utf8",
     timeout: 5000,
+    maxBuffer: 4 * 1024 * 1024,
   });
-  if (result.error || (result.status !== 0 && result.status !== 1))
-    throw Error("proof-cleanup-process-unobservable");
-  return result.status === 1;
+  if (result.error || result.status !== 0) throw Error("proof-cleanup-process-unobservable");
+  return !hasWakeHelper(plan, result.stdout);
+}
+export function wakePreparationMatches(
+  plan: WakeRequest,
+  prepared: unknown,
+  baseline: unknown,
+): boolean {
+  const receipt = object(prepared),
+    savedBaseline = object(baseline),
+    authorization = wakeAuthorization(plan);
+  return (
+    [receipt, savedBaseline].every(
+      (saved) =>
+        saved.proofId === plan.proofId &&
+        saved.approvalExpiresAtMs === plan.approvalExpiresAtMs &&
+        saved.wakeAtMs === plan.wakeAtMs,
+    ) &&
+    savedBaseline.owner === owner(plan) &&
+    typeof savedBaseline.schedule === "string" &&
+    typeof savedBaseline.policy === "string" &&
+    Number.isSafeInteger(receipt.cleanupPid) &&
+    Number(receipt.cleanupPid) > 0 &&
+    receipt.baselineSha256 === proofHash(canonicalJson(baseline)) &&
+    receipt.authorizationSha256 === proofHash(authorization.command) &&
+    receipt.cleanupAtMs === authorization.cleanupAtMs
+  );
 }
 /** One root-authorized schedule entry, with exact cancellation selector. No general power setting is written. */
 export async function prepareProofWake(plan: WakeRequest): Promise<unknown> {
@@ -214,6 +248,7 @@ export async function prepareProofWake(plan: WakeRequest): Promise<unknown> {
       maxBuffer: 8192,
     });
     const pidText = (result.stdout ?? "").trim();
+    const cleanupPid = /^[1-9][0-9]{0,8}$/.test(pidText) ? Number(pidText) : null;
     const errorNumber = (result.stderr ?? "").match(/\((-?\d{1,6})\)\s*$/)?.[1];
     const outcome =
       result.error && "code" in result.error && result.error.code === "ETIMEDOUT"
@@ -227,11 +262,11 @@ export async function prepareProofWake(plan: WakeRequest): Promise<unknown> {
               : "proof-wake-authorization-returned";
     writeFileSync(
       join(plan.directory, "wake-authorization-result.json"),
-      `${canonicalJson({ outcome, status: result.status, signal: result.signal, errorNumber: errorNumber ? Number(errorNumber) : null })}\n`,
+      `${canonicalJson({ outcome, status: result.status, signal: result.signal, errorNumber: errorNumber ? Number(errorNumber) : null, cleanupPid })}\n`,
       { flag: "wx", mode: 0o600 },
     );
     if (outcome !== "proof-wake-authorization-returned") throw Error(outcome);
-    if (!/^[1-9][0-9]{0,8}$/.test(pidText) || !cleanupProcess(plan, Number(pidText)))
+    if (cleanupPid === null || !cleanupProcess(plan, cleanupPid))
       throw Error("proof-wake-cleanup-unverified");
     if (plan.wakeAtMs - Date.now() < (MIN_WAKE_LEAD_SECONDS - 5) * 1000)
       throw Error("proof-wake-preparation-too-late");
@@ -244,7 +279,7 @@ export async function prepareProofWake(plan: WakeRequest): Promise<unknown> {
       throw Error("proof-wake-readback-mismatch");
     writeFileSync(
       join(plan.directory, "wake-prepared.json"),
-      `${canonicalJson({ proofId: plan.proofId, approvalExpiresAtMs: plan.approvalExpiresAtMs, wakeAtMs: plan.wakeAtMs, baselineSha256: proofHash(canonicalJson(baseline)), cleanupPid: Number(pidText), cleanupAtMs: authorization.cleanupAtMs, authorizationSha256: proofHash(authorization.command) })}\n`,
+      `${canonicalJson({ proofId: plan.proofId, approvalExpiresAtMs: plan.approvalExpiresAtMs, wakeAtMs: plan.wakeAtMs, baselineSha256: proofHash(canonicalJson(baseline)), cleanupPid, cleanupAtMs: authorization.cleanupAtMs, authorizationSha256: proofHash(authorization.command) })}\n`,
       { flag: "wx", mode: 0o600 },
     );
     prepared = true;
@@ -259,6 +294,23 @@ function appAbsent(name: string): boolean {
     throw Error("proof-process-inventory-unavailable");
   return result.status === 1;
 }
+export function verifiedProofWake(plan: WakeRequest): boolean {
+  const { flag } = wakeAuthorization(plan),
+    preparedFile = join(plan.directory, "wake-prepared.json"),
+    baselineFile = join(plan.directory, "power-baseline.json");
+  if (![flag, preparedFile, baselineFile].every(existsSync)) return false;
+  const prepared = object(readPrivateJson(preparedFile)),
+    baseline = object(readPrivateJson(baselineFile)),
+    schedule = pmset(["-g", "sched"]);
+  return (
+    wakePreparationMatches(plan, prepared, baseline) &&
+    readFileSync(flag, "utf8") === `${plan.proofId}\n` &&
+    ownWake(plan, schedule) &&
+    scheduleWithoutOwn(plan, schedule) === scheduleWithoutOwn(plan, string(baseline.schedule)) &&
+    baseline.policy === pmset(["-g", "custom"]) &&
+    cleanupProcess(plan, integer(prepared.cleanupPid))
+  );
+}
 export async function proofHostProbe(plan: PowerPlan, primary: boolean): Promise<unknown> {
   const session = execFileSync("/usr/sbin/ioreg", ["-n", "Root", "-d1"], {
     encoding: "utf8",
@@ -266,9 +318,6 @@ export async function proofHostProbe(plan: PowerPlan, primary: boolean): Promise
     maxBuffer: 1024 * 1024,
   });
   const protectedWork = await protectedReady(plan);
-  const prepared = existsSync(join(plan.directory, "wake-prepared.json"))
-    ? object(readPrivateJson(join(plan.directory, "wake-prepared.json")))
-    : {};
   return {
     proofId: plan.proof.proofId,
     observedAtMs: Date.now(),
@@ -277,14 +326,7 @@ export async function proofHostProbe(plan: PowerPlan, primary: boolean): Promise
     appsClosed: ["ChatGPT", "Codex", "Claude", "claude", "codex"].every(appAbsent),
     protectedIdle: protectedWork.protectedIdle === true,
     ac: pmset(["-g", "batt"]).includes("'AC Power'"),
-    wakeReady:
-      !primary ||
-      (prepared.proofId === plan.proof.proofId &&
-        prepared.approvalExpiresAtMs === plan.proof.approvalExpiresAtMs &&
-        prepared.wakeAtMs === plan.wakeAtMs &&
-        existsSync(join(plan.directory, "wake-active")) &&
-        ownWake(plan, pmset(["-g", "sched"])) &&
-        cleanupProcess(plan, integer(prepared.cleanupPid))),
+    wakeReady: !primary || verifiedProofWake(plan),
   };
 }
 export function sleepEvents(
@@ -382,13 +424,15 @@ export async function cancelProofWake(plan: WakeRequest): Promise<unknown> {
   const end = Date.now() + 10_000;
   while ((pmset(["-g", "sched"]).includes(owner(plan)) || !cleanupGone(plan)) && Date.now() < end)
     await delay(250);
-  if (pmset(["-g", "sched"]).includes(owner(plan)) || !cleanupGone(plan))
+  const remaining = pmset(["-g", "sched"]);
+  if (remaining.includes(owner(plan)) || !cleanupGone(plan))
     throw Error("proof-wake-cleanup-unverified");
   const baselineFile = join(plan.directory, "power-baseline.json");
-  if (
-    existsSync(baselineFile) &&
-    object(readPrivateJson(baselineFile)).policy !== pmset(["-g", "custom"])
-  )
-    throw Error("proof-power-policy-drift");
+  if (existsSync(baselineFile)) {
+    const baseline = object(readPrivateJson(baselineFile));
+    if (baseline.policy !== pmset(["-g", "custom"])) throw Error("proof-power-policy-drift");
+    if (scheduleWithoutOwn(plan, string(baseline.schedule)) !== scheduleWithoutOwn(plan, remaining))
+      throw Error("proof-schedule-baseline-changed");
+  }
   return { proofId: plan.proofId, cancelled: true, wakeEntryRemoved: true };
 }

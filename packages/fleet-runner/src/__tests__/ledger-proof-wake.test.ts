@@ -4,8 +4,19 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 import { expect, it } from "vitest";
-import { parseLedgerProof } from "../ledger-proof.js";
-import { parseWakeRequest, scheduleWithoutOwn, wakeAuthorization } from "../ledger-proof-power.js";
+import { canonicalJson } from "../jobs.js";
+import { parseLedgerProof, proofHash } from "../ledger-proof.js";
+import {
+  AUTHORIZATION_TIMEOUT_MS,
+  MAX_WAKE_LEAD_SECONDS,
+  MIN_WAKE_LEAD_SECONDS,
+  WAKE_RESERVATION_SECONDS,
+  hasWakeHelper,
+  parseWakeRequest,
+  scheduleWithoutOwn,
+  wakeAuthorization,
+  wakePreparationMatches,
+} from "../ledger-proof-power.js";
 
 it.each(["full-dialog-window", "revoked", "too-late", "too-early", "pmset-refused", "quoted-path"])(
   "executes the bounded wake command offline: %s",
@@ -38,6 +49,49 @@ it.each(["full-dialog-window", "revoked", "too-late", "too-early", "pmset-refuse
       clock = join(dir, "clock"),
       log = join(dir, "calls");
     if (mode === "full-dialog-window") {
+      const earliestPrep = plan.wakeAtMs - 420_000 - 180_000;
+      const afterFullPrompt =
+        plan.wakeAtMs - WAKE_RESERVATION_SECONDS * 1000 + AUTHORIZATION_TIMEOUT_MS;
+      const lastReadback = plan.wakeAtMs - (MIN_WAKE_LEAD_SECONDS - 5) * 1000;
+      expect(earliestPrep - afterFullPrompt).toBeGreaterThanOrEqual(12 * 60_000);
+      expect(earliestPrep - lastReadback).toBeGreaterThanOrEqual(9 * 60_000);
+      expect(hasWakeHelper(plan, "    0 /usr/libexec/unrelated\n")).toBe(false);
+      expect(hasWakeHelper(plan, `  501 /bin/sh -c ${auth.cleanup}\n`)).toBe(false);
+      expect(hasWakeHelper(plan, `    0 /bin/sh -c ${auth.cleanup}\n`)).toBe(true);
+      expect(hasWakeHelper(plan, `    0 /bin/sh -c ${auth.command}\n`)).toBe(true);
+      expect(hasWakeHelper(plan, `    0 /bin/sh -c ${auth.cleanup}x\n`)).toBe(false);
+      const baseline = {
+        proofId: plan.proofId,
+        approvalExpiresAtMs: plan.approvalExpiresAtMs,
+        wakeAtMs: plan.wakeAtMs,
+        owner: `cg307-u1-${plan.proofId}`,
+        policy: "original policy",
+        schedule: "",
+      };
+      const receipt = {
+        proofId: plan.proofId,
+        approvalExpiresAtMs: plan.approvalExpiresAtMs,
+        wakeAtMs: plan.wakeAtMs,
+        cleanupPid: 27,
+        cleanupAtMs: auth.cleanupAtMs,
+        baselineSha256: proofHash(canonicalJson(baseline)),
+        authorizationSha256: proofHash(auth.command),
+      };
+      expect(wakePreparationMatches(plan, receipt, baseline)).toBe(true);
+      expect(wakePreparationMatches(plan, receipt, {})).toBe(false);
+      expect(wakePreparationMatches(plan, receipt, { ...baseline, schedule: "foreign" })).toBe(
+        false,
+      );
+      expect(wakePreparationMatches(plan, { ...receipt, authorizationSha256: "x" }, baseline)).toBe(
+        false,
+      );
+      expect(
+        wakePreparationMatches(
+          plan,
+          { ...receipt, cleanupAtMs: auth.cleanupAtMs + 1000 },
+          baseline,
+        ),
+      ).toBe(false);
       const own = ` [0]  wake at 11/17/2026 22:19:00 by 'cg307-u1-${proof.proofId}'\n`;
       const unrelated = " [1]  poweron at 11/18/2026 08:10:00 by 'other'\n";
       const repeating = "Repeating power events:\n  wake at 8:00AM weekdays\n";
@@ -67,10 +121,10 @@ it.each(["full-dialog-window", "revoked", "too-late", "too-early", "pmset-refuse
     writeFileSync(auth.flag, "active");
     const authorizationAt =
       mode === "too-late"
-        ? plan.wakeAtMs - 599_000
+        ? plan.wakeAtMs - (MIN_WAKE_LEAD_SECONDS - 1) * 1000
         : mode === "too-early"
-          ? plan.wakeAtMs - 841_000
-          : plan.wakeAtMs - 610_000;
+          ? plan.wakeAtMs - (MAX_WAKE_LEAD_SECONDS + 1) * 1000
+          : plan.wakeAtMs - WAKE_RESERVATION_SECONDS * 1000 + AUTHORIZATION_TIMEOUT_MS;
     writeFileSync(clock, String(Math.floor(authorizationAt / 1000)));
     const script = (name: string, body: string) => {
       const file = join(dir, name);
