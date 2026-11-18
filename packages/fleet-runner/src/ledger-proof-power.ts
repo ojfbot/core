@@ -331,23 +331,114 @@ export async function proofHostProbe(plan: PowerPlan, primary: boolean): Promise
     wakeReady: !primary || verifiedProofWake(plan),
   };
 }
-export function sleepEvents(
-  log: string,
-  afterMs: number,
-): { sleepAtMs: number; wakeAtMs: number; wakeReason: string } {
-  const rows = log.split("\n").flatMap((line) => {
-    const m = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})\s+(Sleep|Wake)\s/.exec(line);
-    if (!m) return [];
-    const at = Date.parse(`${m[1]}T${m[2]}${m[3]!.slice(0, 3)}:${m[3]!.slice(3)}`);
-    return at >= afterMs - 1000 ? [{ type: m[4], at, line }] : [];
+interface ScheduledWakeEvidence {
+  wakeAtMs: number;
+  foreignSchedule: string;
+}
+
+const competingWakeMarginMs = 120_000;
+const wakeTypes = /^(wake|poweron|wakeorpoweron|wakepoweron)$/;
+const nonWakeTypes = /^(sleep|shutdown)$/;
+const weekdays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function competingWake(schedule: string, wakeAtMs: number, offset: string): boolean {
+  const offsetMs =
+    (offset[0] === "-" ? -1 : 1) *
+    (Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4))) *
+    60_000;
+  const localWake = wakeAtMs + offsetMs;
+  const day = new Date(localWake);
+  return schedule.split("\n").some((row) => {
+    const line = row.trim();
+    if (
+      !line ||
+      /^(?:Repeating power events:|Scheduled power events:|No scheduled events\.)$/.test(line)
+    )
+      return false;
+    const timed =
+      /^\[(?:event|\d+)\]\s+(\w+) at (\d\d)\/(\d\d)\/(\d{4}) (\d\d:\d\d:\d\d)(.*)$/.exec(line);
+    if (timed) {
+      const [, kind, month, date, year, time, details = ""] = timed;
+      if (nonWakeTypes.test(kind ?? "")) return false;
+      const civil = `${year}-${month}-${date}T${time}`;
+      const at = Date.parse(civil + offset);
+      const suffix = /^(?: by '[^']*')?(?: leeway secs: (\d+))?(?: User visible: true)?$/.exec(
+        details,
+      );
+      return (
+        !wakeTypes.test(kind ?? "") ||
+        !Number.isFinite(at) ||
+        new Date(at + offsetMs).toISOString().slice(0, 19) !== civil ||
+        !suffix ||
+        Math.abs(at - wakeAtMs) <= competingWakeMarginMs + Number(suffix[1] ?? 0) * 1000
+      );
+    }
+    const repeat = /^(\w+) at (\d{1,2}):([0-5]\d)(AM|PM) (.+)$/.exec(line);
+    if (!repeat) return true;
+    const [, kind, hours, minutes, period, days] = repeat;
+    if (nonWakeTypes.test(kind ?? "")) return false;
+    if (!wakeTypes.test(kind ?? "") || Number(hours) > 12) return true;
+    const hour = (Number(hours) % 12) + (period === "PM" ? 12 : 0);
+    return [-1, 0, 1].some((shift) => {
+      const at = Date.UTC(
+        day.getUTCFullYear(),
+        day.getUTCMonth(),
+        day.getUTCDate() + shift,
+        hour,
+        Number(minutes),
+      );
+      if (Math.abs(at - localWake) > competingWakeMarginMs) return false;
+      const weekday = new Date(at).getUTCDay();
+      if (days === "weekdays only") return weekday >= 1 && weekday <= 5;
+      if (days === "weekends only") return weekday === 0 || weekday === 6;
+      return !weekdays.some((name) => name === days) || weekdays[weekday] === days;
+    });
   });
-  const sleeps = rows.filter((row) => row.type === "Sleep"),
-    wakes = rows.filter((row) => row.type === "Wake");
-  if (sleeps.length !== 1 || wakes.length !== 1 || wakes[0]!.at <= sleeps[0]!.at)
+}
+
+export function sleepEvents(log: string, afterMs: number, scheduled?: ScheduledWakeEvidence) {
+  const rows = log.split("\n").flatMap((line, index) => {
+    const m =
+      /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) ([+-]\d{4})\s+(Sleep|Wake|Assertions)\s+(.+)$/.exec(
+        line,
+      );
+    if (!m) return [];
+    const offset = `${m[3]?.slice(0, 3)}:${m[3]?.slice(3)}`;
+    const at = Date.parse(`${m[1]}T${m[2]}${offset}`);
+    return at >= afterMs - 1000 ? [{ type: m[4], at, detail: m[5] ?? "", index, offset }] : [];
+  });
+  const [sleep, ...otherSleeps] = rows.filter((row) => row.type === "Sleep");
+  const [wake, ...otherWakes] = rows.filter((row) => row.type === "Wake");
+  if (!sleep || !wake || otherSleeps.length || otherWakes.length || wake.at <= sleep.at)
     throw Error("proof-os-sleep-evidence-missing");
-  const reason = /due to (.{1,120}?)(?: Using |$)/.exec(wakes[0]!.line)?.[1];
-  if (!reason || !/(?:RTC|Alarm)/i.test(reason)) throw Error("proof-wake-reason-mismatch");
-  return { sleepAtMs: sleeps[0]!.at, wakeAtMs: wakes[0]!.at, wakeReason: reason };
+  const reason = /due to (.{1,120}?)(?: Using |$)/.exec(wake.detail)?.[1]?.trim();
+  if (!reason) throw Error("proof-wake-reason-mismatch");
+  const observed = { sleepAtMs: sleep.at, wakeAtMs: wake.at, wakeReason: reason };
+  if (/(?:RTC|Alarm)/i.test(reason)) return observed;
+  if (reason !== "HID Activity" || !scheduled) throw Error("proof-wake-reason-mismatch");
+  if (sleep.at >= scheduled.wakeAtMs || wake.at < scheduled.wakeAtMs)
+    throw Error("proof-wake-time-mismatch");
+  // powerd's scheduled-wake callout declares user activity to bring the display up.
+  const [assertion, ...otherAssertions] = rows.filter(
+    (row) =>
+      row.type === "Assertions" &&
+      /^PID \d+\(powerd\) Created UserIsActive "com\.apple\.powermanagement\.wakeschedule"(?:\s|$)/.test(
+        row.detail,
+      ) &&
+      row.at >= scheduled.wakeAtMs &&
+      row.at <= scheduled.wakeAtMs + 5_000,
+  );
+  if (otherAssertions.length) throw Error("proof-scheduled-wake-assertion-ambiguous");
+  if (
+    !assertion ||
+    assertion.index >= wake.index ||
+    wake.at < assertion.at ||
+    wake.at - assertion.at > 2000
+  )
+    throw Error("proof-scheduled-wake-assertion-missing");
+  if (competingWake(scheduled.foreignSchedule, scheduled.wakeAtMs, wake.offset))
+    throw Error("proof-wake-ownership-ambiguous");
+  return { ...observed, schedulerAssertionAtMs: assertion.at };
 }
 export async function runProofSleep(plan: PowerPlan, input: unknown): Promise<unknown> {
   const row = object(input);
@@ -388,7 +479,23 @@ export async function runProofSleep(plan: PowerPlan, input: unknown): Promise<un
   pmset(["sleepnow"]);
   while (Date.now() < plan.wakeAtMs + 2000) await delay(1000);
   if (Date.now() >= plan.proof.endsAtMs) throw Error("proof-sleep-deadline");
-  const observed = sleepEvents(pmset(["-g", "log"], 16 * 1024 * 1024), started);
+  const log = pmset(["-g", "log"], 16 * 1024 * 1024);
+  let observed;
+  try {
+    observed = sleepEvents(log, started, {
+      wakeAtMs: plan.wakeAtMs,
+      foreignSchedule: scheduleWithoutOwn(plan, baseline.schedule),
+    });
+  } catch (error) {
+    if (error instanceof Error && /^proof-[a-z-]+$/.test(error.message)) {
+      writeFileSync(
+        join(plan.directory, "wake-evidence-held.json"),
+        `${canonicalJson({ code: error.message })}\n`,
+        { flag: "wx", mode: 0o600 },
+      );
+    }
+    throw error;
+  }
   if (Math.abs(observed.wakeAtMs - plan.wakeAtMs) > 15_000) throw Error("proof-wake-time-mismatch");
   const authorization = wakeAuthorization(plan);
   if (existsSync(authorization.flag)) unlinkSync(authorization.flag);
