@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -204,6 +204,28 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.clearAllMocks();
   rmSync(dir, { recursive: true, force: true });
+});
+
+it("preserves the approved wake through the first idle stop and revokes it on later shutdown", async () => {
+  now = start - 60_000;
+  const wakeFlag = join(dir, "wake-active");
+  writeFileSync(wakeFlag, "approved wake");
+  const workerConfig = {
+    ...config,
+    role: "primary" as const,
+    settings: { ...config.settings, worker: config.proof.primary },
+  };
+  const runUntilIdleStop = async () => {
+    const stop = new AbortController();
+    hooks.wait.mockImplementationOnce(async () => stop.abort());
+    await runProofWorker(workerConfig, journal, stop.signal);
+  };
+  await runUntilIdleStop();
+  expect(journal.get("idle-stopped")).toBe(true);
+  expect(existsSync(wakeFlag)).toBe(true);
+  await runUntilIdleStop();
+  expect(existsSync(wakeFlag)).toBe(false);
+  expect(journal.get("claimed")).toBeUndefined();
 });
 
 it("admits exactly two jobs, holds the sentinel, recovers after accepted-output restart and cleans up once", async () => {

@@ -4,11 +4,13 @@ import { parseProofRelay, postProofRelay, readProofRelay } from "./ledger-proof-
 import {
   cancelProofWake,
   parsePowerPlan,
+  parseWakeRequest,
   prepareProofWake,
   proofHostProbe,
   runProofSleep,
 } from "./ledger-proof-power.js";
 import {
+  exact,
   readPrivateJson,
   object,
   parseLedgerProof,
@@ -76,9 +78,17 @@ async function main(args: string[]): Promise<void> {
     const raw = readPrivateJson(values[2]!);
     if (proofHash(canonicalJson(raw)) !== values[4])
       throw Error("proof-helper-settings-digest-mismatch");
+    const action = values[0];
+    if (command === "ledger-proof-power" && (action === "authorize" || action === "revoke")) {
+      const wake = parseWakeRequest(exact(raw, ["wake"]).wake);
+      const result = await (action === "authorize"
+        ? prepareProofWake(wake)
+        : cancelProofWake(wake));
+      console.log(JSON.stringify(result));
+      return;
+    }
     const config = object(raw),
-      proof = parseLedgerProof(config.proof),
-      action = values[0];
+      proof = parseLedgerProof(config.proof);
     let result: unknown;
     if (command === "ledger-proof-relay") {
       const relay = parseProofRelay(config.relay, proof);
