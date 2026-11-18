@@ -341,3 +341,13 @@ draft with its red-team addenda as promotion criteria. S12 tests the measured ac
 (forced-eval commitment block) in shadow. S13 decides the two coverage gaps on evidence. S14
 measures whether the MANDATORY convention actually works and trials chaining + the router-skill
 option. S15 is deliberately last and deliberately likely to be dropped.
+
+## Home Repo adoption review
+
+[Issue #625](https://github.com/ojfbot/core/issues/625) tracks the review of D16/D38
+(repo-local skill setup and domain lookup), followed by ADR-0083/D43 (skill registration
+and distribution). Review D2 and D15/D27 alongside the existing S14 discovery work and
+S18 dispatch-brief evidence. The first checkpoint is a proposed D16/D38 amendment
+showing target-repo resolution in a sibling checkout. Use the adoption record to
+capture decisions before allocating implementation slices. Existing queue admission,
+work provenance, and merge requirements apply.
