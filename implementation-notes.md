@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-17 (CG307-U1 wake handoff): the reserved run slot could expire while the owner was approving the wake, and an empty macOS schedule gained a display header on first use. Authorize and verify the exact wake before binding a run, and compare schedule entries instead of display headers.
+
 - 2026-11-16 (focused isolation pilot): the new invocation invalidates both prior nonempty built-in qualifications, while this pilot permits only Yuri's requalification. Retired the old active entries and preserved their exact trace files under historical evidence; only a new accepted current-policy entry may authorize duty.
 - 2026-11-16 (focused isolation fixtures): sandboxed process-table checks cannot confirm synthetic child cleanup, producing stop-unconfirmed. Run the unchanged local Node fixtures with process visibility; no Claude binary or provider is involved.
 

@@ -54,6 +54,14 @@ export function errorCode(error: unknown): string {
       "invalid-command-executable",
       "invalid-proof-request",
       "invalid-worker-plist",
+      "proof-wake-approval-window-too-short",
+      "proof-wake-approval-window-missed",
+      "proof-wake-authorization-timeout",
+      "proof-wake-authorization-failed",
+      "proof-wake-schedule-refused",
+      "proof-wake-cleanup-unverified",
+      "proof-wake-preparation-too-late",
+      "proof-wake-readback-mismatch",
     ].includes(error.message)
   )
     return error.message;

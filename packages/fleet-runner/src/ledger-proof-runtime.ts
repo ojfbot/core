@@ -334,6 +334,7 @@ export async function runProofWorker(
     config.settings.generation,
   );
   const command = config.settings.kinds["bookcase-ledger-replay"]!;
+  let preserveWakeForIdleRestart = false;
   let renewedAfterCompute = false,
     computed = false;
   let current: Claim | undefined;
@@ -412,6 +413,10 @@ export async function runProofWorker(
       await delay(1000, undefined, { signal: combined }).catch(() => {});
     }
     if (combined.aborted && !journal.get("claimed")) {
+      preserveWakeForIdleRestart =
+        role === "primary" &&
+        journal.get("worker-starts") === 1 &&
+        Date.now() < config.proof.startsAtMs;
       journal.put("idle-stopped", true);
       return;
     }
@@ -542,7 +547,8 @@ export async function runProofWorker(
     clearInterval(timer);
     stop.abort();
     const wakeFlag = join(config.evidenceDir, "wake-active");
-    if (role === "primary" && existsSync(wakeFlag)) unlinkSync(wakeFlag);
+    if (role === "primary" && !preserveWakeForIdleRestart && existsSync(wakeFlag))
+      unlinkSync(wakeFlag);
     unlinkSync(config.cpuSlot);
   }
 }
