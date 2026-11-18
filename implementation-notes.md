@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- The live scripted sleep allowed macOS to keep the primary renewing its lease, while the idle fallback could terminate on a readiness check before it was eligible for work. The script now stops its own renewals before sleep and evaluates fallback readiness when a claim can actually happen, retaining the blocking condition.
+
 - The wake-first rehearsal still left too little time for two machines to freeze and match the run after approval. Reserve a single wake earlier, then bind the same seven-minute sleep target after verified readback. Check the full wake receipt and remove the wake on a failed launcher or pre-admission cancellation.
 
 - 2026-11-17 (CG307-U1 wake handoff): the reserved run slot could expire while the owner was approving the wake, and an empty macOS schedule gained a display header on first use. Authorize and verify the exact wake before binding a run, and compare schedule entries instead of display headers.
