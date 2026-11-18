@@ -4,8 +4,14 @@ import { PassThrough } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { JobStore, type Claim } from "../jobs.js";
-import { LEDGER_RESULT, parseLedgerProof, proofHash, readProofSnapshot } from "../ledger-proof.js";
+import { JobStore, jobKey, type Claim } from "../jobs.js";
+import {
+  LEDGER_RESULT,
+  ledgerSpec,
+  parseLedgerProof,
+  proofHash,
+  readProofSnapshot,
+} from "../ledger-proof.js";
 import { ProofJournal } from "../ledger-proof-state.js";
 import { launchLedgerProof } from "../ledger-proof-launcher.js";
 import {
@@ -313,6 +319,14 @@ it("keeps an actual worker idle through empty, partial and paused admission befo
   now = start + 300_001;
   store.controlWorker(proof.fallback, "pause");
   let polls = 0;
+  const probePolls: number[] = [];
+  const checkedCommand = hooks.command.getMockImplementation()!;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    const result = await checkedCommand(cmd, input);
+    if (!cmd.program.endsWith("probe")) return result;
+    probePolls.push(polls);
+    return { ...result, screenLocked: polls >= 4 };
+  });
   hooks.wait.mockImplementation(async (ms) => {
     now += ms;
     polls++;
@@ -330,6 +344,10 @@ it("keeps an actual worker idle through empty, partial and paused admission befo
       now = actualNow;
     }
     if (polls === 3) store.controlWorker(proof.fallback, "resume");
+    if (polls === 4) {
+      expect(claim).not.toHaveBeenCalled();
+      expect(journal.get("readiness-held")).toBe("proof-screen-unlocked");
+    }
   });
   function ledgerSpecForWorker() {
     return {
@@ -360,7 +378,7 @@ it("keeps an actual worker idle through empty, partial and paused admission befo
     release: async (job: Claim) => store.release(job.key, job.fence, proof.fallback),
   });
   const app = vi.fn(async (job, context) => {
-    expect(polls).toBe(3);
+    expect(polls).toBe(4);
     expect(job.fence).toBe(2);
     const file = `${job.key}.${job.fence}.jsonl`;
     writeFileSync(join(context.outDir, file), LEDGER_RESULT);
@@ -370,8 +388,200 @@ it("keeps an actual worker idle through empty, partial and paused admission befo
   await runProofWorker(workerConfig, journal, new AbortController().signal);
   expect(app).toHaveBeenCalledTimes(1);
   expect(claim).toHaveBeenCalledTimes(1);
+  expect(probePolls).toEqual([3, 4]);
   expect((journal.get("terminal") as { outcome: string }).outcome).toBe("COMPLETE");
 });
+
+it.each([
+  ["unlocked", "proof-not-active", "proof-screen-unlocked"],
+  ["stale", "proof-invalid-readiness-receipt", undefined],
+  ["protected", "proof-protected-work-active", undefined],
+])("never claims an eligible fallback with %s readiness", async (state, outcome, reason) => {
+  const proof = { ...config.proof, endsAtMs: start + 310_001 };
+  const fallback = {
+    ...config,
+    proof,
+    role: "fallback" as const,
+    settings: { ...config.settings, worker: proof.fallback },
+  };
+  store.enqueue(ledgerSpec(proof));
+  store.enqueue(ledgerSpec(proof, true));
+  store.claim(proof.primary, [proof.capability], ["bookcase-ledger-replay"]);
+  now = start + 300_001;
+  const claim = vi.fn();
+  hooks.client.mockReturnValue({
+    claim,
+    workerControl: async () => store.workerControl(proof.fallback),
+  });
+  const checkedCommand = hooks.command.getMockImplementation()!;
+  hooks.command.mockImplementation(async (cmd, input) => {
+    const result = await checkedCommand(cmd, input);
+    if (!cmd.program.endsWith("probe")) return result;
+    if (state === "stale") return { ...result, observedAtMs: now - 10_001 };
+    if (state === "protected") return { ...result, protectedIdle: false };
+    return { ...result, screenLocked: false };
+  });
+  await expect(runProofWorker(fallback, journal, new AbortController().signal)).rejects.toThrow(
+    outcome,
+  );
+  expect(claim).not.toHaveBeenCalled();
+  expect(journal.get("readiness-held")).toBe(reason);
+  expect(journal.get("terminal")).toMatchObject({ outcome: "HELD", reason: outcome });
+});
+
+it.each(["wake verified", "helper failure"])(
+  "preserves server expiry without sleeping: %s",
+  async (scenario) => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+    const proof = config.proof;
+    const primary = {
+      ...config,
+      role: "primary" as const,
+      settings: { ...config.settings, worker: proof.primary },
+    };
+    const key = jobKey(ledgerSpec(proof));
+    store.enqueue(ledgerSpec(proof));
+    store.enqueue(ledgerSpec(proof, true));
+    const stop = new AbortController();
+    const checkedCommand = hooks.command.getMockImplementation()!;
+    let executeSleep: (() => void) | undefined;
+    let resumeProbe: (() => void) | undefined;
+    let finishRenewal: (() => void) | undefined;
+    let probes = 0;
+    let simulatedSleepAt = 0;
+    hooks.command.mockImplementation(async (cmd, input) => {
+      if (cmd.program.endsWith("probe") && ++probes === 2 && scenario === "helper failure") {
+        const receipt = await checkedCommand(cmd, input);
+        return new Promise((resolve) => {
+          resumeProbe = () => resolve({ ...receipt, observedAtMs: now });
+        });
+      }
+      if (!cmd.program.endsWith("fault")) return checkedCommand(cmd, input);
+      simulatedSleepAt = now;
+      return new Promise((resolve, reject) => {
+        executeSleep = () => {
+          if (scenario === "helper failure") {
+            reject(Error("proof-command-failed"));
+            return;
+          }
+          resolve({
+            osSleepObserved: true,
+            osWakeObserved: true,
+            scheduledWakeMatched: true,
+            wakeEntryRemoved: true,
+            powerPolicyUnchanged: true,
+            protectedServicesUnchanged: true,
+            sleepAtMs: simulatedSleepAt,
+            wakeAtMs: now,
+          });
+        };
+      });
+    });
+    hooks.wait.mockImplementation(
+      (ms: number) => new Promise((resolve) => setTimeout(resolve, ms)),
+    );
+    let renewals = 0;
+    const heartbeat = vi.fn(async (job: Claim) => {
+      const renew = () => store.heartbeat(job.key, job.fence, proof.primary);
+      if (++renewals === 2 && scenario === "helper failure")
+        return new Promise<boolean>((resolve) => {
+          finishRenewal = () => resolve(renew());
+        });
+      return renew();
+    });
+    const complete = vi.fn(async (job: Claim, _bytes: Buffer, sha256: string) =>
+      store.complete(job.key, job.fence, proof.primary, {
+        file: `${job.key}.${job.fence}.jsonl`,
+        sha256,
+      }),
+    );
+    const fail = vi.fn(async (job: Claim, code: string, retryable: boolean) =>
+      store.fail(job.key, job.fence, proof.primary, code, retryable),
+    );
+    const release = vi.fn(async (job: Claim) => store.release(job.key, job.fence, proof.primary));
+    hooks.client.mockReturnValue({
+      claim: async () => store.claim(proof.primary, [proof.capability], ["bookcase-ledger-replay"]),
+      workerControl: async () => store.workerControl(proof.primary),
+      heartbeat,
+      complete,
+      fail,
+      release,
+    });
+    hooks.handler.mockReturnValue(async (job: Claim) => {
+      const file = `${job.key}.${job.fence}.jsonl`;
+      writeFileSync(join(primary.settings.outDir, file), LEDGER_RESULT);
+      return { file, sha256: proofHash(LEDGER_RESULT) };
+    });
+    const tick = async (ms: number) => {
+      now += ms;
+      await vi.advanceTimersByTimeAsync(ms);
+    };
+    const run = runProofWorker(primary, journal, stop.signal);
+    const settled = run.catch(() => {});
+    try {
+      await tick(0);
+      await tick(5000);
+      await tick(40);
+      if (scenario === "helper failure") {
+        expect(resumeProbe).toBeTypeOf("function");
+        await tick(5000);
+        expect(finishRenewal).toBeTypeOf("function");
+        resumeProbe?.();
+        await tick(0);
+        expect(executeSleep).toBeUndefined();
+        finishRenewal?.();
+        await tick(0);
+      }
+      expect(executeSleep).toBeTypeOf("function");
+      const expectedRenewals = scenario === "helper failure" ? 2 : 1;
+      expect(heartbeat).toHaveBeenCalledTimes(expectedRenewals);
+      const expires = readProofSnapshot(join(dir, "jobs.sqlite"), join(dir, "out")).rows.find(
+        (row) => row.key === key,
+      )!.leaseExpires!;
+      if (scenario === "helper failure") {
+        executeSleep?.();
+        await expect(run).rejects.toThrow("proof-command-failed");
+        const row = readProofSnapshot(join(dir, "jobs.sqlite"), join(dir, "out")).rows.find(
+          (row) => row.key === key,
+        );
+        expect(row).toMatchObject({ status: "claimed", fence: 1, leaseExpires: expires });
+        expect(fail).not.toHaveBeenCalled();
+        expect(release).not.toHaveBeenCalled();
+        expect(complete).not.toHaveBeenCalled();
+        return;
+      }
+      await tick(10_000);
+      expect(heartbeat).toHaveBeenCalledTimes(expectedRenewals);
+      expect(
+        store.claim(proof.fallback, [proof.capability], ["bookcase-ledger-replay"]),
+      ).toBeFalsy();
+      await tick(expires - now);
+      const fallback = store.claim(proof.fallback, [proof.capability], ["bookcase-ledger-replay"]);
+      expect(fallback?.fence).toBe(2);
+      const file = `${key}.2.jsonl`;
+      writeFileSync(join(dir, "out", file), LEDGER_RESULT);
+      expect(
+        store.complete(key, 2, proof.fallback, { file, sha256: proofHash(LEDGER_RESULT) }),
+      ).toBe(true);
+      await tick(start + 420_000 - now);
+      executeSleep?.();
+      await run;
+      expect(complete).toHaveBeenCalledTimes(1);
+      expect(complete.mock.calls[0]?.[0].fence).toBe(1);
+      expect(fail).not.toHaveBeenCalled();
+      expect(release).not.toHaveBeenCalled();
+      expect(store.events(0).filter((event) => event.type === "rejected-stale")).toHaveLength(1);
+    } finally {
+      stop.abort();
+      resumeProbe?.();
+      finishRenewal?.();
+      executeSleep?.();
+      await tick(1000);
+      await settled;
+      vi.useRealTimers();
+    }
+  },
+);
 
 it("cannot replace a concurrent deadline hold with a verified terminal result", async () => {
   await runProofSupervisor(config, journal, new AbortController().signal);

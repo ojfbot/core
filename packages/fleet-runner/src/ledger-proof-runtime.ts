@@ -173,6 +173,8 @@ function active(proof: LedgerProof, journal: ProofJournal, now = Date.now()): vo
   )
     throw Error("proof-not-active");
 }
+class ProofReadinessHold extends Error {}
+
 async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> {
   if (existsSync(config.pauseFile) || existsSync(config.reservationFile))
     throw Error("proof-local-paused");
@@ -196,16 +198,21 @@ async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> 
   if (
     row.proofId !== config.proof.proofId ||
     Math.abs(Date.now() - integer(row.observedAtMs)) > 10_000 ||
-    row.loggedIn !== true ||
-    row.appsClosed !== true ||
-    row.screenLocked !== true ||
-    row.protectedIdle !== true ||
-    (config.role === "primary" &&
-      (row.ac !== true ||
-        row.wakeReady !== true ||
-        !nightEligible(Date.now(), config.proof.timeZone)))
+    [row.loggedIn, row.appsClosed, row.screenLocked, row.protectedIdle, row.ac, row.wakeReady].some(
+      (value) => typeof value !== "boolean",
+    )
   )
-    throw Error("proof-readiness-held");
+    throw Error("proof-invalid-readiness-receipt");
+  if (!row.protectedIdle) throw Error("proof-protected-work-active");
+  if (!row.loggedIn) throw new ProofReadinessHold("proof-session-logged-out");
+  if (!row.appsClosed) throw new ProofReadinessHold("proof-coding-apps-open");
+  if (!row.screenLocked) throw new ProofReadinessHold("proof-screen-unlocked");
+  if (config.role === "primary") {
+    if (!row.ac) throw new ProofReadinessHold("proof-ac-power-unavailable");
+    if (!row.wakeReady) throw new ProofReadinessHold("proof-wake-unverified");
+    if (!nightEligible(Date.now(), config.proof.timeZone))
+      throw new ProofReadinessHold("proof-outside-night-window");
+  }
 }
 export function parseProofSnapshot(value: unknown): ProofSnapshot {
   const row = exact(value, ["schema", "serverNowMs", "rows", "events", "accepted"]);
@@ -335,6 +342,9 @@ export async function runProofWorker(
   );
   const command = config.settings.kinds["bookcase-ledger-replay"]!;
   let preserveWakeForIdleRestart = false;
+  let renewalsStopped = false;
+  let inFlightRenewal: Promise<boolean> | undefined;
+  let sleepFailure: string | undefined;
   let renewedAfterCompute = false,
     computed = false;
   let current: Claim | undefined;
@@ -342,16 +352,9 @@ export async function runProofWorker(
     ...client,
     claim: async () => {
       active(config.proof, journal);
-      verifyProofCommand({
-        program: command.command[0],
-        args: command.command.slice(1),
-        sha256: config.artifacts[command.command[0]]!,
-        files: config.artifacts,
-      });
-      budget(config);
-      await probe(config, combined);
+      if ((await client.workerControl(combined)).paused) return null;
       const seen = await snapshot(config, journal, false);
-      if ((await client.workerControl(combined)).paused || seen.rows.length < 2) return null;
+      if (seen.rows.length < 2) return null;
       verifyAdmission(config.proof, seen);
       const row = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof)))!;
       if (role === "primary" && (row.status !== "ready" || row.attempts !== 0))
@@ -365,6 +368,20 @@ export async function runProofWorker(
           seen.serverNowMs < row.leaseExpires)
       )
         return null;
+      verifyProofCommand({
+        program: command.command[0],
+        args: command.command.slice(1),
+        sha256: config.artifacts[command.command[0]]!,
+        files: config.artifacts,
+      });
+      budget(config);
+      try {
+        await probe(config, combined);
+      } catch (error) {
+        if (role !== "fallback" || !(error instanceof ProofReadinessHold)) throw error;
+        journal.put("readiness-held", error.message);
+        return null;
+      }
       active(config.proof, journal);
       if (existsSync(config.pauseFile) || existsSync(config.reservationFile))
         throw Error("proof-local-paused");
@@ -378,15 +395,25 @@ export async function runProofWorker(
       return claim;
     },
     heartbeat: async (claim) => {
+      if (renewalsStopped) return false;
       active(config.proof, journal);
       const started = Date.now(),
-        accepted = await client.heartbeat(claim);
-      if (accepted) {
-        journal.put("last-renewal", { started, ended: Date.now() });
-        if (computed) renewedAfterCompute = true;
+        pending = client.heartbeat(claim);
+      inFlightRenewal = pending;
+      try {
+        const accepted = await pending;
+        if (accepted) {
+          journal.put("last-renewal", { started, ended: Date.now() });
+          if (computed) renewedAfterCompute = true;
+        }
+        return accepted;
+      } finally {
+        inFlightRenewal = undefined;
       }
-      return accepted;
     },
+    // Only this scripted fault gives up local lease authority while leaving the server lease to expire.
+    fail: (...args) => (renewalsStopped ? Promise.resolve(false) : client.fail(...args)),
+    release: (...args) => (renewalsStopped ? Promise.resolve(false) : client.release(...args)),
   };
   try {
     journal.put("worker-starts", Number(journal.get("worker-starts") ?? 0) + 1);
@@ -445,6 +472,10 @@ export async function runProofWorker(
               if (context.signal.aborted) throw new JobError("proof-lease-lost", false);
               active(config.proof, journal);
               await probe(config, context.signal);
+              renewalsStopped = true;
+              if ((inFlightRenewal && !(await inFlightRenewal)) || context.signal.aborted)
+                throw new JobError("proof-lease-lost", false);
+              active(config.proof, journal);
               const input = {
                 proofId: config.proof.proofId,
                 claim,
@@ -453,13 +484,18 @@ export async function runProofWorker(
               };
               if (journal.reserve("sleep", input) !== "new")
                 throw new JobError("proof-sleep-already-started", false);
-              const fault = await runProofCommand(
-                config.commands.fault,
-                input,
-                combined,
-                9 * 60_000,
-              );
-              journal.finish("sleep", fault);
+              try {
+                const fault = await runProofCommand(
+                  config.commands.fault,
+                  input,
+                  combined,
+                  9 * 60_000,
+                );
+                journal.finish("sleep", fault);
+              } catch (error) {
+                sleepFailure = failureCode(error);
+                throw error;
+              }
               // The real sleep must lose the lease. Never race canonical fallback completion on wake.
               while (!context.signal.aborted)
                 await delay(20, undefined, { signal: context.signal });
@@ -470,6 +506,7 @@ export async function runProofWorker(
         },
       });
       journal.observe("worker-result", { result });
+      if (sleepFailure) throw Error(sleepFailure);
       if (result === "idle") {
         await delay(5000, undefined, { signal: combined });
         continue;
