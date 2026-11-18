@@ -12,6 +12,7 @@ import {
   nightEligible,
   parseLedgerProof,
   proofHash,
+  proofTimeEligible,
   readProofSnapshot,
   verifyAccepted,
   verifyAdmission,
@@ -39,6 +40,36 @@ const proof = parseLedgerProof({
   primary: "cg307-primary-12345678",
   fallback: "cg307-fallback-12345678",
   capability: "cg307-ledger-12345678",
+});
+
+it("permits daytime only within the explicitly bound attended proof interval", () => {
+  const notBeforeMs = Date.UTC(2026, 10, 18, 16);
+  const expiresAtMs = notBeforeMs + 90 * 60_000;
+  const base = {
+    ...proof,
+    approvalExpiresAtMs: expiresAtMs,
+    startsAtMs: notBeforeMs + 15 * 60_000,
+    endsAtMs: notBeforeMs + 45 * 60_000,
+  };
+  const attendedWindow = { notBeforeMs, expiresAtMs };
+  const attended = parseLedgerProof({ ...base, attendedWindow });
+  expect(proofTimeEligible(base.startsAtMs, parseLedgerProof(base))).toBe(false);
+  expect(proofTimeEligible(starts, proof)).toBe(true);
+  expect(proofTimeEligible(notBeforeMs - 1, attended)).toBe(false);
+  expect(proofTimeEligible(notBeforeMs, attended)).toBe(true);
+  expect(proofTimeEligible(base.startsAtMs, attended)).toBe(true);
+  expect(proofTimeEligible(expiresAtMs - 1, attended)).toBe(true);
+  expect(proofTimeEligible(expiresAtMs, attended)).toBe(false);
+  expect(proofTimeEligible(starts, attended)).toBe(false);
+  for (const invalid of [
+    { ...attended, timeZone: "UTC" },
+    { ...attended, attendedWindow: { ...attendedWindow, expiresAtMs: expiresAtMs + 1 } },
+    { ...attended, attendedWindow: { ...attendedWindow, notBeforeMs: notBeforeMs - 1 } },
+    { ...attended, startsAtMs: notBeforeMs + 179_999, endsAtMs: notBeforeMs + 20 * 60_000 },
+    { ...attended, endsAtMs: base.endsAtMs + 1 },
+    { ...attended, endsAtMs: expiresAtMs },
+  ])
+    expect(() => parseLedgerProof(invalid)).toThrow("invalid-ledger-proof");
 });
 
 it("binds the full scheduling spec and refuses an unapproved claim before execution", () => {

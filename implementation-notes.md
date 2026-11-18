@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- The approved Bookcase proof assumed an overnight run. The operator asked for the earliest attended slot, so a proof with an explicitly bound interval can run in Chicago daytime within the same 90-minute total and 30-minute test caps. Proofs without that interval still use the overnight gate.
+
 - macOS recorded Yuri’s scheduled-wake assertion immediately before a full wake labeled HID Activity. Verify that path with the exact scheduler assertion and an unambiguous owned wake alongside the existing RTC or Alarm evidence.
 
 - The live scripted sleep allowed macOS to keep the primary renewing its lease, while the idle fallback could terminate on a readiness check before it was eligible for work. The script now stops its own renewals before sleep and evaluates fallback readiness when a claim can actually happen, retaining the blocking condition.
