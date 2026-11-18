@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { canonicalJson } from "../jobs.js";
 import { parseLedgerProof, proofHash } from "../ledger-proof.js";
 import {
@@ -11,12 +11,75 @@ import {
   MAX_WAKE_LEAD_SECONDS,
   MIN_WAKE_LEAD_SECONDS,
   WAKE_RESERVATION_SECONDS,
+  cancelProofWake,
   hasWakeHelper,
   parseWakeRequest,
   scheduleWithoutOwn,
+  verifiedProofWake,
   wakeAuthorization,
   wakePreparationMatches,
 } from "../ledger-proof-power.js";
+
+const system = vi.hoisted(() => ({ exec: vi.fn(), ps: vi.fn() }));
+vi.mock("node:child_process", async (original) => ({
+  ...(await original<typeof import("node:child_process")>()),
+  execFileSync: system.exec,
+  spawnSync: system.ps,
+}));
+
+it("verifies and safely cancels a wake recorded against an empty macOS schedule", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "wake-empty-baseline-"));
+  const localWake = new Date(2026, 10, 18, 1, 25).getTime();
+  try {
+    const plan = parseWakeRequest({
+      proofId: "12345678-1234-4234-8234-123456789abc",
+      approvalExpiresAtMs: localWake + 60 * 60_000,
+      wakeAtMs: localWake,
+      directory,
+      protectedProbe: { program: process.execPath, args: [], sha256: "a".repeat(64), files: {} },
+    });
+    const auth = wakeAuthorization(plan);
+    const { proofId, approvalExpiresAtMs, wakeAtMs } = plan;
+    const identity = { proofId, approvalExpiresAtMs, wakeAtMs };
+    const owner = `cg307-u1-${proofId}`;
+    const baseline = { ...identity, owner, schedule: "", policy: "unchanged" };
+    const record = (file: string, body: unknown) =>
+      writeFileSync(join(directory, file), canonicalJson(body), { mode: 0o600 });
+    record("power-baseline.json", baseline);
+    record("wake-prepared.json", {
+      ...identity,
+      baselineSha256: proofHash(canonicalJson(baseline)),
+      authorizationSha256: proofHash(auth.command),
+      cleanupAtMs: auth.cleanupAtMs,
+      cleanupPid: 27,
+    });
+    writeFileSync(auth.flag, `${proofId}\n`, { mode: 0o600 });
+    const own = `Scheduled power events:\n [0]  wake at 11/18/2026 01:25:00 by '${owner}'\n`;
+    const foreign = " [1]  wake at 11/18/2026 02:00:00 by 'another-owner'\n";
+    let current = own;
+    system.exec.mockImplementation((program, args) => {
+      expect(program).toBe("/usr/bin/pmset");
+      if (args.join(" ") === "-g sched") return current;
+      expect(args).toEqual(["-g", "custom"]);
+      return baseline.policy;
+    });
+    system.ps.mockReturnValue({ status: 0, stdout: ` 0 /bin/sh -c ${auth.cleanup}\n` });
+    expect(verifiedProofWake(plan)).toBe(true);
+    current = own + foreign;
+    expect(verifiedProofWake(plan)).toBe(false);
+    current = "Scheduled power events:\n" + foreign;
+    system.ps.mockReturnValue({ status: 0, stdout: " 0 /usr/libexec/unrelated\n" });
+    await expect(cancelProofWake(plan)).rejects.toThrow("proof-schedule-baseline-changed");
+    expect(existsSync(auth.flag)).toBe(false);
+    current = "";
+    await expect(cancelProofWake(plan)).resolves.toMatchObject({ wakeEntryRemoved: true });
+    expect(() => scheduleWithoutOwn(plan, "\0")).toThrow("proof-schedule-baseline-changed");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+    system.exec.mockReset();
+    system.ps.mockReset();
+  }
+});
 
 it.each(["full-dialog-window", "revoked", "too-late", "too-early", "pmset-refused", "quoted-path"])(
   "executes the bounded wake command offline: %s",
