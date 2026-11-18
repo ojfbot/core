@@ -174,6 +174,9 @@ function active(proof: LedgerProof, journal: ProofJournal, now = Date.now()): vo
     throw Error("proof-not-active");
 }
 class ProofReadinessHold extends Error {}
+export const ATTENDED_PREARM_LEAD_MS = 10 * 60_000;
+const READY_REPORT_LEAD_MS = 30_000;
+const READY_GRACE_MS = 15_000;
 
 async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> {
   if (existsSync(config.pauseFile) || existsSync(config.reservationFile))
@@ -319,6 +322,23 @@ async function post(
   journal.finish(name, receipt);
 }
 
+async function publishReadiness(
+  config: ProofRuntime,
+  journal: ProofJournal,
+  signal: AbortSignal,
+): Promise<void> {
+  await probe(config, signal);
+  const slot = Math.floor(Date.now() / 5000);
+  await post(config, journal, `ready-${String(journal.get("worker-starts"))}-${slot}`, {
+    state: "READY",
+    role: config.role,
+    observedAtMs: slot * 5000,
+    idleRestartVerified: journal.get("idle-stopped") === true,
+    code: config.proof.code,
+    fixtureSha256: config.proof.fixtureSha256,
+  });
+}
+
 /** Each machine runs this locally. A pending claim on restart holds rather than launching the app twice. */
 export async function runProofWorker(
   config: ProofRuntime,
@@ -328,7 +348,11 @@ export async function runProofWorker(
   if (config.role !== "primary" && config.role !== "fallback") throw Error("invalid-proof-role");
   const role = config.role;
   budget(config);
-  if (Date.now() < config.proof.startsAtMs - 180_000) throw Error("proof-prearm-too-early");
+  const window = config.proof.attendedWindow;
+  const prearmAt = window
+    ? Math.max(window.notBeforeMs, config.proof.startsAtMs - ATTENDED_PREARM_LEAD_MS)
+    : config.proof.startsAtMs - 180_000;
+  if (Date.now() < prearmAt) throw Error("proof-prearm-too-early");
   if (journal.get("claimed")) throw Error("proof-attempt-already-started");
   const slot = openSync(config.cpuSlot, "wx", 0o600);
   writeFileSync(slot, `${process.pid}\n`);
@@ -358,6 +382,14 @@ export async function runProofWorker(
       active(config.proof, journal);
       if ((await client.workerControl(combined)).paused) return null;
       const seen = await snapshot(config, journal, false);
+      if (seen.rows.length === 0 && Date.now() < config.proof.startsAtMs + READY_GRACE_MS) {
+        try {
+          await publishReadiness(config, journal, combined);
+        } catch (error) {
+          if (!(error instanceof ProofReadinessHold)) throw error;
+          journal.put("readiness-held", error.message);
+        }
+      }
       if (seen.rows.length < 2) return null;
       verifyAdmission(config.proof, seen);
       const row = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof)))!;
@@ -382,7 +414,7 @@ export async function runProofWorker(
       try {
         await probe(config, combined);
       } catch (error) {
-        if (role !== "fallback" || !(error instanceof ProofReadinessHold)) throw error;
+        if (!(error instanceof ProofReadinessHold)) throw error;
         journal.put("readiness-held", error.message);
         return null;
       }
@@ -423,23 +455,12 @@ export async function runProofWorker(
     journal.put("worker-starts", Number(journal.get("worker-starts") ?? 0) + 1);
     while (Date.now() < config.proof.startsAtMs && !combined.aborted) {
       journal.advanceClock(Date.now());
-      try {
-        await probe(config, combined);
-        await post(
-          config,
-          journal,
-          `ready-${String(journal.get("worker-starts"))}-${Math.floor(Date.now() / 5000)}`,
-          {
-            state: "READY",
-            role,
-            observedAtMs: Math.floor(Date.now() / 5000) * 5000,
-            idleRestartVerified: journal.get("idle-stopped") === true,
-            code: config.proof.code,
-            fixtureSha256: config.proof.fixtureSha256,
-          },
-        );
-      } catch (error) {
-        journal.put("readiness-held", failureCode(error));
+      if (Date.now() >= config.proof.startsAtMs - READY_REPORT_LEAD_MS) {
+        try {
+          await publishReadiness(config, journal, combined);
+        } catch (error) {
+          journal.put("readiness-held", failureCode(error));
+        }
       }
       await delay(1000, undefined, { signal: combined }).catch(() => {});
     }
@@ -696,16 +717,26 @@ export async function runProofSupervisor(
       }
       active(config.proof, journal);
       if (!journal.result("admit-job")) {
-        await probe(config, signal);
-        const peers = await peerEvidence(config, "ready");
-        if (
-          peers.primaryReady !== true ||
-          peers.fallbackReady !== true ||
-          peers.primaryIdleRestartVerified !== true ||
-          Math.abs(Date.now() - integer(peers.observedAtMs)) > 15_000
-        )
-          throw Error("proof-peer-readiness-held");
+        const readyBy = config.proof.startsAtMs + READY_GRACE_MS;
+        if (Date.now() >= readyBy) throw Error("proof-readiness-deadline");
+        try {
+          await probe(config, signal);
+          const peers = await peerEvidence(config, "ready");
+          if (
+            peers.primaryReady !== true ||
+            peers.fallbackReady !== true ||
+            peers.primaryIdleRestartVerified !== true ||
+            Math.abs(Date.now() - integer(peers.observedAtMs)) > 15_000
+          )
+            throw new ProofReadinessHold("proof-peer-readiness-held");
+        } catch (error) {
+          if (!(error instanceof ProofReadinessHold)) throw error;
+          journal.put("readiness-held", error.message);
+          await delay(1000, undefined, { signal });
+          continue;
+        }
         const empty = await snapshot(config, journal, false);
+        if (Date.now() >= readyBy) throw Error("proof-readiness-deadline");
         const pending = journal.reserve("empty-queue", { proofId: config.proof.proofId });
         if (pending !== "done") {
           if (empty.schema !== 4 || empty.rows.length !== 0 || empty.events.length !== 0)
