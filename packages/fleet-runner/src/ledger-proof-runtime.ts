@@ -28,7 +28,7 @@ import {
   exact,
   integer,
   ledgerSpec,
-  nightEligible,
+  proofTimeEligible,
   object,
   parseLedgerProof,
   privatePath,
@@ -210,8 +210,12 @@ async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> 
   if (config.role === "primary") {
     if (!row.ac) throw new ProofReadinessHold("proof-ac-power-unavailable");
     if (!row.wakeReady) throw new ProofReadinessHold("proof-wake-unverified");
-    if (!nightEligible(Date.now(), config.proof.timeZone))
-      throw new ProofReadinessHold("proof-outside-night-window");
+    if (!proofTimeEligible(Date.now(), config.proof))
+      throw new ProofReadinessHold(
+        config.proof.attendedWindow
+          ? "proof-outside-attended-window"
+          : "proof-outside-night-window",
+      );
   }
 }
 export function parseProofSnapshot(value: unknown): ProofSnapshot {

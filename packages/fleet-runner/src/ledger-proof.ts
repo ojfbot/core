@@ -29,6 +29,7 @@ export interface LedgerProof {
   primary: string;
   fallback: string;
   capability: string;
+  attendedWindow?: { notBeforeMs: number; expiresAtMs: number };
 }
 function fail(): never {
   throw Error("invalid-ledger-proof");
@@ -78,6 +79,7 @@ export function readPrivateJson(file: string, limit = 64 * 1024): unknown {
   }
 }
 export function parseLedgerProof(value: unknown): LedgerProof {
+  const hasAttendedWindow = Object.hasOwn(object(value), "attendedWindow");
   const row = exact(value, [
     "schemaVersion",
     "proofId",
@@ -90,6 +92,7 @@ export function parseLedgerProof(value: unknown): LedgerProof {
     "primary",
     "fallback",
     "capability",
+    ...(hasAttendedWindow ? ["attendedWindow"] : []),
   ]);
   if (row.schemaVersion !== 1) fail();
   const proof: LedgerProof = {
@@ -119,6 +122,22 @@ export function parseLedgerProof(value: unknown): LedgerProof {
     proof.endsAtMs > proof.approvalExpiresAtMs
   )
     fail();
+  if (hasAttendedWindow) {
+    const window = exact(row.attendedWindow, ["notBeforeMs", "expiresAtMs"]);
+    const notBeforeMs = integer(window.notBeforeMs);
+    const expiresAtMs = integer(window.expiresAtMs);
+    if (
+      proof.timeZone !== "America/Chicago" ||
+      expiresAtMs !== proof.approvalExpiresAtMs ||
+      expiresAtMs <= notBeforeMs ||
+      expiresAtMs - notBeforeMs > 90 * 60_000 ||
+      proof.startsAtMs - 180_000 < notBeforeMs ||
+      proof.endsAtMs >= expiresAtMs ||
+      proof.endsAtMs - proof.startsAtMs > 30 * 60_000
+    )
+      fail();
+    proof.attendedWindow = { notBeforeMs, expiresAtMs };
+  }
   return proof;
 }
 export function ledgerSpec(proof: LedgerProof, sentinel = false): JobSpec {
@@ -165,6 +184,12 @@ export function nightEligible(now: number, timeZone: string): boolean {
     }).format(now),
   );
   return hour >= 20 || hour < 7;
+}
+export function proofTimeEligible(now: number, proof: LedgerProof): boolean {
+  const window = proof.attendedWindow;
+  return window
+    ? now >= window.notBeforeMs && now < window.expiresAtMs
+    : nightEligible(now, proof.timeZone);
 }
 export function directoryBytes(root: string, cap: number): number {
   let total = 0;
