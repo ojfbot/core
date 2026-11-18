@@ -1,10 +1,13 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { JobStore, type Claim } from "../jobs.js";
 import { LEDGER_RESULT, parseLedgerProof, proofHash, readProofSnapshot } from "../ledger-proof.js";
 import { ProofJournal } from "../ledger-proof-state.js";
+import { launchLedgerProof } from "../ledger-proof-launcher.js";
 import {
   runProofSupervisor,
   runProofWatchdog,
@@ -18,6 +21,11 @@ const hooks = vi.hoisted(() => ({
   wait: vi.fn(),
   verify: vi.fn(),
   handler: vi.fn(),
+  spawn: vi.fn(),
+}));
+vi.mock("node:child_process", async (original) => ({
+  ...(await original<typeof import("node:child_process")>()),
+  spawn: hooks.spawn,
 }));
 vi.mock("../ledger-proof-command.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../ledger-proof-command.js")>()),
@@ -38,6 +46,29 @@ let primaryClaimed: boolean, completed: boolean, stopped: boolean;
 let oldClaim: ReturnType<JobStore["claim"]>, fallbackClaim: ReturnType<JobStore["claim"]>;
 const posts: unknown[] = [];
 const start = Date.UTC(2026, 10, 17, 5);
+it("revokes the primary wake when the launcher is stopped after its first idle child", async () => {
+  config = { ...config, role: "primary" };
+  now = start - 60_000;
+  const flag = join(config.evidenceDir, "wake-active");
+  writeFileSync(flag, "active");
+  const stop = new AbortController();
+  hooks.spawn.mockImplementationOnce(() => {
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+    queueMicrotask(() => {
+      journal.put("idle-stopped", true);
+      stop.abort();
+      child.emit("close", 0);
+    });
+    return child;
+  });
+  await expect(
+    launchLedgerProof(config, journal, "/private/settings", "digest", stop.signal),
+  ).rejects.toThrow("proof-launcher-expired");
+  expect(existsSync(flag)).toBe(false);
+});
 function command(name: string) {
   return { program: `/operator/${name}`, args: [], sha256: "c".repeat(64), files: {} };
 }
