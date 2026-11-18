@@ -87,7 +87,9 @@ function ownWake(plan: WakeRequest, schedule: string): boolean {
   const lines = schedule.split("\n").filter((line) => line.includes(`by '${owner(plan)}'`));
   return lines.length === 1 && lines[0]!.includes(`wake at ${dateString(plan.wakeAtMs, true)}`);
 }
-export function scheduleWithoutOwn(plan: WakeRequest, schedule: string): string {
+export function scheduleWithoutOwn(plan: WakeRequest, schedule: unknown): string {
+  if (typeof schedule !== "string" || schedule.includes("\0"))
+    throw Error("proof-schedule-baseline-changed");
   return schedule
     .split("\n")
     .filter((line) => {
@@ -306,7 +308,7 @@ export function verifiedProofWake(plan: WakeRequest): boolean {
     wakePreparationMatches(plan, prepared, baseline) &&
     readFileSync(flag, "utf8") === `${plan.proofId}\n` &&
     ownWake(plan, schedule) &&
-    scheduleWithoutOwn(plan, schedule) === scheduleWithoutOwn(plan, string(baseline.schedule)) &&
+    scheduleWithoutOwn(plan, schedule) === scheduleWithoutOwn(plan, baseline.schedule) &&
     baseline.policy === pmset(["-g", "custom"]) &&
     cleanupProcess(plan, integer(prepared.cleanupPid))
   );
@@ -408,7 +410,7 @@ export async function runProofSleep(plan: PowerPlan, input: unknown): Promise<un
     powerPolicyUnchanged: baseline.policy === pmset(["-g", "custom"]),
     protectedServicesUnchanged: protectedWork.baselineUnchanged === true,
   };
-  if (scheduleWithoutOwn(plan, String(baseline.schedule)) !== scheduleWithoutOwn(plan, remaining))
+  if (scheduleWithoutOwn(plan, baseline.schedule) !== scheduleWithoutOwn(plan, remaining))
     throw Error("proof-schedule-baseline-changed");
   writeFileSync(join(plan.directory, "sleep-result.json"), `${canonicalJson(result)}\n`, {
     flag: "wx",
@@ -431,7 +433,7 @@ export async function cancelProofWake(plan: WakeRequest): Promise<unknown> {
   if (existsSync(baselineFile)) {
     const baseline = object(readPrivateJson(baselineFile));
     if (baseline.policy !== pmset(["-g", "custom"])) throw Error("proof-power-policy-drift");
-    if (scheduleWithoutOwn(plan, string(baseline.schedule)) !== scheduleWithoutOwn(plan, remaining))
+    if (scheduleWithoutOwn(plan, baseline.schedule) !== scheduleWithoutOwn(plan, remaining))
       throw Error("proof-schedule-baseline-changed");
   }
   return { proofId: plan.proofId, cancelled: true, wakeEntryRemoved: true };
