@@ -1,14 +1,18 @@
 {
   "name": "@core/fleet-runner",
-  "version": "0.2.5-bookcase.1",
+  "version": "0.2.5-bookcase.2",
   "private": true,
   "license": "AGPL-3.0-only",
   "type": "module",
   "files": [
     "dist",
+    "scripts/ledger-proof-local-operator.mjs",
+    "scripts/ledger-proof-local-bind.mjs",
+    "scripts/ledger-proof-local-guard.mjs",
     "LICENSE",
     "README.md",
     "deployment.md",
+    "local-proof-operator.md",
     "recovery.md"
   ],
   "engines": {
@@ -26,10 +30,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "bundle": "pnpm exec node scripts/bundle.mjs",
+    "proof:local:test": "pnpm exec node --test scripts/ledger-proof-local-*.node.mjs",
     "proof:packaging": "bash scripts/proof-packaging.sh"
   },
   "bin": {
-    "fleet-runner": "./dist/cli.js"
+    "fleet-runner": "./dist/cli.js",
+    "fleet-runner-proof-operator": "./scripts/ledger-proof-local-operator.mjs",
+    "fleet-runner-proof-bind": "./scripts/ledger-proof-local-bind.mjs",
+    "fleet-runner-proof-guard": "./scripts/ledger-proof-local-guard.mjs"
   },
   "devDependencies": {
     "esbuild": "0.21.5"
