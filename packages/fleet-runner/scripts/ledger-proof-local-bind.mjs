@@ -71,7 +71,7 @@ export function parseLocalBinding(value) {
   return structuredClone(value);
 }
 
-function privateBytes(file, io, confidential = false) {
+function privateBytes(file, io, confidential = false, maxBytes = 16 * 1024 * 1024) {
   const info = io.stat(file);
   if (
     !info.isFile() ||
@@ -80,8 +80,9 @@ function privateBytes(file, io, confidential = false) {
     info.mode & (confidential ? 0o077 : 0o022)
   )
     fail("file-unsafe");
+  if (typeof info.size === "number" && info.size > maxBytes) fail("file-too-large");
   const bytes = io.read(file);
-  if (bytes.length > 16 * 1024 * 1024) fail("file-too-large");
+  if (bytes.length > maxBytes) fail("file-too-large");
   return bytes;
 }
 function privateJson(file, io) {
@@ -113,7 +114,10 @@ const realIo = {
 export function inspectLocalBinding(input, overrides = {}) {
   const manifest = parseLocalBinding(input);
   const io = { ...realIo, ...overrides };
-  if (digest(privateBytes(manifest.client.node, io)) !== manifest.client.nodeSha256)
+  if (
+    digest(privateBytes(manifest.client.node, io, false, 256 * 1024 * 1024)) !==
+    manifest.client.nodeSha256
+  )
     fail("node-drift");
   if (digest(privateBytes(manifest.client.bundle, io)) !== manifest.client.sha256)
     fail("client-drift");

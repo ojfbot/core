@@ -213,6 +213,11 @@ export function launchLocalProof(input, overrides = {}) {
   if (now < settings.startsAtMs - 600_000 || now >= settings.endsAtMs - 720_000)
     fail("outside-window");
   io.write(
+    settings.receiptFile,
+    `${JSON.stringify({ proofId: settings.proofId, state: "RESERVED", planSha256: settings.planSha256 })}\n`,
+    { flag: "wx", mode: 0o600 },
+  );
+  io.write(
     settings.consumedFile,
     `${JSON.stringify({ planSha256: settings.planSha256, sourceSequence: go.sourceSequence })}\n`,
     { flag: "wx", mode: 0o600 },
@@ -265,6 +270,7 @@ export function launchLocalProof(input, overrides = {}) {
       receipt.rolesStarted.push(role.role);
     }
     receipt.state = "STARTED";
+    io.write(settings.receiptFile, `${JSON.stringify(receipt)}\n`, { flag: "w", mode: 0o600 });
   } catch (error) {
     receipt.firstFailure = {
       reason: /^proof-(?:guard|bind)-[a-z-]+$/.test(error?.message ?? "")
@@ -296,8 +302,12 @@ export function launchLocalProof(input, overrides = {}) {
       cleanupFields.every((field) => receipt.cleanup?.[field] === true)
         ? "HELD_CLEANED"
         : "HELD_CLEANUP_UNVERIFIED";
+    try {
+      io.write(settings.receiptFile, `${JSON.stringify(receipt)}\n`, { flag: "w", mode: 0o600 });
+    } catch {
+      fail("receipt-unwritable");
+    }
   }
-  io.write(settings.receiptFile, `${JSON.stringify(receipt)}\n`, { flag: "wx", mode: 0o600 });
   return receipt;
 }
 
