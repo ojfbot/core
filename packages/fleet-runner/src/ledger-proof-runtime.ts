@@ -83,6 +83,7 @@ export function parseProofRuntime(value: unknown): ProofRuntime {
     throw Error("invalid-proof-role");
   const rawSettings = object(row.settings);
   const ownerRole = role === "supervisor" || role === "watchdog";
+  if (proof.practice && ownerRole) throw Error("proof-practice-worker-required");
   if (ownerRole && rawSettings.worker !== "owner") throw Error("proof-owner-identity-mismatch");
   // The existing worker parser deliberately rejects the reserved owner ID. It still validates
   // all shared connection/path/command settings here; the supervisor is never run as a worker.
@@ -214,7 +215,7 @@ async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> 
     { proofId: config.proof.proofId, role: config.role },
     signal,
   );
-  if (config.proof.faultMode === "worker-stop") {
+  if (config.proof.practice || config.proof.faultMode === "worker-stop") {
     const row = exact(result, ["proofId", "observedAtMs", "protectedIdle", "baselineUnchanged"]);
     if (row.proofId !== config.proof.proofId) throw Error("proof-probe-binding-mismatch");
     if (typeof row.protectedIdle !== "boolean" || typeof row.baselineUnchanged !== "boolean")
@@ -306,11 +307,16 @@ async function snapshot(
   config: ProofRuntime,
   journal: ProofJournal,
   verify = true,
+  signal?: AbortSignal,
 ): Promise<ProofSnapshot> {
   const started = Date.now();
   let raw: unknown;
   try {
-    raw = await runProofCommand(config.commands.snapshot, { proofId: config.proof.proofId });
+    raw = await runProofCommand(
+      config.commands.snapshot,
+      { proofId: config.proof.proofId },
+      signal,
+    );
   } catch (error) {
     if (error instanceof ProofCommandError) {
       journal.observe("private-command-failure", {
@@ -404,13 +410,212 @@ async function workerStopReadiness(
   }
 }
 
+function parsePracticeStop(config: ProofRuntime, settingsSha256: string, value: unknown) {
+  const input = exact(value, [
+    "verified",
+    "proofId",
+    "role",
+    "settingsSha256",
+    "commandId",
+    "sourceSequence",
+  ]);
+  if (
+    !config.proof.practice ||
+    (config.role !== "primary" && config.role !== "fallback") ||
+    input.verified !== true ||
+    input.proofId !== config.proof.proofId ||
+    input.role !== config.role ||
+    input.settingsSha256 !== settingsSha256
+  )
+    throw Error("proof-practice-stop-binding-mismatch");
+  return {
+    verified: true,
+    proofId: config.proof.proofId,
+    role: config.role,
+    settingsSha256,
+    commandId: string(input.commandId, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/),
+    sourceSequence: integer(input.sourceSequence),
+  };
+}
+
+export function requestPracticeStop(
+  config: ProofRuntime,
+  journal: ProofJournal,
+  settingsSha256: string,
+  value: unknown,
+) {
+  const stop = parsePracticeStop(config, settingsSha256, value);
+  const ready = journal.result("practice-ready");
+  const window = config.proof.attendedWindow;
+  const now = Date.now();
+  if (
+    !ready ||
+    !window ||
+    stop.sourceSequence <= integer(object(ready).sequence) ||
+    now < window.notBeforeMs ||
+    now >= config.proof.endsAtMs
+  )
+    throw Error("proof-practice-stop-outside-window");
+  if (!journal.recordPracticeStop(stop)) throw Error("proof-practice-stop-already-recorded");
+  return stop;
+}
+
+async function runPracticeWorker(
+  config: ProofRuntime,
+  journal: ProofJournal,
+  signal: AbortSignal,
+  settingsSha256: string,
+): Promise<void> {
+  const { proof, role } = config;
+  const window = proof.attendedWindow;
+  if (
+    !window ||
+    Date.now() < Math.max(window.notBeforeMs, proof.startsAtMs - ATTENDED_PREARM_LEAD_MS)
+  )
+    throw Error("proof-prearm-too-early");
+  if (journal.get("terminal") || journal.result("practice-ready"))
+    throw Error("proof-practice-already-started");
+  budget(config);
+  const grant = config.settings.kinds["bookcase-ledger-replay"]?.command[3];
+  if (!grant) throw Error("proof-installed-command-mismatch");
+  const client = fleetClient(
+    config.settings.endpoint,
+    config.settings.worker,
+    config.settings.tokenFile,
+    config.settings.generation,
+  );
+  const slot = openSync(config.cpuSlot, "wx", 0o600);
+  try {
+    writeFileSync(slot, `${process.pid}\n`);
+  } finally {
+    closeSync(slot);
+  }
+  const stopped = new AbortController();
+  const cancelled = new Error("proof-practice-operator-stop");
+  const combined = AbortSignal.any([signal, stopped.signal]);
+  let stop: ReturnType<typeof parsePracticeStop> | undefined;
+  const watch = () => {
+    if (combined.aborted) return;
+    try {
+      const now = Date.now();
+      if (now >= proof.endsAtMs) {
+        stopped.abort(Error("proof-practice-deadline"));
+        return;
+      }
+      const pending = journal.get("practice-stop");
+      if (pending !== undefined) {
+        journal.advanceClock(now);
+        stop = parsePracticeStop(config, settingsSha256, pending);
+        stopped.abort(cancelled);
+      }
+    } catch (error) {
+      stopped.abort(error);
+    }
+  };
+  const timer = setInterval(watch, 200);
+  try {
+    watch();
+    combined.throwIfAborted();
+    while (true) {
+      combined.throwIfAborted();
+      journal.advanceClock(Date.now());
+      if (existsSync(grant)) throw Error("proof-practice-app-grant-present");
+      const control = await client.workerControl(combined);
+      if (control?.paused !== false) throw Error("proof-practice-worker-paused");
+      const queue = await snapshot(config, journal, false, combined);
+      if (
+        !proofSnapshotSchema(proof, queue.schema) ||
+        queue.rows.length ||
+        queue.events.length ||
+        queue.accepted !== null
+      )
+        throw Error("proof-practice-queue-not-empty");
+      await probe(config, combined);
+      watch();
+      combined.throwIfAborted();
+      if (!journal.result("practice-ready")) {
+        await post(config, journal, "practice-ready", {
+          state: "READY",
+          role,
+          observedAtMs: Date.now(),
+          idleRestartVerified: false,
+          code: proof.code,
+          fixtureSha256: proof.fixtureSha256,
+        });
+      }
+      await delay(config.settings.pollMs, undefined, { signal: combined });
+    }
+  } catch (error) {
+    const aborted =
+      error === combined.reason ||
+      (error instanceof Error && error.name === "AbortError" && error.cause === combined.reason) ||
+      (error instanceof ProofCommandError && error.privateReceipt().reason === "abort");
+    if (
+      aborted &&
+      combined.reason === cancelled &&
+      stop &&
+      !signal.aborted &&
+      Date.now() < proof.endsAtMs
+    ) {
+      if (
+        !journal.setTerminal({
+          outcome: "STOPPED",
+          reason: "operator-stop",
+          stop,
+          atMs: Date.now(),
+        })
+      )
+        throw Error("proof-practice-terminal-already-recorded");
+    } else {
+      const atMs = Date.now();
+      if (error instanceof ProofCommandError) {
+        const failure = {
+          source: "worker-command",
+          code: error.message,
+          ...error.privateReceipt(),
+          atMs,
+        };
+        journal.recordPracticeFirstFailure(failure);
+        journal.observe("practice-command-failure", failure, atMs);
+      } else {
+        const failure = {
+          source: "worker-operation",
+          reason: failureCode(error),
+          ...(error instanceof Error
+            ? { name: error.name, message: error.message.slice(0, 1024) }
+            : {}),
+          atMs,
+        };
+        journal.recordPracticeFirstFailure(failure);
+        journal.observe("practice-operation-failure", failure, atMs);
+      }
+      const reason =
+        aborted && signal.aborted
+          ? "proof-practice-external-stop"
+          : aborted && combined.reason === cancelled
+            ? "proof-practice-deadline"
+            : failureCode(error);
+      hold(journal, reason);
+      throw Error(reason);
+    }
+  } finally {
+    clearInterval(timer);
+    unlinkSync(config.cpuSlot);
+  }
+}
+
 /** Each machine runs this locally. A pending claim on restart holds rather than launching the app twice. */
 export async function runProofWorker(
   config: ProofRuntime,
   journal: ProofJournal,
   signal: AbortSignal,
+  settingsSha256?: string,
 ): Promise<void> {
   if (config.role !== "primary" && config.role !== "fallback") throw Error("invalid-proof-role");
+  if (config.proof.practice) {
+    if (!settingsSha256) throw Error("proof-practice-binding-required");
+    return runPracticeWorker(config, journal, signal, settingsSha256);
+  }
   const role = config.role;
   budget(config);
   if (role === "primary" && config.proof.faultMode && journal.get("worker-stop-exited")) {

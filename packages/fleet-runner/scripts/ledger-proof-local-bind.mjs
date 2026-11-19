@@ -140,6 +140,11 @@ export function inspectLocalBinding(input, overrides = {}) {
     relay.value.relay?.session !== proofRelaySession(manifest.proofId)
   )
     fail("relay-binding-mismatch");
+  const practice = relay.value.proof.practice === true;
+  const practicePlanSha256 = practice
+    ? digest(Buffer.from(canonical(relay.value.proof)))
+    : undefined;
+  if (operator.value.practicePlanSha256 !== practicePlanSha256) fail("practice-operator-mismatch");
   const journals = new Map();
   for (const entry of manifest.roles) {
     const { value } = privateJson(entry.settings, io);
@@ -149,6 +154,13 @@ export function inspectLocalBinding(input, overrides = {}) {
       value.proof?.proofId !== manifest.proofId
     )
       fail("role-binding-mismatch");
+    if (
+      (value.proof.practice === true) !== practice ||
+      (practice &&
+        (!["primary", "fallback"].includes(entry.role) ||
+          digest(Buffer.from(canonical(value.proof))) !== practicePlanSha256))
+    )
+      fail("practice-role-binding-mismatch");
     if (!absolute(value.stateFile)) fail("journal-path-invalid");
     const journal = journals.get(value.stateFile) ?? { initializers: 0 };
     journal.initializers += Number(entry.initialize);
@@ -156,7 +168,7 @@ export function inspectLocalBinding(input, overrides = {}) {
   }
   if ([...journals.values()].some(({ initializers }) => initializers !== 1))
     fail("journal-initializer-mismatch");
-  return { manifest, io, journalCount: journals.size };
+  return { manifest, io, journalCount: journals.size, practicePlanSha256 };
 }
 
 function invokeJournal(manifest, io, entry, action) {

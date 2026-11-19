@@ -3,6 +3,8 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { ProofStderr } from "./ledger-proof-command.js";
 import { ProofJournal } from "./ledger-proof-state.js";
+import { object } from "./ledger-proof.js";
+import { canonicalJson } from "./jobs.js";
 import type { ProofRuntime } from "./ledger-proof-runtime.js";
 
 /** Fixed self-command only. Two primary boots before admission; two supervisor boots across acceptance. */
@@ -73,8 +75,11 @@ export async function launchLedgerProof(
       });
       child.once("close", (code, exitSignal) => {
         cleanup();
-        if (code !== 0 || spawnError !== undefined) {
-          try {
+        try {
+          if (config.proof.practice) {
+            journal.put("practice-child-exit", { exitCode: code, signal: exitSignal });
+          }
+          if (code !== 0 || spawnError !== undefined) {
             journal.observe("private-child-failure", {
               role: config.role,
               exitCode: code,
@@ -82,10 +87,10 @@ export async function launchLedgerProof(
               ...(spawnError === undefined ? {} : { spawnError }),
               ...stderr.receipt(),
             });
-          } catch (error) {
-            reject(error);
-            return;
           }
+        } catch (error) {
+          reject(error);
+          return;
         }
         if (spawnError !== undefined) {
           reject(Error("proof-child-start-failed"));
@@ -97,7 +102,8 @@ export async function launchLedgerProof(
     });
   if (journal.get("launcher-started")) throw Error("proof-launcher-already-started");
   try {
-    const idleRestart = config.role === "primary" && !config.proof.faultMode;
+    const idleRestart =
+      config.role === "primary" && !config.proof.faultMode && !config.proof.practice;
     if (idleRestart && Date.now() >= config.proof.startsAtMs - 30_000)
       throw Error("proof-idle-restart-margin-held");
     if (signal.aborted) throw Error("proof-launcher-expired");
@@ -109,6 +115,24 @@ export async function launchLedgerProof(
     if (signal.aborted || Date.now() >= config.proof.endsAtMs)
       throw Error("proof-launcher-expired");
     if ((await run(false)) !== 0) throw Error("proof-child-held");
+    if (config.proof.practice) {
+      const terminal = journal.get("terminal");
+      const stop = journal.get("practice-stop");
+      if (
+        !terminal ||
+        !stop ||
+        object(terminal).outcome !== "STOPPED" ||
+        object(terminal).reason !== "operator-stop" ||
+        canonicalJson(object(terminal).stop) !== canonicalJson(stop)
+      )
+        throw Error("proof-practice-terminal-unverified");
+      journal.put("practice-launcher", {
+        outcome: "STOPPED",
+        child: journal.get("practice-child-exit"),
+        atMs: Date.now(),
+      });
+      return;
+    }
     if (config.role === "primary" && config.proof.faultMode === "worker-stop") {
       if (!journal.get("worker-stop")) throw Error("proof-worker-stop-unverified");
       journal.put("worker-stop-exited", Date.now());
@@ -125,6 +149,25 @@ export async function launchLedgerProof(
     }
     journal.put("launcher-complete", Date.now());
   } catch (error) {
+    if (config.proof.practice) {
+      const reason =
+        error instanceof Error && /^proof-[a-z-]+$/.test(error.message)
+          ? error.message
+          : "proof-practice-launcher-failed";
+      const child = journal.get("practice-child-exit") ?? null;
+      journal.recordPracticeFirstFailure({
+        source: "launcher",
+        reason,
+        child,
+        atMs: Date.now(),
+      });
+      journal.put("practice-launcher", {
+        outcome: "HELD",
+        child,
+        reason,
+        atMs: Date.now(),
+      });
+    }
     if (config.role === "primary") rmSync(join(config.evidenceDir, "wake-active"), { force: true });
     throw error;
   }

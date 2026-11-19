@@ -183,3 +183,36 @@ test("role settings are hash-bound before any journal mutation", () => {
   assert.throws(() => prepareLocalBinding(f.manifest, f.io), /proof-bind-role-binding-mismatch/);
   assert.equal(f.calls.length, 0);
 });
+
+test("practice binding pins relay, role and operator to the same practice plan and excludes supervisor", () => {
+  const f = fixture();
+  const { manifest, files, io } = f;
+  const replace = (ref, update) => {
+    const value = JSON.parse(files.get(ref.settings));
+    update(value);
+    files.set(ref.settings, Buffer.from(JSON.stringify(value)));
+    ref.sha256 = hash(canonical(value));
+  };
+  const proof = { proofId, practice: true };
+  const planSha256 = hash(canonical(proof));
+  replace(manifest.relay, (value) => {
+    value.proof = proof;
+  });
+  replace(manifest.operator, (value) => {
+    value.practicePlanSha256 = planSha256;
+  });
+  const fallback = manifest.roles.find((entry) => entry.role === "fallback");
+  const supervisor = manifest.roles.find((entry) => entry.role === "supervisor");
+  for (const ref of [fallback, supervisor])
+    replace(ref, (value) => {
+      value.proof = proof;
+    });
+  assert.throws(() => inspectLocalBinding(manifest, io), /practice-role-binding-mismatch/);
+  manifest.roles = [fallback];
+  assert.equal(inspectLocalBinding(manifest, io).practicePlanSha256, planSha256);
+  replace(manifest.operator, (value) => {
+    value.practicePlanSha256 = hash("different plan");
+  });
+  assert.throws(() => inspectLocalBinding(manifest, io), /practice-operator-mismatch/);
+  assert.deepEqual(f.calls, []);
+});

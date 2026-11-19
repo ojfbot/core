@@ -123,6 +123,7 @@ export function validateSettings(s) {
       "snapshot",
       "protected",
       "local",
+      ...(s?.practicePlanSha256 !== undefined ? ["practicePlanSha256"] : []),
     ]),
     "settings-invalid",
   );
@@ -133,7 +134,8 @@ export function validateSettings(s) {
       s.endsAtMs > 0 &&
       absolute(s.proofRoot) &&
       Number.isSafeInteger(s.uid) &&
-      s.uid > 0,
+      s.uid > 0 &&
+      (s.practicePlanSha256 === undefined || hex(s.practicePlanSha256)),
     "settings-invalid",
   );
   requireThat(
@@ -250,6 +252,82 @@ function realRun(program, args) {
   }
   return { status: r.status, signal: null, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
+// The coordinator verifies signed, role-addressed receipts before setting verified.
+function practiceBarrier(settings, input) {
+  requireThat(
+    exact(input, ["verified", "proofId", "endsAtMs", "planSha256", "targetIdSha256", "workers"]) &&
+      input.verified === true &&
+      input.proofId === settings.proofId &&
+      input.endsAtMs === settings.endsAtMs &&
+      input.planSha256 === settings.practicePlanSha256 &&
+      input.targetIdSha256 === hash(settings.target.id) &&
+      Array.isArray(input.workers) &&
+      input.workers.length === 2,
+    "practice-barrier-invalid",
+  );
+  const roles = new Set();
+  const commands = new Set();
+  const sequences = new Set();
+  for (const worker of input.workers) {
+    requireThat(
+      exact(worker, ["sourceSequence", "role", "terminal", "launcher", "absence"]) &&
+        ["primary", "fallback"].includes(worker.role) &&
+        !roles.has(worker.role) &&
+        Number.isSafeInteger(worker.sourceSequence) &&
+        !sequences.has(worker.sourceSequence),
+      "practice-worker-receipt-invalid",
+    );
+    const { terminal, launcher, absence } = worker;
+    requireThat(
+      exact(terminal, ["outcome", "reason", "stop", "atMs"]) &&
+        terminal.outcome === "STOPPED" &&
+        terminal.reason === "operator-stop" &&
+        Number.isSafeInteger(terminal.atMs),
+      "practice-worker-terminal-invalid",
+    );
+    const stop = terminal.stop;
+    requireThat(
+      exact(stop, [
+        "verified",
+        "proofId",
+        "role",
+        "settingsSha256",
+        "commandId",
+        "sourceSequence",
+      ]) &&
+        stop.verified === true &&
+        stop.proofId === settings.proofId &&
+        stop.role === worker.role &&
+        hex(stop.settingsSha256) &&
+        typeof stop.commandId === "string" &&
+        /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(stop.commandId) &&
+        Number.isSafeInteger(stop.sourceSequence) &&
+        stop.sourceSequence > 0 &&
+        worker.sourceSequence > stop.sourceSequence &&
+        !commands.has(stop.commandId),
+      "practice-worker-stop-invalid",
+    );
+    requireThat(
+      exact(launcher, ["outcome", "child", "atMs"]) &&
+        launcher.outcome === "STOPPED" &&
+        exact(launcher.child, ["exitCode", "signal"]) &&
+        launcher.child.exitCode === 0 &&
+        launcher.child.signal === null &&
+        Number.isSafeInteger(launcher.atMs) &&
+        launcher.atMs >= terminal.atMs,
+      "practice-launcher-terminal-invalid",
+    );
+    requireThat(
+      exact(absence, ["label", "process", "slot", "grant", "signer"]) &&
+        Object.values(absence).every((absent) => absent === true),
+      "practice-worker-cleanup-unverified",
+    );
+    roles.add(worker.role);
+    commands.add(stop.commandId);
+    sequences.add(worker.sourceSequence);
+  }
+}
+
 export function createOperator(input, overrides = {}) {
   const s = validateSettings(input);
   const io = {
@@ -375,7 +453,13 @@ export function createOperator(input, overrides = {}) {
     );
     return true;
   }
-  return {
+  function ownedProcessesAbsent() {
+    const processes = checked("/bin/ps", ["-axo", "uid=,pid=,command="]);
+    return processes
+      .split("\n")
+      .every((line) => !s.local.ownedProcessMarkers.some((marker) => line.includes(marker)));
+  }
+  const operator = {
     snapshot(value) {
       inputCheck(value);
       const c = inspect(s.target);
@@ -413,6 +497,54 @@ export function createOperator(input, overrides = {}) {
       );
       return result;
     },
+    finishPractice(value) {
+      requireThat(
+        hex(s.practicePlanSha256) && io.now() < s.endsAtMs,
+        "practice-finish-unavailable",
+      );
+      practiceBarrier(s, value);
+      requireThat(
+        s.local.stopLabels.every(labelAbsent) && ownedProcessesAbsent(),
+        "practice-local-worker-present",
+      );
+      protectedCheck();
+      const snapshot = operator.snapshot({ proofId: s.proofId });
+      requireThat(
+        snapshot.rows.length === 0 && snapshot.events.length === 0 && snapshot.accepted === null,
+        "practice-queue-not-empty",
+      );
+      let stopRequestedAtMs;
+      const cleanup = operator.stop({ proofId: s.proofId, endsAtMs: s.endsAtMs }, () => {
+        stopRequestedAtMs = io.now();
+        requireThat(stopRequestedAtMs < s.endsAtMs, "practice-finish-unavailable");
+        io.write(
+          join(s.proofRoot, "practice-queue-stop.json"),
+          JSON.stringify({ barrier: value, snapshot, stopRequestedAtMs }) + "\n",
+          { flag: "wx", mode: 0o600 },
+        );
+      });
+      requireThat(
+        stopRequestedAtMs !== undefined &&
+          cleanup.containerStopped &&
+          cleanup.localProfileStopped &&
+          cleanup.capabilitiesRemoved &&
+          cleanup.baselineUnchanged &&
+          cleanup.scheduleRemoved,
+        "practice-queue-cleanup-unverified",
+      );
+      const receipt = {
+        proofId: s.proofId,
+        snapshot,
+        stopRequestedAtMs,
+        stopConfirmedAtMs: io.now(),
+        cleanup,
+      };
+      io.write(join(s.proofRoot, "practice-queue-stopped.json"), JSON.stringify(receipt) + "\n", {
+        flag: "wx",
+        mode: 0o600,
+      });
+      return receipt;
+    },
     protectedProbe(value) {
       requireThat(
         value?.proofId === s.proofId &&
@@ -429,7 +561,7 @@ export function createOperator(input, overrides = {}) {
         baselineUnchanged: true,
       };
     },
-    stop(value) {
+    stop(value, recordRequest) {
       inputCheck(value, true);
       const before = inspect(s.target);
       let pauseConflict = false,
@@ -449,7 +581,10 @@ export function createOperator(input, overrides = {}) {
           localStopError = true;
         }
       }
-      if (before.State?.Running === true) remote(["stop", "--time", "2", s.target.id]);
+      if (before.State?.Running === true) {
+        recordRequest?.();
+        remote(["stop", "--time", "2", s.target.id]);
+      }
       const after = inspect(s.target);
       const containerStopped =
         after.State?.Running === false &&
@@ -461,10 +596,7 @@ export function createOperator(input, overrides = {}) {
       } catch {
         localStopError = true;
       }
-      const processes = checked("/bin/ps", ["-axo", "uid=,pid=,command="]);
-      const noOwned = processes
-        .split("\n")
-        .every((line) => !s.local.ownedProcessMarkers.some((marker) => line.includes(marker)));
+      const noOwned = ownedProcessesAbsent();
       const schedule = checked("/usr/bin/pmset", ["-g", "sched"]);
       const scheduleRemoved = !schedule.includes(s.local.wakeOwner);
       const baselineUnchanged = protectedCheck();
@@ -494,6 +626,7 @@ export function createOperator(input, overrides = {}) {
       return result;
     },
   };
+  return operator;
 }
 if (
   process.argv[1] &&
@@ -509,11 +642,17 @@ if (
     );
     const settings = JSON.parse(readFileSync(args[1], "utf8"));
     const mode = args[3];
-    requireThat(["snapshot", "protected-probe", "stop"].includes(mode), "mode");
+    requireThat(["snapshot", "protected-probe", "stop", "finish-practice"].includes(mode), "mode");
     const body = readFileSync(0, "utf8");
     requireThat(Buffer.byteLength(body) <= 4096, "input-bound");
     const op = createOperator(settings);
-    const result = op[mode === "protected-probe" ? "protectedProbe" : mode](JSON.parse(body));
+    const action =
+      mode === "protected-probe"
+        ? "protectedProbe"
+        : mode === "finish-practice"
+          ? "finishPractice"
+          : mode;
+    const result = op[action](JSON.parse(body));
     process.stdout.write(JSON.stringify(result) + "\n");
   } catch (e) {
     if (e?.commandFailure) {
