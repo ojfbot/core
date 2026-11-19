@@ -7,7 +7,7 @@ WORKDIR /workspace
 
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
-COPY packages/fleet-runner/package.json packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/deployment.md packages/fleet-runner/recovery.md packages/fleet-runner/tsconfig.json ./packages/fleet-runner/
+COPY packages/fleet-runner/package.json packages/fleet-runner/LICENSE packages/fleet-runner/README.md packages/fleet-runner/local-proof-operator.md packages/fleet-runner/deployment.md packages/fleet-runner/recovery.md packages/fleet-runner/tsconfig.json ./packages/fleet-runner/
 COPY packages/fleet-runner/src/ ./packages/fleet-runner/src/
 COPY packages/fleet-runner/scripts/ ./packages/fleet-runner/scripts/
 
@@ -23,7 +23,8 @@ RUN mkdir -p /proof-output \
  && node --input-type=module -e 'import { readFileSync, writeFileSync } from "node:fs"; const manifest = JSON.parse(readFileSync("/proof-output/build-manifest.json", "utf8")); writeFileSync("/proof-output/dependencies.json", JSON.stringify(manifest.dependencies, null, 2) + "\n");' \
  && pnpm --dir packages/fleet-runner pack --pack-destination /proof-output \
  && node --input-type=module -e 'import { mkdirSync, writeFileSync } from "node:fs"; mkdirSync("/tmp/fleet-consumer", { recursive: true }); writeFileSync("/tmp/fleet-consumer/package.json", JSON.stringify({ name: "fleet-runner-proof-consumer", private: true, type: "module" }) + "\n");' \
- && pnpm --dir /tmp/fleet-consumer add /proof-output/core-fleet-runner-0.1.0.tgz --ignore-scripts \
+ && archive="/proof-output/core-fleet-runner-$(node -p 'require("./packages/fleet-runner/package.json").version').tgz" \
+ && pnpm --dir /tmp/fleet-consumer add "$archive" --ignore-scripts \
  && (cd /tmp/fleet-consumer && node --input-type=module -e 'import { fleetClient } from "@core/fleet-runner/client"; import { runWorker } from "@core/fleet-runner/worker"; if (typeof fleetClient !== "function" || typeof runWorker !== "function") process.exit(1); console.log(JSON.stringify({ installed: true, clientExport: typeof fleetClient, workerExport: typeof runWorker }));' > /proof-output/package-consumer.json) \
  && cp packages/fleet-runner/scripts/write-build-manifest.mjs /proof-output/write-build-manifest.mjs
 
