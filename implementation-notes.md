@@ -13,6 +13,7 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 - 2026-11-18 (FleetRunner M2 review): a real Node executable exceeds the binder's generic 16 MiB file bound, and a pre-existing receipt path could fail only after role startup. Bound Node separately at 256 MiB, reserve the receipt before effects, and bring final receipt writes inside exact cleanup with regressions.
 - 2026-11-18 (FleetRunner M2 installed bins): synthetic imports and tarball contents passed while pnpm's installed `.bin` symlinks bypassed all three CLI entry points because the entry check compared unresolved argv. Canonicalize both paths and smoke installed bins from the tarball before source promotion.
 - 2026-11-18 (FleetRunner M2 packaging manifest): the new operator document entered the Docker context and archive, but the clean-build manifest and final host-context comparison still omitted it. Include it in both exact source lists before treating Docker packaging as qualified.
+- 2026-11-18 (FleetRunner M2 CI): the new `node:test` proof fixtures passed locally but root Vitest discovery did not include them. Added their pnpm script as an explicit CI step so a green PR check covers the new operator, binder, guard and installed-bin regression.
 
 - The approved Bookcase proof assumed an overnight run. The operator asked for the earliest attended slot, so a proof with an explicitly bound interval can run in Chicago daytime within the same 90-minute total and 30-minute test caps. Proofs without that interval still use the overnight gate.
 

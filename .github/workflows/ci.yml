@@ -28,6 +28,9 @@ jobs:
       - name: Test
         run: pnpm test
 
+      - name: FleetRunner isolated proof helpers
+        run: pnpm --filter @core/fleet-runner proof:local:test
+
       - name: Launcher registrations test (ADR-0058)
         run: pnpm --filter @core/launcher-tests test
 
