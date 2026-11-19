@@ -375,7 +375,7 @@ Its effects stay inside the owner's machines: no external publication, so P3 is 
 path. Private photos may move only between the owner's machines on the LAN; that boundary is
 the workload's own and is not widened by this note.
 
-**Interim queue.** fleet-runner has no runnable first iteration yet. The operator directed
+**Interim queue (2026-11-03 state).** fleet-runner had no runnable first iteration yet. The operator directed
 that the workload **must not block on it**. BookcaseDiscovery may build a minimal local job
 queue for compute jobs only, behind an adapter boundary shaped like P2's command and evidence
 contract. It is a workload-local stopgap, not a second execution authority for development
@@ -420,6 +420,26 @@ The open P0–P2 decisions stay with #315, #308, #311, #313, and #318.
 Production hosting and reach stay with #309. Consumption, overlap, and
 settlement stay with #316, #317, and #310. Queue-wide pause and GPU capacity
 beyond a sequential worker are deferred for this read-vision tranche.
+
+### Isolated Bookcase worker-stop recovery proof, 2026-11-19
+
+Under one owner-approved, one-use proof window, an isolated Bookcase job was
+admitted after signed native readiness from workers on Yuri and Yojimbo. Yuri's
+worker claimed attempt 1 at fence 1, then stopped. After its lease expired,
+Yojimbo's worker claimed attempt 2 at fence 2 and completed the deterministic
+job. The queue accepted one output, rejected the stale fence-1 completion, and
+left the held sentinel untouched. The supervisor reported a verified handoff
+and cleanup with zero runtime model or power actions. Both hosts independently
+read back the result and exact isolated target cleanup; the accepted output
+remained the same in the final cold read.
+
+This is evidence for the bounded lease, fencing, native relay and deterministic
+Bookcase compute path in [#578](https://github.com/ojfbot/core/issues/578)
+and the existing #313/#318 gates. It is one isolated worker-stop takeover;
+unattended operation through host sleep or app exit, production fleet-runner
+hosting, general agent dispatch, GPU scheduling, and the governed coding pilot
+remain separate qualifications. Their entrances and owner decisions stay with
+the existing tickets. Detailed run evidence remains private at its source.
 
 ### Current decision and evidence limits
 
