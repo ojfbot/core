@@ -161,6 +161,8 @@ it("keeps private messages and paths out of diagnostics", () => {
   expect(errorCode(new Error("proof-practice-queue-not-empty"))).toBe(
     "proof-practice-queue-not-empty",
   );
+  expect(errorCode(new Error("proof-unknown-invariant"))).toBe("unexpected-error");
+  expect(errorCode(new Error(`proof-${"a".repeat(256)}`))).toBe("unexpected-error");
   expect(errorCode(new Error("proof-/private/path"))).toBe("unexpected-error");
   expect(errorCode(new Error("job table schema 99, expected 3"))).toBe("schema-incompatible");
   expect(errorCode(new TypeError("synthetic private detail"))).toBe("unexpected-type-error");
