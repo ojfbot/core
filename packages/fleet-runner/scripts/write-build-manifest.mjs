@@ -51,6 +51,7 @@ const sourceFiles = [
   join(packageDir, "package.json"),
   join(packageDir, "LICENSE"),
   join(packageDir, "README.md"),
+  join(packageDir, "local-proof-operator.md"),
   join(packageDir, "deployment.md"),
   join(packageDir, "recovery.md"),
   join(packageDir, "tsconfig.json"),
