@@ -264,7 +264,7 @@ const hash = (data) => createHash("sha256").update(data).digest("hex");
 const readJson = async (path) => JSON.parse(await readFile(path, "utf8"));
 const contextFiles = [
   "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "tsconfig.base.json",
-  "packages/fleet-runner/package.json", "packages/fleet-runner/LICENSE", "packages/fleet-runner/README.md",
+  "packages/fleet-runner/package.json", "packages/fleet-runner/LICENSE", "packages/fleet-runner/README.md", "packages/fleet-runner/local-proof-operator.md",
   "packages/fleet-runner/deployment.md", "packages/fleet-runner/recovery.md", "packages/fleet-runner/tsconfig.json",
   "packages/fleet-runner/Dockerfile", "packages/fleet-runner/Dockerfile.dockerignore",
   "packages/fleet-runner/docker-entrypoint.mjs",
