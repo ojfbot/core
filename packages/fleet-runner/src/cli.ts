@@ -129,7 +129,12 @@ async function main(args: string[]): Promise<void> {
     const [action] = values;
     const config = loadProofRuntime(values[2]!, values[4]!);
     const binding = { ...config, role: config.role === "watchdog" ? "supervisor" : config.role };
-    const journal = new ProofJournal(config.stateFile, binding, action === "init");
+    const journal = new ProofJournal(
+      config.stateFile,
+      binding,
+      action === "init",
+      action === "status",
+    );
     const stopped = new AbortController();
     const cancel = () => stopped.abort();
     process.on("SIGTERM", cancel);
@@ -138,6 +143,21 @@ async function main(args: string[]): Promise<void> {
       if (action === "init") {
         console.log(
           JSON.stringify({ initialized: true, bindingSha256: proofHash(canonicalJson(binding)) }),
+        );
+      } else if (action === "status") {
+        console.log(
+          JSON.stringify({
+            proofId: config.proof.proofId,
+            role: config.role,
+            progress: journal.progress(),
+            terminal: journal.get("terminal") ?? null,
+            readinessHold: journal.get("readiness-held") ?? null,
+            lastSnapshot: journal.get("snapshot-time") ?? null,
+            jobAdmitted: !!journal.result("admit-job"),
+            verifiedOutput: journal.result("accepted") ?? null,
+            cleanupVerified: !!journal.get("cleanup-complete"),
+            reportDelivered: !!journal.result("terminal-report"),
+          }),
         );
       } else if (action === "launch") {
         await launchLedgerProof(config, journal, values[2]!, values[4]!, stopped.signal);

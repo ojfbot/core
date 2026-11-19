@@ -13,6 +13,7 @@ import {
   readProofSnapshot,
 } from "../ledger-proof.js";
 import { ProofJournal } from "../ledger-proof-state.js";
+import { ProofCommandError } from "../ledger-proof-command.js";
 import { launchLedgerProof } from "../ledger-proof-launcher.js";
 import {
   runProofSupervisor,
@@ -263,6 +264,60 @@ it("preserves the approved wake through the first idle stop and revokes it on la
   await runUntilIdleStop();
   expect(existsSync(wakeFlag)).toBe(false);
   expect(journal.get("claimed")).toBeUndefined();
+});
+
+it("keeps the private child exit reason when a launcher holds", async () => {
+  config = { ...config, role: "fallback" };
+  const stderr = "local fixture operator stderr\n";
+  hooks.spawn.mockImplementationOnce(() => {
+    const child = Object.assign(new EventEmitter(), {
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+    });
+    queueMicrotask(() => {
+      child.stderr.write(stderr);
+      child.emit("close", 44, null);
+    });
+    return child;
+  });
+  await expect(
+    launchLedgerProof(config, journal, "/private/settings", "digest", new AbortController().signal),
+  ).rejects.toThrow("proof-child-held");
+  const row = journal.db
+    .prepare("SELECT value FROM observations WHERE kind='private-child-failure'")
+    .get()!;
+  expect(JSON.parse(String(row.value))).toMatchObject({ role: "fallback", exitCode: 44, stderr });
+  expect(JSON.stringify(journal.progress())).not.toContain(stderr.trim());
+});
+
+it("retains the queue read error without admitting a job", async () => {
+  const command = hooks.command.getMockImplementation()!;
+  const stderr = "scoped read fixture: database open failed\n";
+  hooks.command.mockImplementation(async (cmd, input) => {
+    if (cmd.program.endsWith("snapshot"))
+      throw new ProofCommandError("proof-command-failed", {
+        reason: "exit",
+        exitCode: 42,
+        signal: null,
+        stderr,
+        stderrBytes: stderr.length,
+        stderrTruncated: false,
+      });
+    return command(cmd, input);
+  });
+  await expect(runProofSupervisor(config, journal, new AbortController().signal)).rejects.toThrow(
+    "proof-command-failed",
+  );
+  expect(store.events(0)).toHaveLength(0);
+  const row = journal.db
+    .prepare("SELECT value FROM observations WHERE kind='private-command-failure'")
+    .get()!;
+  expect(JSON.parse(String(row.value))).toMatchObject({
+    action: "queue-snapshot",
+    exitCode: 42,
+    stderr,
+  });
+  expect(JSON.stringify(journal.progress())).not.toContain(stderr.trim());
 });
 
 it("waits for both Macs, admits exactly two jobs, recovers after accepted-output restart and cleans up once", async () => {
