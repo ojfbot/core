@@ -1,21 +1,35 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { JobStore, jobKey, type Claim } from "../jobs.js";
+import { canonicalJson, JobStore, jobKey, type Claim } from "../jobs.js";
 import {
   LEDGER_RESULT,
   ledgerSpec,
   parseLedgerProof,
   proofHash,
   readProofSnapshot,
+  verifyAdmission,
 } from "../ledger-proof.js";
 import { ProofJournal } from "../ledger-proof-state.js";
 import { ProofCommandError } from "../ledger-proof-command.js";
 import { launchLedgerProof } from "../ledger-proof-launcher.js";
+import { readProofRelay, type ProofRelay } from "../ledger-proof-relay.js";
 import {
+  parseProofRuntime,
   runProofSupervisor,
   runProofWatchdog,
   runProofWorker,
@@ -751,4 +765,286 @@ it("keeps the first cleanup-held terminal report and publishes only a separate l
     "cleanup-complete",
   ]);
   expect(journal.get("cleanup-complete")).toBeDefined();
+});
+
+function workerStopPlan() {
+  const approvalExpiresAtMs = start + 45 * 60_000;
+  return {
+    ...config.proof,
+    endsAtMs: start + 20 * 60_000,
+    approvalExpiresAtMs,
+    attendedWindow: { notBeforeMs: start - 180_000, expiresAtMs: approvalExpiresAtMs },
+    faultMode: "worker-stop",
+  };
+}
+
+it("requires a valid attended window and a recognized worker-stop mode", () => {
+  const { attendedWindow, ...unattended } = workerStopPlan();
+  expect(parseLedgerProof({ ...unattended, attendedWindow })).toMatchObject({
+    faultMode: "worker-stop",
+    attendedWindow: { notBeforeMs: start - 180_000, expiresAtMs: start + 45 * 60_000 },
+  });
+  expect(() => parseLedgerProof(unattended)).toThrow("invalid-ledger-proof");
+  expect(() =>
+    parseLedgerProof({ ...unattended, attendedWindow, faultMode: "unexpected" }),
+  ).toThrow("invalid-ledger-proof");
+  expect(() =>
+    parseLedgerProof({
+      ...unattended,
+      attendedWindow: { ...attendedWindow, notBeforeMs: start - 179_999 },
+    }),
+  ).toThrow("invalid-ledger-proof");
+});
+
+it("counts only current, matching worker-stop receipts from the bound relay senders", async () => {
+  const proof = parseLedgerProof(workerStopPlan());
+  const relay: ProofRelay = {
+    proof,
+    adapter: command("relay"),
+    environment: {},
+    device: "primary-device",
+    primaryDevice: "primary-device",
+    fallbackDevice: "fallback-device",
+    session: "ledger-proof",
+    thread: proof.proofId,
+    stream: proof.proofId,
+    directory: dir,
+    startAfter: 0,
+  };
+  const ready = {
+    state: "READY",
+    observedAtMs: start,
+    code: proof.code,
+    fixtureSha256: proof.fixtureSha256,
+  };
+  const stopped = {
+    proofId: proof.proofId,
+    faultMode: "worker-stop",
+    staleRejected: true,
+    workerStopped: true,
+  };
+  function message(sequence: number, writer: string, report: unknown) {
+    const body = canonicalJson({
+      schemaVersion: 1,
+      proofId: proof.proofId,
+      planSha256: proofHash(canonicalJson(proof)),
+      report,
+    });
+    return {
+      sequence,
+      thread_id: relay.thread,
+      writer,
+      sender: { device_id: writer, session_id: relay.session },
+      recipients: [{ device_id: relay.device, session_id: relay.session }],
+      body,
+      body_bytes: Buffer.byteLength(body),
+      body_sha256: proofHash(body),
+    };
+  }
+  hooks.command
+    .mockResolvedValueOnce({
+      stream_id: relay.stream,
+      next_after: 2,
+      messages: [
+        message(1, relay.primaryDevice, { ...ready, role: "primary", code: "d".repeat(40) }),
+        message(2, relay.fallbackDevice, {
+          ...ready,
+          role: "fallback",
+          observedAtMs: start - 30_001,
+        }),
+      ],
+    })
+    .mockResolvedValueOnce({
+      stream_id: relay.stream,
+      next_after: 4,
+      messages: [
+        message(3, relay.primaryDevice, { ...ready, role: "primary" }),
+        message(4, relay.fallbackDevice, { ...ready, role: "fallback" }),
+      ],
+    })
+    .mockResolvedValueOnce({
+      stream_id: relay.stream,
+      next_after: 6,
+      messages: [
+        message(5, relay.fallbackDevice, { state: "stale-rejected", facts: stopped }),
+        message(6, relay.primaryDevice, {
+          state: "stale-rejected",
+          facts: { ...stopped, workerStopped: false },
+        }),
+      ],
+    })
+    .mockResolvedValueOnce({
+      stream_id: relay.stream,
+      next_after: 7,
+      messages: [message(7, relay.primaryDevice, { state: "stale-rejected", facts: stopped })],
+    });
+  await expect(readProofRelay(relay, "ready")).resolves.toMatchObject({
+    primaryReady: false,
+    fallbackReady: false,
+  });
+  await expect(readProofRelay(relay, "ready")).resolves.toMatchObject({
+    primaryReady: true,
+    fallbackReady: true,
+    observedAtMs: start,
+  });
+  await expect(readProofRelay(relay, "fault")).resolves.toMatchObject({ pending: true });
+  await expect(readProofRelay(relay, "fault")).resolves.toMatchObject(stopped);
+});
+
+it.each(["accepted", "rejected"])(
+  "settles a stopped primary from the queue's exact stale completion outcome (%s)",
+  async (outcome) => {
+    const proof = parseLedgerProof(workerStopPlan());
+    const worker = {
+      ...config,
+      proof,
+      role: "primary" as const,
+      stateFile: join(dir, "primary.sqlite"),
+      settings: { ...config.settings, worker: proof.primary },
+    };
+    journal.close();
+    journal = new ProofJournal(worker.stateFile, worker, true);
+    const spec = ledgerSpec(proof);
+    store.enqueue(spec);
+    store.enqueue(ledgerSpec(proof, true));
+    const primary = store.claim(proof.primary, [proof.capability], [spec.kind]);
+    if (!primary) throw Error("fixture primary claim missing");
+    const primaryFile = primary.key + ".1.jsonl";
+    const digest = proofHash(LEDGER_RESULT);
+    writeFileSync(join(config.settings.outDir, primaryFile), LEDGER_RESULT);
+    journal.put("claimed", primary);
+    journal.put("computed", { file: primaryFile, sha256: digest });
+    journal.put("worker-stop", { fence: 1, atMs: start });
+    journal.put("worker-stop-exited", start + 1);
+    now += 300_001;
+    const fallback = store.claim(proof.fallback, [proof.capability], [spec.kind]);
+    if (!fallback) throw Error("fixture fallback claim missing");
+    const file = fallback.key + ".2.jsonl";
+    writeFileSync(join(config.settings.outDir, file), LEDGER_RESULT);
+    expect(
+      store.complete(fallback.key, fallback.fence, proof.fallback, { file, sha256: digest }),
+    ).toBe(true);
+
+    const realSnapshot = () => readProofSnapshot(join(dir, "jobs.sqlite"), config.settings.outDir);
+    const observed = realSnapshot();
+    expect(observed.schema).toBe(5);
+    expect(() => verifyAdmission(config.proof, observed)).toThrow("proof-admission-mismatch");
+    const original = hooks.command.getMockImplementation()!;
+    hooks.command.mockImplementation(async (cmd, input) =>
+      cmd.program.endsWith("snapshot") ? realSnapshot() : original(cmd, input),
+    );
+    const complete = vi.fn(async (claim: Claim, bytes: Buffer, sha256: string) => {
+      expect(claim).toEqual(primary);
+      expect(bytes.toString("utf8")).toBe(LEDGER_RESULT);
+      expect(sha256).toBe(digest);
+      return outcome === "accepted"
+        ? true
+        : store.complete(claim.key, claim.fence, proof.primary, { file: primaryFile, sha256 });
+    });
+    hooks.client.mockReturnValue({ complete });
+    const verification = runProofWorker(worker, journal, new AbortController().signal);
+    if (outcome === "accepted") {
+      await expect(verification).rejects.toThrow("proof-stale-accepted");
+      expect(journal.get("terminal")).toMatchObject({
+        outcome: "HELD",
+        reason: "proof-stale-accepted",
+      });
+      expect(posts).toEqual([]);
+    } else {
+      await verification;
+      expect(journal.get("terminal")).toEqual({ outcome: "COMPLETE", atMs: now });
+      expect(posts).toEqual([
+        {
+          proofId: proof.proofId,
+          commandId: expect.any(String),
+          body: {
+            state: "stale-rejected",
+            key: primary.key,
+            fence: 1,
+            facts: {
+              proofId: proof.proofId,
+              faultMode: "worker-stop",
+              workerStopped: true,
+              staleRejected: true,
+            },
+          },
+        },
+      ]);
+    }
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(realSnapshot().rows.find((row) => row.key === primary.key)).toMatchObject({
+      status: "done",
+      attempts: 2,
+      fence: 2,
+      worker: proof.fallback,
+      output: digest,
+    });
+  },
+);
+
+it("reads a closed worker-stop journal through the CLI without creating or changing state", async () => {
+  const bundle = join(dir, "fleet-runner.mjs");
+  await build({
+    entryPoints: [fileURLToPath(new URL("../cli.ts", import.meta.url))],
+    outfile: bundle,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+  });
+  const stateFile = join(dir, "status.sqlite");
+  const settingsFile = join(dir, "settings.json");
+  const app = join(dir, "fixture.mjs");
+  const raw = {
+    ...config,
+    proof: workerStopPlan(),
+    stateFile,
+    artifacts: { [process.execPath]: "a".repeat(64), [app]: "b".repeat(64) },
+    settings: {
+      ...config.settings,
+      schemaVersion: 1,
+      kinds: {
+        "bookcase-ledger-replay": {
+          ...config.settings.kinds["bookcase-ledger-replay"],
+          command: [process.execPath, app, "--grant", join(dir, "grant.json")],
+        },
+      },
+    },
+  };
+  writeFileSync(settingsFile, canonicalJson(raw), { mode: 0o600 });
+  const args = ["--settings", settingsFile, "--sha256", proofHash(canonicalJson(raw))];
+  const status = () =>
+    spawnSync(process.execPath, [bundle, "ledger-proof", "status", ...args], { encoding: "utf8" });
+  const missing = status();
+  expect(missing.status).toBe(1);
+  expect(JSON.parse(missing.stderr)).toEqual({ phase: "startup", code: "unexpected-error" });
+  expect(existsSync(stateFile)).toBe(false);
+
+  const writer = new ProofJournal(stateFile, parseProofRuntime(raw), true);
+  try {
+    writer.put("terminal", { outcome: "HELD", reason: "proof-stale-accepted", atMs: start });
+    writer.observe("progress", { stage: "verifier-held" }, start);
+    writer.observe("private-command-failure", { stderr: "private fixture diagnostic" }, start);
+  } finally {
+    writer.close();
+  }
+  chmodSync(stateFile, 0o400);
+  expect(existsSync(stateFile + "-wal")).toBe(false);
+  expect(existsSync(stateFile + "-shm")).toBe(false);
+  const bytes = readFileSync(stateFile);
+  const result = status();
+  expect(result.status, result.stderr).toBe(0);
+  expect(JSON.parse(result.stdout)).toEqual({
+    proofId: config.proof.proofId,
+    role: "supervisor",
+    progress: [{ sequence: 1, atMs: start, kind: "progress", value: { stage: "verifier-held" } }],
+    terminal: { outcome: "HELD", reason: "proof-stale-accepted", atMs: start },
+    readinessHold: null,
+    lastSnapshot: null,
+    jobAdmitted: false,
+    verifiedOutput: null,
+    cleanupVerified: false,
+    reportDelivered: false,
+  });
+  expect(readFileSync(stateFile)).toEqual(bytes);
 });
