@@ -26,7 +26,7 @@ container_id=""
 context_files=(
   package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json
   packages/fleet-runner/package.json packages/fleet-runner/LICENSE
-  packages/fleet-runner/README.md packages/fleet-runner/deployment.md
+  packages/fleet-runner/README.md packages/fleet-runner/local-proof-operator.md packages/fleet-runner/deployment.md
   packages/fleet-runner/recovery.md
   packages/fleet-runner/tsconfig.json packages/fleet-runner/Dockerfile
   packages/fleet-runner/Dockerfile.dockerignore
@@ -301,7 +301,7 @@ const packageVersion = (await readJson(join(repo, "packages/fleet-runner/package
 for (const id of ["install-first", "install-second"]) {
   const archive = join(evidence, id, `core-fleet-runner-${packageVersion}.tgz`);
   const files = execFileSync("tar", ["-tzf", archive], { encoding: "utf8" }).trim().split("\n").sort();
-  for (const required of ["package/package.json", "package/LICENSE", "package/README.md", "package/deployment.md", "package/recovery.md"]) {
+  for (const required of ["package/package.json", "package/LICENSE", "package/README.md", "package/deployment.md", "package/recovery.md", "package/local-proof-operator.md", "package/scripts/ledger-proof-local-operator.mjs", "package/scripts/ledger-proof-local-bind.mjs", "package/scripts/ledger-proof-local-guard.mjs"]) {
     if (!files.includes(required)) throw new Error(`${id} artifact is missing ${required}`);
   }
   if (!files.some((file) => file.startsWith("package/dist/"))) throw new Error(`${id} artifact has no compiled files`);

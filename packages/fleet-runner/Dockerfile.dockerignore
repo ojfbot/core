@@ -9,6 +9,7 @@ packages/fleet-runner/*
 !packages/fleet-runner/package.json
 !packages/fleet-runner/LICENSE
 !packages/fleet-runner/README.md
+!packages/fleet-runner/local-proof-operator.md
 !packages/fleet-runner/deployment.md
 !packages/fleet-runner/recovery.md
 !packages/fleet-runner/tsconfig.json

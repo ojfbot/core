@@ -138,7 +138,8 @@ pnpm install --filter core-workflow-framework --filter @core/fleet-runner \
 pnpm --filter @core/fleet-runner build
 mkdir -p "$PWD/.artifacts"
 pnpm --dir packages/fleet-runner pack --pack-destination "$PWD/.artifacts"
-(cd .artifacts && shasum -a 256 core-fleet-runner-0.1.0.tgz > fleet-runner-artifact.sha256)
+FLEET_RUNNER_ARCHIVE="core-fleet-runner-$(node -p 'require("./packages/fleet-runner/package.json").version').tgz"
+(cd .artifacts && shasum -a 256 "$FLEET_RUNNER_ARCHIVE" > fleet-runner-artifact.sha256)
 ```
 
 Transfer the `.tgz` and `fleet-runner-artifact.sha256` to the worker Mac over the
@@ -147,7 +148,8 @@ application with pnpm:
 
 ```sh
 shasum -a 256 -c fleet-runner-artifact.sha256
-pnpm add ./core-fleet-runner-0.1.0.tgz
+# Set FLEET_RUNNER_ARCHIVE to the exact basename in the reviewed checksum file.
+pnpm add "./${FLEET_RUNNER_ARCHIVE:?set to reviewed archive basename}"
 ```
 
 The consumer imports `fleetClient` from `@core/fleet-runner/client` and
