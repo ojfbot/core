@@ -91,3 +91,7 @@ from later agent or human consumption.
 At expiry or a terminal outcome, the independent watchdog stops only its frozen
 proof targets, preserves state, verifies the protected baseline and reports PASS
 or HELD. Unverified cleanup cannot produce PASS.
+## Practice preparation
+
+Use [practice prepare and preflight](practice.md) to generate private role settings and
+exercise the guard's read-only checks before READY/GO.

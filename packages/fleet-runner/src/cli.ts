@@ -32,6 +32,9 @@ import { statusView, currentSnapshot } from "./status.js";
 import type { StatusView } from "./status.js";
 import { isIPv4 } from "node:net";
 import { networkInterfaces } from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import {
   constants,
   accessSync,
@@ -70,6 +73,18 @@ function isLocalLan(address: string): boolean {
 
 async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
+  if (command === "practice") {
+    const helper = [
+      new URL("./practice.mjs", import.meta.url),
+      new URL("../scripts/ledger-proof-local-practice.mjs", import.meta.url),
+    ]
+      .map((url) => fileURLToPath(url))
+      .find(existsSync);
+    if (!helper) throw Error("practice-helper-missing: install the complete FleetRunner release");
+    const result = spawnSync(process.execPath, [helper, ...values], { stdio: "inherit" });
+    process.exitCode = result.status ?? 1;
+    return;
+  }
   if (
     (command === "ledger-proof-relay" || command === "ledger-proof-power") &&
     values.length === 5 &&

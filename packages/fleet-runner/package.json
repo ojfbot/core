@@ -9,8 +9,10 @@
     "scripts/ledger-proof-local-operator.mjs",
     "scripts/ledger-proof-local-bind.mjs",
     "scripts/ledger-proof-local-guard.mjs",
+    "scripts/ledger-proof-local-practice.mjs",
     "LICENSE",
     "README.md",
+    "practice.md",
     "deployment.md",
     "local-proof-operator.md",
     "recovery.md"

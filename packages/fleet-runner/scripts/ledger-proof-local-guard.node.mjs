@@ -1,7 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { launchLocalProof } from "./ledger-proof-local-guard.mjs";
+import {
+  launchLocalProof,
+  inspectLocalProof,
+  checkLocalProofReady,
+} from "./ledger-proof-local-guard.mjs";
 
 const proofId = "00000000-0000-4000-8000-000000000001";
 const sha = (value) => createHash("sha256").update(value).digest("hex");
@@ -116,8 +120,8 @@ function fixture() {
       }
       files.set(file, Buffer.from(body));
     },
-    run: (program, args) => {
-      calls.push({ program, args });
+    run: (program, args, input) => {
+      calls.push({ program, args, input });
       if (program === "/fixture/node" && args[1] === "ledger-proof" && args[2] === "status")
         return {
           status: 0,
@@ -222,6 +226,39 @@ test("verified one-use GO preflights before starting a role", () => {
       ),
   );
   assert.throws(() => launchLocalProof(f.manifest, f.io), /EEXIST/);
+});
+
+test("standalone preflight needs no GO and performs no write, bootstrap or cleanup", () => {
+  const f = fixture();
+  f.files.delete(f.manifest.goFile);
+  const before = [...f.files.entries()].map(([key, value]) => [key, String(value)]);
+  const result = checkLocalProofReady(inspectLocalProof(f.manifest, f.io));
+  assert.equal(result.ready, true);
+  assert.deepEqual(
+    [...f.files.entries()].map(([key, value]) => [key, String(value)]),
+    before,
+  );
+  const snapshot = f.calls.find(({ args }) => args[4] === "snapshot");
+  assert.deepEqual(JSON.parse(snapshot.input), { proofId });
+  assert.ok(
+    !f.calls.some(({ args }) => ["bootstrap", "bootout"].includes(args[0]) || args[4] === "stop"),
+  );
+});
+
+test("standalone snapshot failure preserves original error before any GO or startup", () => {
+  const f = fixture();
+  f.files.delete(f.manifest.goFile);
+  f.failSnapshot();
+  assert.throws(
+    () => checkLocalProofReady(inspectLocalProof(f.manifest, f.io)),
+    (error) => {
+      assert.equal(error.privateFailure.exitCode, 17);
+      assert.equal(error.privateFailure.stderr, "fixture queue read failed");
+      return true;
+    },
+  );
+  assert.equal(f.files.has(f.manifest.receiptFile), false);
+  assert.equal(f.files.has(f.manifest.consumedFile), false);
 });
 
 test("a pre-existing receipt blocks before GO consumption or role startup", () => {
