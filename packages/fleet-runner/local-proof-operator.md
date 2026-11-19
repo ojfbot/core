@@ -14,10 +14,11 @@ an epoch journal. Each shared journal has exactly one initializer. It then
 checks that every role is idle. The guard repeats the idle check immediately
 before startup, requires a pre-verified, one-use GO record with a newer source
 sequence, pins the operator program and launch definitions, and preflights the
-throwaway queue and protected baseline. It invokes the operator with the bound
-Node executable. Any failure after the one-use marker enters exact-target stop
-and role cleanup; the receipt retains the first failure separately from cleanup
-errors. A `STARTED` receipt attests to preflight and role bootstrap only. A
+throwaway queue and protected baseline. It reserves a fresh private receipt
+before consuming GO, then invokes the operator with the bound Node executable.
+Any failure after the one-use marker, including final receipt persistence,
+enters exact-target stop and role cleanup; the receipt retains the first failure
+separately from cleanup errors. A `STARTED` receipt attests to preflight and role bootstrap only. A
 later proof report and cleanup receipt are required for a PASS.
 
 Private setup must bind a fresh proof ID, isolated queue, fixed target image and

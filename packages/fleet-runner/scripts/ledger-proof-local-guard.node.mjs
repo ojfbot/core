@@ -88,7 +88,8 @@ function fixture() {
   const calls = [],
     loaded = new Set();
   let snapshotFails = false,
-    cleanupFails = false;
+    cleanupFails = false,
+    receiptWriteFailsOnce = false;
   const io = {
     uid: () => 501,
     now: () => 100_000,
@@ -103,8 +104,16 @@ function fixture() {
       mode: file.endsWith(".json") ? 0o600 : 0o755,
     }),
     write: (file, body, options) => {
-      assert.equal(options.flag, "wx");
-      if (files.has(file)) throw Error("EEXIST");
+      assert.ok(["wx", "w"].includes(options.flag));
+      if (options.flag === "wx" && files.has(file)) throw Error("EEXIST");
+      if (options.flag === "w") {
+        assert.equal(file, manifest.receiptFile);
+        assert.ok(files.has(file));
+        if (receiptWriteFailsOnce) {
+          receiptWriteFailsOnce = false;
+          throw Error("fixture receipt write failed");
+        }
+      }
       files.set(file, Buffer.from(body));
     },
     run: (program, args) => {
@@ -186,6 +195,9 @@ function fixture() {
     failCleanup: () => {
       cleanupFails = true;
     },
+    failFirstFinalReceipt: () => {
+      receiptWriteFailsOnce = true;
+    },
   };
 }
 
@@ -197,6 +209,7 @@ test("verified one-use GO preflights before starting a role", () => {
   assert.equal(result.firstFailure, null);
   assert.ok(f.files.has(f.manifest.consumedFile));
   assert.ok(f.files.has(f.manifest.receiptFile));
+  assert.equal(JSON.parse(f.files.get(f.manifest.receiptFile)).state, "STARTED");
   assert.ok(
     f.calls.findIndex(
       ({ program, args }) =>
@@ -209,6 +222,29 @@ test("verified one-use GO preflights before starting a role", () => {
       ),
   );
   assert.throws(() => launchLocalProof(f.manifest, f.io), /EEXIST/);
+});
+
+test("a pre-existing receipt blocks before GO consumption or role startup", () => {
+  const f = fixture();
+  f.files.set(f.manifest.receiptFile, Buffer.from("foreign receipt"));
+  assert.throws(() => launchLocalProof(f.manifest, f.io), /EEXIST/);
+  assert.equal(f.files.has(f.manifest.consumedFile), false);
+  assert.equal(f.calls.length, 0);
+});
+
+test("a failed final receipt write enters exact cleanup after bootstrap", () => {
+  const f = fixture();
+  f.failFirstFinalReceipt();
+  const result = launchLocalProof(f.manifest, f.io);
+  assert.equal(result.state, "HELD_CLEANED");
+  assert.equal(result.firstFailure.reason, "proof-guard-startup-failed");
+  assert.deepEqual(result.rolesStarted, ["fallback"]);
+  assert.equal(result.rolesAbsent, true);
+  assert.equal(JSON.parse(f.files.get(f.manifest.receiptFile)).state, "HELD_CLEANED");
+  assert.ok(f.calls.some(({ program, args }) => program === "/fixture/node" && args[4] === "stop"));
+  assert.ok(
+    f.calls.some(({ program, args }) => program === "/bin/launchctl" && args[0] === "bootout"),
+  );
 });
 
 test("preflight failure enters cleanup and preserves its original error", () => {

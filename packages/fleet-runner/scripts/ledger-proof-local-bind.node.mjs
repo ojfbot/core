@@ -141,6 +141,16 @@ test("drift in either paired bundle or relay binding blocks before journal init"
   assert.equal(relay.calls.length, 0);
 });
 
+test("a Node executable larger than the client bundle limit remains hash-bound", () => {
+  const f = fixture();
+  const bytes = Buffer.alloc(17 * 1024 * 1024, 7);
+  f.files.set("/fixture/node", bytes);
+  f.manifest.client.nodeSha256 = hash(bytes);
+  assert.equal(inspectLocalBinding(f.manifest, f.io).journalCount, 2);
+  bytes[0] = 8;
+  assert.throws(() => inspectLocalBinding(f.manifest, f.io), /proof-bind-node-drift/);
+});
+
 test("each shared journal must have exactly one initializer", () => {
   for (const value of [false, true]) {
     const f = fixture();
