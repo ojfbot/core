@@ -242,17 +242,64 @@ export async function readProofRelay(
       if (page.stream_id !== relay.stream || !Array.isArray(page.messages))
         throw Error("proof-relay-lineage-mismatch");
       for (const value of page.messages) {
-        const verified = messageBody(relay, value);
+        let verified: ReturnType<typeof messageBody>;
+        try {
+          verified = messageBody(relay, value);
+        } catch (error) {
+          if (
+            relay.proof.faultMode !== "worker-stop" ||
+            !(error instanceof Error) ||
+            error.message !== "invalid-ledger-proof"
+          )
+            throw error;
+          journal.observe("relay-receipt-invalid", { reason: "proof-invalid-relay-envelope" });
+          continue;
+        }
         if (!verified) continue;
         const { message, body } = verified;
         if (body.state === "READY") {
+          if (
+            relay.proof.faultMode === "worker-stop" &&
+            (typeof body.observedAtMs !== "number" ||
+              !Number.isSafeInteger(body.observedAtMs) ||
+              body.observedAtMs < relay.proof.attendedWindow!.notBeforeMs - 10_000 ||
+              body.observedAtMs >= relay.proof.endsAtMs ||
+              body.code !== relay.proof.code ||
+              body.fixtureSha256 !== relay.proof.fixtureSha256)
+          ) {
+            journal.observe("relay-receipt-invalid", {
+              reason: "proof-invalid-readiness-receipt",
+              sequence: message.sequence,
+            });
+            continue;
+          }
           if (body.role === "primary" && message.writer === relay.primaryDevice)
             journal.put("primary-ready", { ...body, sequence: message.sequence });
           if (body.role === "fallback" && message.writer === relay.fallbackDevice)
             journal.put("fallback-ready", { ...body, sequence: message.sequence });
         }
-        if (body.state === "stale-rejected" && message.writer === relay.primaryDevice)
+        if (body.state === "stale-rejected" && message.writer === relay.primaryDevice) {
+          if (
+            relay.proof.faultMode === "worker-stop" &&
+            (typeof body.facts !== "object" ||
+              body.facts === null ||
+              !("workerStopped" in body.facts) ||
+              body.facts.workerStopped !== true ||
+              !("faultMode" in body.facts) ||
+              body.facts.faultMode !== "worker-stop" ||
+              !("proofId" in body.facts) ||
+              body.facts.proofId !== relay.proof.proofId ||
+              !("staleRejected" in body.facts) ||
+              body.facts.staleRejected !== true)
+          ) {
+            journal.observe("relay-receipt-invalid", {
+              reason: "proof-invalid-worker-stop-receipt",
+              sequence: message.sequence,
+            });
+            continue;
+          }
           journal.put("fault", object(body.facts));
+        }
       }
       journal.put("cursor", integer(page.next_after));
       if (page.has_more !== true) break;
@@ -270,15 +317,15 @@ export async function readProofRelay(
       };
     const primary = journal.get("primary-ready"),
       fallback = journal.get("fallback-ready");
+    const primaryAt = primary ? integer(object(primary).observedAtMs) : 0;
+    const fallbackAt = fallback ? integer(object(fallback).observedAtMs) : 0;
+    const now = Date.now();
     return {
       ...base,
-      primaryReady: !!primary,
-      fallbackReady: !!fallback,
+      primaryReady: !!primary && (!relay.proof.faultMode || Math.abs(now - primaryAt) <= 30_000),
+      fallbackReady: !!fallback && (!relay.proof.faultMode || Math.abs(now - fallbackAt) <= 30_000),
       primaryIdleRestartVerified: primary ? object(primary).idleRestartVerified === true : false,
-      observedAtMs:
-        primary && fallback
-          ? Math.min(integer(object(primary).observedAtMs), integer(object(fallback).observedAtMs))
-          : 0,
+      observedAtMs: Math.min(primaryAt, fallbackAt),
     };
   } finally {
     journal.close();

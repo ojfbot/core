@@ -21,6 +21,7 @@ import {
   parseProofCommand,
   verifyProofCommand,
   runProofCommand,
+  ProofCommandError,
   type ProofCommand,
 } from "./ledger-proof-command.js";
 import {
@@ -33,6 +34,7 @@ import {
   parseLedgerProof,
   privatePath,
   proofHash,
+  proofSnapshotSchema,
   readPrivateJson,
   string,
   verifyAccepted,
@@ -177,27 +179,62 @@ class ProofReadinessHold extends Error {}
 export const ATTENDED_PREARM_LEAD_MS = 10 * 60_000;
 const READY_REPORT_LEAD_MS = 30_000;
 const READY_GRACE_MS = 15_000;
+// Two 120-second computations, the 300-second lease, and time for pickup, verification and cleanup.
+const WORKER_STOP_REMAINING_MS = 12 * 60_000;
+const WORKER_STOP_READY_FRESH_MS = 30_000;
+
+function recordProofStep(journal: ProofJournal, stage: string, reason?: string): void {
+  const value = { stage, ...(reason ? { reason } : {}) };
+  const last = journal.get("progress");
+  if (last && canonicalJson(object(last).value) === canonicalJson(value)) return;
+  const atMs = Date.now();
+  journal.observe("progress", value, atMs);
+  journal.put("progress", { value, atMs });
+}
+
+function retryableEvidence(error: unknown): boolean {
+  return (
+    error instanceof ProofReadinessHold ||
+    [
+      "invalid-ledger-proof",
+      "proof-invalid-readiness-receipt",
+      "proof-command-failed",
+      "proof-command-invalid-output",
+      "proof-command-timeout",
+      "proof-clock-uncertainty",
+    ].includes(failureCode(error))
+  );
+}
 
 async function probe(config: ProofRuntime, signal?: AbortSignal): Promise<void> {
   if (existsSync(config.pauseFile) || existsSync(config.reservationFile))
     throw Error("proof-local-paused");
-  const row = exact(
-    await runProofCommand(
-      config.commands.probe,
-      { proofId: config.proof.proofId, role: config.role },
-      signal,
-    ),
-    [
-      "proofId",
-      "observedAtMs",
-      "loggedIn",
-      "appsClosed",
-      "screenLocked",
-      "protectedIdle",
-      "ac",
-      "wakeReady",
-    ],
+  const result = await runProofCommand(
+    config.commands.probe,
+    { proofId: config.proof.proofId, role: config.role },
+    signal,
   );
+  if (config.proof.faultMode === "worker-stop") {
+    const row = exact(result, ["proofId", "observedAtMs", "protectedIdle", "baselineUnchanged"]);
+    if (row.proofId !== config.proof.proofId) throw Error("proof-probe-binding-mismatch");
+    if (typeof row.protectedIdle !== "boolean" || typeof row.baselineUnchanged !== "boolean")
+      throw Error("proof-invalid-readiness-receipt");
+    if (row.baselineUnchanged !== true) throw Error("proof-protected-baseline-changed");
+    if (row.protectedIdle !== true) throw new ProofReadinessHold("proof-protected-work-active");
+    if (Math.abs(Date.now() - integer(row.observedAtMs)) > 10_000)
+      throw new ProofReadinessHold("proof-readiness-receipt-stale");
+    return;
+  }
+  const row = exact(result, [
+    "proofId",
+    "observedAtMs",
+    "loggedIn",
+    "appsClosed",
+    "screenLocked",
+    "protectedIdle",
+    "ac",
+    "wakeReady",
+  ]);
   if (
     row.proofId !== config.proof.proofId ||
     Math.abs(Date.now() - integer(row.observedAtMs)) > 10_000 ||
@@ -271,9 +308,19 @@ async function snapshot(
   verify = true,
 ): Promise<ProofSnapshot> {
   const started = Date.now();
-  const value = parseProofSnapshot(
-    await runProofCommand(config.commands.snapshot, { proofId: config.proof.proofId }),
-  );
+  let raw: unknown;
+  try {
+    raw = await runProofCommand(config.commands.snapshot, { proofId: config.proof.proofId });
+  } catch (error) {
+    if (error instanceof ProofCommandError) {
+      journal.observe("private-command-failure", {
+        action: "queue-snapshot",
+        ...error.privateReceipt(),
+      });
+    }
+    throw error;
+  }
+  const value = parseProofSnapshot(raw);
   const ended = Date.now();
   journal.put("snapshot-time", {
     started,
@@ -328,15 +375,33 @@ async function publishReadiness(
   signal: AbortSignal,
 ): Promise<void> {
   await probe(config, signal);
-  const slot = Math.floor(Date.now() / 5000);
+  const slotMs = config.proof.faultMode ? 10_000 : 5000;
+  const slot = Math.floor(Date.now() / slotMs);
   await post(config, journal, `ready-${String(journal.get("worker-starts"))}-${slot}`, {
     state: "READY",
     role: config.role,
-    observedAtMs: slot * 5000,
+    observedAtMs: slot * slotMs,
     idleRestartVerified: journal.get("idle-stopped") === true,
     code: config.proof.code,
     fixtureSha256: config.proof.fixtureSha256,
   });
+}
+
+async function workerStopReadiness(
+  config: ProofRuntime,
+  journal: ProofJournal,
+  signal: AbortSignal,
+): Promise<void> {
+  const last = journal.get("worker-readiness-at");
+  if (typeof last === "number" && Date.now() - last < 5000) return;
+  journal.put("worker-readiness-at", Date.now());
+  try {
+    await publishReadiness(config, journal, signal);
+    recordProofStep(journal, "ready");
+  } catch (error) {
+    recordProofStep(journal, "worker-readiness", failureCode(error));
+    if (!retryableEvidence(error)) throw error;
+  }
 }
 
 /** Each machine runs this locally. A pending claim on restart holds rather than launching the app twice. */
@@ -348,6 +413,10 @@ export async function runProofWorker(
   if (config.role !== "primary" && config.role !== "fallback") throw Error("invalid-proof-role");
   const role = config.role;
   budget(config);
+  if (role === "primary" && config.proof.faultMode && journal.get("worker-stop-exited")) {
+    await verifyStoppedWorker(config, journal, signal);
+    return;
+  }
   const window = config.proof.attendedWindow;
   const prearmAt = window
     ? Math.max(window.notBeforeMs, config.proof.startsAtMs - ATTENDED_PREARM_LEAD_MS)
@@ -380,9 +449,26 @@ export async function runProofWorker(
     ...client,
     claim: async () => {
       active(config.proof, journal);
-      if ((await client.workerControl(combined)).paused) return null;
-      const seen = await snapshot(config, journal, false);
-      if (seen.rows.length === 0 && Date.now() < config.proof.startsAtMs + READY_GRACE_MS) {
+      if ((await client.workerControl(combined)).paused) {
+        if (config.proof.faultMode && !journal.get("claimed"))
+          await workerStopReadiness(config, journal, combined);
+        return null;
+      }
+      let seen: ProofSnapshot;
+      try {
+        seen = await snapshot(config, journal, false);
+      } catch (error) {
+        if (!config.proof.faultMode || !retryableEvidence(error)) throw error;
+        recordProofStep(journal, "worker-snapshot", failureCode(error));
+        return null;
+      }
+      if (config.proof.faultMode && seen.rows.length === 0)
+        await workerStopReadiness(config, journal, combined);
+      if (
+        !config.proof.faultMode &&
+        seen.rows.length === 0 &&
+        Date.now() < config.proof.startsAtMs + READY_GRACE_MS
+      ) {
         try {
           await publishReadiness(config, journal, combined);
         } catch (error) {
@@ -414,8 +500,12 @@ export async function runProofWorker(
       try {
         await probe(config, combined);
       } catch (error) {
-        if (!(error instanceof ProofReadinessHold)) throw error;
-        journal.put("readiness-held", error.message);
+        if (
+          !(config.proof.faultMode ? retryableEvidence(error) : error instanceof ProofReadinessHold)
+        )
+          throw error;
+        if (config.proof.faultMode) recordProofStep(journal, "worker-claim", failureCode(error));
+        journal.put("readiness-held", failureCode(error));
         return null;
       }
       active(config.proof, journal);
@@ -455,7 +545,9 @@ export async function runProofWorker(
     journal.put("worker-starts", Number(journal.get("worker-starts") ?? 0) + 1);
     while (Date.now() < config.proof.startsAtMs && !combined.aborted) {
       journal.advanceClock(Date.now());
-      if (Date.now() >= config.proof.startsAtMs - READY_REPORT_LEAD_MS) {
+      if (config.proof.faultMode) {
+        await workerStopReadiness(config, journal, combined);
+      } else if (Date.now() >= config.proof.startsAtMs - READY_REPORT_LEAD_MS) {
         try {
           await publishReadiness(config, journal, combined);
         } catch (error) {
@@ -501,6 +593,12 @@ export async function runProofWorker(
               if ((inFlightRenewal && !(await inFlightRenewal)) || context.signal.aborted)
                 throw new JobError("proof-lease-lost", false);
               active(config.proof, journal);
+              if (config.proof.faultMode) {
+                journal.put("worker-stop", { atMs: Date.now(), fence: claim.fence });
+                recordProofStep(journal, "primary-renewals-stopped");
+                stop.abort();
+                throw new JobError("proof-lease-lost", false);
+              }
               const input = {
                 proofId: config.proof.proofId,
                 claim,
@@ -531,6 +629,13 @@ export async function runProofWorker(
         },
       });
       journal.observe("worker-result", { result });
+      if (
+        config.proof.faultMode &&
+        role === "primary" &&
+        result === "lease-lost" &&
+        journal.get("worker-stop")
+      )
+        return;
       if (sleepFailure) throw Error(sleepFailure);
       if (result === "idle") {
         await delay(5000, undefined, { signal: combined });
@@ -592,6 +697,7 @@ export async function runProofWorker(
       return;
     }
   } catch (error) {
+    if (config.proof.faultMode) recordProofStep(journal, "worker-held", failureCode(error));
     hold(journal, failureCode(error));
     try {
       await post(config, journal, "worker-held", {
@@ -669,6 +775,16 @@ async function peerEvidence(
   return row;
 }
 function validateFault(proof: LedgerProof, value: Record<string, unknown>): void {
+  if (proof.faultMode === "worker-stop") {
+    if (
+      value.proofId !== proof.proofId ||
+      value.staleRejected !== true ||
+      value.workerStopped !== true ||
+      value.faultMode !== proof.faultMode
+    )
+      throw Error("proof-worker-stop-evidence-mismatch");
+    return;
+  }
   if (
     value.proofId !== proof.proofId ||
     value.staleRejected !== true ||
@@ -688,6 +804,113 @@ function validateFault(proof: LedgerProof, value: Record<string, unknown>): void
     throw Error("proof-fault-evidence-mismatch");
 }
 
+/** The launcher starts this after reaping the claim-capable child. This child never claims. */
+async function verifyStoppedWorker(
+  config: ProofRuntime,
+  journal: ProofJournal,
+  signal: AbortSignal,
+): Promise<void> {
+  try {
+    const client = fleetClient(
+      config.settings.endpoint,
+      config.settings.worker,
+      config.settings.tokenFile,
+      config.settings.generation,
+    );
+    const claim = journal.get("claimed") as Claim;
+    const stopped = object(journal.get("worker-stop"));
+    const exitedAtMs = integer(journal.get("worker-stop-exited"));
+    if (
+      !claim ||
+      stopped.fence !== 1 ||
+      claim.fence !== 1 ||
+      claim.key !== jobKey(ledgerSpec(config.proof)) ||
+      integer(stopped.atMs) > exitedAtMs ||
+      exitedAtMs >= config.proof.endsAtMs
+    )
+      throw Error("proof-worker-stop-unverified");
+    const output = object(journal.get("computed"));
+    const sha256 = string(output.sha256, /^[a-f0-9]{64}$/);
+    const file = `${claim.key}.1.jsonl`;
+    if (output.file !== file) throw Error("proof-stale-output-mismatch");
+    const bytes = readFileSync(join(config.settings.outDir, file));
+    if (proofHash(bytes) !== sha256) throw Error("proof-stale-output-mismatch");
+    recordProofStep(journal, "waiting-for-fallback-result");
+    for (;;) {
+      if (signal.aborted) throw Error("proof-verifier-aborted");
+      active(config.proof, journal);
+      let seen: ProofSnapshot;
+      try {
+        seen = await snapshot(config, journal);
+      } catch (error) {
+        if (!retryableEvidence(error)) throw error;
+        recordProofStep(journal, "verifier-snapshot", failureCode(error));
+        await delay(5000, undefined, { signal });
+        continue;
+      }
+      const row = seen.rows.find((item) => item.key === claim.key);
+      if (row?.status === "failed") throw Error("proof-fallback-failed");
+      if (row?.status !== "done") {
+        await delay(5000, undefined, { signal });
+        continue;
+      }
+      verifyAccepted(config.proof, seen);
+      const input = { key: claim.key, fence: claim.fence, sha256 };
+      const effect = journal.reserve("stale-complete", input);
+      if (effect === "new") {
+        active(config.proof, journal);
+        try {
+          if ((await client.complete(claim, bytes, sha256)) !== false)
+            throw Error("proof-stale-accepted");
+        } catch (error) {
+          if (failureCode(error) === "proof-stale-accepted") throw error;
+          recordProofStep(journal, "stale-complete", "proof-stale-ack-unavailable");
+        }
+        continue; // The durable server event, not the HTTP response alone, decides this assertion.
+      }
+      const rejected = seen.events.some(
+        (event) =>
+          event.key === claim.key &&
+          event.type === "rejected-stale" &&
+          event.fence === claim.fence &&
+          event.worker === config.proof.primary,
+      );
+      if (!rejected) {
+        recordProofStep(journal, "stale-complete", "proof-stale-rejection-not-observed");
+        await delay(5000, undefined, { signal });
+        continue;
+      }
+      journal.finish("stale-complete", { rejected: true });
+      recordProofStep(journal, "stale-rejected");
+      const facts = {
+        proofId: config.proof.proofId,
+        faultMode: config.proof.faultMode,
+        staleRejected: true,
+        workerStopped: true,
+      };
+      try {
+        await post(config, journal, "primary-complete", {
+          state: "stale-rejected",
+          key: claim.key,
+          fence: claim.fence,
+          facts,
+        });
+      } catch (error) {
+        if (!retryableEvidence(error)) throw error;
+        recordProofStep(journal, "verifier-report", failureCode(error));
+        await delay(5000, undefined, { signal });
+        continue;
+      }
+      journal.put("terminal", { outcome: "COMPLETE", atMs: Date.now() });
+      return;
+    }
+  } catch (error) {
+    recordProofStep(journal, "verifier-held", failureCode(error));
+    hold(journal, failureCode(error));
+    throw error;
+  }
+}
+
 /** The always-on local host owns admission and verification; no chat or remote-Mac command is needed. */
 export async function runProofSupervisor(
   config: ProofRuntime,
@@ -695,6 +918,7 @@ export async function runProofSupervisor(
   signal: AbortSignal,
 ): Promise<void> {
   if (config.role !== "supervisor") throw Error("invalid-proof-role");
+  const workerStop = config.proof.faultMode === "worker-stop";
   const client = fleetClient(
     config.settings.endpoint,
     config.settings.worker,
@@ -706,7 +930,8 @@ export async function runProofSupervisor(
       budget(config);
       journal.advanceClock(Date.now());
       journal.put("supervisor-seen", Date.now());
-      if (signal.aborted || Date.now() >= config.proof.endsAtMs) throw Error("proof-deadline");
+      if (signal.aborted) throw Error("proof-supervisor-aborted");
+      if (Date.now() >= config.proof.endsAtMs) throw Error("proof-deadline");
       if (journal.get("terminal")) return;
       const watchdog = journal.get("watchdog-seen");
       if (typeof watchdog !== "number" || Date.now() - watchdog > 15_000)
@@ -717,38 +942,70 @@ export async function runProofSupervisor(
       }
       active(config.proof, journal);
       if (!journal.result("admit-job")) {
-        const readyBy = config.proof.startsAtMs + READY_GRACE_MS;
-        if (Date.now() >= readyBy) throw Error("proof-readiness-deadline");
+        const readyBy = workerStop
+          ? config.proof.endsAtMs - WORKER_STOP_REMAINING_MS
+          : config.proof.startsAtMs + READY_GRACE_MS;
+        if (Date.now() >= readyBy)
+          throw Error(workerStop ? "proof-insufficient-time-to-start" : "proof-readiness-deadline");
         try {
           await probe(config, signal);
           const peers = await peerEvidence(config, "ready");
           if (
             peers.primaryReady !== true ||
             peers.fallbackReady !== true ||
-            peers.primaryIdleRestartVerified !== true ||
-            Math.abs(Date.now() - integer(peers.observedAtMs)) > 15_000
+            (!workerStop && peers.primaryIdleRestartVerified !== true) ||
+            Math.abs(Date.now() - integer(peers.observedAtMs)) >
+              (workerStop ? WORKER_STOP_READY_FRESH_MS : 15_000)
           )
             throw new ProofReadinessHold("proof-peer-readiness-held");
         } catch (error) {
-          if (!(error instanceof ProofReadinessHold)) throw error;
-          journal.put("readiness-held", error.message);
-          await delay(1000, undefined, { signal });
+          if (!(workerStop ? retryableEvidence(error) : error instanceof ProofReadinessHold))
+            throw error;
+          if (workerStop) recordProofStep(journal, "peer-readiness", failureCode(error));
+          journal.put("readiness-held", failureCode(error));
+          await delay(workerStop ? 5000 : 1000, undefined, { signal });
           continue;
         }
-        const empty = await snapshot(config, journal, false);
-        if (Date.now() >= readyBy) throw Error("proof-readiness-deadline");
+        let empty: ProofSnapshot;
+        try {
+          empty = await snapshot(config, journal, false);
+        } catch (error) {
+          if (!workerStop || !retryableEvidence(error)) throw error;
+          recordProofStep(journal, "empty-queue", failureCode(error));
+          await delay(5000, undefined, { signal });
+          continue;
+        }
+        if (Date.now() >= readyBy)
+          throw Error(workerStop ? "proof-insufficient-time-to-start" : "proof-readiness-deadline");
         const pending = journal.reserve("empty-queue", { proofId: config.proof.proofId });
         if (pending !== "done") {
-          if (empty.schema !== 4 || empty.rows.length !== 0 || empty.events.length !== 0)
+          if (
+            !proofSnapshotSchema(config.proof, empty.schema) ||
+            empty.rows.length !== 0 ||
+            empty.events.length !== 0
+          )
             throw Error("proof-queue-not-empty");
+          if (workerStop) journal.put("snapshot-schema", empty.schema);
           journal.finish("empty-queue", { empty: true });
         }
+        if (workerStop) recordProofStep(journal, "ready-to-admit");
         await control(config, journal, client, "pause-primary", config.proof.primary, "pause");
         await control(config, journal, client, "pause-fallback", config.proof.fallback, "pause");
+        if (workerStop && Date.now() >= readyBy) throw Error("proof-insufficient-time-to-start");
         await admit(config, journal, client, false);
       }
       await admit(config, journal, client, true);
-      const seen = await snapshot(config, journal);
+      let seen: ProofSnapshot;
+      try {
+        seen = await snapshot(config, journal);
+      } catch (error) {
+        if (!workerStop || !retryableEvidence(error)) throw error;
+        recordProofStep(journal, "running-snapshot", failureCode(error));
+        await delay(5000, undefined, { signal });
+        continue;
+      }
+      if (workerStop && seen.schema !== journal.get("snapshot-schema"))
+        throw Error("proof-schema-changed");
       verifyAdmission(config.proof, seen);
       if (!journal.result("full-admission-verified")) {
         if (seen.rows.some((r) => r.attempts !== 0 || r.status !== "ready"))
@@ -758,10 +1015,16 @@ export async function runProofSupervisor(
         });
         journal.finish("full-admission-verified", { verified: true });
       }
+      if (workerStop && journal.get("pickup-clock") === undefined)
+        journal.put("pickup-clock", seen.serverNowMs);
       await control(config, journal, client, "enable-primary", config.proof.primary, "resume");
       const row = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof)))!;
       const sentinel = seen.rows.find((r) => r.key === jobKey(ledgerSpec(config.proof, true)))!;
-      if (row.attempts === 0 && seen.serverNowMs > config.proof.startsAtMs + 30_000)
+      const pickupStart = workerStop
+        ? integer(journal.get("pickup-clock"))
+        : config.proof.startsAtMs;
+      if (workerStop && row.attempts === 0) recordProofStep(journal, "waiting-for-primary-claim");
+      if (row.attempts === 0 && seen.serverNowMs > pickupStart + (workerStop ? 60_000 : 30_000))
         throw Error("proof-primary-pickup-held");
       const fallbackClaimed = seen.events.find(
         (e) => e.key === row.key && e.type === "claimed" && e.worker === config.proof.fallback,
@@ -780,7 +1043,7 @@ export async function runProofSupervisor(
       )
         throw Error("proof-unexpected-attempt");
       if (!journal.get("sentinel-held")) {
-        if (Date.now() > config.proof.startsAtMs + 100_000)
+        if (!workerStop && Date.now() > config.proof.startsAtMs + 100_000)
           throw Error("proof-sentinel-hold-bound-missed");
         journal.put("sentinel-held", {
           reason: "no-eligible-worker",
@@ -790,16 +1053,18 @@ export async function runProofSupervisor(
           observedServerMs: seen.serverNowMs,
         });
       }
-      await post(config, journal, "sentinel-alert", {
-        state: "HELD",
-        kind: "unclaimable-sentinel",
-        reason: "no-eligible-worker",
-        nextAction: "retain-unclaimed-until-cleanup",
-      });
-      if (!journal.get("sentinel-bound-verified")) {
-        if (Date.now() > config.proof.startsAtMs + 120_000)
-          throw Error("proof-sentinel-alert-bound-missed");
-        journal.put("sentinel-bound-verified", true);
+      if (!workerStop) {
+        await post(config, journal, "sentinel-alert", {
+          state: "HELD",
+          kind: "unclaimable-sentinel",
+          reason: "no-eligible-worker",
+          nextAction: "retain-unclaimed-until-cleanup",
+        });
+        if (!journal.get("sentinel-bound-verified")) {
+          if (Date.now() > config.proof.startsAtMs + 120_000)
+            throw Error("proof-sentinel-alert-bound-missed");
+          journal.put("sentinel-bound-verified", true);
+        }
       }
       if (row.status === "claimed" && row.worker === config.proof.primary) {
         if (row.attempts !== 1 || row.fence !== 1 || row.leaseExpires === null)
@@ -809,6 +1074,13 @@ export async function runProofSupervisor(
           observedServerMs: seen.serverNowMs,
           uncertainty: journal.get("snapshot-time"),
         });
+        if (workerStop)
+          recordProofStep(
+            journal,
+            seen.serverNowMs < row.leaseExpires
+              ? "waiting-for-primary-lease-expiry"
+              : "lease-expired",
+          );
         if (seen.serverNowMs >= row.leaseExpires)
           await control(
             config,
@@ -819,6 +1091,8 @@ export async function runProofSupervisor(
             "resume",
           );
       }
+      if (workerStop && row.status === "claimed" && fallbackClaimed)
+        recordProofStep(journal, "fallback-claimed");
       if (row.status === "done") {
         verifyAccepted(config.proof, seen);
         const last = object(journal.get("last-primary-lease"));
@@ -832,9 +1106,11 @@ export async function runProofSupervisor(
             e.worker === config.proof.primary &&
             e.fence === 1,
         );
-        if (!expiryEvent) throw Error("proof-lease-expiry-evidence-missing");
-        const deltaMs = fallbackClaim.ts - (integer(expiryEvent.leaseExpiredAtMs) - 300_000);
-        if (deltaMs < 300_000 || deltaMs > 310_000) throw Error("proof-reclaim-bound-missed");
+        if (!expiryEvent || !fallbackClaim) throw Error("proof-lease-expiry-evidence-missing");
+        const expiresAtMs = integer(expiryEvent.leaseExpiredAtMs);
+        const deltaMs = fallbackClaim.ts - expiresAtMs + 300_000;
+        if (deltaMs < 300_000 || (!workerStop && deltaMs > 310_000))
+          throw Error("proof-reclaim-bound-missed");
         const accepted = {
           key: row.key,
           fence: row.fence,
@@ -843,17 +1119,30 @@ export async function runProofSupervisor(
           uncertainty: last.uncertainty,
         };
         if (!journal.result("accepted")) {
+          if (workerStop) recordProofStep(journal, "fallback-output-accepted");
           journal.reserve("accepted", accepted);
           journal.finish("accepted", accepted);
-          journal.put("restart-required", true);
-          return; // The local one-shot launcher restarts the supervisor ONCE at this quiescent checkpoint.
+          if (!workerStop) {
+            journal.put("restart-required", true);
+            return; // The local one-shot launcher restarts the supervisor at this checkpoint.
+          }
         }
         if (journal.get("restart-required") === true) {
           journal.put("restart-required", false);
           journal.put("restart-observed", Date.now());
         }
-        const fault = await peerEvidence(config, "fault");
+        let fault: Record<string, unknown>;
+        try {
+          fault = await peerEvidence(config, "fault");
+        } catch (error) {
+          if (!workerStop || !retryableEvidence(error)) throw error;
+          recordProofStep(journal, "worker-stop-evidence", failureCode(error));
+          await delay(5000, undefined, { signal });
+          continue;
+        }
         if (fault.pending === true) {
+          if (workerStop)
+            recordProofStep(journal, "worker-stop-evidence", "proof-evidence-pending");
           await delay(5000, undefined, { signal });
           continue;
         }
@@ -884,12 +1173,14 @@ export async function runProofSupervisor(
           throw Error("proof-signed-events-mismatch");
         if (
           !journal.get("sentinel-held") ||
-          !journal.result("sentinel-alert") ||
-          !journal.get("sentinel-bound-verified") ||
-          !journal.get("restart-observed")
+          (!workerStop &&
+            (!journal.result("sentinel-alert") ||
+              !journal.get("sentinel-bound-verified") ||
+              !journal.get("restart-observed")))
         )
           throw Error("proof-acceptance-incomplete");
         active(config.proof, journal);
+        if (workerStop) recordProofStep(journal, "handoff-verified");
         if (!journal.setTerminal({ outcome: "VERIFIED", atMs: Date.now(), accepted, fault }))
           throw Error("proof-terminal-already-held");
         return;
@@ -963,11 +1254,26 @@ export async function runProofWatchdog(
         owner: "proof-supervisor",
         nextAction: cleanupVerified ? "consume-retained-report" : "local-operator-cleanup-required",
         runtimeModelCalls: 0,
+        ...(config.proof.faultMode
+          ? {
+              facts: {
+                faultMode: config.proof.faultMode,
+                progress: journal.get("progress") ?? null,
+                jobAdmitted: !!journal.result("admit-job"),
+                resultAccepted: !!journal.result("accepted"),
+                handoffVerified: terminal.outcome === "VERIFIED",
+                cleanupVerified,
+                terminalReason: terminal.reason ?? null,
+              },
+            }
+          : {}),
       };
       const frozen = journal.freezeTerminalReport(report);
-      await post(config, journal, "terminal-report", frozen.body, frozen.commandId);
       if (cleanupVerified) {
         if (!journal.get("cleanup-complete")) journal.put("cleanup-complete", Date.now());
+      }
+      await post(config, journal, "terminal-report", frozen.body, frozen.commandId);
+      if (cleanupVerified) {
         if (frozen.body.state === "HELD" && frozen.body.reason === "proof-cleanup-unverified") {
           await post(config, journal, "cleanup-status", {
             proofId: config.proof.proofId,

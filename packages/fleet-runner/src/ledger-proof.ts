@@ -30,6 +30,7 @@ export interface LedgerProof {
   fallback: string;
   capability: string;
   attendedWindow?: { notBeforeMs: number; expiresAtMs: number };
+  faultMode?: "worker-stop";
 }
 function fail(): never {
   throw Error("invalid-ledger-proof");
@@ -80,6 +81,7 @@ export function readPrivateJson(file: string, limit = 64 * 1024): unknown {
 }
 export function parseLedgerProof(value: unknown): LedgerProof {
   const hasAttendedWindow = Object.hasOwn(object(value), "attendedWindow");
+  const hasFaultMode = Object.hasOwn(object(value), "faultMode");
   const row = exact(value, [
     "schemaVersion",
     "proofId",
@@ -93,6 +95,7 @@ export function parseLedgerProof(value: unknown): LedgerProof {
     "fallback",
     "capability",
     ...(hasAttendedWindow ? ["attendedWindow"] : []),
+    ...(hasFaultMode ? ["faultMode"] : []),
   ]);
   if (row.schemaVersion !== 1) fail();
   const proof: LedgerProof = {
@@ -138,6 +141,10 @@ export function parseLedgerProof(value: unknown): LedgerProof {
       fail();
     proof.attendedWindow = { notBeforeMs, expiresAtMs };
   }
+  if (hasFaultMode) {
+    if (row.faultMode !== "worker-stop" || !proof.attendedWindow) fail();
+    proof.faultMode = row.faultMode;
+  }
   return proof;
 }
 export function ledgerSpec(proof: LedgerProof, sentinel = false): JobSpec {
@@ -151,6 +158,9 @@ export function ledgerSpec(proof: LedgerProof, sentinel = false): JobSpec {
     priority: 0,
     maxAttempts: sentinel ? 1 : 2,
   };
+}
+export function proofSnapshotSchema(proof: LedgerProof, schema: number): boolean {
+  return schema === 4 || (proof.faultMode === "worker-stop" && schema === 5);
 }
 export function verifyClaim(
   proof: LedgerProof,
@@ -304,7 +314,7 @@ export function readProofSnapshot(database: string, outputs: string): ProofSnaps
 export function verifyAdmission(proof: LedgerProof, snapshot: ProofSnapshot): void {
   const specs = [ledgerSpec(proof), ledgerSpec(proof, true)];
   if (
-    snapshot.schema !== 4 ||
+    !proofSnapshotSchema(proof, snapshot.schema) ||
     snapshot.rows.length !== 2 ||
     !Number.isSafeInteger(snapshot.serverNowMs)
   )

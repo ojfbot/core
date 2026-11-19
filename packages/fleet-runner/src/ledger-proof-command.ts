@@ -10,6 +10,47 @@ export interface ProofCommand {
   sha256: string;
   files: Record<string, string>;
 }
+const STDERR_LIMIT = 8192;
+
+/** Retain the diagnostic tail while continuing to drain the subprocess stream. */
+export class ProofStderr {
+  #tail = Buffer.alloc(0);
+  #bytes = 0;
+  append(chunk: Buffer): void {
+    this.#bytes += chunk.length;
+    if (chunk.length >= STDERR_LIMIT) {
+      this.#tail = Buffer.from(chunk.subarray(chunk.length - STDERR_LIMIT));
+    } else {
+      const skip = Math.max(0, this.#tail.length + chunk.length - STDERR_LIMIT);
+      this.#tail = Buffer.concat([this.#tail.subarray(skip), chunk]);
+    }
+  }
+  receipt() {
+    return {
+      stderr: this.#tail.toString("utf8"),
+      stderrBytes: this.#bytes,
+      stderrTruncated: this.#bytes > STDERR_LIMIT,
+    };
+  }
+}
+
+type CommandFailure = {
+  reason: "start" | "timeout" | "abort" | "output-limit" | "exit" | "invalid-output";
+  exitCode: number | null;
+  signal: NodeJS.Signals | null;
+  spawnError?: string;
+} & ReturnType<ProofStderr["receipt"]>;
+
+export class ProofCommandError extends Error {
+  #details: CommandFailure;
+  constructor(code: string, details: CommandFailure) {
+    super(code);
+    this.#details = details;
+  }
+  privateReceipt(): CommandFailure {
+    return this.#details;
+  }
+}
 export function parseProofCommand(value: unknown): ProofCommand {
   const row = exact(value, ["program", "args", "sha256", "files"]);
   const program = privatePath(row.program),
@@ -76,7 +117,7 @@ export async function runProofCommand(
     const child = spawn(command.program, command.args, {
       detached: true,
       shell: false,
-      stdio: ["pipe", "pipe", "ignore"],
+      stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...environment,
         PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -84,8 +125,10 @@ export async function runProofCommand(
         ...(process.env.TMPDIR ? { TMPDIR: process.env.TMPDIR } : {}),
       },
     });
-    let bytes = Buffer.alloc(0),
-      failed = false;
+    let bytes = Buffer.alloc(0);
+    const stderr = new ProofStderr();
+    let stoppedFor: "timeout" | "abort" | "output-limit" | undefined;
+    let spawnError: string | undefined;
     let killTimer: ReturnType<typeof setTimeout> | undefined;
     const kill = (signal: NodeJS.Signals): void => {
       try {
@@ -94,40 +137,63 @@ export async function runProofCommand(
         /* already reaped */
       }
     };
-    const stop = (): void => {
-      if (!failed) {
-        failed = true;
+    const stop = (reason: NonNullable<typeof stoppedFor>): void => {
+      if (!stoppedFor) {
+        stoppedFor = reason;
         kill("SIGTERM");
         killTimer = setTimeout(() => kill("SIGKILL"), 500);
       }
     };
-    const timer = setTimeout(stop, timeoutMs);
-    signal?.addEventListener("abort", stop, { once: true });
+    const aborted = () => stop("abort");
+    const timer = setTimeout(() => stop("timeout"), timeoutMs);
+    signal?.addEventListener("abort", aborted, { once: true });
+    if (signal?.aborted) aborted();
     const cleanup = (): void => {
       clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
-      signal?.removeEventListener("abort", stop);
+      signal?.removeEventListener("abort", aborted);
       kill("SIGKILL");
     };
     child.stdout.on("data", (chunk: Buffer) => {
-      if (bytes.length + chunk.length > 64 * 1024) stop();
+      if (bytes.length + chunk.length > 64 * 1024) stop("output-limit");
       else bytes = Buffer.concat([bytes, chunk]);
     });
+    child.stderr.on("data", (chunk: Buffer) => stderr.append(chunk));
     child.stdin.on("error", () => {});
-    child.once("error", () => {
-      cleanup();
-      reject(Error("proof-command-start-failed"));
+    child.once("error", (error) => {
+      spawnError = error.message.slice(0, 1024);
     });
-    child.once("close", (code) => {
+    child.once("close", (code, exitSignal) => {
       cleanup();
-      if (failed || code !== 0) {
-        reject(Error("proof-command-failed"));
+      const details = { exitCode: code, signal: exitSignal, ...stderr.receipt() };
+      if (spawnError !== undefined) {
+        reject(
+          new ProofCommandError("proof-command-start-failed", {
+            ...details,
+            reason: "start",
+            spawnError,
+          }),
+        );
+        return;
+      }
+      if (stoppedFor || code !== 0) {
+        reject(
+          new ProofCommandError("proof-command-failed", {
+            ...details,
+            reason: stoppedFor ?? "exit",
+          }),
+        );
         return;
       }
       try {
         resolve(JSON.parse(bytes.toString("utf8")) as unknown);
       } catch {
-        reject(Error("proof-command-invalid-output"));
+        reject(
+          new ProofCommandError("proof-command-invalid-output", {
+            ...details,
+            reason: "invalid-output",
+          }),
+        );
       }
     });
     child.stdin.end(`${JSON.stringify(input)}\n`);

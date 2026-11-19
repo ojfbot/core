@@ -13,7 +13,9 @@ export class ProofJournal {
     file: string,
     readonly binding: unknown,
     initialize = false,
+    readOnly = false,
   ) {
+    if (initialize && readOnly) throw Error("proof-state-initialization-mismatch");
     if (initialize === existsSync(file)) throw Error("proof-state-initialization-mismatch");
     if (!initialize) {
       const stat = lstatSync(file);
@@ -26,9 +28,11 @@ export class ProofJournal {
         throw Error("unsafe-proof-state");
     }
     if (initialize) closeSync(openSync(file, "wx", 0o600));
-    this.db = new DatabaseSync(file, { open: true });
+    this.db = new DatabaseSync(file, { open: true, readOnly });
     this.db.exec(
-      "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON; PRAGMA busy_timeout=5000;",
+      readOnly
+        ? "PRAGMA busy_timeout=5000;"
+        : "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA fullfsync=ON; PRAGMA checkpoint_fullfsync=ON; PRAGMA busy_timeout=5000;",
     );
     if (initialize) {
       this.db.exec(`BEGIN IMMEDIATE;
@@ -108,6 +112,20 @@ export class ProofJournal {
     this.db
       .prepare("INSERT INTO observations(at_ms,kind,value) VALUES (?,?,?)")
       .run(now, kind, canonicalJson(value));
+  }
+  progress() {
+    return this.db
+      .prepare(
+        "SELECT seq,at_ms,kind,value FROM observations WHERE kind IN ('progress','held','claimed','computed') ORDER BY seq DESC LIMIT 40",
+      )
+      .all()
+      .reverse()
+      .map((row) => ({
+        sequence: row.seq,
+        atMs: row.at_ms,
+        kind: row.kind,
+        value: JSON.parse(String(row.value)) as unknown,
+      }));
   }
   /** Reservation precedes the external effect. Unknown reservations cannot silently become new effects. */
   reserve(name: string, input: unknown): "new" | "pending" | "done" {
