@@ -446,14 +446,16 @@ the existing tickets. Detailed run evidence remains private at its source.
 | Milestone | Evidence and current gate |
 | --- | --- |
 | M1 — worker-stop source | [Core #628](https://github.com/ojfbot/core/pull/628) merged at `8b2a0567`; the isolated worker-stop proof above exercised the earlier bounded path. This does not qualify the merged artifact on both hosts. |
-| M2 — portable proof operator | [Core #629](https://github.com/ojfbot/core/pull/629) is a draft source PR. The focused helper tests now run in green CI; a package-identical Docker proof passed on an isolated test path. The remaining exact-head review disposition and merge stay open. |
-| M3 — merged-code handoff rerun | Await M2 gates, a passing practice run, and a fresh isolated queue. A scoped test grant exists privately; no merged-code live rerun is recorded. |
+| M2 — portable proof operator | [Core #629](https://github.com/ojfbot/core/pull/629) merged at `b52f976c` after passing focused CI, exact-head review, two clean Docker package builds and an isolated synthetic lifecycle. The landed tree matches the reviewed tree. This closes the portable source gate, not the merged-code two-host run. |
+| M3 — merged-code handoff rerun | The bounded no-admission practice is approved but has not started. Preflight found that the stock worker installer rejects the merged prerelease version; the isolated package path and matching artifact binding are being checked before any queue or worker starts. A passing practice and a fresh isolated queue still precede one live worker-stop handoff. |
 | M4 — HelpDesk-routed test job | Await M3 and a passing practice run of request → queue → worker → verified result → reply. No end-to-end live result is recorded. |
 | M5 — standing operation | Permanent queue, resident services, production data, and dashboard promotion remain held for separate decisions and qualification under the existing map. |
 
-Yuri owns the next M2 exact-head review and packaging evidence, then the
-conditional source decision under the existing charter. The Yojimbo coordinator
-retains follow-up until pickup is acknowledged. M3 and M4 test authority is
+Yuri owns the M3 practice card and its local effects. The Yojimbo coordinator
+owns its local artifact binding and bilateral preflight readback. The stock
+installer's prerelease-version rejection needs an ordinary source correction;
+an isolated proof path must be explicitly bound rather than silently changing
+the standing worker install. M3 and M4 test authority is
 bounded to isolated runs; it does not waive their practice, review or cleanup
 gates. These milestones are delivery views of the existing #307 tickets, not a
 new program or replacement tickets.
