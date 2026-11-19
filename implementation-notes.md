@@ -8,6 +8,7 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-19 (FleetRunner G4 practice CI): the exact #632 head passed pull-request CI but its duplicate push run repeatedly collapsed an unchanged practice-launch failure to `unexpected-error`. The preserved private receipt showed `proof-command-drift`: Actions setup-node exposes its toolcache binary as mode `0777`, while the proof correctly refuses group/other-writable executables. Kept the installer merge separate, exposed only fixed internal `proof-*` invariant codes, and made the test use a private `0500` copy of Node rather than weakening production verification.
 - 2026-11-19 (FleetRunner G4 exact-install practice): the merged package reports prerelease version `0.2.5-bookcase.2`, but `install-worker.sh` accepts only plain `x.y.z`; the production installer stopped before changing Yuri's existing 0.1.0 install. Hold practice and correct the release-version contract rather than hand-assembling an unverified version folder.
 - 2026-11-19 (FleetRunner G4 installer correction): the focused signed-runtime suite passed 21/21, while the unchanged offline wake fixture failed 6/7 both in the full run and alone on this host. Kept the installer correction scoped and left the unrelated wake fixture to CI/current gate ownership rather than expanding the release-contract patch.
 
