@@ -12,6 +12,9 @@ the portable package artifact flow, and the clean-build proof command.
 See [backup and restore](./recovery.md) for the isolated G7 recovery commands,
 generation fencing, persisted restore hold, and qualification boundary.
 
+See [isolated local proof operator](./local-proof-operator.md) for the packaged
+binder, guard, and exact-target operator used by a bounded test run.
+
 ## Bounded ledger proof
 
 `ledger-proof` runs one installed `bookcase-ledger-replay` job in a disposable

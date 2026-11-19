@@ -8,6 +8,8 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-18 (FleetRunner M2 portable proof): the clean-tree packaging gate reached the local Docker invocation, but this host has no `docker` executable. Kept the source and offline checks, verified the pnpm tarball contents, and left Docker packaging qualification for a host with the tool; no live proof was claimed.
+
 - The approved Bookcase proof assumed an overnight run. The operator asked for the earliest attended slot, so a proof with an explicitly bound interval can run in Chicago daytime within the same 90-minute total and 30-minute test caps. Proofs without that interval still use the overnight gate.
 
 - macOS recorded Yuri’s scheduled-wake assertion immediately before a full wake labeled HID Activity. Verify that path with the exact scheduler assertion and an unambiguous owned wake alongside the existing RTC or Alarm evidence.
