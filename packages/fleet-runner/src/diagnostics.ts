@@ -25,6 +25,13 @@ const CODES = new Set([
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
   "UND_ERR_CONNECT_TIMEOUT",
 ]);
+const ERROR_NAMES = new Map([
+  ["TypeError", "unexpected-type-error"],
+  ["RangeError", "unexpected-range-error"],
+  ["ReferenceError", "unexpected-reference-error"],
+  ["SyntaxError", "unexpected-syntax-error"],
+  ["URIError", "unexpected-uri-error"],
+]);
 
 /** Deliberately excludes error messages, stacks, response bodies and filesystem paths. */
 export function errorCode(error: unknown): string {
@@ -66,7 +73,12 @@ export function errorCode(error: unknown): string {
     ].includes(error.message)
   )
     return error.message;
+  // Proof failures are fixed internal invariant names, never provider, job, path, or response text.
+  // Preserve the exact invariant so a held launcher can be diagnosed without exposing its cause text.
+  if (error instanceof Error && /^proof-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(error.message))
+    return error.message;
   if (error instanceof Error && /^job table schema [0-9]+, expected [0-9]+$/.test(error.message))
     return "schema-incompatible";
+  if (error instanceof Error && ERROR_NAMES.has(error.name)) return ERROR_NAMES.get(error.name)!;
   return "unexpected-error";
 }

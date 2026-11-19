@@ -22,6 +22,9 @@ it("runs only fixed hashed local helper bytes and refuses drift before subproces
     files: { [file]: proofHash(readFileSync(file)) },
   });
   expect(await runProofCommand(command, {})).toEqual({ checked: true });
+  chmodSync(node, 0o777);
+  await expect(runProofCommand(command, {})).rejects.toThrow("proof-command-drift");
+  chmodSync(node, 0o500);
   writeFileSync(file, "process.stdout.write(JSON.stringify({checked:false}))");
   await expect(runProofCommand(command, {})).rejects.toThrow("proof-command-drift");
   expect(() => parseProofCommand({ ...command, program: "/bin/sh" })).toThrow();

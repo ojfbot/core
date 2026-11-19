@@ -158,5 +158,13 @@ it("keeps private messages and paths out of diagnostics", () => {
   const error = Object.assign(new Error("synthetic private detail"), { code: "EACCES" });
   expect(errorCode(error)).toBe("EACCES");
   expect(errorCode(new Error("synthetic private detail"))).toBe("unexpected-error");
+  expect(errorCode(new Error("proof-practice-queue-not-empty"))).toBe(
+    "proof-practice-queue-not-empty",
+  );
+  expect(errorCode(new Error("proof-/private/path"))).toBe("unexpected-error");
   expect(errorCode(new Error("job table schema 99, expected 3"))).toBe("schema-incompatible");
+  expect(errorCode(new TypeError("synthetic private detail"))).toBe("unexpected-type-error");
+  expect(
+    errorCode(Object.assign(new Error("synthetic private detail"), { name: "PrivatePathError" })),
+  ).toBe("unexpected-error");
 });

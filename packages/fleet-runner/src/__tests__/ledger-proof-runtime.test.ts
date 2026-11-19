@@ -1,6 +1,8 @@
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -1019,7 +1021,10 @@ it("reads a closed worker-stop journal through the CLI without creating or chang
     spawnSync(process.execPath, [bundle, "ledger-proof", "status", ...args], { encoding: "utf8" });
   const missing = status();
   expect(missing.status).toBe(1);
-  expect(JSON.parse(missing.stderr)).toEqual({ phase: "startup", code: "unexpected-error" });
+  expect(JSON.parse(missing.stderr)).toEqual({
+    phase: "startup",
+    code: "proof-state-initialization-mismatch",
+  });
   expect(existsSync(stateFile)).toBe(false);
 
   const writer = new ProofJournal(stateFile, parseProofRuntime(raw), true);
@@ -1288,13 +1293,18 @@ it("runs both practice roles through the actual launch, stop and status CLI", as
     console.log(JSON.stringify(data[process.argv[2]]()));
   `,
   );
-  const nodeSha256 = proofHash(readFileSync(process.execPath));
+  // setup-node installs its toolcache binary as 0777 on GitHub-hosted runners. A declared proof
+  // command correctly refuses that mutable program, so use a private immutable fixture copy.
+  const commandNode = join(dir, "fixture-node");
+  copyFileSync(process.execPath, commandNode);
+  chmodSync(commandNode, 0o500);
+  const nodeSha256 = proofHash(readFileSync(commandNode));
   const helperSha256 = proofHash(readFileSync(helper));
   const { spawn } =
     await vi.importActual<typeof import("node:child_process")>("node:child_process");
   const realNow = new Date().getTime();
   const command = (action: string) => ({
-    program: process.execPath,
+    program: commandNode,
     args: [helper, action],
     sha256: nodeSha256,
     files: { [helper]: helperSha256 },
@@ -1312,12 +1322,23 @@ it("runs both practice roles through the actual launch, stop and status CLI", as
     const settingsFile = join(dir, role + ".json");
     const tokenFile = join(dir, role + ".key");
     generateToken(tokenFile);
+    const declared = fixture.settings.kinds["bookcase-ledger-replay"]!;
     const raw = {
       ...fixture,
       proof,
       stateFile: join(dir, role + ".sqlite"),
-      settings: { ...fixture.settings, tokenFile, schemaVersion: 1 },
-      artifacts: { [process.execPath]: nodeSha256, "/app/ledger.mjs": helperSha256 },
+      settings: {
+        ...fixture.settings,
+        tokenFile,
+        schemaVersion: 1,
+        kinds: {
+          "bookcase-ledger-replay": {
+            ...declared,
+            command: [commandNode, ...declared.command.slice(1)],
+          },
+        },
+      },
+      artifacts: { [commandNode]: nodeSha256, "/app/ledger.mjs": helperSha256 },
       commands: {
         probe: command("probe"),
         snapshot: command("snapshot"),
@@ -1358,7 +1379,29 @@ it("runs both practice roles through the actual launch, stop and status CLI", as
         new Date().getTime() < until
       )
         await new Promise((resolve) => setTimeout(resolve, 30));
-      expect(reader.result("practice-ready"), stderr).toBeDefined();
+      const privateChildFailure = reader.db
+        .prepare("SELECT value FROM observations WHERE kind='private-child-failure'")
+        .get();
+      expect(
+        reader.result("practice-ready"),
+        JSON.stringify({
+          stderr,
+          privateChildFailure: privateChildFailure
+            ? JSON.parse(String(privateChildFailure.value))
+            : null,
+          practiceFirstFailure: reader.get("practice-first-failure") ?? null,
+          commandFiles: {
+            node: {
+              mode: lstatSync(commandNode).mode & 0o777,
+              sha256Matches: proofHash(readFileSync(commandNode)) === nodeSha256,
+            },
+            helper: {
+              mode: lstatSync(helper).mode & 0o777,
+              sha256Matches: proofHash(readFileSync(helper)) === helperSha256,
+            },
+          },
+        }),
+      ).toBeDefined();
       const stopFile = join(dir, role + "-stop.json");
       writeFileSync(stopFile, JSON.stringify({ ...stop, settingsSha256 }), { mode: 0o600 });
       const stopped = cli("stop-practice", ["--stop", stopFile]);
