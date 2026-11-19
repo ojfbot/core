@@ -495,7 +495,10 @@ export function createOperator(input, overrides = {}) {
     },
   };
 }
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))
+) {
   try {
     const args = process.argv.slice(2);
     requireThat(args.length === 4 && args[0] === "--settings" && args[2] === "--mode", "arguments");
