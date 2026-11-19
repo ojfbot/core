@@ -447,7 +447,7 @@ the existing tickets. Detailed run evidence remains private at its source.
 | --- | --- |
 | M1 — worker-stop source | [Core #628](https://github.com/ojfbot/core/pull/628) merged at `8b2a0567`; the isolated worker-stop proof above exercised the earlier bounded path. This does not qualify the merged artifact on both hosts. |
 | M2 — portable proof operator | [Core #629](https://github.com/ojfbot/core/pull/629) merged at `b52f976c` after passing focused CI, exact-head review, two clean Docker package builds and an isolated synthetic lifecycle. The landed tree matches the reviewed tree. This closes the portable source gate, not the merged-code two-host run. |
-| M3 — merged-code handoff rerun | The bounded no-admission practice is approved but has not started. The stock worker installer rejects the merged prerelease version; an explicitly isolated package install and matching client binding have passed on both Macs. Yuri is preparing a fresh queue and common readiness plan before any role starts. A passing practice and a separate fresh isolated queue still precede one live worker-stop handoff. |
+| M3 — merged-code handoff rerun | The isolated package and merged client binding passed on both Macs. A no-admission practice reached signed READY on both native workers and verified an empty queue and exact cleanup. Both workers then reported HELD during teardown; the first retained error is generic, so a clean terminal and practice PASS are not claimed. No merged-code live worker-stop run occurred. The teardown order and native terminal evidence need resolution before a separate fresh live queue. |
 | M4 — HelpDesk-routed test job | Await M3 and a passing practice run of request → queue → worker → verified result → reply. No end-to-end live result is recorded. |
 | M5 — standing operation | Permanent queue, resident services, production data, and dashboard promotion remain held for separate decisions and qualification under the existing map. |
 
@@ -460,6 +460,9 @@ the standing worker install. M3 and M4 test authority is
 bounded to isolated runs; it does not waive their practice, review or cleanup
 gates. These milestones are delivery views of the existing #307 tickets, not a
 new program or replacement tickets.
+The M3 practice is closed with no further effects under its retired proof ID;
+the next owner decision is how to prove a clean worker-before-queue teardown
+without weakening the accepted-result or cleanup gates.
 
 ### Current decision and evidence limits
 
