@@ -421,17 +421,17 @@ Production hosting and reach stay with #309. Consumption, overlap, and
 settlement stay with #316, #317, and #310. Queue-wide pause and GPU capacity
 beyond a sequential worker are deferred for this read-vision tranche.
 
-### Isolated Bookcase worker-stop recovery proof, 2026-11-19
+### Isolated Bookcase worker-stop recovery proof, 2026-11-19 UTC
 
 Under one owner-approved, one-use proof window, an isolated Bookcase job was
-admitted after signed native readiness from workers on Yuri and Yojimbo. Yuri's
-worker claimed attempt 1 at fence 1, then stopped. After its lease expired,
-Yojimbo's worker claimed attempt 2 at fence 2 and completed the deterministic
-job. The queue accepted one output, rejected the stale fence-1 completion, and
-left the held sentinel untouched. The supervisor reported a verified handoff
-and cleanup with zero runtime model or power actions. Both hosts independently
-read back the result and exact isolated target cleanup; the accepted output
-remained the same in the final cold read.
+admitted after signed native readiness from the primary and fallback workers
+on two Macs. The primary claimed attempt 1 at fence 1, then stopped. After its
+lease expired, the fallback claimed attempt 2 at fence 2 and completed the
+deterministic job. The queue accepted one output, rejected the stale fence-1
+completion, and left the held sentinel untouched. The supervisor reported a
+verified handoff and cleanup with zero runtime model or power actions. Both
+hosts independently read back the result and exact isolated target cleanup;
+the accepted output remained the same in the final cold read.
 
 This is evidence for the bounded lease, fencing, native relay and deterministic
 Bookcase compute path in [#578](https://github.com/ojfbot/core/issues/578)
