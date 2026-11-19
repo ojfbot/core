@@ -2,7 +2,7 @@
 
 Read [CLAUDE.md](CLAUDE.md) for repository boundaries and working rules; they apply
 to Codex and other coding agents too. Before architectural decisions or code,
-read [the product context](domain-knowledge/frame-os-context.md). Use pnpm only.
+read [the fleet context](domain-knowledge/frame-os-context.md). Use pnpm only.
 
 Read [shared agent defaults](domain-knowledge/agent-defaults.md) for
 alignment, inherited charter authority and continuation duties. For cross-session

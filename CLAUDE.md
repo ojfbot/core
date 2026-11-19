@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It covers the product vision, demo tracks, repo inventory, roadmap phases, and hard constraints that apply to all work in this cluster.
+> **Before making any architectural decisions or writing code across any ojfbot repo, read `domain-knowledge/frame-os-context.md`.** It resolves the current CircusGreen fleet purpose and evidence owners, and scopes Frame-specific references to Tier-A work. The historical filename is retained for installed-path compatibility.
 
 > **Default agent posture: establish alignment, then carry it forward.** Read `domain-knowledge/agent-defaults.md`. Grill before new non-trivial work whose intent or boundaries remain unresolved. Skip a new grill for trivial work, read-only investigation, explicit "just do it", or work already covered by an agreed charter and its delegated judgment. A new session or device does not reset established approval; current explicit holds still govern. Own unfinished charter work through its next action, owner and checkpoint, including after an individual request closes.
 
@@ -338,7 +338,7 @@ The files:
 - `CONTEXT.md` — **ubiquitous language layer (ADR-0044)**: 6 bounded contexts (Shell+Host Composition, Agent Graph, Workflow Engine, Gas Town Governance, Observation, UI Components), aggregates inside each, cross-context workflows, universal invariants, naming disambiguation
 - `GLOSSARY.md` — A→Z one-liners for every non-obvious term, with source ADR/file cross-references
 - `agent-defaults.md` — align unresolved new work; preserve established charter authority, current holds and next-action ownership across sessions
-- `frame-os-context.md` — **agent context brief**: product vision, two demo tracks, full repo inventory, shell blockers, roadmap phases, architectural decisions, env vars, constraints
+- `frame-os-context.md` — **fleet context brief**: current CircusGreen purpose, authoritative goal/evidence sources, distinct coordination and execution responsibilities, and scoped Frame/Tier-A architecture references
 - `cv-builder-architecture.md` — monorepo packages, agent graph structure, P0 blockers, `.agents/` system, open issues map
 - `langgraph-patterns.md` — state schema rules, node/routing invariants, checkpointer behavior, common failure signatures
 - `shared-stack.md` — Carbon Design System components, JWT auth pattern, LangGraph node signature, SSE, RAG, structured logging
