@@ -77,6 +77,12 @@ numbers() {
   # "24.22.2" -> "24 22 2", or nothing if it is not three plain numbers.
   printf '%s\n' "$1" | sed -n 's/^\([0-9][0-9]*\)\.\([0-9][0-9]*\)\.\([0-9][0-9]*\)$/\1 \2 \3/p'
 }
+valid_version() {
+  # Full SemVer is a safe single folder name: ASCII alphanumerics, dots, hyphens and an optional
+  # plus. The length bound stays well below one filesystem component on every supported host.
+  [ "${#1}" -le 128 ] || return 1
+  printf '%s\n' "$1" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.(0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(\+([0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*))?$'
+}
 describe() {
   info=$("$1" "$2" version 2>/dev/null) || refuse "this Node could not run the bundle"
   [ "$(field name)" = fleet-runner ] && [ "$(field bundled)" = true ] ||
@@ -86,7 +92,7 @@ describe() {
   floor=$(field node_floor)
 }
 describe "$node" "$bundle"
-[ -n "$(numbers "$version")" ] || refuse "the bundle's version is not of the form 1.2.3"
+valid_version "$version" || refuse "the bundle's version is not a safe SemVer release"
 [ -n "$(numbers "$floor")" ] || refuse "the bundle's Node floor is not of the form 1.2.3"
 printf '%s\n' "$commit" | grep -Eq '^[0-9a-f]{40}$' ||
   refuse "the bundle was not built from a clean commit (its stamp is \"$commit\"): commit, then pnpm build"

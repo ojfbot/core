@@ -48,6 +48,28 @@ const waitFor = async (ready: () => boolean) => {
   }
 };
 
+async function releaseBundle(version: string): Promise<string> {
+  const outfile = join(releaseDir, `fleet-runner-${hash(Buffer.from(version))}.mjs`);
+  await build({
+    entryPoints: [join(pkg, "src/cli.ts")],
+    outfile,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+    define: {
+      __FLEET_RELEASE__: JSON.stringify({
+        name: "fleet-runner",
+        version,
+        commit: "b".repeat(40),
+        node_floor: "24.22.2",
+        bundled: true,
+      }),
+    },
+  });
+  return outfile;
+}
+
 beforeAll(async () => {
   releaseDir = mkdtempSync(join(tmpdir(), "fleet-release-"));
   installed = join(releaseDir, "installed with spaces");
@@ -201,6 +223,56 @@ it("installs one self-contained signed-runtime release and refuses to replace it
   ).toThrow();
   expect(readlinkSync(current)).toBe("0.1.0");
 });
+
+it("installs a strict SemVer prerelease as one immutable version folder", async () => {
+  const version = "0.2.5-bookcase.2";
+  const prereleaseBundle = await releaseBundle(version);
+  const root = join(releaseDir, "prerelease-install");
+  execFileSync(
+    "/bin/sh",
+    [
+      join(pkg, "scripts/install-worker.sh"),
+      "--root",
+      root,
+      "--node",
+      process.execPath,
+      "--bundle",
+      prereleaseBundle,
+    ],
+    { env: installerEnv },
+  );
+  expect(readlinkSync(join(root, "worker/current"))).toBe(version);
+  expect(
+    JSON.parse(readFileSync(join(root, "worker/current/manifest.json"), "utf8")),
+  ).toMatchObject({
+    version,
+    commit: "b".repeat(40),
+  });
+});
+
+it.each(["../0.2.5", ".0.2.5", "0.2.5..next", "0.2.5-", "1.02.3", `0.2.5-${"a".repeat(129)}`])(
+  "refuses an unsafe release version before creating an install (%s)",
+  async (version) => {
+    const unsafeBundle = await releaseBundle(version);
+    const root = join(releaseDir, `unsafe-install-${hash(Buffer.from(version))}`);
+    expect(() =>
+      execFileSync(
+        "/bin/sh",
+        [
+          join(pkg, "scripts/install-worker.sh"),
+          "--root",
+          root,
+          "--node",
+          process.execPath,
+          "--bundle",
+          unsafeBundle,
+        ],
+        { env: installerEnv, stdio: "pipe" },
+      ),
+    ).toThrow();
+    expect(existsSync(join(root, "worker"))).toBe(false);
+  },
+);
 
 it("runs the installed bundle with its own Node and configured CA, claims only configured kind/capability pairs, and preserves a completed retry", async () => {
   await new Promise<void>((ok) => server.close(() => ok()));

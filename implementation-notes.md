@@ -8,6 +8,9 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-19 (FleetRunner G4 exact-install practice): the merged package reports prerelease version `0.2.5-bookcase.2`, but `install-worker.sh` accepts only plain `x.y.z`; the production installer stopped before changing Yuri's existing 0.1.0 install. Hold practice and correct the release-version contract rather than hand-assembling an unverified version folder.
+- 2026-11-19 (FleetRunner G4 installer correction): the focused signed-runtime suite passed 21/21, while the unchanged offline wake fixture failed 6/7 both in the full run and alone on this host. Kept the installer correction scoped and left the unrelated wake fixture to CI/current gate ownership rather than expanding the release-contract patch.
+
 - The approved G4 candidate preserved detailed worker failures only in append-only observations while launcher status collapsed them to `proof-child-held`; added an immutable first-failure receipt surfaced by status, keeping later cleanup errors from replacing the root cause.
 
 - Offline practice tests exposed the legacy primary idle-restart check in the new mode. Practice now launches its worker once and verifies an explicit stop.
