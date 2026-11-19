@@ -16,10 +16,12 @@ import {
   parseLedgerProof,
   readProofSnapshot,
   proofHash,
+  privatePath,
 } from "./ledger-proof.js";
 import { ProofJournal } from "./ledger-proof-state.js";
 import {
   loadProofRuntime,
+  requestPracticeStop,
   runProofSupervisor,
   runProofWatchdog,
   runProofWorker,
@@ -121,7 +123,9 @@ async function main(args: string[]): Promise<void> {
   }
   if (
     command === "ledger-proof" &&
-    values.length === 5 &&
+    (values[0] === "stop-practice"
+      ? values.length === 7 && values[5] === "--stop"
+      : values.length === 5) &&
     values[1] === "--settings" &&
     values[3] === "--sha256"
   ) {
@@ -157,8 +161,22 @@ async function main(args: string[]): Promise<void> {
             verifiedOutput: journal.result("accepted") ?? null,
             cleanupVerified: !!journal.get("cleanup-complete"),
             reportDelivered: !!journal.result("terminal-report"),
+            ...(config.proof.practice
+              ? {
+                  practiceLauncher: journal.get("practice-launcher") ?? null,
+                  practiceFirstFailure: journal.get("practice-first-failure") ?? null,
+                }
+              : {}),
           }),
         );
+      } else if (action === "stop-practice") {
+        const stop = requestPracticeStop(
+          config,
+          journal,
+          values[4]!,
+          readPrivateJson(privatePath(values[6]), 4096),
+        );
+        console.log(JSON.stringify({ recorded: true, stop }));
       } else if (action === "launch") {
         await launchLedgerProof(config, journal, values[2]!, values[4]!, stopped.signal);
       } else if (action === "run") {
@@ -167,7 +185,7 @@ async function main(args: string[]): Promise<void> {
         if (config.role === "supervisor") await runProofSupervisor(config, journal, stopped.signal);
         else if (config.role === "watchdog")
           await runProofWatchdog(config, journal, stopped.signal);
-        else await runProofWorker(config, journal, stopped.signal);
+        else await runProofWorker(config, journal, stopped.signal, values[4]!);
       } else throw Error("invalid-proof-action");
     } finally {
       journal.close();

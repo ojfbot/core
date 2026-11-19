@@ -8,6 +8,10 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- The approved G4 candidate preserved detailed worker failures only in append-only observations while launcher status collapsed them to `proof-child-held`; added an immutable first-failure receipt surfaced by status, keeping later cleanup errors from replacing the root cause.
+
+- Offline practice tests exposed the legacy primary idle-restart check in the new mode. Practice now launches its worker once and verifies an explicit stop.
+
 - 2026-11-18 (FleetRunner M2 portable proof): the clean-tree packaging gate reached the local Docker invocation, but this host has no `docker` executable. Kept the source and offline checks, verified the pnpm tarball contents, and left Docker packaging qualification for a host with the tool; no live proof was claimed.
 - 2026-11-18 (FleetRunner package proof): the Docker proof stage still named a `0.1.0` tarball while the package uses a later version, and the new operator document was outside the Docker context. Bind the proof consumer to the current package version and include that document in the exact context.
 - 2026-11-18 (FleetRunner M2 review): a real Node executable exceeds the binder's generic 16 MiB file bound, and a pre-existing receipt path could fail only after role startup. Bound Node separately at 256 MiB, reserve the receipt before effects, and bring final receipt writes inside exact cleanup with regressions.

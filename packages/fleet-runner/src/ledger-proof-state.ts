@@ -69,6 +69,25 @@ export class ProofJournal {
       ) === 1
     );
   }
+  recordPracticeStop(stop: unknown): boolean {
+    return (
+      this.db
+        .prepare(
+          `INSERT OR IGNORE INTO state(name,value)
+       SELECT 'practice-stop', ?
+       WHERE NOT EXISTS (SELECT 1 FROM state WHERE name='terminal')
+         AND EXISTS (SELECT 1 FROM effects WHERE name='practice-ready' AND result IS NOT NULL)`,
+        )
+        .run(canonicalJson(stop)).changes === 1
+    );
+  }
+  recordPracticeFirstFailure(failure: unknown): boolean {
+    return (
+      this.db
+        .prepare("INSERT OR IGNORE INTO state(name,value) VALUES ('practice-first-failure',?)")
+        .run(canonicalJson(failure)).changes === 1
+    );
+  }
   freezeTerminalReport(body: Record<string, unknown>): {
     commandId: string;
     body: Record<string, unknown>;

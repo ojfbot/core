@@ -17,7 +17,7 @@ const { DatabaseSync } = createRequire(import.meta.url)("node:sqlite") as typeof
 export const LEDGER_RESULT = '{"events":21,"identical":true,"differences":[]}\n';
 export const proofHash = (bytes: string | Uint8Array): string =>
   createHash("sha256").update(bytes).digest("hex");
-export interface LedgerProof {
+interface LedgerProofFields {
   schemaVersion: 1;
   proofId: string;
   approvalExpiresAtMs: number;
@@ -30,8 +30,16 @@ export interface LedgerProof {
   fallback: string;
   capability: string;
   attendedWindow?: { notBeforeMs: number; expiresAtMs: number };
-  faultMode?: "worker-stop";
 }
+export type LedgerProof = LedgerProofFields &
+  (
+    | { practice?: never; faultMode?: "worker-stop" }
+    | {
+        practice: true;
+        faultMode?: never;
+        attendedWindow: NonNullable<LedgerProofFields["attendedWindow"]>;
+      }
+  );
 function fail(): never {
   throw Error("invalid-ledger-proof");
 }
@@ -82,6 +90,7 @@ export function readPrivateJson(file: string, limit = 64 * 1024): unknown {
 export function parseLedgerProof(value: unknown): LedgerProof {
   const hasAttendedWindow = Object.hasOwn(object(value), "attendedWindow");
   const hasFaultMode = Object.hasOwn(object(value), "faultMode");
+  const hasPractice = Object.hasOwn(object(value), "practice");
   const row = exact(value, [
     "schemaVersion",
     "proofId",
@@ -96,9 +105,10 @@ export function parseLedgerProof(value: unknown): LedgerProof {
     "capability",
     ...(hasAttendedWindow ? ["attendedWindow"] : []),
     ...(hasFaultMode ? ["faultMode"] : []),
+    ...(hasPractice ? ["practice"] : []),
   ]);
   if (row.schemaVersion !== 1) fail();
-  const proof: LedgerProof = {
+  const proof: LedgerProofFields = {
     schemaVersion: 1,
     proofId: string(
       row.proofId,
@@ -142,8 +152,12 @@ export function parseLedgerProof(value: unknown): LedgerProof {
     proof.attendedWindow = { notBeforeMs, expiresAtMs };
   }
   if (hasFaultMode) {
-    if (row.faultMode !== "worker-stop" || !proof.attendedWindow) fail();
-    proof.faultMode = row.faultMode;
+    if (row.faultMode !== "worker-stop" || !proof.attendedWindow || hasPractice) fail();
+    return { ...proof, faultMode: row.faultMode };
+  }
+  if (hasPractice) {
+    if (row.practice !== true || hasFaultMode || !proof.attendedWindow) fail();
+    return { ...proof, practice: true, attendedWindow: proof.attendedWindow };
   }
   return proof;
 }
@@ -160,7 +174,7 @@ export function ledgerSpec(proof: LedgerProof, sentinel = false): JobSpec {
   };
 }
 export function proofSnapshotSchema(proof: LedgerProof, schema: number): boolean {
-  return schema === 4 || (proof.faultMode === "worker-stop" && schema === 5);
+  return schema === 4 || ((proof.practice || proof.faultMode === "worker-stop") && schema === 5);
 }
 export function verifyClaim(
   proof: LedgerProof,

@@ -313,3 +313,37 @@ test("a GO mismatch blocks before any one-use marker or role effect", () => {
   assert.equal(f.calls.length, 0);
   assert.equal(f.files.has(f.manifest.consumedFile), false);
 });
+
+test("practice GO cannot select a launch role that differs from the bound practice role", () => {
+  const f = fixture();
+  const { manifest, files, io } = f;
+  const replace = (ref, update) => {
+    const value = JSON.parse(files.get(ref.settings));
+    update(value);
+    files.set(ref.settings, Buffer.from(JSON.stringify(value)));
+    ref.sha256 = sha(canonical(value));
+  };
+  const proof = { proofId, practice: true };
+  const planSha256 = sha(canonical(proof));
+  replace(manifest.binding, (binding) => {
+    replace(binding.relay, (relay) => {
+      relay.proof = proof;
+    });
+    replace(binding.operator, (op) => {
+      op.practicePlanSha256 = planSha256;
+    });
+    replace(binding.roles[0], (worker) => {
+      worker.proof = proof;
+    });
+    manifest.operator.sha256 = binding.operator.sha256;
+  });
+  manifest.planSha256 = planSha256;
+  files.set(
+    manifest.goFile,
+    Buffer.from(JSON.stringify({ verified: true, sourceSequence: 11, planSha256 })),
+  );
+  manifest.roles[0].role = "primary";
+  assert.throws(() => launchLocalProof(manifest, io), /practice-role-binding-mismatch/);
+  assert.equal(files.has(manifest.consumedFile), false);
+  assert.deepEqual(f.calls, []);
+});

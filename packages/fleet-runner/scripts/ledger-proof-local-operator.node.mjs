@@ -90,7 +90,8 @@ function fixture() {
     ]),
     symlinks = new Set();
   let processText = "",
-    schedule = "";
+    schedule = "",
+    practiceRows = [];
   const io = {
     run: (p, a) => {
       calls.push([p, a]);
@@ -115,7 +116,7 @@ function fixture() {
             stdout: JSON.stringify({
               schema: 4,
               serverNowMs: 1,
-              rows: [],
+              rows: practiceRows,
               events: [],
               accepted: null,
             }),
@@ -143,7 +144,7 @@ function fixture() {
     exists: (p) => files.has(p),
     write: (p, b, o) => {
       assert.equal(o.flag, "wx");
-      assert.ok(calls[0][1].at(-1).includes("'inspect'"));
+      assert.ok(calls.some(([_, args]) => args.at(-1).includes("'inspect'")));
       files.set(p, b);
     },
     now: () => 1,
@@ -159,6 +160,7 @@ function fixture() {
     op: () => createOperator(settings, io),
     process: (v) => (processText = v),
     schedule: (v) => (schedule = v),
+    practiceRows: (v) => (practiceRows = v),
   };
 }
 test("snapshot fixes canonical argv, UID, schema and bundle pin without arbitrary command text", () => {
@@ -395,4 +397,71 @@ test("relay session derives a stable short proof identifier", () => {
   assert.ok(proofRelaySession(proofId).length <= 32);
   for (const bad of ["00000000", "00000000-0000-4000-8000-000000000001-extra"])
     assert.throws(() => proofRelaySession(bad), /proof-id-invalid/);
+});
+
+function practiceBarrier(f) {
+  f.settings.practicePlanSha256 = sha("practice plan");
+  return {
+    verified: true,
+    proofId,
+    endsAtMs: 1000,
+    planSha256: f.settings.practicePlanSha256,
+    targetIdSha256: sha(f.target.Id),
+    workers: ["primary", "fallback"].map((role, offset) => ({
+      role,
+      sourceSequence: 30 + offset,
+      terminal: {
+        outcome: "STOPPED",
+        reason: "operator-stop",
+        atMs: 1,
+        stop: {
+          verified: true,
+          proofId,
+          role,
+          settingsSha256: sha(role),
+          commandId: `00000000-0000-4000-8000-00000000000${offset}`,
+          sourceSequence: 20 + offset,
+        },
+      },
+      launcher: { outcome: "STOPPED", child: { exitCode: 0, signal: null }, atMs: 2 },
+      absence: { label: true, process: true, slot: true, grant: true, signer: true },
+    })),
+  };
+}
+
+test("practice finish keeps the queue up through both receipts and the final empty snapshot", () => {
+  const f = fixture(),
+    barrier = practiceBarrier(f);
+  const commands = f.io.run;
+  f.io.run = (program, args) => {
+    if (args.at(-1).includes("'stop'")) {
+      const intent = JSON.parse(f.files.get("/fixture/proof/practice-queue-stop.json"));
+      assert.deepEqual(intent.barrier, barrier);
+      assert.deepEqual(intent.snapshot.rows, []);
+      assert.ok(f.calls.some(([, args]) => args.at(-1).includes("'ledger-proof-snapshot'")));
+    }
+    return commands(program, args);
+  };
+  const result = f.op().finishPractice(barrier);
+  assert.equal(result.cleanup.containerStopped, true);
+  assert.equal(result.stopRequestedAtMs, 1);
+});
+
+test("practice finish leaves the queue up with missing, unbound or unclean evidence", () => {
+  for (const change of [
+    (f, b) => b.workers.pop(),
+    (f, b) => (b.targetIdSha256 = sha("wrong target")),
+    (f, b) => (b.workers[0].terminal.outcome = "HELD"),
+    (f, b) => (b.workers[1].launcher.child.signal = "SIGKILL"),
+    (f, b) => (b.workers[1].absence.slot = false),
+    (f) => f.practiceRows([{ key: "nonempty" }]),
+    (f) => f.process("/fixture/proof/fallback.settings.json"),
+  ]) {
+    const f = fixture(),
+      barrier = practiceBarrier(f);
+    change(f, barrier);
+    assert.throws(() => f.op().finishPractice(barrier), /proof-operator-practice-/);
+    assert.equal(f.target.State.Running, true);
+    assert.equal(f.files.has("/fixture/proof/practice-queue-stop.json"), false);
+  }
 });

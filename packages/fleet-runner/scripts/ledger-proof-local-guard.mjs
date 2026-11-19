@@ -209,6 +209,13 @@ export function launchLocalProof(input, overrides = {}) {
   }
   const inspected = inspectLocalBinding(binding, io);
   if (inspected.manifest.proofId !== settings.proofId) fail("binding-drift");
+  if (
+    inspected.practicePlanSha256 !== undefined &&
+    (inspected.practicePlanSha256 !== settings.planSha256 ||
+      settings.roles.length !== binding.roles.length ||
+      settings.roles.some(({ role }) => !binding.roles.some((entry) => entry.role === role)))
+  )
+    fail("practice-role-binding-mismatch");
   const now = io.now();
   if (now < settings.startsAtMs - 600_000 || now >= settings.endsAtMs - 720_000)
     fail("outside-window");

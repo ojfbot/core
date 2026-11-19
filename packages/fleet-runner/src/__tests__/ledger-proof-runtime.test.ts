@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { canonicalJson, JobStore, jobKey, type Claim } from "../jobs.js";
+import { generateToken } from "../auth.js";
 import {
   LEDGER_RESULT,
   ledgerSpec,
@@ -30,6 +31,7 @@ import { launchLedgerProof } from "../ledger-proof-launcher.js";
 import { readProofRelay, type ProofRelay } from "../ledger-proof-relay.js";
 import {
   parseProofRuntime,
+  requestPracticeStop,
   runProofSupervisor,
   runProofWatchdog,
   runProofWorker,
@@ -1048,3 +1050,336 @@ it("reads a closed worker-stop journal through the CLI without creating or chang
   });
   expect(readFileSync(stateFile)).toEqual(bytes);
 });
+
+const practiceDigest = "d".repeat(64);
+function practiceFixture(role: "primary" | "fallback") {
+  const approvalExpiresAtMs = start + 25 * 60_000;
+  const proof = parseLedgerProof({
+    ...config.proof,
+    practice: true,
+    endsAtMs: start + 20 * 60_000,
+    approvalExpiresAtMs,
+    attendedWindow: { notBeforeMs: start - 180_000, expiresAtMs: approvalExpiresAtMs },
+  });
+  const fixture = {
+    ...config,
+    proof,
+    role,
+    settings: {
+      ...config.settings,
+      worker: proof[role],
+      kinds: {
+        "bookcase-ledger-replay": {
+          capabilities: [proof.capability],
+          command: [process.execPath, "/app/ledger.mjs", "--grant", join(dir, "no-grant.json")],
+          timeoutMs: 120_000,
+        },
+      },
+    },
+  };
+  const stop = {
+    verified: true,
+    proofId: proof.proofId,
+    role,
+    settingsSha256: practiceDigest,
+    commandId: "aaaaaaaa-1234-4234-8234-123456789abc",
+    sourceSequence: 2,
+  };
+  const fakeClient = {
+    workerControl: vi.fn(async (_signal: AbortSignal) => ({ paused: false })),
+    claim: vi.fn(),
+    enqueue: vi.fn(),
+  };
+  hooks.client.mockReturnValue(fakeClient);
+  const original = hooks.command.getMockImplementation()!;
+  hooks.command.mockImplementation((cmd, input, signal) =>
+    cmd.program.endsWith("probe")
+      ? Promise.resolve({
+          proofId: proof.proofId,
+          observedAtMs: now,
+          protectedIdle: true,
+          baselineUnchanged: true,
+        })
+      : original(cmd, input, signal),
+  );
+  return { fixture, stop, fakeClient };
+}
+
+function abortedRead(signal: AbortSignal, error?: Error): Promise<never> {
+  return new Promise((_, reject) => {
+    const cancelled = () => reject(error ?? signal.reason);
+    if (signal.aborted) cancelled();
+    else signal.addEventListener("abort", cancelled, { once: true });
+  });
+}
+
+it.each([
+  ["primary", "idle"],
+  ["fallback", "idle"],
+  ["primary", "in-flight"],
+  ["fallback", "in-flight"],
+] as const)("records a bound %s stop during %s without job activity", async (role, phase) => {
+  const { fixture, stop, fakeClient } = practiceFixture(role);
+  const recordStop = () => requestPracticeStop(fixture, journal, practiceDigest, stop);
+  expect(recordStop).toThrow("proof-practice-stop-outside-window");
+  function verifyAndRecordStop() {
+    for (const change of [
+      { role: role === "primary" ? "fallback" : "primary" },
+      { verified: false },
+      { proofId: "another-proof" },
+      { settingsSha256: "e".repeat(64) },
+      { sourceSequence: 1 },
+    ])
+      expect(() =>
+        requestPracticeStop(fixture, journal, practiceDigest, { ...stop, ...change }),
+      ).toThrow();
+    expect(recordStop()).toEqual(stop);
+    expect(recordStop).toThrow("proof-practice-stop-already-recorded");
+  }
+  if (phase === "idle") {
+    hooks.wait.mockImplementation(async (_ms, _value, { signal }) => {
+      verifyAndRecordStop();
+      await abortedRead(signal).catch((cause) => {
+        throw Object.assign(new Error("aborted idle"), { name: "AbortError", cause });
+      });
+    });
+  } else {
+    hooks.wait.mockResolvedValue(undefined);
+    fakeClient.workerControl.mockResolvedValueOnce({ paused: false });
+    fakeClient.workerControl.mockImplementationOnce(async (signal) => {
+      verifyAndRecordStop();
+      return abortedRead(signal);
+    });
+  }
+  await runProofWorker(fixture, journal, new AbortController().signal, practiceDigest);
+  expect(journal.get("terminal")).toMatchObject({
+    outcome: "STOPPED",
+    reason: "operator-stop",
+    stop,
+  });
+  expect(fakeClient.claim).not.toHaveBeenCalled();
+  expect(fakeClient.enqueue).not.toHaveBeenCalled();
+  expect(hooks.handler).not.toHaveBeenCalled();
+  expect(store.events(0)).toEqual([]);
+  expect(existsSync(fixture.cpuSlot)).toBe(false);
+});
+
+it("keeps an independent transport error even when it is reported after STOP is observed", async () => {
+  const { fixture, stop, fakeClient } = practiceFixture("fallback");
+  hooks.wait.mockResolvedValue(undefined);
+  fakeClient.workerControl.mockResolvedValueOnce({ paused: false });
+  fakeClient.workerControl.mockImplementationOnce((signal) => {
+    requestPracticeStop(fixture, journal, practiceDigest, stop);
+    return abortedRead(signal, new Error("fixture transport failure"));
+  });
+  await expect(
+    runProofWorker(fixture, journal, new AbortController().signal, practiceDigest),
+  ).rejects.toThrow("proof-operation-failed");
+  expect(journal.get("terminal")).toMatchObject({ outcome: "HELD" });
+  const raw = journal.db
+    .prepare("SELECT value FROM observations WHERE kind='practice-operation-failure'")
+    .get();
+  expect(JSON.parse(String(raw?.value)).message).toBe("fixture transport failure");
+  expect(journal.get("practice-first-failure")).toMatchObject({
+    source: "worker-operation",
+    message: "fixture transport failure",
+  });
+});
+
+it("holds on a populated queue before READY", async () => {
+  const { fixture, fakeClient } = practiceFixture("primary");
+  store.enqueue(ledgerSpec(fixture.proof));
+  await expect(
+    runProofWorker(fixture, journal, new AbortController().signal, practiceDigest),
+  ).rejects.toThrow("proof-practice-queue-not-empty");
+  expect(journal.get("terminal")).toMatchObject({ outcome: "HELD" });
+  expect(journal.result("practice-ready")).toBeUndefined();
+  expect(fakeClient.claim).not.toHaveBeenCalled();
+});
+
+it.each(["missing", "forced", "positive"] as const)(
+  "%s practice launcher evidence is distinct from the worker result",
+  async (result) => {
+    const { fixture, stop } = practiceFixture("primary");
+    hooks.spawn.mockImplementationOnce(() => {
+      const child = Object.assign(new EventEmitter(), {
+        stdout: new PassThrough(),
+        stderr: new PassThrough(),
+      });
+      queueMicrotask(() => {
+        if (result !== "missing") {
+          journal.reserve("practice-ready", {});
+          journal.finish("practice-ready", { sequence: 1 });
+          requestPracticeStop(fixture, journal, practiceDigest, stop);
+          journal.setTerminal({ outcome: "STOPPED", reason: "operator-stop", stop, atMs: now });
+        }
+        child.emit("close", result === "forced" ? null : 0, result === "forced" ? "SIGKILL" : null);
+      });
+      return child;
+    });
+    const launched = launchLedgerProof(
+      fixture,
+      journal,
+      "/private/settings",
+      practiceDigest,
+      new AbortController().signal,
+    );
+    if (result === "positive") await launched;
+    else await expect(launched).rejects.toThrow();
+    expect(journal.get("practice-launcher")).toMatchObject({
+      outcome: result === "positive" ? "STOPPED" : "HELD",
+      child: {
+        exitCode: result === "forced" ? null : 0,
+        signal: result === "forced" ? "SIGKILL" : null,
+      },
+    });
+    expect(journal.get("practice-first-failure")).toEqual(
+      result === "positive"
+        ? undefined
+        : expect.objectContaining({
+            source: "launcher",
+            reason:
+              result === "missing"
+                ? "proof-practice-terminal-unverified"
+                : "proof-child-held",
+          }),
+    );
+  },
+);
+
+it("runs both practice roles through the actual launch, stop and status CLI", async () => {
+  const bundle = join(dir, "practice-cli.mjs");
+  await build({
+    entryPoints: [fileURLToPath(new URL("../cli.ts", import.meta.url))],
+    outfile: bundle,
+    bundle: true,
+    platform: "node",
+    format: "esm",
+    target: "node24",
+  });
+  const entry = join(dir, "fixture-cli.mjs");
+  writeFileSync(
+    entry,
+    `
+    globalThis.fetch = async (url, init) => {
+      if (url.pathname !== "/worker-control" || init.method !== "GET" ||
+        !init.headers.authorization.startsWith("Fleet cg307-")) throw Error("unexpected queue effect");
+      return Response.json({ paused: false });
+    };
+    await import("./practice-cli.mjs");
+  `,
+  );
+  const helper = join(dir, "fixture-operator.mjs");
+  writeFileSync(
+    helper,
+    `
+    import { readFileSync } from "node:fs";
+    import { strict as assert } from "node:assert";
+    const input = JSON.parse(readFileSync(0, "utf8"));
+    const data = {
+      probe: () => ({ proofId: input.proofId, observedAtMs: Date.now(),
+        protectedIdle: true, baselineUnchanged: true }),
+      snapshot: () => ({ schema: 5, serverNowMs: Date.now(), rows: [], events: [], accepted: null }),
+      post: () => {
+        assert.equal(input.body.state, "READY");
+        return { accepted: true, commandId: input.commandId, sequence: 1, readbackVerified: true };
+      },
+    };
+    console.log(JSON.stringify(data[process.argv[2]]()));
+  `,
+  );
+  const nodeSha256 = proofHash(readFileSync(process.execPath));
+  const helperSha256 = proofHash(readFileSync(helper));
+  const { spawn } =
+    await vi.importActual<typeof import("node:child_process")>("node:child_process");
+  const realNow = new Date().getTime();
+  const command = (action: string) => ({
+    program: process.execPath,
+    args: [helper, action],
+    sha256: nodeSha256,
+    files: { [helper]: helperSha256 },
+  });
+  for (const role of ["primary", "fallback"] as const) {
+    const { fixture, stop } = practiceFixture(role);
+    const expiresAtMs = realNow + 120_000;
+    const proof = parseLedgerProof({
+      ...fixture.proof,
+      startsAtMs: realNow - 1000,
+      endsAtMs: realNow + 100_000,
+      approvalExpiresAtMs: expiresAtMs,
+      attendedWindow: { notBeforeMs: realNow - 181_000, expiresAtMs },
+    });
+    const settingsFile = join(dir, role + ".json");
+    const tokenFile = join(dir, role + ".key");
+    generateToken(tokenFile);
+    const raw = {
+      ...fixture,
+      proof,
+      stateFile: join(dir, role + ".sqlite"),
+      settings: { ...fixture.settings, tokenFile, schemaVersion: 1 },
+      artifacts: { [process.execPath]: nodeSha256, "/app/ledger.mjs": helperSha256 },
+      commands: {
+        probe: command("probe"),
+        snapshot: command("snapshot"),
+        post: command("post"),
+        stop: command("unexpected"),
+        fault: command("unexpected"),
+        faultEvidence: command("unexpected"),
+      },
+    };
+    const settingsSha256 = proofHash(canonicalJson(raw));
+    writeFileSync(settingsFile, canonicalJson(raw), { mode: 0o600 });
+    const args = ["--settings", settingsFile, "--sha256", settingsSha256];
+    const cli = (action: string, tail: string[] = []) =>
+      spawnSync(process.execPath, [entry, "ledger-proof", action, ...args, ...tail], {
+        encoding: "utf8",
+        timeout: 3000,
+      });
+    expect(cli("init").status).toBe(0);
+    const launcher = spawn(process.execPath, [entry, "ledger-proof", "launch", ...args], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    launcher.stderr.on("data", (bytes) => {
+      stderr += String(bytes);
+    });
+    const exited = new Promise<{ code: number | null; signal: string | null }>(
+      (resolve, reject) => {
+        launcher.once("error", reject);
+        launcher.once("close", (code, signal) => resolve({ code, signal }));
+      },
+    );
+    const reader = new ProofJournal(raw.stateFile, parseProofRuntime(raw), false, true);
+    try {
+      const until = new Date().getTime() + 4500;
+      while (
+        !reader.result("practice-ready") &&
+        launcher.exitCode === null &&
+        new Date().getTime() < until
+      )
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(reader.result("practice-ready"), stderr).toBeDefined();
+      const stopFile = join(dir, role + "-stop.json");
+      writeFileSync(stopFile, JSON.stringify({ ...stop, settingsSha256 }), { mode: 0o600 });
+      const stopped = cli("stop-practice", ["--stop", stopFile]);
+      expect(stopped.status, stopped.stderr).toBe(0);
+      expect(cli("stop-practice", ["--stop", stopFile]).status).toBe(1);
+      expect(await exited, stderr).toEqual({ code: 0, signal: null });
+      const status = cli("status");
+      expect(status.status, status.stderr).toBe(0);
+      expect(JSON.parse(status.stdout)).toMatchObject({
+        role,
+        jobAdmitted: false,
+        verifiedOutput: null,
+        terminal: { outcome: "STOPPED", reason: "operator-stop", stop: { settingsSha256 } },
+        practiceLauncher: { outcome: "STOPPED", child: { exitCode: 0, signal: null } },
+        practiceFirstFailure: null,
+      });
+      expect(existsSync(raw.cpuSlot)).toBe(false);
+    } finally {
+      reader.close();
+      launcher.kill("SIGTERM");
+      await exited;
+    }
+  }
+}, 15_000);

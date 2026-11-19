@@ -195,3 +195,19 @@ it("uses Chicago wall time across both midnight and the 07:00 boundary", () => {
   expect(nightEligible(Date.UTC(2026, 10, 18, 1, 59), "America/Chicago")).toBe(false);
   expect(nightEligible(Date.UTC(2026, 10, 18, 2), "America/Chicago")).toBe(true);
 });
+
+it("requires a bounded attended practice and excludes the live fault mode", () => {
+  const approvalExpiresAtMs = starts + 25 * 60_000;
+  const candidate = {
+    ...proof,
+    practice: true,
+    approvalExpiresAtMs,
+    endsAtMs: starts + 20 * 60_000,
+    attendedWindow: { notBeforeMs: starts - 180_000, expiresAtMs: approvalExpiresAtMs },
+  };
+  expect(parseLedgerProof(candidate).practice).toBe(true);
+  expect(() => parseLedgerProof({ ...candidate, faultMode: "worker-stop" })).toThrow();
+  expect(() => parseLedgerProof({ ...candidate, practice: false })).toThrow();
+  const { attendedWindow: _window, ...unattended } = candidate;
+  expect(() => parseLedgerProof(unattended)).toThrow();
+});
