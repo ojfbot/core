@@ -112,7 +112,9 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
   const root = realpathSync(mkdtempSync(join(tmpdir(), "reusable-practice-")));
   const db = join(root, "queue.sqlite"),
     outputs = join(root, "accepted");
-  const store = new JobStore(db, { leaseMs: 40 });
+  let queueNow = Date.now();
+  const leaseMs = 60000;
+  const store = new JobStore(db, { leaseMs, now: () => queueNow });
   for (const name of ["owner", "primary", "fallback"]) generateToken(join(root, name));
   const server = fleetServer(store, {
     registry: root,
@@ -141,7 +143,7 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
       workers: { primary: "primary", fallback: "fallback" },
       code: "a".repeat(40),
       fixtureSha256: "b".repeat(64),
-      timeoutMs: 3000,
+      timeoutMs: 30000,
       ownerKey: join(root, "owner"),
       evidenceRoot: join(root, role + "-evidence"),
       operator: {
@@ -163,7 +165,7 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
               "-e",
               `const fs=require('node:fs'),crypto=require('node:crypto'),path=require('node:path');let input='';process.stdin.on('data',x=>input+=x);process.stdin.on('end',()=>{const {job,outDir}=JSON.parse(input);const file=job.key+'.'+job.fence+'.jsonl',bytes=Buffer.from(${JSON.stringify(LEDGER_RESULT)});fs.writeFileSync(path.join(outDir,file),bytes,{flag:'wx'});console.log(JSON.stringify({file,sha256:crypto.createHash('sha256').update(bytes).digest('hex')}));});`,
             ],
-            timeoutMs: 1000,
+            timeoutMs: 5000,
           },
         },
       },
@@ -190,6 +192,7 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
       relay: {
         read: async (after) => messages.filter((message) => message.sequence > after),
         post: async (phase, openSequence, body = {}) => {
+          if (phase === "PRIMARY_STOPPED") queueNow += leaseMs;
           const message = {
             ...body,
             role,
