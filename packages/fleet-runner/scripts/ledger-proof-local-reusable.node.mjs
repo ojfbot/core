@@ -1,6 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, realpathSync, rmSync, copyFileSync, chmodSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  copyFileSync,
+  chmodSync,
+  writeFileSync,
+  readdirSync,
+} from "node:fs";
+import { spawn } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
@@ -13,6 +23,7 @@ import {
   runReusablePractice,
   resetReusablePractice,
   practiceRequest,
+  releasePracticeLock,
 } from "./ledger-proof-local-reusable.mjs";
 
 test("stable host facts generate internal snapshot paths without a timed plan or GO", () => {
@@ -213,6 +224,81 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
       assert.equal(operator.snapshot().rows.length, 0);
       assert.ok(store.events(0).length > 0);
     }
+    // Kill the actual primary runner immediately after signed admission, leaving its lock and queued job.
+    const crashConfig = join(root, "crash-config.json"),
+      crashScript = join(root, "crash.mjs");
+    writeFileSync(crashConfig, JSON.stringify(config("primary")), { mode: 0o600 });
+    const runnerModule = new URL("./ledger-proof-local-reusable.mjs", import.meta.url).href;
+    const snapshotModule = new URL("../dist/ledger-proof.js", import.meta.url).href;
+    writeFileSync(
+      crashScript,
+      `import {readFileSync} from 'node:fs';
+      import {runReusablePractice,practiceRequest} from ${JSON.stringify(runnerModule)};
+      import {readProofSnapshot} from ${JSON.stringify(snapshotModule)};
+      const config=JSON.parse(readFileSync(process.argv[2]));
+      const owner=practiceRequest(config.worker.endpoint,'owner',config.ownerKey);
+      await runReusablePractice(config,'primary',{
+        operator:{snapshot:()=>readProofSnapshot(${JSON.stringify(db)},${JSON.stringify(outputs)},true),protectedProbe:()=>({protectedIdle:true,baselineUnchanged:true})},
+        relay:{post:async()=>100,read:async()=>[{sequence:101,role:'fallback',phase:'READY',openSequence:100}]},
+        owner:async(method,path,body)=>{const result=await owner(method,path,body);if(path==='/enqueue')process.kill(process.pid,'SIGKILL');return result;}
+      });`,
+      { mode: 0o600 },
+    );
+    const child = spawn(process.execPath, [crashScript, crashConfig], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let crashError = "";
+    child.stderr.on("data", (bytes) => {
+      crashError += bytes;
+    });
+    const exit = await new Promise((accept, reject) => {
+      child.on("error", reject);
+      child.on("exit", (code, signal) => accept({ code, signal }));
+    });
+    assert.equal(exit.signal, "SIGKILL", crashError);
+    const crashedKey = operator.snapshot().rows[0].key;
+    assert.equal(operator.snapshot().rows[0].status, "ready");
+    assert.equal(
+      JSON.parse(readFileSync(join(root, "primary-evidence", "primary.lock"))).pid,
+      child.pid,
+    );
+    const archiveThenReset = practiceRequest(endpoint, "owner", join(root, "owner"));
+    assert.equal(
+      (
+        await resetReusablePractice(config("primary"), "primary", {
+          operator,
+          owner: async (method, path, body) => {
+            assert.ok(
+              readdirSync(join(root, "primary-evidence"))
+                .filter((name) => name.startsWith("reset-"))
+                .some((name) =>
+                  JSON.parse(
+                    readFileSync(join(root, "primary-evidence", name, "before.json")),
+                  ).rows.some((row) => row.key === crashedKey),
+                ),
+            );
+            return archiveThenReset(method, path, body);
+          },
+        })
+      ).reset,
+      true,
+    );
+    assert.ok(
+      readdirSync(join(root, "primary-evidence"))
+        .filter((name) => name.startsWith("reset-"))
+        .some((name) =>
+          JSON.parse(readFileSync(join(root, "primary-evidence", name, "before.json"))).rows.some(
+            (row) => row.key === crashedKey,
+          ),
+        ),
+    );
+    assert.throws(() => readFileSync(join(root, "primary-evidence", "primary.lock")), /ENOENT/);
+    const recovered = await Promise.all([
+      runReusablePractice(config("primary"), "primary", deps("primary")),
+      runReusablePractice(config("fallback"), "fallback", deps("fallback")),
+    ]);
+    assert.ok(recovered.every((result) => result.state === "PASS"));
+    await resetReusablePractice(config("primary"), "primary", { operator });
     let mutations = 0;
     await assert.rejects(
       runReusablePractice(config("primary"), "primary", {
@@ -269,6 +355,55 @@ test("reusable practice performs signed admission, expired-lease takeover, verif
   } finally {
     await new Promise((accept) => server.close(accept));
     store.close();
+    rmSync(root, { recursive: true });
+  }
+});
+
+test("reset refuses a live lease and recovers an expired claim without reusing its fence", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "practice-reset-")));
+  let now = 1000;
+  const store = new JobStore(join(root, "queue.sqlite"), { leaseMs: 100, now: () => now });
+  try {
+    const spec = {
+      kind: "bookcase-ledger-replay",
+      inputs: [],
+      payload: null,
+      params: { practice: "practice-fixture" },
+      requires: ["practice-fixture"],
+    };
+    const { key } = store.enqueue(spec);
+    const claim = store.claim("primary", ["practice-fixture"], [spec.kind]);
+    assert.equal(store.resetPractice("practice-fixture", [key]), false);
+    now = claim.leaseExpires;
+    assert.equal(store.resetPractice("practice-fixture", [key]), true);
+    assert.ok(store.events(0).some((event) => event.key === key));
+    store.enqueue(spec);
+    const next = store.claim("fallback", ["practice-fixture"], [spec.kind]);
+    assert.equal(next.fence, claim.fence + 1);
+    assert.equal(store.heartbeat(key, claim.fence, "primary"), false);
+  } finally {
+    store.close();
+    rmSync(root, { recursive: true });
+  }
+});
+
+test("lock cleanup preserves the first error and exposes a cleanup-only failure", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "practice-lock-"))),
+    file = join(root, "lock");
+  try {
+    writeFileSync(file, JSON.stringify({ pid: process.pid, token: "fixture" }), { mode: 0o600 });
+    const first = Error("original-snapshot-failure");
+    const failRemove = () => {
+      throw Error("fixture-unlink-refused");
+    };
+    releasePracticeLock(file, "fixture", first, failRemove);
+    assert.equal(first.message, "original-snapshot-failure");
+    assert.equal(first.cleanupFailure, "fixture-unlink-refused");
+    assert.throws(
+      () => releasePracticeLock(file, "fixture", undefined, failRemove),
+      /fixture-unlink-refused/,
+    );
+  } finally {
     rmSync(root, { recursive: true });
   }
 });

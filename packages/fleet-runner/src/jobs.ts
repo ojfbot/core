@@ -772,14 +772,15 @@ export class JobStore {
   resetPractice(practice: string, expectedKeys: string[]): boolean {
     return this.#tx(() => {
       const rows = this.#db
-        .prepare("SELECT key,kind,status,params,requires FROM jobs ORDER BY key")
+        .prepare("SELECT key,kind,status,lease_expires,params,requires FROM jobs ORDER BY key")
         .all();
       if (
         canonicalJson(rows.map((row) => row.key)) !== canonicalJson([...expectedKeys].sort()) ||
         rows.some(
           (row) =>
             row.kind !== "bookcase-ledger-replay" ||
-            !["done", "failed"].includes(String(row.status)) ||
+            (row.lease_expires !== null && Number(row.lease_expires) > this.#now()) ||
+            (row.status === "claimed" && row.lease_expires === null) ||
             JSON.parse(String(row.params)).practice !== practice ||
             canonicalJson(JSON.parse(String(row.requires))) !== canonicalJson([practice]),
         )

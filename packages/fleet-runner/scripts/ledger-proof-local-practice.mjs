@@ -385,6 +385,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
           check: error.check ?? null,
           reason: error.message,
           firstFailure: error.privateFailure ?? error.commandFailure ?? null,
+          cleanupFailure: error.cleanupFailure ?? null,
         }),
       );
       process.exitCode = 1;

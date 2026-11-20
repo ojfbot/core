@@ -46,19 +46,22 @@ contains the generator/schema contract, never personal target facts or keys. Ful
 parsing, approval/time gates and one-use GO remain unchanged.
 
 After both commands finish, an explicit reset archives the final local observation and clears
-only terminal rows belonging to this practice:
+practice-owned rows with no live lease, including queued jobs and expired claims left by a crash:
 
 ```sh
 fleet-runner practice reset --role primary
 ```
 
 The dedicated practice server must have `FLEET_PRACTICE_ID=<id>` configured at provisioning.
-The reset route is disabled on normal services, owner-only when enabled, and refuses active
-or foreign jobs. It checks the exact current keys transactionally, retains append-only events,
+The reset route is disabled on normal services, owner-only when enabled, and refuses live leases
+or foreign jobs. It archives the observation before requesting mutation, checks the exact current keys and
+lease expiry transactionally, retains append-only events,
 nonce/fence history and accepted bytes, and keeps the container/key registry. Practice snapshots
 show events for current jobs, so preserved prior audit entries do not require a new target.
 Failures preserve the first diagnostic and do not retry admission or reset automatically.
-An abruptly killed role can leave a lock requiring local liveness inspection before recovery.
+Role locks record their process ID and ownership token. Reset recovers a primary role lock only
+after that process is confirmed dead and queue reset is verified; it refuses a still-running local
+primary. A killed reset process or an unreadable legacy lock still requires local liveness inspection.
 Provisioning a standing target is a separate runtime action; these commands do not provision it.
 
 ## Bound proof preparation helpers

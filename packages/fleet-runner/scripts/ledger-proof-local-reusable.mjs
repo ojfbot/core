@@ -9,6 +9,8 @@ import {
   closeSync,
   unlinkSync,
   writeFileSync,
+  existsSync,
+  lstatSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -24,6 +26,54 @@ import { createOperator, projection, validateSettings } from "./ledger-proof-loc
 const check = (condition, reason) => {
   if (!condition) throw Error(reason);
 };
+
+function readLock(file) {
+  const info = lstatSync(file);
+  check(
+    info.isFile() &&
+      !info.isSymbolicLink() &&
+      info.uid === process.getuid() &&
+      !(info.mode & 0o077),
+    "practice-lock-unsafe",
+  );
+  const lock = JSON.parse(readFileSync(file, "utf8"));
+  check(
+    Number.isSafeInteger(lock.pid) && lock.pid > 0 && typeof lock.token === "string",
+    "practice-lock-unreadable",
+  );
+  return lock;
+}
+function acquireLock(file) {
+  const fd = openSync(file, "wx", 0o600),
+    token = randomUUID();
+  try {
+    writeFileSync(fd, JSON.stringify({ pid: process.pid, token }) + "\n");
+  } finally {
+    closeSync(fd);
+  }
+  return token;
+}
+function deadLock(file) {
+  if (!existsSync(file)) return null;
+  const lock = readLock(file);
+  try {
+    process.kill(lock.pid, 0);
+  } catch (error) {
+    if (error.code === "ESRCH") return lock;
+    throw error;
+  }
+  throw Error("practice-role-still-running");
+}
+export function releasePracticeLock(file, token, firstError, remove = unlinkSync) {
+  try {
+    check(readLock(file).token === token, "practice-lock-owner-changed");
+    remove(file);
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    if (!firstError) throw error;
+    firstError.cleanupFailure = error.message;
+  }
+}
 
 /** Stable private host facts are configured once; runtime files are never hand-edited. */
 export function generateReusablePractice(raw, role) {
@@ -292,9 +342,11 @@ export async function runReusablePractice(config, role, dependencies = {}) {
   const worker = validateReusablePractice(config, role);
   mkdirSync(config.evidenceRoot, { recursive: true, mode: 0o700 });
   const lock = join(config.evidenceRoot, `${role}.lock`);
-  const fd = openSync(lock, "wx", 0o600);
-  closeSync(fd);
+  check(!existsSync(join(config.evidenceRoot, "reset.lock")), "practice-reset-in-progress");
+  const token = acquireLock(lock);
+  let firstError;
   try {
+    check(!existsSync(join(config.evidenceRoot, "reset.lock")), "practice-reset-in-progress");
     const directory = mkdtempSync(join(config.evidenceRoot, `${role}-`));
     writeFileSync(join(directory, "settings.json"), JSON.stringify(config) + "\n", {
       flag: "wx",
@@ -576,8 +628,11 @@ export async function runReusablePractice(config, role, dependencies = {}) {
       }
       throw Object.assign(error, { practiceResult: result });
     }
+  } catch (error) {
+    firstError = error;
+    throw error;
   } finally {
-    unlinkSync(lock);
+    releasePracticeLock(lock, token, firstError);
   }
 }
 
@@ -586,14 +641,20 @@ export async function resetReusablePractice(config, role, dependencies = {}) {
   check(role === "primary", "practice-reset-primary-only");
   validateReusablePractice(config, role);
   mkdirSync(config.evidenceRoot, { mode: 0o700, recursive: true });
-  const lock = join(config.evidenceRoot, "primary.lock");
-  closeSync(openSync(lock, "wx", 0o600));
+  const lock = join(config.evidenceRoot, "reset.lock");
+  const token = acquireLock(lock);
+  let firstError;
   try {
+    const primaryLock = join(config.evidenceRoot, "primary.lock");
+    const stoppedPrimary = deadLock(primaryLock);
     const op = dependencies.operator ?? createOperator(config.operator);
     const snapshot = op.snapshot({ proofId: config.operator.proofId });
     check(
       snapshot.rows.every(
-        (row) => ["done", "failed"].includes(row.status) && row.spec.params?.practice === config.id,
+        (row) =>
+          row.spec.kind === "bookcase-ledger-replay" &&
+          row.spec.params?.practice === config.id &&
+          JSON.stringify(row.spec.requires) === JSON.stringify([config.id]),
       ),
       "practice-reset-active-or-foreign-job",
     );
@@ -616,8 +677,12 @@ export async function resetReusablePractice(config, role, dependencies = {}) {
       empty.rows.length === 0 && empty.events.length === 0 && empty.accepted === null,
       "practice-reset-unverified",
     );
+    if (stoppedPrimary) releasePracticeLock(primaryLock, stoppedPrimary.token);
     return { state: "PASS", practice: config.id, reset: true, targetAndKeysRetained: true };
+  } catch (error) {
+    firstError = error;
+    throw error;
   } finally {
-    unlinkSync(lock);
+    releasePracticeLock(lock, token, firstError);
   }
 }
