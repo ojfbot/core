@@ -85,8 +85,8 @@ function fixture(root, role) {
       tokenFile: join(root, "private-token"),
       caFile: join(root, "ca.crt"),
       adapter: {
-        program: "/usr/bin/false",
-        sha256: sha(readFileSync("/usr/bin/false")),
+        program: node,
+        sha256: sha(readFileSync(node)),
         args: [],
         files: {},
       },
