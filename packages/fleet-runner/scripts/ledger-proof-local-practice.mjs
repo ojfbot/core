@@ -11,6 +11,11 @@ import { verifyProofCommand, runProofCommand } from "../dist/ledger-proof-comman
 import { projection, validateSettings, proofRelaySession } from "./ledger-proof-local-operator.mjs";
 import { inspectLocalBinding, prepareLocalBinding } from "./ledger-proof-local-bind.mjs";
 import { inspectLocalProof, checkLocalProofReady } from "./ledger-proof-local-guard.mjs";
+import {
+  generateReusablePractice,
+  runReusablePractice,
+  resetReusablePractice,
+} from "./ledger-proof-local-reusable.mjs";
 
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const digest = (value) => hash(canonicalJson(value));
@@ -330,13 +335,26 @@ export async function practiceMain(args) {
   requireThat(values.length % 2 === 0, "practice-arguments: use flag/value pairs");
   for (let i = 0; i < values.length; i += 2) {
     requireThat(
-      ["--plan", "--role", "--host", "--target", "--root"].includes(values[i]) &&
+      ["--plan", "--role", "--host", "--target", "--root", "--config"].includes(values[i]) &&
         options[values[i]] === undefined,
       "practice-arguments-invalid",
     );
     options[values[i]] = values[i + 1];
   }
   requireThat(["primary", "fallback"].includes(options["--role"]), "practice-role-required");
+  if (action === "run" || action === "reset") {
+    const config = generateReusablePractice(
+      json(
+        resolve(
+          options["--config"] ?? process.env.FLEET_PRACTICE_CONFIG ?? "fleet-practice.local.json",
+        ),
+      ),
+      options["--role"],
+    );
+    return action === "run"
+      ? runReusablePractice(config, options["--role"])
+      : resetReusablePractice(config, options["--role"]);
+  }
   if (action === "prepare")
     return preparePractice({
       plan: json(options["--plan"]),
@@ -363,6 +381,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       console.error(
         JSON.stringify({
           state: "FAIL",
+          ...(error.practiceResult ?? {}),
           check: error.check ?? null,
           reason: error.message,
           firstFailure: error.privateFailure ?? error.commandFailure ?? null,

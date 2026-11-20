@@ -499,7 +499,7 @@ export function createOperator(input, overrides = {}) {
       const result = JSON.parse(
         exec(s.target.id, s.snapshot.serviceUid, s.snapshot.node, [
           s.snapshot.bundle,
-          "ledger-proof-snapshot",
+          s.target.labels?.["fleet.practice"] ? "practice-snapshot" : "ledger-proof-snapshot",
           s.snapshot.database,
           s.snapshot.outputs,
         ]),

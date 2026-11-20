@@ -260,7 +260,11 @@ export interface ProofSnapshot {
   accepted: string | null;
 }
 /** Existing operator route calls this against ONLY the disposable state. Never opens JobStore or migrates it. */
-export function readProofSnapshot(database: string, outputs: string): ProofSnapshot {
+export function readProofSnapshot(
+  database: string,
+  outputs: string,
+  currentJobsOnly = false,
+): ProofSnapshot {
   const db = new DatabaseSync(database, { readOnly: true });
   try {
     db.exec("BEGIN");
@@ -301,7 +305,9 @@ export function readProofSnapshot(database: string, outputs: string): ProofSnaps
     );
     const events = db
       .prepare(
-        "SELECT seq,ts,key,type,worker,fence,CASE WHEN type='lease-expired' THEN CAST(detail AS INTEGER) ELSE NULL END AS leaseExpiredAtMs FROM job_events ORDER BY seq LIMIT 257",
+        "SELECT seq,ts,key,type,worker,fence,CASE WHEN type='lease-expired' THEN CAST(detail AS INTEGER) ELSE NULL END AS leaseExpiredAtMs FROM job_events " +
+          (currentJobsOnly ? "WHERE key IN (SELECT key FROM jobs) " : "") +
+          "ORDER BY seq LIMIT 257",
       )
       .all() as ProofSnapshot["events"];
     if (events.length > 256) throw Error("proof-event-quota-exhausted");

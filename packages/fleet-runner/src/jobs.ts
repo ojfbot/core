@@ -768,6 +768,29 @@ export class JobStore {
     this.#db.prepare("INSERT INTO job_events (ts, key, type, worker, fence, detail) VALUES (?, ?, ?, ?, ?, ?)").run(this.#now(), key, type, worker, fence, detail ?? null);
   }
 
+  /** Only the explicitly enabled isolated practice service exposes this operation. */
+  resetPractice(practice: string, expectedKeys: string[]): boolean {
+    return this.#tx(() => {
+      const rows = this.#db
+        .prepare("SELECT key,kind,status,params,requires FROM jobs ORDER BY key")
+        .all();
+      if (
+        canonicalJson(rows.map((row) => row.key)) !== canonicalJson([...expectedKeys].sort()) ||
+        rows.some(
+          (row) =>
+            row.kind !== "bookcase-ledger-replay" ||
+            !["done", "failed"].includes(String(row.status)) ||
+            JSON.parse(String(row.params)).practice !== practice ||
+            canonicalJson(JSON.parse(String(row.requires))) !== canonicalJson([practice]),
+        )
+      )
+        return false;
+      // Keep the append-only audit and fence history, accepted bytes and nonce ledger.
+      this.#db.exec("DELETE FROM jobs;");
+      return true;
+    });
+  }
+
   #tx<T>(fn: () => T): T {
     this.#db.exec("BEGIN IMMEDIATE");
     try {
