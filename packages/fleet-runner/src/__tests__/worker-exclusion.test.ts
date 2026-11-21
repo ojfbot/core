@@ -1,5 +1,15 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,10 +17,18 @@ import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { generateToken } from "../auth.js";
 import { fleetClient } from "../client.js";
-import { runDeclaredWorker } from "../declared-worker.js";
+import { resourceSlots, runDeclaredWorker } from "../declared-worker.js";
 import { JobStore } from "../jobs.js";
 import { fleetServer } from "../server.js";
-import { acquireLock, lockHeld } from "../worker-lock.js";
+import {
+  acquireLock,
+  defaultLockRoot,
+  identityLockPath,
+  LockUnavailableError,
+  lockDirectory,
+  lockHeld,
+  processStart,
+} from "../worker-lock.js";
 import { parseWorkerSettings } from "../worker-settings.js";
 
 describe("local lock", () => {
@@ -68,6 +86,107 @@ describe("local lock", () => {
     writeFileSync(file, JSON.stringify({ pid: 2_147_483_646, token: "old" }));
     writeFileSync(`${file}.takeover`, "");
     expect(acquireLock(file)).toBeUndefined();
+  });
+});
+
+describe("lock ownership", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "worker-lock-owner-"));
+  });
+  afterEach(() => {
+    chmodSync(dir, 0o700);
+    rmSync(dir, { recursive: true, force: true });
+  });
+  const write = (file: string, record: object) => writeFileSync(file, JSON.stringify(record));
+
+  it("knows its own start stamp and has none for a process that does not exist", () => {
+    const stamp = processStart(process.pid);
+    expect(stamp).toBeTruthy();
+    expect(processStart(process.pid)).toBe(stamp); // stable
+    const gone = spawnSync(process.execPath, ["-e", "process.stdout.write(String(process.pid))"], {
+      encoding: "utf8",
+    });
+    expect(processStart(Number(gone.stdout))).toBeUndefined();
+  });
+
+  it("does not mistake an unrelated process that reuses a process id for the owner", () => {
+    const file = join(dir, "a.lock");
+    // A crashed owner left this behind, and its number now belongs to this (live) process.
+    write(file, { pid: process.pid, token: "old", start: "Thu Jan  1 00:00:00 1970" });
+    expect(lockHeld(file)).toBe(false);
+    const taken = acquireLock(file);
+    expect(taken).toBeDefined();
+    taken!.release();
+    // The same process id with the matching start stamp really is the owner.
+    write(file, { pid: process.pid, token: "me", start: processStart(process.pid) });
+    expect(lockHeld(file)).toBe(true);
+    expect(acquireLock(file)).toBeUndefined();
+    // A lock from an older release has no stamp, so only the process id can be used.
+    write(file, { pid: process.pid, token: "older" });
+    expect(lockHeld(file)).toBe(true);
+  });
+
+  it("follows a real other process: held while it runs, free once it is gone", async () => {
+    const child = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60000)"], {
+      stdio: "ignore",
+    });
+    try {
+      await new Promise<void>((ok, fail) => {
+        child.once("spawn", () => ok());
+        child.once("error", fail);
+      });
+      const file = join(dir, "a.lock");
+      const real = processStart(child.pid!);
+      expect(real).toBeTruthy();
+      write(file, { pid: child.pid, token: "c", start: real });
+      expect(lockHeld(file)).toBe(true);
+      expect(acquireLock(file)).toBeUndefined();
+      write(file, { pid: child.pid, token: "c", start: "Thu Jan  1 00:00:00 1970" }); // reused number
+      expect(lockHeld(file)).toBe(false);
+      write(file, { pid: child.pid, token: "c", start: real });
+      child.kill("SIGKILL");
+      await new Promise((ok) => child.once("exit", ok));
+      expect(lockHeld(file)).toBe(false);
+      const taken = acquireLock(file);
+      expect(taken).toBeDefined();
+      taken!.release();
+    } finally {
+      child.kill("SIGKILL");
+    }
+  });
+
+  it("reports an unreadable or unwritable lock as an error code, and holds a slot it cannot examine", () => {
+    const file = join(dir, "a.lock");
+    write(file, { pid: process.pid, token: "x", start: processStart(process.pid) });
+    if (process.getuid?.() !== 0) {
+      chmodSync(file, 0o000);
+      expect(lockHeld(file)).toBe(true); // cannot tell, so treat as held
+      expect(() => acquireLock(file)).toThrow(LockUnavailableError);
+      chmodSync(file, 0o600);
+      const closed = join(dir, "closed");
+      mkdirSync(closed);
+      chmodSync(closed, 0o500);
+      expect(() => acquireLock(join(closed, "b.lock"))).toThrow(LockUnavailableError);
+      expect(() => lockDirectory(join(closed, "sub"))).toThrow(LockUnavailableError);
+      chmodSync(closed, 0o700);
+    }
+    const real = join(dir, "real");
+    mkdirSync(real, { mode: 0o700 });
+    symlinkSync(real, join(dir, "linked"));
+    expect(() => lockDirectory(join(dir, "linked"))).toThrow(LockUnavailableError);
+    chmodSync(real, 0o770);
+    expect(() => lockDirectory(real)).toThrow(LockUnavailableError);
+    writeFileSync(join(dir, "plain"), "");
+    expect(() => lockDirectory(join(dir, "plain"))).toThrow(LockUnavailableError);
+    // A slot folder that cannot be used is a busy slot, never a crash.
+    expect(resourceSlots(join(dir, "plain", "slots")).acquire("gpu")).toBe(false);
+  });
+
+  it("puts a worker's identity lock in one place whatever its own paths are", () => {
+    expect(identityLockPath("/root", "alpha")).toBe(identityLockPath("/root", "alpha"));
+    expect(identityLockPath("/root", "alpha")).not.toBe(identityLockPath("/root", "beta"));
+    expect(defaultLockRoot()).toContain(String(process.getuid?.() ?? "user"));
   });
 });
 
@@ -136,6 +255,7 @@ describe("worker against a real local service", () => {
       statusFile: join(dir, `status-${worker}.json`),
       resourceDir: join(dir, "resources"),
       pollMs: 10,
+      lockDir: join(dir, "locks"),
       ...extra,
       kinds: {
         render: {
@@ -210,7 +330,60 @@ describe("worker against a real local service", () => {
     await waitFor(() => status("worker").state === "idle");
     next.abort();
     await again;
-    expect(existsSync(join(dir, "worker.lock"))).toBe(false);
+    expect(existsSync(join(dir, "locks", "worker.identity.lock"))).toBe(false);
+  });
+
+  it("refuses a second config for the same worker identity at different file paths", async () => {
+    const first = runDeclaredWorker(settings("worker"), controller.signal);
+    await waitFor(() => status("worker").state !== undefined);
+    copyFileSync(join(dir, "worker"), join(dir, "worker-copy"));
+    const other = settings(
+      "worker",
+      {},
+      {
+        tokenFile: join(dir, "worker-copy"),
+        statusFile: join(dir, "status-copy.json"),
+        outDir: join(dir, "attempts-copy"),
+      },
+    );
+    await expect(runDeclaredWorker(other, controller.signal)).rejects.toThrow("duplicate-client");
+    expect(existsSync(join(dir, "status-copy.json"))).toBe(false);
+    controller.abort();
+    await first;
+  });
+
+  it("starts normally when a crashed worker's lock names a process id that is now someone else's", async () => {
+    mkdirSync(join(dir, "locks"), { recursive: true, mode: 0o700 });
+    writeFileSync(
+      join(dir, "locks", "worker.identity.lock"),
+      JSON.stringify({ pid: process.pid, token: "crashed", start: "Thu Jan  1 00:00:00 1970" }),
+    );
+    const key = await admit();
+    const done = runDeclaredWorker(settings("worker"), controller.signal);
+    await waitFor(() => store.get(key)?.status === "done");
+    controller.abort();
+    await done;
+  });
+
+  it("fails with a clean error code when the lock folder cannot be used", async () => {
+    const closed = join(dir, "closed");
+    mkdirSync(closed, { mode: 0o700 });
+    chmodSync(closed, 0o500);
+    const unsafe = join(dir, "unsafe");
+    mkdirSync(unsafe, { mode: 0o700 });
+    chmodSync(unsafe, 0o770);
+    try {
+      const cases = [unsafe]; // the folder itself is writable by others
+      if (process.getuid?.() !== 0) cases.push(join(closed, "locks"));
+      for (const lockDir of cases) {
+        await expect(
+          runDeclaredWorker(settings("worker", {}, { lockDir }), controller.signal),
+        ).rejects.toThrow(/^worker-lock-unavailable$/);
+      }
+      expect(existsSync(join(dir, "status-worker.json"))).toBe(false);
+    } finally {
+      chmodSync(closed, 0o700);
+    }
   });
 
   it("never lets two workers hold the same GPU slot at once", async () => {
