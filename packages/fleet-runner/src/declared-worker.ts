@@ -255,6 +255,8 @@ export function declaredClient(
   client: FleetClient,
   settings: WorkerSettings,
   unavailable: { has(kind: string): boolean } = new Set<string>(),
+  /** Asked immediately before each claim request; false skips that kind. */
+  beforeClaim?: (kind: string) => Promise<boolean>,
 ): FleetClient {
   const entries = Object.entries(settings.kinds);
   let cursor = 0;
@@ -267,6 +269,9 @@ export function declaredClient(
         if (!entry) continue;
         const [kind, command] = entry;
         if (!allowed.includes(kind) || unavailable.has(kind)) continue;
+        // Power, time window and GPU are looked at again right now. They can still change before the
+        // server sees the request: that gap cannot be closed without the server, so it is only narrowed.
+        if (beforeClaim && !(await beforeClaim(kind))) continue;
         const claim = await client.claim(command.capabilities, [kind]);
         if (claim) {
           cursor = (index + 1) % entries.length;
@@ -370,23 +375,29 @@ export async function runDeclaredWorker(
   await evaluate();
   status("starting");
   try {
-    await runWorker(declaredClient(client, settings, unavailable), {
-      caps: [],
-      handlers,
-      outDir: settings.outDir,
-      signal,
-      pollMs: settings.pollMs,
-      canClaim: async () => {
+    await runWorker(
+      declaredClient(client, settings, unavailable, async (kind) => {
         await evaluate();
-        if (!claiming.allowed) return false;
-        if ((await client.workerControl(signal)).paused) {
-          claiming = { allowed: false, reason: "service-paused" };
-          return false;
-        }
-        return true;
+        return claiming.allowed && !unavailable.has(kind);
+      }),
+      {
+        caps: [],
+        handlers,
+        outDir: settings.outDir,
+        signal,
+        pollMs: settings.pollMs,
+        canClaim: async () => {
+          await evaluate();
+          if (!claiming.allowed) return false;
+          if ((await client.workerControl(signal)).paused) {
+            claiming = { allowed: false, reason: "service-paused" };
+            return false;
+          }
+          return true;
+        },
+        onEvent: (event) => status(event.type),
       },
-      onEvent: (event) => status(event.type),
-    });
+    );
   } finally {
     status("stopped");
   }

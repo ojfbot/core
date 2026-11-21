@@ -112,7 +112,12 @@ worker claims nothing unless every rule holds, checked before each claim:
   that zone, so daylight-saving changes need no special handling. No windows means always.
 - `exceptions`: `outside-window` or `on-battery` until a time with an explicit offset. An expired
   exception is ignored (and reported as such). Unknown power is never excepted.
-- `gpuBusyFile`: while this file exists, kinds with `"resource": "gpu"` are held back; other kinds run.
+- `gpuBusyFile`: while anything exists at this path, or the path cannot be examined for any reason other
+  than being absent, kinds with `"resource": "gpu"` are held back; other kinds run. Doubt means busy.
+
+The rules are checked before the claim request and again immediately before each kind is claimed. They
+can still change in the instant before the server sees the request; that gap cannot be closed without the
+server, so it is narrowed and not removed. A running job is never cut short by it.
 
 `requires` keeps a kind unavailable on a host that lacks the stated `platform`, `arch` or files, so a
 handler that cannot run here is never offered or claimed. If a rule cannot be evaluated the worker does

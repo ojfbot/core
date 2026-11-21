@@ -227,6 +227,19 @@ export function kindUnavailable(
   return undefined;
 }
 
+/**
+ * A busy marker counts as present when anything exists at its path, whatever it is, and also when
+ * it cannot be examined for any reason other than being absent. Doubt means busy, never free.
+ */
+export function markerPresent(file: string): boolean {
+  try {
+    lstatSync(file);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ENOENT";
+  }
+}
+
 export function realHostFacts(policy: Pick<ClaimPolicy, "gpuBusyFile"> | undefined): HostFacts {
   const exists = (file: string) => {
     try {
@@ -239,7 +252,7 @@ export function realHostFacts(policy: Pick<ClaimPolicy, "gpuBusyFile"> | undefin
     platform: process.platform,
     arch: process.arch,
     fileExists: exists,
-    gpuBusy: () => (policy?.gpuBusyFile ? exists(policy.gpuBusyFile) : false),
+    gpuBusy: () => (policy?.gpuBusyFile ? markerPresent(policy.gpuBusyFile) : false),
   };
 }
 
