@@ -100,6 +100,22 @@ record. Messaging carries references and events, never the truth.
    - **Approval level.** Owner decision (2026-11-20, "yes it may"): the loop closes, partially
      closes and forks issues on its own and tells the owner afterwards. Install level: do it, then
      tell. Disagreements and BLOCKERs still go to the owner.
+   - **Autonomy is earned, not assumed.** The owner's condition: "as long as we can validate /
+     evaluate that the audit loop portion of harness is reliable". The loop follows
+     `adr:control-gated-slices`:
+     - **Shadow stage first.** The loop audits every merge and posts the actions it *would* take,
+       but changes nothing on GitHub. The owner's own disposition of each issue is recorded beside
+       its proposal.
+     - **Seeded evaluation set.** Known cases are planted to probe each failure mode: PRs that meet
+       every criterion, PRs that deliberately miss one, PRs that are untestable, and PRs that claim
+       more than they deliver. The loop must catch them.
+     - **Promotion gate.** The loop becomes autonomous only after a stated number of shadow audits
+       agree with the owner, catch every seeded miss, and produce zero wrong closes. The thresholds
+       are set when the slice is built, and the owner confirms the promotion with one tap.
+     - **Automatic step-down.** If the owner reverses an autonomous close, or a later audit
+       contradicts an earlier one, the loop drops back to shadow and raises an alert. The rung is
+       the same as the wake permission ratchet: moving up takes the owner's tap, moving down is
+       automatic.
    - **Precondition.** Issues and roadmap entries carry acceptance criteria as a checkable list.
      An issue without them gets an `untestable` verdict rather than a guess.
 
