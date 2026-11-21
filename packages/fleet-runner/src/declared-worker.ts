@@ -5,6 +5,15 @@ import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { performance } from "node:perf_hooks";
 import { FleetHttpError, type FleetClient, fleetClient } from "./client.js";
+import {
+  decideClaim,
+  kindUnavailable,
+  readPowerSource,
+  realHostFacts,
+  type ClaimDecision,
+  type HostFacts,
+  type PowerSource,
+} from "./claim-policy.js";
 import { INPUT_HASH, putInput, readInput } from "./inputs.js";
 import { JobError, type Claim, type JobHandler, type JobOutput } from "./jobs.js";
 import { runWorker } from "./worker.js";
@@ -180,7 +189,7 @@ export async function stageInputs(
 export function declaredClient(
   client: FleetClient,
   settings: WorkerSettings,
-  unavailable: ReadonlySet<string> = new Set(),
+  unavailable: { has(kind: string): boolean } = new Set<string>(),
 ): FleetClient {
   const entries = Object.entries(settings.kinds);
   let cursor = 0;
@@ -204,16 +213,51 @@ export function declaredClient(
   };
 }
 
+/** Local facts the claim rules read. Real by default; tests substitute simulated power and time. */
+export interface WorkerEnvironment {
+  power: () => Promise<PowerSource>;
+  now: () => number;
+  host: HostFacts;
+}
+
 export async function runDeclaredWorker(
   settings: WorkerSettings,
   signal: AbortSignal,
+  environment: Partial<WorkerEnvironment> = {},
 ): Promise<void> {
+  const env: WorkerEnvironment = {
+    power: environment.power ?? readPowerSource,
+    now: environment.now ?? Date.now,
+    host: environment.host ?? realHostFacts(settings.policy),
+  };
   mkdirSync(settings.outDir, { recursive: true, mode: 0o700 });
   mkdirSync(dirname(settings.statusFile), { recursive: true, mode: 0o700 });
   // A kind whose pinned files changed is not offered again until the worker restarts.
-  const unavailable = new Set<string>();
+  const withdrawn = new Set<string>();
+  // Kinds this host cannot run right now, recomputed before every claim.
+  const held = new Map<string, string>();
+  const unavailable = { has: (kind: string) => withdrawn.has(kind) || held.has(kind) };
+  let claiming: ClaimDecision = { allowed: true, reason: "ok" };
+  const evaluate = async () => {
+    held.clear();
+    for (const [kind, declared] of Object.entries(settings.kinds)) {
+      const reason = kindUnavailable(declared.requires ?? {}, declared.resource, env.host);
+      if (reason) held.set(kind, reason);
+    }
+    if (!settings.policy) return;
+    try {
+      claiming = decideClaim(settings.policy, await env.power(), env.now());
+    } catch {
+      claiming = { allowed: false, reason: "policy-error" };
+    }
+  };
   const status = (state: string) => {
     const temp = `${settings.statusFile}.${process.pid}.tmp`;
+    const reasons: Record<string, string> = Object.create(null);
+    for (const kind of Object.keys(settings.kinds)) {
+      const reason = withdrawn.has(kind) ? "handler-pin-mismatch" : held.get(kind);
+      if (reason) reasons[kind] = reason;
+    }
     writeFileSync(
       temp,
       `${JSON.stringify({
@@ -221,6 +265,8 @@ export async function runDeclaredWorker(
         version: releaseInfo.version,
         worker: settings.worker,
         kinds: Object.keys(settings.kinds).filter((kind) => !unavailable.has(kind)),
+        unavailable: reasons,
+        claiming,
         state,
         updatedAt: new Date().toISOString(),
       })}\n`,
@@ -236,11 +282,11 @@ export async function runDeclaredWorker(
   );
   const handlers: Record<string, JobHandler> = Object.create(null);
   for (const [kind, declared] of Object.entries(settings.kinds)) {
-    if (!(await pinsHold(declared.pins ?? []))) unavailable.add(kind);
+    if (!(await pinsHold(declared.pins ?? []))) withdrawn.add(kind);
     const handle = commandHandler(declared, settings.inputDir);
     handlers[kind] = async (job, context) => {
       if (!(await pinsHold(declared.pins ?? []))) {
-        unavailable.add(kind);
+        withdrawn.add(kind);
         throw new JobError("handler-pin-mismatch", true);
       }
       if (settings.inputDir) await stageInputs(client, job, settings.inputDir, context.signal);
@@ -248,6 +294,7 @@ export async function runDeclaredWorker(
       return handle(job, context);
     };
   }
+  await evaluate();
   status("starting");
   try {
     await runWorker(declaredClient(client, settings, unavailable), {
@@ -256,7 +303,15 @@ export async function runDeclaredWorker(
       outDir: settings.outDir,
       signal,
       pollMs: settings.pollMs,
-      canClaim: async () => !(await client.workerControl(signal)).paused,
+      canClaim: async () => {
+        await evaluate();
+        if (!claiming.allowed) return false;
+        if ((await client.workerControl(signal)).paused) {
+          claiming = { allowed: false, reason: "service-paused" };
+          return false;
+        }
+        return true;
+      },
       onEvent: (event) => status(event.type),
     });
   } finally {

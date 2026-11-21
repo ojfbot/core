@@ -1,6 +1,12 @@
 import { accessSync, constants, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, resolve } from "node:path";
 import { ID } from "./auth.js";
+import {
+  parseClaimPolicy,
+  parseRequirements,
+  type ClaimPolicy,
+  type KindRequirements,
+} from "./claim-policy.js";
 
 /** A local file whose exact bytes the installed handler depends on. */
 export interface PinnedFile {
@@ -12,6 +18,10 @@ export interface DeclaredCommand {
   capabilities: string[];
   /** Re-hashed before every run; a mismatch withdraws the kind from this worker. */
   pins?: PinnedFile[];
+  /** What the host must really have before this kind is offered. */
+  requires?: KindRequirements;
+  /** Shared resource this kind uses, such as `gpu`. A busy GPU holds back only kinds that use it. */
+  resource?: string;
   command: [string, ...string[]];
   timeoutMs: number;
 }
@@ -24,6 +34,8 @@ export interface WorkerSettings {
   /** Where hash-checked inputs are staged. Without it the worker does not fetch inputs. */
   inputDir?: string;
   statusFile: string;
+  /** When absent the worker claims whenever the service allows, as before. */
+  policy?: ClaimPolicy;
   kinds: Record<string, DeclaredCommand>;
   pollMs: number;
   caFile?: string;
@@ -113,9 +125,16 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     accessSync(executable, constants.X_OK);
     if (!statSync(executable).isFile()) throw Error("invalid-command-executable");
     const pins = parsePins(entry.pins);
+    if (
+      entry.resource !== undefined &&
+      (typeof entry.resource !== "string" || !ID.test(entry.resource))
+    )
+      throw Error("invalid-declared-command");
     kinds[kind] = {
       capabilities: [...new Set(entry.capabilities)],
       pins,
+      requires: parseRequirements(entry.requires),
+      ...(typeof entry.resource === "string" ? { resource: entry.resource } : {}),
       command: [executable, ...args],
       timeoutMs: interval(entry.timeoutMs, 300_000),
     };
@@ -135,6 +154,7 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     outDir: path(value.outDir),
     ...(value.inputDir === undefined ? {} : { inputDir: path(value.inputDir) }),
     statusFile,
+    ...(value.policy === undefined ? {} : { policy: parseClaimPolicy(value.policy) }),
     kinds,
     pollMs: interval(value.pollMs, 5_000),
     ...(value.caFile === undefined ? {} : { caFile: path(value.caFile) }),
