@@ -131,13 +131,19 @@ not claim. The status file lists only the kinds currently offered, `unavailable`
 `claiming` (`allowed` plus `ok`, `power-battery`, `power-unknown`, `outside-window`, `exception-expired`,
 `policy-error` or `service-paused`). A job already running is not interrupted by a rule change.
 
-One worker identity runs one client. At start the worker takes a lock file beside its token file; a second
-client for the same identity exits at once with `duplicate-client`, before it writes status, claims or
-downloads anything. The lock belongs to a live process, so one left by a crashed worker is taken over
-automatically. Kinds with a `resource` also take a slot file in `resourceDir` (default: a `resources` folder
-beside the status file) before they claim, and keep it until the attempt ends, so only one job at a time
-holds that resource among all workers sharing the folder. While another process holds it, the kind is
-reported as `resource-busy`. Workers that share a resource on one host must share `resourceDir`.
+One worker identity runs one client per host. At start the worker takes a lock named after its worker
+identity in one fixed per-user folder (`lockDir`, by default a `fleet-runner-<user id>` folder in the
+system temporary folder), so two configs for the same identity find the same lock whatever their token,
+status or output paths are. A second client exits at once with `duplicate-client`, before it writes status,
+claims or downloads anything. If the folder cannot be used (it is a link, others can write it, or it cannot
+be written) the worker exits with `worker-lock-unavailable`. The lock records the owning process and when it
+started, so a lock left by a crashed worker, or by one whose process number a different program now holds
+after a restart, is taken over automatically; if the start time cannot be read the lock is assumed live.
+Kinds with a `resource` also take a slot file in `resourceDir` (default: a `resources` folder inside
+`lockDir`) before they claim, and keep it until the attempt ends, so only one job at a time holds that
+resource among all workers on the host. While another process holds it, or the slot cannot be examined or
+written, the kind is reported as `resource-busy`. Point every worker on a host that shares a resource at the
+same `resourceDir` if you change it.
 
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed

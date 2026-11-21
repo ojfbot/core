@@ -135,6 +135,7 @@ function settings(pins = true, handler = handlerFile()) {
     inputDir: join(dir, "staged"),
     statusFile: join(dir, "status.json"),
     pollMs: 10,
+    lockDir: join(dir, "locks"),
     kinds: {
       shout: {
         capabilities: [],

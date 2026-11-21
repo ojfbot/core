@@ -286,6 +286,7 @@ describe("worker against a real local service", () => {
       outDir: join(dir, "attempts"),
       statusFile: join(dir, "status.json"),
       pollMs: 10,
+      lockDir: join(dir, "locks"),
       ...extra,
       kinds: Object.fromEntries(
         Object.entries(kinds).map(([kind, more]) => [
