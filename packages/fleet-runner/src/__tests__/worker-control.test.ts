@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -244,6 +244,26 @@ describe("owner control of a worker, against a real local service", () => {
     expect(await seen()).toMatchObject({ phase: "paused", eligibility: "operator-paused" });
     await owner().control("worker", "resume");
     await waitFor(() => store.get(second)?.status === "done");
+    controller.abort();
+    await done;
+  });
+
+  it("ends, releases its lock and stops reporting when the worker fails unexpectedly", async () => {
+    // A polling interval of zero makes the worker loop throw before it can claim anything.
+    const broken = { ...settings(0), pollMs: 0 };
+    await expect(
+      runDeclaredWorker(broken, controller.signal, { power: async () => power }),
+    ).rejects.toThrow(RangeError); // it neither hangs nor swallows the error
+    expect(existsSync(join(dir, "locks", "worker.identity.lock"))).toBe(false);
+    expect(localStatus().state).toBe("stopped");
+    // It is no longer reporting: the service's last sighting stops moving.
+    const first = (await seen()).seenAt;
+    await delay(250); // several presence intervals
+    expect((await seen()).seenAt).toBe(first);
+    // The identity is free, so a healthy worker for it starts and works.
+    const key = await admit();
+    const done = start();
+    await waitFor(() => store.get(key)?.status === "done");
     controller.abort();
     await done;
   });

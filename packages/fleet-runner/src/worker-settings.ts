@@ -41,7 +41,7 @@ export interface WorkerSettings {
   lockDir?: string;
   /**
    * Where shared resource slots live. Workers on one host that share a resource must share this
-   * folder. Defaults to a `resources` folder beside the status file.
+   * folder. Defaults to a `resources` folder inside the lock root (see `lockDir`).
    */
   resourceDir?: string;
   /** When absent the worker claims whenever the service allows, as before. */
