@@ -133,6 +133,47 @@ record. Messaging carries references and events, never the truth.
 Permissions are enforced by each record's home service. A viewer that assembles the whole graph
 sees only what each home service allows.
 
+## Absorbing the existing slice queue (cutover)
+
+Inventory, 2026-11-20:
+- **Live and load-bearing:**
+  - about 15 roadmap files hold roughly 250 slices, written to `decisions/northstar/roadmap-schema.md` v1.1;
+  - `roadmap-lint` runs in CI;
+  - the northstars and `status.jsonl` hold the movement log;
+  - `/frame-standup` uses all of it.
+- **Dormant since summer:** the Dolt queue store, `day-runner.mjs`, the bead-emit queue verbs, and
+  the cockpit Available lane's direct SQL.
+
+**Nothing in the roadmap files is rewritten or moved.** The absorption works field by field.
+
+| Existing | Becomes |
+| --- | --- |
+| Roadmap files: slice definition (`deliverable`, `entrance`, `success`, `check`, `advances`, `moves_from/to`, `autonomy`, `claimable_by`, `kind`, `depends_on`) | **Canonical, unchanged.** Still human-edited and lint-gated in CI. The register imports them. |
+| Slice identity `rm:<slug>#S<n>` | `register:slice/<rm:slug#Sn>`, keeping the existing key |
+| Planning status `queued → ready`, `dropped` | Stays in the file; a human flips it |
+| Execution status `dispatched → delivered → merged` | Moves to register events: claimed, review, audit verdict, merged |
+| `success`, `entrance` and `check` | The audit loop's acceptance criteria. `check` is the deterministic probe the auditor runs first. |
+| `advances` and `moves_from/to` | The audit verdict proposes the northstar movement; `record-movement.mjs` stays the recorder |
+| `autonomy` gate-0/1/2 and `claimable_by` | The register's claim rules and permission rung |
+| `depends_on` | "Waits on" links |
+| `kind` s/m/l TTLs, the CAS lease, renew and sweep | The same semantics in the register's claim API |
+| Queue beads and report beads (`session-start/close`, `pr-created`, `task-done`) | Register tasks and events |
+| `day-runner.mjs` | Merges with the HelpDesk wake runner (LocalHelp #61) into one headless executor run by FleetRunner. It keeps the worktree isolation and the slice-boundary contract. |
+| `bead-emit` queue verbs, the cockpit Dolt adapter, Step 7b | A thin compatibility shim. The verbs call the register API, and the cockpit switches from SQL to the API. |
+| Dolt queue store | Any rows it holds are exported and imported once, then the store is archived (not deleted) |
+
+**Cutover slices**, each one shippable:
+1. **Shadow import.** The register imports every roadmap read-only. A parity check against
+   `roadmap-compile` must match slice for slice.
+2. **Claim API and shim.** `queue-post`, `claim`, `renew` and `sweep` work through the register,
+   with the same lease semantics.
+3. **Cockpit.** The Available lane and Claim read and write the register API.
+4. **One executor.** The day-runner and wake merge, and report events land in the register.
+5. **Audit loop, shadow stage.**
+6. **Retire the Dolt queue.** Export, import, archive.
+
+`.handoff/` beads (session continuity) are out of scope and unchanged.
+
 ## Consequences
 
 ### Gains
