@@ -146,6 +146,19 @@ resource among all workers on the host. While another process holds it, or the s
 written, the kind is reported as `resource-busy`. Point every worker on a host that shares a resource at the
 same `resourceDir` if you change it.
 
+The owner pauses, drains and resumes a worker from the service with the signed owner command
+`fleet-runner control WORKER pause|drain|resume`; no agent session is involved, and a worker cannot
+change its own control. The worker checks before every claim. While paused or draining it claims nothing,
+a job already running finishes normally, and resume takes effect on the next poll (`pollMs`).
+
+Every `presenceMs` (default 10 seconds, at most 30) the worker also reports its own state to the service,
+separately from any job lease and with the service's fixed vocabulary only: phase (`starting`, `idle`,
+`running`, `request-error`), eligibility (`eligible`, `battery`, `power-unknown`, `outside-window`,
+`resource-busy`, `helper-changed`, `unsupported-worker`, `policy-error`, `operator-paused`), the handlers it
+offers (only `read-vision`, `read-qwen` and `proof-fixture` are named) and whether it is busy. The service
+shows an operator pause as `paused`, or `draining` while a job is still held. A worker that stops reporting
+becomes stale after 30 seconds, never silently eligible.
+
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed
 commands are trusted local programs, not a sandbox. Only listed kinds are claimed, with that kind's
