@@ -18,8 +18,10 @@ import { INPUT_HASH, putInput, readInput } from "./inputs.js";
 import { JobError, type Claim, type JobHandler, type JobOutput } from "./jobs.js";
 import { runWorker } from "./worker.js";
 import type { DeclaredCommand, PinnedFile, WorkerSettings } from "./worker-settings.js";
+import { runPresence } from "./presence.js";
 import { releaseInfo } from "./version.js";
 import { acquireLock, lockHeld, type Lock } from "./worker-lock.js";
+import { observationOf } from "./worker-presence.js";
 
 /** The installed command receives one JSON envelope on stdin and returns only JobOutput on stdout. */
 export function commandHandler(declared: DeclaredCommand, inputDir?: string): JobHandler {
@@ -299,6 +301,9 @@ async function runLocked(
   const held = new Map<string, string>();
   const unavailable = { has: (kind: string) => withdrawn.has(kind) || held.has(kind) };
   let claiming: ClaimDecision = { allowed: true, reason: "ok" };
+  let power: PowerSource = "unknown";
+  let current = "starting";
+  let errorCode: string | undefined;
   const evaluate = async () => {
     held.clear();
     for (const [kind, declared] of Object.entries(settings.kinds)) {
@@ -308,12 +313,14 @@ async function runLocked(
     }
     if (!settings.policy) return;
     try {
-      claiming = decideClaim(settings.policy, await env.power(), env.now());
+      power = await env.power();
+      claiming = decideClaim(settings.policy, power, env.now());
     } catch {
       claiming = { allowed: false, reason: "policy-error" };
     }
   };
   const status = (state: string) => {
+    current = state;
     const temp = `${settings.statusFile}.${process.pid}.tmp`;
     const reasons: Record<string, string> = Object.create(null);
     for (const kind of Object.keys(settings.kinds)) {
@@ -358,6 +365,27 @@ async function runLocked(
   }
   await evaluate();
   status("starting");
+  // Presence is independent of job authority: it only says what this worker is doing and why.
+  const presence = runPresence(
+    client,
+    () => {
+      const reasons: Record<string, string> = Object.create(null);
+      for (const kind of Object.keys(settings.kinds)) {
+        const reason = withdrawn.has(kind) ? "handler-pin-mismatch" : held.get(kind);
+        if (reason) reasons[kind] = reason;
+      }
+      return observationOf({
+        state: current,
+        claiming,
+        power,
+        kinds: Object.keys(settings.kinds).filter((kind) => !unavailable.has(kind)),
+        unavailable: reasons,
+        ...(errorCode ? { errorCode } : {}),
+      });
+    },
+    signal,
+    settings.presenceMs,
+  );
   try {
     await runWorker(declaredClient(client, settings, unavailable, slots), {
       caps: [],
@@ -376,11 +404,13 @@ async function runLocked(
       },
       onEvent: (event) => {
         slots.releaseAll(); // An attempt just ended; free the resource before waiting.
+        if (event.type === "request-error") errorCode = event.code;
         status(event.type);
       },
     });
   } finally {
     slots.releaseAll();
     status("stopped");
+    await presence;
   }
 }

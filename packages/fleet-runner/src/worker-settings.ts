@@ -43,6 +43,8 @@ export interface WorkerSettings {
   policy?: ClaimPolicy;
   kinds: Record<string, DeclaredCommand>;
   pollMs: number;
+  /** How often the worker reports its own state to the service. At most 30 seconds. */
+  presenceMs?: number;
   caFile?: string;
   generation?: string;
 }
@@ -67,6 +69,12 @@ function interval(value: unknown, fallback: number): number {
   )
     throw Error("invalid-worker-interval");
   return value;
+}
+
+function presenceInterval(value: unknown): number {
+  const ms = interval(value, 10_000);
+  if (ms > 30_000) throw Error("invalid-worker-interval");
+  return ms;
 }
 
 function parsePins(value: unknown): PinnedFile[] {
@@ -163,6 +171,7 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     ...(value.policy === undefined ? {} : { policy: parseClaimPolicy(value.policy) }),
     kinds,
     pollMs: interval(value.pollMs, 5_000),
+    ...(value.presenceMs === undefined ? {} : { presenceMs: presenceInterval(value.presenceMs) }),
     ...(value.caFile === undefined ? {} : { caFile: path(value.caFile) }),
     ...(typeof value.generation === "string" ? { generation: value.generation } : {}),
   };
