@@ -306,6 +306,7 @@ async function runLocked(
   let errorCode: string | undefined;
   const evaluate = async () => {
     held.clear();
+    claiming = { allowed: true, reason: "ok" }; // Re-decided from scratch on every poll.
     for (const [kind, declared] of Object.entries(settings.kinds)) {
       const reason = kindUnavailable(declared.requires ?? {}, declared.resource, env.host);
       if (reason) held.set(kind, reason);
