@@ -49,7 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | capture-agent | — | Golf-course capture agent (renamed from gcgcca 2026-07-30) — TX imagery corpus → segmentation model → Hugging Face; USGS Earth Explorer acquisition CLI, Python+TS hybrid | — | active |
 | fairway | 5187 | Golf digital twin — explorable twin surface (decomposed from mirrorworld 2026-07-30; consumer of mirrorworld + capture-agent) | — | active |
 | GroupThink | — | LLM tab-grouping Chrome extension — semantic treemap | — | shipped |
-| selfco-box | — | selfco vault runner — Notion/iOS/MCP capture daemon | — | paused |
+| selfco-box | — | selfco vault runner — Notion/iOS/MCP capture daemon (capture worker migrating into core as independent service) | — | paused |
 | golf-platform-scripts | — | Golf platform automation scripts | — | active |
 | virtualLight | — | Book-to-cinema pipeline — deterministic passage extraction + cinematography-styled video prompts; Gibson corpus private, public-domain demo (revived 2026-07-23) | — | active |
 | mirrorworld | — | Geospatial track — real places as three.js scenes (earth bundles + course intelligence; producer feeding fairway, which was decomposed out 2026-07-30; Bilawal Sidhu mentor corpus) | 0 | active |
