@@ -121,7 +121,7 @@ function settings(pins = true, handler = handlerFile()) {
     outDir: join(dir, "attempts"),
     inputDir: join(dir, "staged"),
     statusFile: join(dir, "status.json"),
-    pollMs: 10,
+    pollMs: 40,
     kinds: {
       shout: {
         capabilities: [],
@@ -142,7 +142,7 @@ const waitFor = async (ready: () => boolean) => {
   const end = Date.now() + 8_000;
   while (!ready()) {
     if (Date.now() >= end) throw Error("condition did not become true");
-    await delay(10);
+    await delay(25);
   }
 };
 const start = (s = settings()) => runDeclaredWorker(s, controller.signal);

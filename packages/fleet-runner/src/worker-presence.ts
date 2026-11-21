@@ -1,9 +1,9 @@
 import type { ClaimDecision, PowerSource } from "./claim-policy.js";
 import {
-  ELIGIBILITY,
   HANDLERS,
-  PHASES,
   safeStatusError,
+  type ELIGIBILITY,
+  type PHASES,
   type WorkerObservation,
 } from "./status.js";
 

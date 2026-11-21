@@ -135,7 +135,7 @@ describe("worker against a real local service", () => {
       outDir: join(dir, `attempts-${worker}`),
       statusFile: join(dir, `status-${worker}.json`),
       resourceDir: join(dir, "resources"),
-      pollMs: 10,
+      pollMs: 40,
       ...extra,
       kinds: {
         render: {
@@ -161,7 +161,7 @@ describe("worker against a real local service", () => {
     const end = Date.now() + 10_000;
     while (!ready()) {
       if (Date.now() >= end) throw Error("condition did not become true");
-      await delay(10);
+      await delay(25);
     }
   };
   const status = (worker: string) => {

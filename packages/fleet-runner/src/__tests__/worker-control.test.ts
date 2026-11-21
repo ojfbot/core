@@ -141,8 +141,8 @@ describe("owner control of a worker, against a real local service", () => {
       tokenFile: join(dir, "worker"),
       outDir: join(dir, "attempts"),
       statusFile: join(dir, "status.json"),
-      pollMs: 10,
-      presenceMs: 20,
+      pollMs: 40,
+      presenceMs: 50,
       ...extra,
       kinds: {
         "proof-fixture": {
@@ -168,7 +168,7 @@ describe("owner control of a worker, against a real local service", () => {
     const end = Date.now() + 10_000;
     while (!(await ready())) {
       if (Date.now() >= end) throw Error("condition did not become true");
-      await delay(10);
+      await delay(25);
     }
   };
   const claimed = (key: string) =>
@@ -183,7 +183,10 @@ describe("owner control of a worker, against a real local service", () => {
 
   it("shows an idle worker in presence", async () => {
     const done = start();
-    await waitFor(async () => (await seen()).freshness === "fresh");
+    await waitFor(async () => {
+      const worker = await seen();
+      return worker.freshness === "fresh" && worker.phase === "idle";
+    });
     expect(await seen()).toMatchObject({
       phase: "idle",
       eligibility: "eligible",
@@ -197,7 +200,10 @@ describe("owner control of a worker, against a real local service", () => {
   it("shows why a worker is not eligible in presence, such as battery power", async () => {
     power = "battery";
     const done = start(0, { policy: { timezone: "UTC" } });
-    await waitFor(async () => (await seen()).eligibility === "battery");
+    await waitFor(async () => {
+      const worker = await seen();
+      return worker.eligibility === "battery" && worker.phase === "idle";
+    });
     expect(await seen()).toMatchObject({ phase: "idle", handlers: ["proof-fixture"] });
     controller.abort();
     await done;
@@ -212,7 +218,7 @@ describe("owner control of a worker, against a real local service", () => {
     });
     await waitFor(() => localStatus().claiming?.reason === "service-paused");
     const key = await admit();
-    await delay(200); // many polls
+    await delay(250); // several polls
     expect(claimed(key)).toBe(false);
     expect(await seen()).toMatchObject({ phase: "paused", eligibility: "operator-paused" });
     expect(await owner().control("worker", "resume")).toMatchObject({ paused: false });

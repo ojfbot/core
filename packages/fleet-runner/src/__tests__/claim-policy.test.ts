@@ -203,7 +203,7 @@ describe("worker against a real local service", () => {
       tokenFile: join(dir, "worker"),
       outDir: join(dir, "attempts"),
       statusFile: join(dir, "status.json"),
-      pollMs: 10,
+      pollMs: 40,
       ...extra,
       kinds: Object.fromEntries(
         Object.entries(kinds).map(([kind, more]) => [
@@ -228,7 +228,7 @@ describe("worker against a real local service", () => {
     const end = Date.now() + 8_000;
     while (!ready()) {
       if (Date.now() >= end) throw Error("condition did not become true");
-      await delay(10);
+      await delay(25);
     }
   };
   const claimed = (key: string) =>
@@ -239,7 +239,7 @@ describe("worker against a real local service", () => {
     power = "battery";
     const done = start(settings({ policy: { timezone: "America/New_York" } }));
     await waitFor(() => status().claiming?.reason === "power-battery");
-    await delay(150); // many polls
+    await delay(250); // many polls
     expect(claimed(key)).toBe(false);
     expect(status()).toMatchObject({
       state: "paused",
@@ -248,7 +248,7 @@ describe("worker against a real local service", () => {
     });
     power = "unknown";
     await waitFor(() => status().claiming?.reason === "power-unknown");
-    await delay(100);
+    await delay(250);
     expect(claimed(key)).toBe(false);
     power = "ac";
     await waitFor(() => store.get(key)?.status === "done");
@@ -269,7 +269,7 @@ describe("worker against a real local service", () => {
     });
     const done = start(s);
     await waitFor(() => status().claiming?.reason === "exception-expired");
-    await delay(100);
+    await delay(250);
     expect(claimed(key)).toBe(false);
     clock = at("2026-06-11T14:00:00Z"); // Thursday 10:00 EDT
     await waitFor(() => store.get(key)?.status === "done");
@@ -295,7 +295,7 @@ describe("worker against a real local service", () => {
     const lackingKey = await admit("lacking");
     const done = start(s);
     await waitFor(() => store.get(plainKey)?.status === "done");
-    await delay(100);
+    await delay(250);
     expect(claimed(gpuKey)).toBe(false);
     expect(claimed(foreignKey)).toBe(false);
     expect(claimed(lackingKey)).toBe(false);
@@ -343,7 +343,7 @@ describe("worker against a real local service", () => {
         now: () => clock,
       });
       await waitFor(() => status().claiming?.reason === "service-paused");
-      await delay(100);
+      await delay(250);
       expect(claimed(key.key)).toBe(false);
       await owner().control("worker", "resume");
       await waitFor(() => store.get(key.key)?.status === "done");
@@ -362,7 +362,7 @@ describe("worker against a real local service", () => {
       now: () => clock,
     });
     await waitFor(() => status().claiming?.reason === "policy-error");
-    await delay(100);
+    await delay(250);
     expect(claimed(key)).toBe(false);
     controller.abort();
     await done;
