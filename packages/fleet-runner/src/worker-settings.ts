@@ -35,6 +35,11 @@ export interface WorkerSettings {
   inputDir?: string;
   statusFile: string;
   /**
+   * Where this worker's identity lock and, by default, its resource slots live. Leave it unset to use
+   * one fixed folder per user, so every config for the same worker identity shares one lock.
+   */
+  lockDir?: string;
+  /**
    * Where shared resource slots live. Workers on one host that share a resource must share this
    * folder. Defaults to a `resources` folder beside the status file.
    */
@@ -169,6 +174,7 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     outDir: path(value.outDir),
     ...(value.inputDir === undefined ? {} : { inputDir: path(value.inputDir) }),
     statusFile,
+    ...(value.lockDir === undefined ? {} : { lockDir: path(value.lockDir) }),
     ...(value.resourceDir === undefined ? {} : { resourceDir: path(value.resourceDir) }),
     ...(value.policy === undefined ? {} : { policy: parseClaimPolicy(value.policy) }),
     kinds,

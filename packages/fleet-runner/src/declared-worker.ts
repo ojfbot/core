@@ -27,7 +27,14 @@ import { JobError, type Claim, type JobHandler, type JobOutput } from "./jobs.js
 import { runWorker } from "./worker.js";
 import type { DeclaredCommand, PinnedFile, WorkerSettings } from "./worker-settings.js";
 import { releaseInfo } from "./version.js";
-import { acquireLock, lockHeld, type Lock } from "./worker-lock.js";
+import {
+  acquireLock,
+  defaultLockRoot,
+  identityLockPath,
+  lockDirectory,
+  lockHeld,
+  type Lock,
+} from "./worker-lock.js";
 
 /** The installed command receives one JSON envelope on stdin and returns only JobOutput on stdout. */
 export function commandHandler(declared: DeclaredCommand, inputDir?: string): JobHandler {
@@ -266,11 +273,15 @@ export function resourceSlots(dir: string): ResourceSlots {
   return {
     acquire(resource) {
       if (mine.has(resource)) return true;
-      mkdirSync(dir, { recursive: true, mode: 0o700 });
-      const lock = acquireLock(file(resource));
-      if (!lock) return false;
-      mine.set(resource, lock);
-      return true;
+      try {
+        lockDirectory(dir);
+        const lock = acquireLock(file(resource));
+        if (!lock) return false;
+        mine.set(resource, lock);
+        return true;
+      } catch {
+        return false; // A slot that cannot be examined or written is treated as taken.
+      }
     },
     release(resource) {
       mine.get(resource)?.release();
@@ -344,10 +355,17 @@ export async function runDeclaredWorker(
   };
   // A second client for the same worker identity would claim alongside this one. Refuse it before
   // anything else happens: no status write, no claim, no input fetch.
-  const identity = acquireLock(`${settings.tokenFile}.lock`);
+  const lockRoot = settings.lockDir ?? defaultLockRoot();
+  let identity: Lock | undefined;
+  try {
+    lockDirectory(lockRoot);
+    identity = acquireLock(identityLockPath(lockRoot, settings.worker));
+  } catch {
+    throw Error("worker-lock-unavailable");
+  }
   if (!identity) throw Error("duplicate-client");
   try {
-    await runLocked(settings, signal, env);
+    await runLocked(settings, signal, env, lockRoot);
   } finally {
     identity.release();
   }
@@ -357,12 +375,11 @@ async function runLocked(
   settings: WorkerSettings,
   signal: AbortSignal,
   env: WorkerEnvironment,
+  lockRoot: string,
 ): Promise<void> {
   mkdirSync(settings.outDir, { recursive: true, mode: 0o700 });
   mkdirSync(dirname(settings.statusFile), { recursive: true, mode: 0o700 });
-  const slots = resourceSlots(
-    settings.resourceDir ?? join(dirname(settings.statusFile), "resources"),
-  );
+  const slots = resourceSlots(settings.resourceDir ?? join(lockRoot, "resources"));
   // A kind whose pinned files changed is not offered again until the worker restarts.
   const withdrawn = new Set<string>();
   // Kinds this host cannot run right now, recomputed before every claim.
