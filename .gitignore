@@ -2,7 +2,11 @@ node_modules/
 dist/
 *.js.map
 *.d.ts.map
+# Env files hold real configuration and secrets: never tracked (adr:package-env-files).
+# Each application package keeps packages/<name>/.env; only .env.example is committed.
 .env
+.env.*
+!.env.example
 
 # Workflow run outputs — created at runtime by writeRun() in
 # packages/workflows/src/utils/runs.ts (called from runner.ts). Never committed.
