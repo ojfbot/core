@@ -75,14 +75,39 @@ record. Messaging carries references and events, never the truth.
      back.
    - HelpDesk carries events such as "task claimed" or "task blocked" as pointers only.
    - GitHub stays the roadmap; there is no automatic sync of open and closed state.
-6. **Service roles.**
+6. **Delivery audit loop: the only path that closes an issue.** It is deterministic around a model
+   judgement.
+   - **No auto-close on merge.** PRs reference issues with `Refs #N` (plus `Roadmap-Ref:` and the
+     slice id), never `Closes #N`, so GitHub does not close an issue on merge.
+   - **Trigger.** When a slice's PR merges, the register opens an `audit` task for it. Merges are
+     detected by polling the GitHub API from the fleet, not by GitHub Actions, which keeps CI
+     minutes inside the free tier.
+   - **Independent auditor.** The audit runs as a fresh headless agent from a different provider
+     than the builder (Codex audits Claude's work and vice versa), read-only. It reads the issue's
+     acceptance criteria, the roadmap entry's success criteria, the merged diff and the tests. It
+     tries to break the claim and returns a structured verdict per criterion: `met`, `partly`,
+     `not-met` or `untestable`, each with evidence. If the two providers disagree, a second audit
+     runs, and an unresolved disagreement goes to the owner. This follows
+     `adr:defect-ledger-and-closure-loop`: only an independent check may close.
+   - **Deterministic applier.** Code, not the model, applies the verdict to GitHub:
+     - every criterion met: close the issue with an audit comment;
+     - some met: tick those criteria, or close their sub-issues, label `partially-delivered`,
+       comment, and **fork** a linked follow-up issue (`follow-up of #N`) with the unmet criteria,
+       plus a register task for it;
+     - none met, or untestable: keep the issue open, comment, and raise a BLOCKER to the owner.
+     Every action is logged as a register event, and the issue, the PR, the follow-up and the
+     task all link to each other.
+   - **Precondition.** Issues and roadmap entries carry acceptance criteria as a checkable list.
+     An issue without them gets an `untestable` verdict rather than a guess.
+
+7. **Service roles.**
 
 | Service | Owns | Never |
 | --- | --- | --- |
 | HelpDesk | identity issuance, messages, threads, presence | task or topic state |
 | Work register (in FleetRunner) | topics, slices, tasks, their events | running work, message bodies |
 | FleetRunner jobs | execution, approvals, budgets, run logs | defining tasks |
-| GitHub | code, PRs, issues, roadmap files | live task state |
+| GitHub | code, PRs, issues, roadmap files | live task state; issues close only through the audit loop |
 | MorningCockpit | the owner's view and controls | writes except through each home service's API |
 | DailyLogger | the published narrative | operational state |
 
