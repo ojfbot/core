@@ -127,9 +127,17 @@ server, so it is narrowed and not removed. A running job is never cut short by i
 `requires` keeps a kind unavailable on a host that lacks the stated `platform`, `arch` or files, so a
 handler that cannot run here is never offered or claimed. If a rule cannot be evaluated the worker does
 not claim. The status file lists only the kinds currently offered, `unavailable` (kind to reason code:
-`unsupported-platform`, `unsupported-arch`, `missing-file`, `gpu-busy`, `handler-pin-mismatch`) and
+`unsupported-platform`, `unsupported-arch`, `missing-file`, `gpu-busy`, `resource-busy`, `handler-pin-mismatch`) and
 `claiming` (`allowed` plus `ok`, `power-battery`, `power-unknown`, `outside-window`, `exception-expired`,
 `policy-error` or `service-paused`). A job already running is not interrupted by a rule change.
+
+One worker identity runs one client. At start the worker takes a lock file beside its token file; a second
+client for the same identity exits at once with `duplicate-client`, before it writes status, claims or
+downloads anything. The lock belongs to a live process, so one left by a crashed worker is taken over
+automatically. Kinds with a `resource` also take a slot file in `resourceDir` (default: a `resources` folder
+beside the status file) before they claim, and keep it until the attempt ends, so only one job at a time
+holds that resource among all workers sharing the folder. While another process holds it, the kind is
+reported as `resource-busy`. Workers that share a resource on one host must share `resourceDir`.
 
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed
