@@ -2,8 +2,16 @@ import { accessSync, constants, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, resolve } from "node:path";
 import { ID } from "./auth.js";
 
+/** A local file whose exact bytes the installed handler depends on. */
+export interface PinnedFile {
+  path: string;
+  sha256: string;
+}
+
 export interface DeclaredCommand {
   capabilities: string[];
+  /** Re-hashed before every run; a mismatch withdraws the kind from this worker. */
+  pins?: PinnedFile[];
   command: [string, ...string[]];
   timeoutMs: number;
 }
@@ -13,6 +21,8 @@ export interface WorkerSettings {
   worker: string;
   tokenFile: string;
   outDir: string;
+  /** Where hash-checked inputs are staged. Without it the worker does not fetch inputs. */
+  inputDir?: string;
   statusFile: string;
   kinds: Record<string, DeclaredCommand>;
   pollMs: number;
@@ -40,6 +50,16 @@ function interval(value: unknown, fallback: number): number {
   )
     throw Error("invalid-worker-interval");
   return value;
+}
+
+function parsePins(value: unknown): PinnedFile[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > 16) throw Error("invalid-handler-pin");
+  return value.map((pin: unknown) => {
+    if (!record(pin) || typeof pin.sha256 !== "string" || !/^[a-f0-9]{64}$/.test(pin.sha256))
+      throw Error("invalid-handler-pin");
+    return { path: path(pin.path), sha256: pin.sha256 };
+  });
 }
 
 /** Only local settings select executables. A job never contributes command text or arguments. */
@@ -92,8 +112,10 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
       throw Error("agent-or-shell-command-refused");
     accessSync(executable, constants.X_OK);
     if (!statSync(executable).isFile()) throw Error("invalid-command-executable");
+    const pins = parsePins(entry.pins);
     kinds[kind] = {
       capabilities: [...new Set(entry.capabilities)],
+      pins,
       command: [executable, ...args],
       timeoutMs: interval(entry.timeoutMs, 300_000),
     };
@@ -111,6 +133,7 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     worker: value.worker,
     tokenFile,
     outDir: path(value.outDir),
+    ...(value.inputDir === undefined ? {} : { inputDir: path(value.inputDir) }),
     statusFile,
     kinds,
     pollMs: interval(value.pollMs, 5_000),

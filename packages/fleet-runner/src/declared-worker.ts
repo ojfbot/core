@@ -1,17 +1,18 @@
 import { spawn } from "node:child_process";
-import { mkdirSync, lstatSync, renameSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { createReadStream, mkdirSync, lstatSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { performance } from "node:perf_hooks";
-import type { FleetClient } from "./client.js";
-import { fleetClient } from "./client.js";
-import { JobError, type JobHandler, type JobOutput } from "./jobs.js";
+import { FleetHttpError, type FleetClient, fleetClient } from "./client.js";
+import { INPUT_HASH, putInput, readInput } from "./inputs.js";
+import { JobError, type Claim, type JobHandler, type JobOutput } from "./jobs.js";
 import { runWorker } from "./worker.js";
-import type { DeclaredCommand, WorkerSettings } from "./worker-settings.js";
+import type { DeclaredCommand, PinnedFile, WorkerSettings } from "./worker-settings.js";
 import { releaseInfo } from "./version.js";
 
 /** The installed command receives one JSON envelope on stdin and returns only JobOutput on stdout. */
-export function commandHandler(declared: DeclaredCommand): JobHandler {
+export function commandHandler(declared: DeclaredCommand, inputDir?: string): JobHandler {
   return (job, context) =>
     new Promise<JobOutput>((resolve, reject) => {
       if (context.signal.aborted) {
@@ -107,13 +108,80 @@ export function commandHandler(declared: DeclaredCommand): JobHandler {
           reject(new JobError("invalid-command-output", false));
         }
       });
-      child.stdin.end(`${JSON.stringify({ job, outDir: context.outDir })}\n`);
+      child.stdin.end(
+        `${JSON.stringify({ job, outDir: context.outDir, ...(inputDir ? { inputDir } : {}) })}\n`,
+      );
       if (context.signal.aborted) abort();
     });
 }
 
+function fileHash(file: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    createReadStream(file)
+      .on("error", reject)
+      .on("data", (chunk) => hash.update(chunk))
+      .on("end", () => resolve(hash.digest("hex")));
+  });
+}
+
+/** True only when every pinned file still has exactly its recorded bytes. */
+export async function pinsHold(pins: readonly PinnedFile[]): Promise<boolean> {
+  for (const pin of pins) {
+    try {
+      const info = lstatSync(pin.path);
+      if (!info.isFile() || info.isSymbolicLink()) return false;
+      if ((await fileHash(pin.path)) !== pin.sha256) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
+ * Fetch every input of a held job into the local staging directory under its hash.
+ * Cached bytes are trusted only after they hash correctly again. Errors are codes only.
+ */
+export async function stageInputs(
+  client: Pick<FleetClient, "downloadInput">,
+  job: Pick<Claim, "key" | "fence" | "inputs">,
+  dir: string,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!job.inputs.every((hash) => INPUT_HASH.test(hash)))
+    throw new JobError("invalid-input", false);
+  for (const hash of job.inputs) {
+    try {
+      readInput(dir, hash);
+      continue;
+    } catch {
+      rmSync(join(dir, hash), { force: true }); // A bad or partial cache entry is replaced, never trusted.
+    }
+    let bytes: Buffer;
+    try {
+      bytes = await client.downloadInput(job, hash, signal);
+    } catch (error) {
+      if (signal.aborted) throw new JobError("interrupted", true);
+      if (error instanceof FleetHttpError && !error.retryable)
+        throw new JobError("input-refused", false);
+      // Transport failure, truncation or a hash mismatch: another attempt may succeed.
+      throw new JobError("input-unavailable", true);
+    }
+    try {
+      putInput(dir, hash, bytes);
+    } catch {
+      throw new JobError("input-unavailable", true);
+    }
+  }
+}
+
 /** One claim at a time, with the declared capabilities for that particular kind. */
-export function declaredClient(client: FleetClient, settings: WorkerSettings): FleetClient {
+export function declaredClient(
+  client: FleetClient,
+  settings: WorkerSettings,
+  unavailable: ReadonlySet<string> = new Set(),
+): FleetClient {
   const entries = Object.entries(settings.kinds);
   let cursor = 0;
   return {
@@ -124,7 +192,7 @@ export function declaredClient(client: FleetClient, settings: WorkerSettings): F
         const entry = entries[index];
         if (!entry) continue;
         const [kind, command] = entry;
-        if (!allowed.includes(kind)) continue;
+        if (!allowed.includes(kind) || unavailable.has(kind)) continue;
         const claim = await client.claim(command.capabilities, [kind]);
         if (claim) {
           cursor = (index + 1) % entries.length;
@@ -142,6 +210,8 @@ export async function runDeclaredWorker(
 ): Promise<void> {
   mkdirSync(settings.outDir, { recursive: true, mode: 0o700 });
   mkdirSync(dirname(settings.statusFile), { recursive: true, mode: 0o700 });
+  // A kind whose pinned files changed is not offered again until the worker restarts.
+  const unavailable = new Set<string>();
   const status = (state: string) => {
     const temp = `${settings.statusFile}.${process.pid}.tmp`;
     writeFileSync(
@@ -150,7 +220,7 @@ export async function runDeclaredWorker(
         schemaVersion: 1,
         version: releaseInfo.version,
         worker: settings.worker,
-        kinds: Object.keys(settings.kinds),
+        kinds: Object.keys(settings.kinds).filter((kind) => !unavailable.has(kind)),
         state,
         updatedAt: new Date().toISOString(),
       })}\n`,
@@ -166,15 +236,21 @@ export async function runDeclaredWorker(
   );
   const handlers: Record<string, JobHandler> = Object.create(null);
   for (const [kind, declared] of Object.entries(settings.kinds)) {
-    const handle = commandHandler(declared);
+    if (!(await pinsHold(declared.pins ?? []))) unavailable.add(kind);
+    const handle = commandHandler(declared, settings.inputDir);
     handlers[kind] = async (job, context) => {
+      if (!(await pinsHold(declared.pins ?? []))) {
+        unavailable.add(kind);
+        throw new JobError("handler-pin-mismatch", true);
+      }
+      if (settings.inputDir) await stageInputs(client, job, settings.inputDir, context.signal);
       status("working");
       return handle(job, context);
     };
   }
   status("starting");
   try {
-    await runWorker(declaredClient(client, settings), {
+    await runWorker(declaredClient(client, settings, unavailable), {
       caps: [],
       handlers,
       outDir: settings.outDir,
