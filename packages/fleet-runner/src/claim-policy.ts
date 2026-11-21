@@ -46,7 +46,12 @@ export type ClaimReason =
   | "policy-error"
   | "service-paused";
 
-export type KindReason = "unsupported-platform" | "unsupported-arch" | "missing-file" | "gpu-busy";
+export type KindReason =
+  | "unsupported-platform"
+  | "unsupported-arch"
+  | "missing-file"
+  | "gpu-busy"
+  | "resource-busy";
 
 export interface ClaimDecision {
   allowed: boolean;

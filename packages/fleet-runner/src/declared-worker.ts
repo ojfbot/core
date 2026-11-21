@@ -19,6 +19,7 @@ import { JobError, type Claim, type JobHandler, type JobOutput } from "./jobs.js
 import { runWorker } from "./worker.js";
 import type { DeclaredCommand, PinnedFile, WorkerSettings } from "./worker-settings.js";
 import { releaseInfo } from "./version.js";
+import { acquireLock, lockHeld, type Lock } from "./worker-lock.js";
 
 /** The installed command receives one JSON envelope on stdin and returns only JobOutput on stdout. */
 export function commandHandler(declared: DeclaredCommand, inputDir?: string): JobHandler {
@@ -185,24 +186,65 @@ export async function stageInputs(
   }
 }
 
+/** One holder per shared resource on this host. The slot is taken before a claim and kept until the attempt ends. */
+export interface ResourceSlots {
+  acquire(resource: string): boolean;
+  release(resource: string): void;
+  releaseAll(): void;
+  /** True while another process holds the slot. */
+  busy(resource: string): boolean;
+}
+
+export function resourceSlots(dir: string): ResourceSlots {
+  const mine = new Map<string, Lock>();
+  const file = (resource: string) => join(dir, `${resource}.slot`);
+  return {
+    acquire(resource) {
+      if (mine.has(resource)) return true;
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      const lock = acquireLock(file(resource));
+      if (!lock) return false;
+      mine.set(resource, lock);
+      return true;
+    },
+    release(resource) {
+      mine.get(resource)?.release();
+      mine.delete(resource);
+    },
+    releaseAll() {
+      for (const lock of mine.values()) lock.release();
+      mine.clear();
+    },
+    busy: (resource) => !mine.has(resource) && lockHeld(file(resource)),
+  };
+}
+
 /** One claim at a time, with the declared capabilities for that particular kind. */
 export function declaredClient(
   client: FleetClient,
   settings: WorkerSettings,
   unavailable: { has(kind: string): boolean } = new Set<string>(),
+  slots?: ResourceSlots,
 ): FleetClient {
   const entries = Object.entries(settings.kinds);
   let cursor = 0;
   return {
     ...client,
     claim: async (_caps, allowed) => {
+      slots?.releaseAll(); // Attempts run one at a time, so the previous holder is finished.
       for (let offset = 0; offset < entries.length; offset += 1) {
         const index = (cursor + offset) % entries.length;
         const entry = entries[index];
         if (!entry) continue;
         const [kind, command] = entry;
         if (!allowed.includes(kind) || unavailable.has(kind)) continue;
-        const claim = await client.claim(command.capabilities, [kind]);
+        if (command.resource && slots && !slots.acquire(command.resource)) continue;
+        let claim: Awaited<ReturnType<FleetClient["claim"]>> | undefined;
+        try {
+          claim = await client.claim(command.capabilities, [kind]);
+        } finally {
+          if (!claim && command.resource) slots?.release(command.resource);
+        }
         if (claim) {
           cursor = (index + 1) % entries.length;
           return claim;
@@ -230,8 +272,27 @@ export async function runDeclaredWorker(
     now: environment.now ?? Date.now,
     host: environment.host ?? realHostFacts(settings.policy),
   };
+  // A second client for the same worker identity would claim alongside this one. Refuse it before
+  // anything else happens: no status write, no claim, no input fetch.
+  const identity = acquireLock(`${settings.tokenFile}.lock`);
+  if (!identity) throw Error("duplicate-client");
+  try {
+    await runLocked(settings, signal, env);
+  } finally {
+    identity.release();
+  }
+}
+
+async function runLocked(
+  settings: WorkerSettings,
+  signal: AbortSignal,
+  env: WorkerEnvironment,
+): Promise<void> {
   mkdirSync(settings.outDir, { recursive: true, mode: 0o700 });
   mkdirSync(dirname(settings.statusFile), { recursive: true, mode: 0o700 });
+  const slots = resourceSlots(
+    settings.resourceDir ?? join(dirname(settings.statusFile), "resources"),
+  );
   // A kind whose pinned files changed is not offered again until the worker restarts.
   const withdrawn = new Set<string>();
   // Kinds this host cannot run right now, recomputed before every claim.
@@ -243,6 +304,7 @@ export async function runDeclaredWorker(
     for (const [kind, declared] of Object.entries(settings.kinds)) {
       const reason = kindUnavailable(declared.requires ?? {}, declared.resource, env.host);
       if (reason) held.set(kind, reason);
+      else if (declared.resource && slots.busy(declared.resource)) held.set(kind, "resource-busy");
     }
     if (!settings.policy) return;
     try {
@@ -297,7 +359,7 @@ export async function runDeclaredWorker(
   await evaluate();
   status("starting");
   try {
-    await runWorker(declaredClient(client, settings, unavailable), {
+    await runWorker(declaredClient(client, settings, unavailable, slots), {
       caps: [],
       handlers,
       outDir: settings.outDir,
@@ -312,9 +374,13 @@ export async function runDeclaredWorker(
         }
         return true;
       },
-      onEvent: (event) => status(event.type),
+      onEvent: (event) => {
+        slots.releaseAll(); // An attempt just ended; free the resource before waiting.
+        status(event.type);
+      },
     });
   } finally {
+    slots.releaseAll();
     status("stopped");
   }
 }
