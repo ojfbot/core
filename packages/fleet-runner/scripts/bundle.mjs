@@ -36,3 +36,12 @@ await build({
   },
 });
 process.stdout.write(`fleet-runner ${version} (${commit}) bundled\n`);
+await build({
+  entryPoints: [join(pkg, "scripts/ledger-proof-local-practice.mjs")],
+  outfile: join(pkg, "dist/release/practice.mjs"),
+  bundle: true,
+  platform: "node",
+  format: "esm",
+  target: "node24",
+  define: { __FLEET_PRACTICE_BUNDLE__: "true" },
+});

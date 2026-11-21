@@ -231,6 +231,7 @@ export function prepareLocalBinding(input, overrides = {}) {
 }
 
 if (
+  typeof __FLEET_PRACTICE_BUNDLE__ === "undefined" &&
   process.argv[1] &&
   realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))
 ) {

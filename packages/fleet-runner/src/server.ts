@@ -102,6 +102,7 @@ export function fleetServer(
     workers?: string[];
     observers?: string[];
     build?: string;
+    practiceId?: string;
   },
 ) {
   mkdirSync(options.outDir, { recursive: true });
@@ -203,6 +204,17 @@ export function fleetServer(
         throw new RequestError(400);
       }
       requireValid(isObject(body));
+      if (route === "POST /practice/reset") {
+        if (id !== "owner" || !options.practiceId) throw new RequestError(403);
+        requireValid(
+          body.practice === options.practiceId &&
+            Array.isArray(body.expectedKeys) &&
+            body.expectedKeys.every((key) => typeof key === "string" && SHA.test(key)),
+        );
+        return reply(res, 200, {
+          reset: store.resetPractice(options.practiceId, body.expectedKeys as string[]),
+        });
+      }
       if (route === "POST /recovery/release") {
         if (id !== "owner") throw new RequestError(403);
         requireValid(typeof body.generation === "string" && typeof body.recoveryPoint === "string");

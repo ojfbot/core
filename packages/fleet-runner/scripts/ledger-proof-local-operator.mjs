@@ -177,6 +177,23 @@ export function validateSettings(s) {
     "snapshot-invalid",
   );
   requireThat(s.target.user.split(":")[0] === s.snapshot.serviceUid, "snapshot-user-mismatch");
+  for (const field of ["database", "outputs"]) {
+    const path = s.snapshot[field];
+    requireThat(
+      s.target.mounts.some(
+        (mount) =>
+          mount.RW === true &&
+          (path === mount.Destination || path.startsWith(mount.Destination + "/")),
+      ),
+      "snapshot-path-outside-container-mount",
+    );
+    requireThat(
+      !s.target.mounts.some(
+        (mount) => mount.Source && (path === mount.Source || path.startsWith(mount.Source + "/")),
+      ),
+      "snapshot-host-path-refused",
+    );
+  }
   requireThat(
     exact(s.protected, ["container", "serviceUid", "node", "database", "metadata", "files"]) &&
       /^(?:[1-9][0-9]*|node)$/.test(s.protected.serviceUid) &&
@@ -482,7 +499,7 @@ export function createOperator(input, overrides = {}) {
       const result = JSON.parse(
         exec(s.target.id, s.snapshot.serviceUid, s.snapshot.node, [
           s.snapshot.bundle,
-          "ledger-proof-snapshot",
+          s.target.labels?.["fleet.practice"] ? "practice-snapshot" : "ledger-proof-snapshot",
           s.snapshot.database,
           s.snapshot.outputs,
         ]),
@@ -629,6 +646,7 @@ export function createOperator(input, overrides = {}) {
   return operator;
 }
 if (
+  typeof __FLEET_PRACTICE_BUNDLE__ === "undefined" &&
   process.argv[1] &&
   realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))
 ) {
@@ -666,11 +684,16 @@ if (
         });
       } catch {}
     }
-    process.stderr.write(
-      /^proof-operator-[a-z-]+$/.test(e?.message ?? "")
-        ? e.message + "\n"
-        : "proof-operator-failed\n",
-    );
+    if (e?.commandFailure)
+      process.stderr.write(
+        JSON.stringify({ reason: e.message, firstFailure: e.commandFailure }) + "\n",
+      );
+    else
+      process.stderr.write(
+        /^proof-operator-[a-z-]+$/.test(e?.message ?? "")
+          ? e.message + "\n"
+          : "proof-operator-failed\n",
+      );
     process.exitCode = 1;
   }
 }
