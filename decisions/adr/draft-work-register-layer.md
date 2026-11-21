@@ -144,7 +144,7 @@ Inventory, 2026-11-20:
 - **Dormant since summer:** the Dolt queue store, `day-runner.mjs`, the bead-emit queue verbs, and
   the cockpit Available lane's direct SQL.
 
-**Nothing in the roadmap files is rewritten or moved.** The absorption works field by field.
+**Nothing in the roadmap files is rewritten or moved.** Owner decision (2026-11-20): "Yes, files stay canonical." The absorption works field by field.
 
 | Existing | Becomes |
 | --- | --- |
