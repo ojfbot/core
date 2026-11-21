@@ -394,3 +394,9 @@
 {"ts":"2026-11-21T08:56:01Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
 {"ts":"2026-11-21T09:26:12Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
 {"ts":"2026-11-21T09:26:15Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T09:56:25Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T09:56:28Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T10:26:41Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T10:26:44Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T10:56:55Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
+{"ts":"2026-11-21T10:56:59Z","event":"tool:used","tool_name":"Bash","file_path":"","skill":"","repo":"HouseholdAgentKit","cwd":"/Users/yuri/ojfbot/HouseholdAgentKit","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd"}
