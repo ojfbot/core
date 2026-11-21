@@ -51,6 +51,7 @@ The worker refuses either file when `mode & 0022` is nonzero.
   "caFile": "/private/existing-fleet-ca.crt",
   "tokenFile": "/private/existing-worker-key",
   "outDir": "/private/fleet-attempts",
+  "inputDir": "/private/fleet-staged-inputs",
   "statusFile": "/private/worker-status.json",
   "kinds": {
     "proof-fixture": {
@@ -60,11 +61,26 @@ The worker refuses either file when `mode & 0022` is nonzero.
         "/absolute/FleetRunner/worker/current/fleet-runner.mjs",
         "proof-fixture"
       ],
+      "pins": [
+        {
+          "path": "/absolute/FleetRunner/worker/current/fleet-runner.mjs",
+          "sha256": "<64 hex characters>"
+        }
+      ],
       "timeoutMs": 300000
     }
   }
 }
 ```
+
+`inputDir` and `pins` are optional. With `inputDir`, the worker downloads every input of a claimed job
+with that job's own lease before the command starts. Each download is size-bounded and hash-checked,
+and is stored read-only under its hash name; cached bytes are hashed again before reuse. A corrupt or
+interrupted download is a retryable `input-unavailable`; a refusal by the service (for example a blob the
+job does not name) is a non-retryable `input-refused`. Without `inputDir` the worker fetches nothing.
+Each `pins` file is hashed again before every run. If one changed, the attempt ends with
+`handler-pin-mismatch`, nothing is submitted, and that kind is no longer claimed (and drops out of the
+status file) until the worker restarts.
 
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed
@@ -80,6 +96,7 @@ If the existing NAS worker uses a recovery generation, preserve it in the option
 setting. Settings, keys, certificate paths and job content never appear in the status file.
 
 An installed command reads one JSON envelope `{ "job": <claimed job>, "outDir": <output folder> }`
+(plus `"inputDir"` when configured; the inputs are the files named by `job.inputs` in that folder)
 from stdin. It writes `<job.key>.<job.fence>.jsonl` in that folder and returns exactly
 `{ "file": "<job.key>.<job.fence>.jsonl", "sha256": "<64 hex characters>" }` on stdout, then exits zero.
 Stderr is discarded. The worker validates the result and the normal fenced completion checks the
