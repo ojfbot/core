@@ -53,6 +53,13 @@ The worker refuses either file when `mode & 0022` is nonzero.
   "outDir": "/private/fleet-attempts",
   "inputDir": "/private/fleet-staged-inputs",
   "statusFile": "/private/worker-status.json",
+  "policy": {
+    "timezone": "America/New_York",
+    "power": "ac-only",
+    "windows": [{ "days": [1, 2, 3, 4, 5], "start": "22:00", "end": "06:00" }],
+    "exceptions": [{ "allow": "outside-window", "until": "2026-12-01T00:00:00Z" }],
+    "gpuBusyFile": "/private/gpu-in-use"
+  },
   "kinds": {
     "proof-fixture": {
       "capabilities": ["proof-fixture"],
@@ -61,6 +68,8 @@ The worker refuses either file when `mode & 0022` is nonzero.
         "/absolute/FleetRunner/worker/current/fleet-runner.mjs",
         "proof-fixture"
       ],
+      "resource": "gpu",
+      "requires": { "platform": "darwin", "arch": "arm64", "files": ["/private/models/model.bin"] },
       "pins": [
         {
           "path": "/absolute/FleetRunner/worker/current/fleet-runner.mjs",
@@ -92,6 +101,30 @@ pinned file must be a regular file that group and others cannot write. If one ch
 `handler-pin-mismatch`, nothing is submitted, and that kind is no longer claimed (and drops out of the
 status file) until the worker restarts. The check cannot be atomic with starting the program, so keep
 pinned files and their folders writable only by the worker's own user.
+
+`policy` is optional; without it the worker claims whenever the service allows, as before. With it the
+worker claims nothing unless every rule holds, checked before each claim:
+
+- `power`: `ac-only` (the default) refuses battery power and also refuses when the power source cannot
+  be read. `any` skips the check.
+- `windows`: days (0 is Sunday) with local `start` and `end` times in `timezone`. A window that ends
+  before it starts runs past midnight and belongs to the day it starts on. Times follow the real clock of
+  that zone, so daylight-saving changes need no special handling. No windows means always.
+- `exceptions`: `outside-window` or `on-battery` until a time with an explicit offset. An expired
+  exception is ignored (and reported as such). Unknown power is never excepted.
+- `gpuBusyFile`: while anything exists at this path, or the path cannot be examined for any reason other
+  than being absent, kinds with `"resource": "gpu"` are held back; other kinds run. Doubt means busy.
+
+The rules are checked before the claim request and again immediately before each kind is claimed. They
+can still change in the instant before the server sees the request; that gap cannot be closed without the
+server, so it is narrowed and not removed. A running job is never cut short by it.
+
+`requires` keeps a kind unavailable on a host that lacks the stated `platform`, `arch` or files, so a
+handler that cannot run here is never offered or claimed. If a rule cannot be evaluated the worker does
+not claim. The status file lists only the kinds currently offered, `unavailable` (kind to reason code:
+`unsupported-platform`, `unsupported-arch`, `missing-file`, `gpu-busy`, `handler-pin-mismatch`) and
+`claiming` (`allowed` plus `ok`, `power-battery`, `power-unknown`, `outside-window`, `exception-expired`,
+`policy-error` or `service-paused`). A job already running is not interrupted by a rule change.
 
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed
