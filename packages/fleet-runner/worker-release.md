@@ -72,6 +72,10 @@ The worker refuses either file when `mode & 0022` is nonzero.
       "requires": { "platform": "darwin", "arch": "arm64", "files": ["/private/models/model.bin"] },
       "pins": [
         {
+          "path": "/absolute/FleetRunner/worker/current/node",
+          "sha256": "<64 hex characters>"
+        },
+        {
           "path": "/absolute/FleetRunner/worker/current/fleet-runner.mjs",
           "sha256": "<64 hex characters>"
         }
@@ -95,7 +99,8 @@ sandbox. A corrupt or interrupted download is a retryable `input-unavailable`; a
 worker fetches nothing.
 
 `pins` name local files whose bytes the command depends on. If any pin is declared, the pins must include the
-executable and every absolute file argument (the script it runs), or the settings are refused. A pin is
+executable and every absolute path argument (the script it runs), whether or not it exists yet, or the
+settings are refused. A pin is
 checked at start and again as the last step before each command starts, after the inputs are staged, and a
 pinned file must be a regular file that group and others cannot write. If one changed, the attempt ends with
 `handler-pin-mismatch`, nothing is submitted, and that kind is no longer claimed (and drops out of the

@@ -344,6 +344,27 @@ it("refuses pins that leave part of the command unpinned", () => {
   expect(() => parse([handlerPin(handler), NODE_PIN])).not.toThrow();
 });
 
+it("requires a pin for an absolute path argument even if the file does not exist yet", async () => {
+  const handler = handlerFile();
+  const later = join(dir, "appears-later.cjs"); // not created: it could be dropped in afterwards
+  const parse = (pins: object[]) =>
+    parseWorkerSettings({
+      schemaVersion: 1,
+      endpoint,
+      worker: "worker",
+      tokenFile: join(dir, "worker"),
+      outDir: join(dir, "attempts"),
+      statusFile: join(dir, "status.json"),
+      kinds: { shout: { capabilities: [], command: [process.execPath, handler, later], pins } },
+    });
+  expect(existsSync(later)).toBe(false);
+  expect(() => parse([handlerPin(handler), NODE_PIN])).toThrow("pins-must-cover-command");
+  // Pinning a path that is missing is allowed, and it fails closed until the right file is there.
+  const pinned = { path: later, sha256: sha(INPUT) };
+  expect(() => parse([handlerPin(handler), NODE_PIN, pinned])).not.toThrow();
+  expect(await pinsHold([pinned])).toBe(false);
+});
+
 it("replaces a symlink in the input cache and never reads through it", async () => {
   const { hash, key } = await admit();
   const decoy = join(dir, "decoy");
