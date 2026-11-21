@@ -1,12 +1,14 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   closeSync,
+  constants,
+  fstatSync,
   fsyncSync,
   linkSync,
+  lstatSync,
   mkdirSync,
   openSync,
   readFileSync,
-  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -18,13 +20,32 @@ export const INPUT_HASH = /^[a-f0-9]{64}$/;
 export const inputHash = (bytes: Uint8Array): string =>
   createHash("sha256").update(bytes).digest("hex");
 
+/**
+ * Read one stored input. Only a regular file is accepted: a symlink, directory or anything else is
+ * refused. The file is opened without following links and the bytes come from that open handle, so
+ * a swap after the check cannot change what is read. The bytes must hash to their name.
+ */
 export function readInput(dir: string, hash: string): Buffer {
   if (!INPUT_HASH.test(hash)) throw new Error("invalid-input");
   const file = join(dir, hash);
-  if (statSync(file).size > MAX_INPUT_BYTES) throw new Error("invalid-input");
-  const bytes = readFileSync(file);
-  if (inputHash(bytes) !== hash) throw new Error("invalid-input");
-  return bytes;
+  const named = lstatSync(file);
+  if (!named.isFile()) throw new Error("invalid-input");
+  const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    const open = fstatSync(fd);
+    if (
+      !open.isFile() ||
+      open.size > MAX_INPUT_BYTES ||
+      open.ino !== named.ino ||
+      open.dev !== named.dev
+    )
+      throw new Error("invalid-input");
+    const bytes = readFileSync(fd);
+    if (inputHash(bytes) !== hash) throw new Error("invalid-input");
+    return bytes;
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** Publish complete, hash-checked bytes, syncing file and directory before acknowledgement. */

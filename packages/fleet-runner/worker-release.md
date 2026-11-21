@@ -47,7 +47,7 @@ The worker refuses either file when `mode & 0022` is nonzero.
 {
   "schemaVersion": 1,
   "endpoint": "https://existing-fleet-service:8443",
-  "worker": "yuri",
+  "worker": "example-mac",
   "caFile": "/private/existing-fleet-ca.crt",
   "tokenFile": "/private/existing-worker-key",
   "outDir": "/private/fleet-attempts",
@@ -74,13 +74,24 @@ The worker refuses either file when `mode & 0022` is nonzero.
 ```
 
 `inputDir` and `pins` are optional. With `inputDir`, the worker downloads every input of a claimed job
-with that job's own lease before the command starts. Each download is size-bounded and hash-checked,
-and is stored read-only under its hash name; cached bytes are hashed again before reuse. A corrupt or
-interrupted download is a retryable `input-unavailable`; a refusal by the service (for example a blob the
-job does not name) is a non-retryable `input-refused`. Without `inputDir` the worker fetches nothing.
-Each `pins` file is hashed again before every run. If one changed, the attempt ends with
+with that job's own lease before the command starts. Each download is size-bounded and hash-checked.
+Verified bytes are kept once, read-only, in `blobs/` under their hash name and are read back without
+following links and re-hashed before reuse; anything in the cache that is not a regular file this user
+owns is replaced. The job gets its own folder `jobs/<key>.<fence>/` that holds links to exactly its own
+inputs, which is the `inputDir` the command is told about; the folder is removed when the attempt ends. The
+worker refuses (`unsafe-input-dir`) an `inputDir` that is a link or that others can write. This keeps one
+job's command from stumbling over another job's inputs; commands are still trusted local programs, not a
+sandbox. A corrupt or interrupted download is a retryable `input-unavailable`; a refusal by the service
+(for example a blob the job does not name) is a non-retryable `input-refused`. Without `inputDir` the
+worker fetches nothing.
+
+`pins` name local files whose bytes the command depends on. If any pin is declared, the pins must include the
+executable and every absolute file argument (the script it runs), or the settings are refused. A pin is
+checked at start and again as the last step before each command starts, after the inputs are staged, and a
+pinned file must be a regular file that group and others cannot write. If one changed, the attempt ends with
 `handler-pin-mismatch`, nothing is submitted, and that kind is no longer claimed (and drops out of the
-status file) until the worker restarts.
+status file) until the worker restarts. The check cannot be atomic with starting the program, so keep
+pinned files and their folders writable only by the worker's own user.
 
 Each executable must already be installed and executable. The worker invokes the fixed argument
 array directly, without a shell. Direct Claude, Codex and shell launchers are refused. Installed
@@ -96,7 +107,7 @@ If the existing NAS worker uses a recovery generation, preserve it in the option
 setting. Settings, keys, certificate paths and job content never appear in the status file.
 
 An installed command reads one JSON envelope `{ "job": <claimed job>, "outDir": <output folder> }`
-(plus `"inputDir"` when configured; the inputs are the files named by `job.inputs` in that folder)
+(plus `"inputDir"` when configured: that job's own folder, holding the files named by `job.inputs`)
 from stdin. It writes `<job.key>.<job.fence>.jsonl` in that folder and returns exactly
 `{ "file": "<job.key>.<job.fence>.jsonl", "sha256": "<64 hex characters>" }` on stdout, then exits zero.
 Stderr is discarded. The worker validates the result and the normal fenced completion checks the
