@@ -22,6 +22,9 @@ jobs:
       - name: User-scope installer and hook isolation regression
         run: python3 scripts/__tests__/test_user_scope_install.py -v
 
+      - name: Eli skill package and example contract
+        run: python3 scripts/__tests__/test_eli_skill.py -v
+
       - name: Build
         run: pnpm build
 
