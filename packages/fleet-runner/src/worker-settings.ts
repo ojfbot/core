@@ -34,6 +34,11 @@ export interface WorkerSettings {
   /** Where hash-checked inputs are staged. Without it the worker does not fetch inputs. */
   inputDir?: string;
   statusFile: string;
+  /**
+   * Where shared resource slots live. Workers on one host that share a resource must share this
+   * folder. Defaults to a `resources` folder beside the status file.
+   */
+  resourceDir?: string;
   /** When absent the worker claims whenever the service allows, as before. */
   policy?: ClaimPolicy;
   kinds: Record<string, DeclaredCommand>;
@@ -164,6 +169,7 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     outDir: path(value.outDir),
     ...(value.inputDir === undefined ? {} : { inputDir: path(value.inputDir) }),
     statusFile,
+    ...(value.resourceDir === undefined ? {} : { resourceDir: path(value.resourceDir) }),
     ...(value.policy === undefined ? {} : { policy: parseClaimPolicy(value.policy) }),
     kinds,
     pollMs: interval(value.pollMs, 5_000),
