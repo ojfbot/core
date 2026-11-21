@@ -186,7 +186,15 @@ describe("lock ownership", () => {
   it("puts a worker's identity lock in one place whatever its own paths are", () => {
     expect(identityLockPath("/root", "alpha")).toBe(identityLockPath("/root", "alpha"));
     expect(identityLockPath("/root", "alpha")).not.toBe(identityLockPath("/root", "beta"));
-    expect(defaultLockRoot()).toContain(String(process.getuid?.() ?? "user"));
+    // The default is inside the user's own home and never a shared temporary folder.
+    const home = "/home/example";
+    expect(defaultLockRoot({}, home).startsWith(home)).toBe(true);
+    expect(defaultLockRoot({}, home)).not.toContain("tmp");
+    expect(defaultLockRoot({ XDG_STATE_HOME: "relative" }, home).startsWith(home)).toBe(true);
+    expect(defaultLockRoot({ FLEET_RUNNER_LOCK_DIR: "/chosen/place" }, home)).toBe("/chosen/place");
+    expect(defaultLockRoot({ FLEET_RUNNER_LOCK_DIR: "relative" }, home).startsWith(home)).toBe(
+      true,
+    );
   });
 });
 

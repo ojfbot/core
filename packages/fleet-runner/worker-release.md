@@ -132,8 +132,9 @@ not claim. The status file lists only the kinds currently offered, `unavailable`
 `policy-error` or `service-paused`). A job already running is not interrupted by a rule change.
 
 One worker identity runs one client per host. At start the worker takes a lock named after its worker
-identity in one fixed per-user folder (`lockDir`, by default a `fleet-runner-<user id>` folder in the
-system temporary folder), so two configs for the same identity find the same lock whatever their token,
+identity in one fixed per-user folder (`lockDir`; by default a `run` folder inside the FleetRunner folder under the
+user's Application Support on a Mac, or `fleet-runner` under the user's state folder elsewhere, never a
+shared temporary folder; the environment variable `FLEET_RUNNER_LOCK_DIR` can also set it), so two configs for the same identity find the same lock whatever their token,
 status or output paths are. A second client exits at once with `duplicate-client`, before it writes status,
 claims or downloads anything. If the folder cannot be used (it is a link, others can write it, or it cannot
 be written) the worker exits with `worker-lock-unavailable`. The lock records the owning process and when it

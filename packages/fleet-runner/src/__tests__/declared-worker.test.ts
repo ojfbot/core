@@ -180,6 +180,7 @@ function settings() {
     tokenFile: join(dir, "worker"),
     outDir: join(dir, "attempts"),
     statusFile: join(dir, "status.json"),
+    lockDir: join(dir, "locks"), // never the real per-user folder from a test
     pollMs: 10,
     kinds: {
       "proof-fixture": {
