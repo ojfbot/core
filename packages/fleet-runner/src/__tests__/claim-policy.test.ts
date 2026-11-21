@@ -328,6 +328,31 @@ describe("worker against a real local service", () => {
     expect(status().claiming).toEqual({ allowed: true, reason: "ok" });
   });
 
+  it("resumes claiming after the owner lifts a pause, with or without a policy", async () => {
+    for (const extra of [{}, { policy: { timezone: "UTC" } }]) {
+      const run = new AbortController();
+      await owner().control("worker", "pause");
+      const key = await owner().enqueue({
+        kind: "shout",
+        inputs: [],
+        params: { policy: "policy" in extra },
+        payload: null,
+      });
+      const done = runDeclaredWorker(settings(extra), run.signal, {
+        power: async () => power,
+        now: () => clock,
+      });
+      await waitFor(() => status().claiming?.reason === "service-paused");
+      await delay(100);
+      expect(claimed(key.key)).toBe(false);
+      await owner().control("worker", "resume");
+      await waitFor(() => store.get(key.key)?.status === "done");
+      expect(status().claiming).toEqual({ allowed: true, reason: "ok" });
+      run.abort();
+      await done;
+    }
+  });
+
   it("stops claiming when the clock or power probe fails", async () => {
     const key = await admit("shout");
     const done = runDeclaredWorker(settings({ policy: { timezone: "UTC" } }), controller.signal, {
