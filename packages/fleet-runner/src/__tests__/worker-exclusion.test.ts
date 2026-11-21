@@ -183,6 +183,23 @@ describe("lock ownership", () => {
     expect(resourceSlots(join(dir, "plain", "slots")).acquire("gpu")).toBe(false);
   });
 
+  it("reports a slot folder that cannot be used as busy, and a usable one as free", () => {
+    const slots = (folder: string) => resourceSlots(folder);
+    expect(slots(join(dir, "fresh")).busy("gpu")).toBe(false);
+    writeFileSync(join(dir, "plain"), "");
+    expect(slots(join(dir, "plain", "below")).busy("gpu")).toBe(true);
+    expect(slots(join(dir, "plain", "below")).acquire("gpu")).toBe(false);
+    if (process.getuid?.() !== 0) {
+      const closed = join(dir, "closed");
+      mkdirSync(closed, { mode: 0o700 });
+      chmodSync(closed, 0o500); // can be read but not written
+      expect(slots(closed).busy("gpu")).toBe(true);
+      expect(slots(closed).acquire("gpu")).toBe(false);
+      chmodSync(closed, 0o700);
+      expect(slots(closed).busy("gpu")).toBe(false);
+    }
+  });
+
   it("puts a worker's identity lock in one place whatever its own paths are", () => {
     expect(identityLockPath("/root", "alpha")).toBe(identityLockPath("/root", "alpha"));
     expect(identityLockPath("/root", "alpha")).not.toBe(identityLockPath("/root", "beta"));
@@ -391,6 +408,30 @@ describe("worker against a real local service", () => {
       expect(existsSync(join(dir, "status-worker.json"))).toBe(false);
     } finally {
       chmodSync(closed, 0o700);
+    }
+  });
+
+  it("reports an unusable slot folder as resource-busy and recovers when it is fixed", async () => {
+    if (process.getuid?.() === 0) return; // permissions do not bind root
+    const slots = join(dir, "slots");
+    mkdirSync(slots, { mode: 0o700 });
+    chmodSync(slots, 0o500);
+    try {
+      const key = await admit();
+      const done = runDeclaredWorker(
+        settings("worker", { resource: "gpu" }, { resourceDir: slots }),
+        controller.signal,
+      );
+      await waitFor(() => status("worker").unavailable?.render === "resource-busy");
+      await delay(200);
+      expect(store.get(key)?.status).toBe("ready"); // never claimed
+      expect(status("worker").kinds).toEqual([]);
+      chmodSync(slots, 0o700); // the folder is fixed
+      await waitFor(() => store.get(key)?.status === "done");
+      controller.abort();
+      await done;
+    } finally {
+      chmodSync(slots, 0o700);
     }
   });
 

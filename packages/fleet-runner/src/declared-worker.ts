@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
+  accessSync,
+  constants,
   createReadStream,
   linkSync,
   lstatSync,
@@ -293,7 +295,18 @@ export function resourceSlots(dir: string): ResourceSlots {
       for (const lock of mine.values()) lock.release();
       mine.clear();
     },
-    busy: (resource) => !mine.has(resource) && lockHeld(file(resource)),
+    // Busy when another process holds the slot, and also when the slot folder cannot be used at all,
+    // so the status says why the kind is not offered instead of calling the worker eligible.
+    busy: (resource) => {
+      if (mine.has(resource)) return false;
+      try {
+        lockDirectory(dir);
+        accessSync(dir, constants.W_OK | constants.X_OK);
+      } catch {
+        return true;
+      }
+      return lockHeld(file(resource));
+    },
   };
 }
 
@@ -461,6 +474,9 @@ async function runLocked(
   await evaluate();
   status("starting");
   // Presence is independent of job authority: it only says what this worker is doing and why.
+  // Presence stops on whichever happens first: the caller's stop, or this worker ending for any
+  // reason, including an unexpected error. Without that it would report a dead worker forever.
+  const presenceStop = new AbortController();
   const presence = runPresence(
     client,
     () => {
@@ -478,7 +494,7 @@ async function runLocked(
         ...(errorCode ? { errorCode } : {}),
       });
     },
-    signal,
+    AbortSignal.any([signal, presenceStop.signal]),
     settings.presenceMs,
   );
   try {
@@ -517,7 +533,12 @@ async function runLocked(
     );
   } finally {
     slots.releaseAll();
-    status("stopped");
+    presenceStop.abort();
     await presence;
+    try {
+      status("stopped");
+    } catch {
+      /* Failing to write the last word must not hide why the worker ended. */
+    }
   }
 }
