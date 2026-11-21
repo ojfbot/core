@@ -11,8 +11,8 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { homedir } from "node:os";
+import { isAbsolute, join } from "node:path";
 
 /**
  * A local lock file owned by one live process. It is used for a worker identity (a second client
@@ -211,10 +211,19 @@ function tryAcquire(file: string): Lock | undefined {
 
 /**
  * Where this user's locks and slots live on this host unless settings say otherwise: one fixed folder
- * per user, so every config for the same worker finds the same lock whatever its own paths are.
+ * per user, so every config for the same worker finds the same lock whatever its own paths are. It is
+ * inside the user's own home, never a shared temporary folder, so another user cannot squat the name
+ * and the system cannot clean a live lock away. `FLEET_RUNNER_LOCK_DIR` and the `lockDir` setting
+ * override it.
  */
-export const defaultLockRoot = (): string =>
-  join(tmpdir(), `fleet-runner-${process.getuid?.() ?? "user"}`);
+export function defaultLockRoot(env: NodeJS.ProcessEnv = process.env, home = homedir()): string {
+  const override = env.FLEET_RUNNER_LOCK_DIR;
+  if (override && isAbsolute(override)) return override;
+  if (process.platform === "darwin")
+    return join(home, "Library", "Application Support", "FleetRunner", "run");
+  const state = env.XDG_STATE_HOME;
+  return join(state && isAbsolute(state) ? state : join(home, ".local", "state"), "fleet-runner");
+}
 
 /** One lock per worker identity on a host, wherever its settings, token or status files are. */
 export const identityLockPath = (root: string, worker: string): string =>
