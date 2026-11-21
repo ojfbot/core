@@ -58,7 +58,36 @@ function record(value: unknown): value is Record<string, unknown> {
 }
 
 const CLOCK = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const WHEN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+const WHEN =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(\.\d+)?)?(?:Z|([+-])(\d{2}):(\d{2}))$/;
+
+/**
+ * Strict time parsing. `Date.parse` quietly turns 2026-02-31 into 3 March and 24:00 into the next
+ * day, which could stretch an exception, so each part is range-checked and the calendar date is
+ * confirmed by round trip. Anything invalid throws.
+ */
+export function strictTime(value: unknown): number {
+  const match = typeof value === "string" ? WHEN.exec(value) : null;
+  if (!match) throw Error("invalid-claim-policy");
+  const [year, month, day, hour, min, sec] = [1, 2, 3, 4, 5, 6].map((i) =>
+    Number(match[i] ?? 0),
+  ) as [number, number, number, number, number, number];
+  const zoneHour = Number(match[9] ?? 0);
+  const zoneMinute = Number(match[10] ?? 0);
+  if (hour > 23 || min > 59 || sec > 59 || zoneHour > 23 || zoneMinute > 59)
+    throw Error("invalid-claim-policy");
+  const date = new Date(0);
+  date.setUTCFullYear(year, month - 1, day);
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  )
+    throw Error("invalid-claim-policy");
+  const offset = (match[8] === "-" ? -1 : 1) * (zoneHour * 60 + zoneMinute) * 60_000;
+  const fraction = match[7] ? Math.floor(Number(`0${match[7]}`) * 1000) : 0;
+  return date.getTime() + ((hour * 60 + min) * 60 + sec) * 1000 + fraction - offset;
+}
 
 function minute(value: unknown): number {
   const match = typeof value === "string" ? CLOCK.exec(value) : null;
@@ -108,12 +137,10 @@ export function parseClaimPolicy(value: unknown): ClaimPolicy {
     if (
       !record(entry) ||
       (entry.allow !== "outside-window" && entry.allow !== "on-battery") ||
-      typeof entry.until !== "string" ||
-      !WHEN.test(entry.until) ||
-      !Number.isFinite(Date.parse(entry.until))
+      typeof entry.until !== "string"
     )
       throw Error("invalid-claim-policy");
-    return { allow: entry.allow, untilMs: Date.parse(entry.until) };
+    return { allow: entry.allow, untilMs: strictTime(entry.until) };
   });
   if (
     value.gpuBusyFile !== undefined &&

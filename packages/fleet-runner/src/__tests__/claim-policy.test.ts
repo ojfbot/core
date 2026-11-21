@@ -24,6 +24,7 @@ import {
   parseClaimPolicy,
   parsePowerSource,
   parseRequirements,
+  strictTime,
   type PowerSource,
 } from "../claim-policy.js";
 import { runDeclaredWorker } from "../declared-worker.js";
@@ -127,6 +128,41 @@ describe("claim rules", () => {
       "gpu-busy",
     );
     expect(kindUnavailable({}, "other", host)).toBeUndefined();
+  });
+
+  it("parses exception times strictly and refuses impossible ones", () => {
+    for (const bad of [
+      "2026-02-31T00:00:00Z", // Date.parse would call this 3 March
+      "2026-02-29T00:00:00Z", // 2026 is not a leap year
+      "2026-04-31T00:00:00Z",
+      "2026-13-01T00:00:00Z",
+      "2026-00-10T00:00:00Z",
+      "2026-06-00T00:00:00Z",
+      "2026-06-10T24:00:00Z", // Date.parse would call this the next day
+      "2026-06-10T23:60:00Z",
+      "2026-06-10T23:59:60Z", // no leap seconds
+      "2026-06-10T10:00:00+24:00",
+      "2026-06-10T10:00:00+05:60",
+      "2026-06-10 10:00:00Z",
+      "2026-06-10T10:00:00",
+      "June 10 2026",
+    ])
+      expect(() => strictTime(bad), bad).toThrow("invalid-claim-policy");
+    for (const good of [
+      "2028-02-29T12:00:00Z",
+      "2026-06-10T23:59:59Z",
+      "2026-06-10T00:00Z",
+      "2026-06-10T16:00:00.250Z",
+      "2026-06-10T16:00:00-04:00",
+      "2026-06-10T21:30:00+05:30",
+    ])
+      expect(strictTime(good), good).toBe(Date.parse(good));
+    expect(() =>
+      parseClaimPolicy({
+        timezone: "UTC",
+        exceptions: [{ allow: "on-battery", until: "2026-02-31T00:00:00Z" }],
+      }),
+    ).toThrow("invalid-claim-policy");
   });
 
   it("validates settings strictly", () => {
@@ -447,5 +483,35 @@ describe("worker against a real local service", () => {
     expect(claimed(key)).toBe(false);
     controller.abort();
     await done;
+  });
+});
+
+describe("the install guide", () => {
+  it("shows example settings that the real parser accepts", () => {
+    const dir = mkdtempSync(join(tmpdir(), "guide-"));
+    try {
+      const guide = readFileSync(
+        join(import.meta.dirname, "..", "..", "worker-release.md"),
+        "utf8",
+      );
+      const block = /```json\n([\s\S]*?)\n```/.exec(guide)?.[1];
+      expect(block).toBeDefined();
+      const current = join(dir, "worker", "current");
+      mkdirSync(current, { recursive: true });
+      for (const name of ["node", "fleet-runner.mjs"])
+        writeFileSync(join(current, name), `placeholder ${name}`, { mode: 0o700 });
+      const text = block!.replaceAll("/absolute/FleetRunner/worker/current", current);
+      const example = JSON.parse(text) as {
+        kinds: Record<string, { pins: { path: string; sha256: string }[] }>;
+      };
+      for (const kind of Object.values(example.kinds))
+        for (const pin of kind.pins)
+          pin.sha256 = createHash("sha256").update(readFileSync(pin.path)).digest("hex");
+      const settings = parseWorkerSettings(example);
+      expect(settings.worker).toBe("example-mac");
+      expect(settings.kinds["proof-fixture"]?.pins).toHaveLength(2);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
