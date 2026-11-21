@@ -1,9 +1,10 @@
-# ADR: Work register layer: topics, slices and tasks, owned by one service and referenced everywhere else
+# ADR-0110: Work register layer: topics, slices and tasks, owned by one service and referenced everywhere else
 slug: work-register-layer
-serial: draft
+serial: 0110
 rev:
 Date: 2026-11-20
-Status: Proposed
+Date accepted: 2026-11-21
+Status: Accepted
 domain: workflow-engine
 type: architecture
 OKR:
