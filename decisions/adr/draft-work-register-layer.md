@@ -97,6 +97,9 @@ record. Messaging carries references and events, never the truth.
      - none met, or untestable: keep the issue open, comment, and raise a BLOCKER to the owner.
      Every action is logged as a register event, and the issue, the PR, the follow-up and the
      task all link to each other.
+   - **Approval level.** Owner decision (2026-11-20, "yes it may"): the loop closes, partially
+     closes and forks issues on its own and tells the owner afterwards. Install level: do it, then
+     tell. Disagreements and BLOCKERs still go to the owner.
    - **Precondition.** Issues and roadmap entries carry acceptance criteria as a checkable list.
      An issue without them gets an `untestable` verdict rather than a guess.
 
