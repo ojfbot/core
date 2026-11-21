@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import type { Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +18,8 @@ import { fleetClient } from "../client.js";
 import {
   decideClaim,
   kindUnavailable,
+  markerPresent,
+  realHostFacts,
   localClock,
   parseClaimPolicy,
   parsePowerSource,
@@ -154,6 +164,42 @@ process.stdin.on("data", (c) => (raw += c)).on("end", () => {
   process.stdout.write(JSON.stringify({ file, sha256: createHash("sha256").update(out).digest("hex") }));
 });
 `;
+
+describe("busy marker", () => {
+  it("fails closed: anything present, or anything that cannot be examined, means busy", () => {
+    const dir = mkdtempSync(join(tmpdir(), "marker-"));
+    try {
+      const marker = join(dir, "gpu-in-use");
+      expect(markerPresent(marker)).toBe(false); // genuinely absent: free
+      writeFileSync(marker, "");
+      expect(markerPresent(marker)).toBe(true);
+      rmSync(marker);
+      mkdirSync(marker); // not a regular file
+      expect(markerPresent(marker)).toBe(true);
+      rmSync(marker, { recursive: true });
+      symlinkSync(join(dir, "nowhere"), marker); // a link to nothing is still something
+      expect(markerPresent(marker)).toBe(true);
+      rmSync(marker);
+      writeFileSync(join(dir, "plain-file"), "");
+      expect(markerPresent(join(dir, "plain-file", "below"))).toBe(true); // path cannot be walked
+      if (process.getuid?.() !== 0) {
+        const closed = join(dir, "closed");
+        mkdirSync(closed);
+        chmodSync(closed, 0o000); // cannot be searched, so the marker cannot be examined
+        try {
+          expect(markerPresent(join(closed, "gpu-in-use"))).toBe(true);
+          expect(realHostFacts({ gpuBusyFile: join(closed, "gpu-in-use") }).gpuBusy()).toBe(true);
+        } finally {
+          chmodSync(closed, 0o700);
+        }
+      }
+      expect(realHostFacts({ gpuBusyFile: marker }).gpuBusy()).toBe(false);
+      expect(realHostFacts(undefined).gpuBusy()).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
 
 describe("worker against a real local service", () => {
   let dir: string;
@@ -351,6 +397,41 @@ describe("worker against a real local service", () => {
       run.abort();
       await done;
     }
+  });
+
+  it("looks at power again right before each claim, so a change after the first check is honoured", async () => {
+    const key = await admit("shout");
+    let probes = 0;
+    // The check before the claim request sees AC; the one right before the claim sees battery.
+    const done = runDeclaredWorker(settings({ policy: { timezone: "UTC" } }), controller.signal, {
+      power: async () => (++probes % 2 === 0 ? "ac" : "battery"),
+      now: () => clock,
+    });
+    await waitFor(() => probes >= 7);
+    expect(claimed(key)).toBe(false);
+    controller.abort();
+    await done;
+  });
+
+  it("looks at the GPU again right before each claim", async () => {
+    const key = await admit("shout");
+    let probes = 0;
+    const host = {
+      platform: process.platform,
+      arch: process.arch,
+      fileExists: () => true,
+      // Free for the earlier checks, busy for the one right before the claim.
+      gpuBusy: () => ++probes >= 3 && probes % 2 === 1,
+    };
+    const done = runDeclaredWorker(
+      settings({}, { shout: { resource: "gpu" } }),
+      controller.signal,
+      { power: async () => power, now: () => clock, host },
+    );
+    await waitFor(() => probes >= 7);
+    expect(claimed(key)).toBe(false);
+    controller.abort();
+    await done;
   });
 
   it("stops claiming when the clock or power probe fails", async () => {

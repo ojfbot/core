@@ -77,6 +77,14 @@ function presenceInterval(value: unknown): number {
   return ms;
 }
 
+function isExistingFile(arg: string): boolean {
+  try {
+    return isAbsolute(arg) && statSync(arg).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function parsePins(value: unknown): PinnedFile[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || value.length > 16) throw Error("invalid-handler-pin");
@@ -138,6 +146,13 @@ export function parseWorkerSettings(value: unknown): WorkerSettings {
     accessSync(executable, constants.X_OK);
     if (!statSync(executable).isFile()) throw Error("invalid-command-executable");
     const pins = parsePins(entry.pins);
+    // Pinning only part of what runs gives false comfort: the executable and every absolute file
+    // argument (the script it runs) must be among the pins whenever any pin is declared.
+    if (pins.length > 0) {
+      const pinned = new Set(pins.map((pin) => pin.path));
+      const executed = [executable, ...args.filter(isExistingFile)].map((arg) => resolve(arg));
+      if (!executed.every((file) => pinned.has(file))) throw Error("pins-must-cover-command");
+    }
     if (
       entry.resource !== undefined &&
       (typeof entry.resource !== "string" || !ID.test(entry.resource))

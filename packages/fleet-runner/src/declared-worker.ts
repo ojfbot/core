@@ -1,6 +1,14 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { createReadStream, mkdirSync, lstatSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  createReadStream,
+  linkSync,
+  lstatSync,
+  mkdirSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { performance } from "node:perf_hooks";
@@ -137,12 +145,15 @@ function fileHash(file: string): Promise<string> {
   });
 }
 
-/** True only when every pinned file still has exactly its recorded bytes. */
+/**
+ * True only when every pinned file is a regular file that only its owner can write and still has
+ * exactly its recorded bytes. Run it as late as possible: it says nothing about later moments.
+ */
 export async function pinsHold(pins: readonly PinnedFile[]): Promise<boolean> {
   for (const pin of pins) {
     try {
       const info = lstatSync(pin.path);
-      if (!info.isFile() || info.isSymbolicLink()) return false;
+      if (!info.isFile() || info.isSymbolicLink() || info.mode & 0o022) return false;
       if ((await fileHash(pin.path)) !== pin.sha256) return false;
     } catch {
       return false;
@@ -151,41 +162,95 @@ export async function pinsHold(pins: readonly PinnedFile[]): Promise<boolean> {
   return true;
 }
 
+const ours = (info: { uid: number }) =>
+  process.getuid === undefined || info.uid === process.getuid();
+
+/** A real directory that this user owns and nobody else can write, created if it is missing. */
+function privateDirectory(dir: string): void {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const info = lstatSync(dir);
+  if (!info.isDirectory() || info.isSymbolicLink() || info.mode & 0o022 || !ours(info))
+    throw new JobError("unsafe-input-dir", false);
+}
+
 /**
- * Fetch every input of a held job into the local staging directory under its hash.
- * Cached bytes are trusted only after they hash correctly again. Errors are codes only.
+ * Check that a job's staged inputs are still exactly its own: regular files this user owns, with
+ * the bytes their names promise, and nothing else in the folder.
+ */
+export function verifyJobInputs(jobDir: string, inputs: readonly string[]): void {
+  try {
+    const info = lstatSync(jobDir);
+    if (!info.isDirectory() || info.isSymbolicLink() || info.mode & 0o022 || !ours(info))
+      throw new Error("unsafe");
+    for (const hash of new Set(inputs)) {
+      if (!ours(lstatSync(join(jobDir, hash)))) throw new Error("unsafe");
+      readInput(jobDir, hash);
+    }
+  } catch {
+    throw new JobError("input-unavailable", true);
+  }
+}
+
+/**
+ * Fetch every input of a held job. Verified bytes live once, by hash, under `<dir>/blobs`; the job
+ * gets its own folder `<dir>/jobs/<key>.<fence>` holding links to exactly its inputs, and returns
+ * that path. The handler sees only its own job's inputs. Cached bytes are trusted only after they
+ * are read without following links and hash correctly again. Errors are codes only.
  */
 export async function stageInputs(
   client: Pick<FleetClient, "downloadInput">,
   job: Pick<Claim, "key" | "fence" | "inputs">,
   dir: string,
   signal: AbortSignal,
-): Promise<void> {
+): Promise<string> {
   if (!job.inputs.every((hash) => INPUT_HASH.test(hash)))
     throw new JobError("invalid-input", false);
-  for (const hash of job.inputs) {
-    try {
-      readInput(dir, hash);
-      continue;
-    } catch {
-      rmSync(join(dir, hash), { force: true }); // A bad or partial cache entry is replaced, never trusted.
+  const blobs = join(dir, "blobs");
+  privateDirectory(dir);
+  privateDirectory(blobs);
+  const jobDir = join(dir, "jobs", `${job.key}.${job.fence}`);
+  privateDirectory(join(dir, "jobs"));
+  rmSync(jobDir, { recursive: true, force: true });
+  privateDirectory(jobDir);
+  try {
+    for (const hash of new Set(job.inputs)) {
+      let cached = false;
+      try {
+        if (!ours(lstatSync(join(blobs, hash)))) throw new Error("not ours");
+        readInput(blobs, hash);
+        cached = true;
+      } catch {
+        // A bad, foreign, linked or partial cache entry is replaced, never trusted.
+        rmSync(join(blobs, hash), { recursive: true, force: true });
+      }
+      if (!cached) {
+        let bytes: Buffer;
+        try {
+          bytes = await client.downloadInput(job, hash, signal);
+        } catch (error) {
+          if (signal.aborted) throw new JobError("interrupted", true);
+          if (error instanceof FleetHttpError && !error.retryable)
+            throw new JobError("input-refused", false);
+          // Transport failure, truncation or a hash mismatch: another attempt may succeed.
+          throw new JobError("input-unavailable", true);
+        }
+        try {
+          putInput(blobs, hash, bytes);
+        } catch {
+          throw new JobError("input-unavailable", true);
+        }
+      }
+      try {
+        linkSync(join(blobs, hash), join(jobDir, hash));
+      } catch {
+        throw new JobError("input-unavailable", true);
+      }
     }
-    let bytes: Buffer;
-    try {
-      bytes = await client.downloadInput(job, hash, signal);
-    } catch (error) {
-      if (signal.aborted) throw new JobError("interrupted", true);
-      if (error instanceof FleetHttpError && !error.retryable)
-        throw new JobError("input-refused", false);
-      // Transport failure, truncation or a hash mismatch: another attempt may succeed.
-      throw new JobError("input-unavailable", true);
-    }
-    try {
-      putInput(dir, hash, bytes);
-    } catch {
-      throw new JobError("input-unavailable", true);
-    }
+  } catch (error) {
+    rmSync(jobDir, { recursive: true, force: true });
+    throw error;
   }
+  return jobDir;
 }
 
 /** One holder per shared resource on this host. The slot is taken before a claim and kept until the attempt ends. */
@@ -226,6 +291,8 @@ export function declaredClient(
   client: FleetClient,
   settings: WorkerSettings,
   unavailable: { has(kind: string): boolean } = new Set<string>(),
+  /** Asked immediately before each claim request; false skips that kind. */
+  beforeClaim?: (kind: string) => Promise<boolean>,
   slots?: ResourceSlots,
 ): FleetClient {
   const entries = Object.entries(settings.kinds);
@@ -240,6 +307,9 @@ export function declaredClient(
         if (!entry) continue;
         const [kind, command] = entry;
         if (!allowed.includes(kind) || unavailable.has(kind)) continue;
+        // Power, time window and GPU are looked at again right now. They can still change before the
+        // server sees the request: that gap cannot be closed without the server, so it is only narrowed.
+        if (beforeClaim && !(await beforeClaim(kind))) continue;
         if (command.resource && slots && !slots.acquire(command.resource)) continue;
         let claim: Awaited<ReturnType<FleetClient["claim"]>> | undefined;
         try {
@@ -353,15 +423,22 @@ async function runLocked(
   const handlers: Record<string, JobHandler> = Object.create(null);
   for (const [kind, declared] of Object.entries(settings.kinds)) {
     if (!(await pinsHold(declared.pins ?? []))) withdrawn.add(kind);
-    const handle = commandHandler(declared, settings.inputDir);
     handlers[kind] = async (job, context) => {
-      if (!(await pinsHold(declared.pins ?? []))) {
-        withdrawn.add(kind);
-        throw new JobError("handler-pin-mismatch", true);
+      let jobDir: string | undefined;
+      try {
+        // Stage first and check last, so nothing slow happens between the check and the start.
+        if (settings.inputDir)
+          jobDir = await stageInputs(client, job, settings.inputDir, context.signal);
+        if (!(await pinsHold(declared.pins ?? []))) {
+          withdrawn.add(kind);
+          throw new JobError("handler-pin-mismatch", true);
+        }
+        if (jobDir) verifyJobInputs(jobDir, job.inputs);
+        status("working");
+        return await commandHandler(declared, jobDir)(job, context);
+      } finally {
+        if (jobDir) rmSync(jobDir, { recursive: true, force: true });
       }
-      if (settings.inputDir) await stageInputs(client, job, settings.inputDir, context.signal);
-      status("working");
-      return handle(job, context);
     };
   }
   await evaluate();
@@ -388,27 +465,39 @@ async function runLocked(
     settings.presenceMs,
   );
   try {
-    await runWorker(declaredClient(client, settings, unavailable, slots), {
-      caps: [],
-      handlers,
-      outDir: settings.outDir,
-      signal,
-      pollMs: settings.pollMs,
-      canClaim: async () => {
-        await evaluate();
-        if (!claiming.allowed) return false;
-        if ((await client.workerControl(signal)).paused) {
-          claiming = { allowed: false, reason: "service-paused" };
-          return false;
-        }
-        return true;
+    await runWorker(
+      declaredClient(
+        client,
+        settings,
+        unavailable,
+        async (kind) => {
+          await evaluate();
+          return claiming.allowed && !unavailable.has(kind);
+        },
+        slots,
+      ),
+      {
+        caps: [],
+        handlers,
+        outDir: settings.outDir,
+        signal,
+        pollMs: settings.pollMs,
+        canClaim: async () => {
+          await evaluate();
+          if (!claiming.allowed) return false;
+          if ((await client.workerControl(signal)).paused) {
+            claiming = { allowed: false, reason: "service-paused" };
+            return false;
+          }
+          return true;
+        },
+        onEvent: (event) => {
+          slots.releaseAll(); // An attempt just ended; free the resource before waiting.
+          if (event.type === "request-error") errorCode = event.code;
+          status(event.type);
+        },
       },
-      onEvent: (event) => {
-        slots.releaseAll(); // An attempt just ended; free the resource before waiting.
-        if (event.type === "request-error") errorCode = event.code;
-        status(event.type);
-      },
-    });
+    );
   } finally {
     slots.releaseAll();
     status("stopped");
