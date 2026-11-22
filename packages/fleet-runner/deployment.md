@@ -139,14 +139,45 @@ with the same name in a different run. See the rule below for which one to use.
 
 Checksums only prove the three files agree with each other, not who built
 them. `verify-release.sh` therefore also reads the archive itself *before*
-loading anything: it must hold exactly one image whose config hashes to
-`image_id`, carry exactly the tag `fleet-runner:<revision>`, and (when
-recorded) have an index naming `manifest_digest`. A different archive cannot
-pass by sharing a tag the host already has. After loading, the image ID must
-again match. The archive is read with a real JSON parser (`node`), so spaced
-keys or decoy fields in nested objects cannot change what is checked; duplicate
-`manifest.json` members are refused, and a host without `node` fails the check
-rather than skipping it.
+loading anything (`scripts/verify-archive.mjs`), on one rule: an exact
+allowlist, and refuse everything else. Docker and tar clean paths, match JSON
+field names case-insensitively and let the last duplicate win, so anything they
+could read differently from the verifier is refused rather than reconciled.
+
+- **Tar members:** plain ustar only, regular files and directories only, and
+  only the names a BuildKit docker export holds (`manifest.json`, `index.json`,
+  `oci-layout`, `blobs/`, `blobs/sha256/`, `blobs/sha256/<hex>`). Each name
+  appears once; `./x`, `x/../y`, `/x`, `a//b`, links, and pax or GNU extension
+  records are all refused.
+- **JSON:** read by a strict parser that rejects duplicate keys, and every
+  object (`manifest.json` entry, `index.json`, its manifest entry, its
+  annotations and platform, `release.json`) must have *exactly* the expected
+  keys, so `config` or `CONFIG` beside `Config` is refused.
+- **Identity:** one image, whose config blob hashes to `image_id`, whose only
+  tag is `fleet-runner:<revision>`, and whose index (annotations an engine
+  names the loaded image from, platform, digest) is the one the release
+  records. A different archive cannot pass by sharing a tag the host already
+  has.
+
+### Where each half runs
+
+The full check needs `node` and runs on the Mac or in CI, never skipped (a host
+without `node` fails it). A server such as the NAS has neither node nor
+necessarily bash, so the load there is a separate POSIX `sh` script that needs
+only `sh`, `awk`, `tr`, a SHA-256 tool and Docker:
+
+```sh
+# On the Mac or in CI, before copying anything to the server:
+bash packages/fleet-runner/scripts/verify-release.sh check <release-dir> <revision>
+# On the server, with the values from the checked release.json:
+sh load-release.sh <archive> <archive-sha256> <image-id> <tag> [manifest-digest]
+```
+
+`load-release.sh` re-hashes the archive against the checked SHA-256 before
+loading (which ties the bytes it sees to what was checked), loads it, requires
+the loaded image ID to equal the checked one, and checks `linux/amd64`, user
+`node` and a numeric non-root uid. `verify-release.sh load` runs the same
+script, so CI exercises exactly what the server runs.
 
 None of that proves the build came from this repository. On a public
 repository a fork's pull request runs the *fork's* copy of the workflow, which
@@ -167,7 +198,7 @@ Prefer a successful push run when one exists and has not expired; otherwise
 take the **newest successful rebuild run** for that revision.
 
 Check a downloaded release anywhere with bash, sed, awk, node and a SHA-256
-tool (plus Docker for `load`):
+tool (plus Docker for `load`; see above for the node-free server half):
 
 ```sh
 bash packages/fleet-runner/scripts/verify-release.sh check <release-dir> <revision>
