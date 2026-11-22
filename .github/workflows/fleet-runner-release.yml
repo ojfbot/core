@@ -1,0 +1,70 @@
+name: FleetRunner release image
+
+# Slice 1 of ojfbot/core#647. Every push to main builds the FleetRunner image (linux/amd64,
+# non-root) from that commit, builds it a second time to prove the two are identical, checks the
+# result the way the stage script will, and publishes it as a run artifact named by the short
+# revision. Pull requests that touch the build inputs run the same build without publishing.
+#
+# Cost: this repository is public, so GitHub-hosted runner minutes are free; the run is capped at
+# 30 minutes. The artifact is the only stored output: one image archive per main push, kept 7 days.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - packages/fleet-runner/**
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - tsconfig.base.json
+      - .github/workflows/fleet-runner-release.yml
+  # Rebuild a release whose artifact has expired: run it on main from the Actions tab.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Never cancel a main run: each main revision's release must exist. Pull request runs supersede
+  # their own earlier runs.
+  group: fleet-runner-release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  release-image:
+    name: Build, verify and publish the release image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Two clean linux/amd64 builds from a git archive of the commit, compared
+        id: release
+        run: |
+          bash packages/fleet-runner/scripts/release-image.sh "$RUNNER_TEMP/release" "$GITHUB_SHA"
+          echo "short=$(git rev-parse --short=12 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/release/release.json"
+
+      - name: Verify the release the way the stage script will (checksum, load, image ID, non-root)
+        run: bash packages/fleet-runner/scripts/verify-release.sh load "$RUNNER_TEMP/release" "$GITHUB_SHA"
+
+      - name: Summarize the release
+        run: |
+          {
+            echo "### FleetRunner release \`${{ steps.release.outputs.short }}\`"
+            echo
+            echo "- Revision: \`$GITHUB_SHA\`"
+            echo "- Image ID: \`$(sed -n 's/^  "image_id": "\([^"]*\)".*/\1/p' "$RUNNER_TEMP/release/release.json")\`"
+            echo "- Archive SHA-256: \`$(sed -n 's/^  "archive_sha256": "\([^"]*\)".*/\1/p' "$RUNNER_TEMP/release/release.json")\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+        with:
+          name: fleet-runner-release-${{ steps.release.outputs.short }}
+          path: |
+            ${{ runner.temp }}/release/fleet-runner-image.tar
+            ${{ runner.temp }}/release/fleet-runner-image.tar.sha256
+            ${{ runner.temp }}/release/release.json
+          if-no-files-found: error
+          retention-days: 7
