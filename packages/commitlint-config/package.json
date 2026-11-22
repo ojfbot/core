@@ -1,0 +1,15 @@
+{
+  "name": "@core/commitlint-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared commitlint rules for every CircusGreen fleet repo (adr:deterministic-fleet-versioning)",
+  "type": "module",
+  "main": "index.mjs",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "license": "MIT"
+}

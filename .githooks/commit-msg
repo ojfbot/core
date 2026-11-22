@@ -1,0 +1,5 @@
+#!/bin/sh
+# Lints the commit message with the fleet's shared commitlint rules (adr:deterministic-fleet-versioning).
+# Fails closed: if commitlint is not installed the commit is refused. Run `pnpm install` to fix that.
+# There is no bypass here, by design: do not skip this hook with --no-verify.
+exec pnpm exec commitlint --edit "$1"
