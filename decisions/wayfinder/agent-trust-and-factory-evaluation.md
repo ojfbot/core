@@ -204,6 +204,16 @@ filed under `decisions/research/` and linked from the tickets they inform.
   audit. Drift is checked by re-scoring frozen owner-labelled anchors on any judge, model
   or prompt change. Critical violations stay machine-only. Findings:
   `decisions/research/grader-trust-671.md`. — How do we keep AI graders honest? (#671)
+- Enforcement. Only services a Mac cannot reach enforce. HelpDesk on the NAS is the one
+  decision point and holds the grant records and the run counter. HelpDesk, FleetRunner, a
+  new GitHub token issuer and GitHub each refuse on their own. Each risky request names its
+  grant record, checked live, and reserves a run. If HelpDesk cannot be reached, new and
+  risky work stops. There is no general gateway, on the Mac or for MCP. Shell, files,
+  third-party MCP tools, model egress and the probe sandbox stay declared, backed by an
+  after-the-fact scope check and a root-owned settings file. Probes come in fixed kinds;
+  a free probe needs a one-time owner approval. One new service: the GitHub token issuer
+  (amends #681, so the App keys move to the NAS). — Where are agent permissions enforced?
+  (#667, owner confirmed 2026-11-22)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -232,7 +242,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | How do unregistered and native sessions join the evidence chain? (#685) | grilling | — | open |
 | Can a session's key be protected from other programs on the same Mac? (#686) | research | — | open |
 | How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | closed (challenge queued) |
-| Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
+| Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | closed (challenge queued) |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | closed (challenge queued) |
 ### Tests track
 
