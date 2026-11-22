@@ -83,6 +83,23 @@ filed under `decisions/research/` and linked from the tickets they inform.
   inferred, verified by a named procedure, disputed, superseded, unknown). "Coordinator"
   is avoided. — Which shared trust words do we adopt? (#663, owner re-confirmed
   2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied)
+- Challenge rule. The opposite-vendor model, in a fresh context, refutes each design and
+  sees raw records, not the designer's conclusions. Scripted attack scenarios run
+  alongside it. Once per track a secret canary design checks the challenger. A design is
+  rejected if its only evidence is an agent's own account. The owner rules trade-offs and
+  accepted risk, but is never the sole judge of soundness. One outside human security
+  review is required before trust rules guard anything live. Tickets closed before this
+  rule (#663, #669, #672) get a backfill challenge pass (owner, 2026-11-22). — Who is the
+  independent challenger, and what evidence persuades them? (#664, owner re-confirmed
+  2026-11-22)
+- Five factory measures, each counted per accepted change (a merged PR that closes an
+  issue and is not reverted or hot-fixed within 7 days): accepted changes per week;
+  spec-to-merge time; cost as CI minutes, Claude tokens and Codex tokens side by side,
+  never converted to dollars; escaped defects, via a "Caused by #N" line on bugs; owner
+  minutes as a labelled estimate. The board shows them. They only inform for 4 weeks;
+  after that the fleet grows only if accepted changes rise while cost and defects do not,
+  and the owner makes the call. — Which factory measures do we track? (#672, owner
+  re-confirmed 2026-11-22)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -100,7 +117,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | open |
 | Which shared trust words do we adopt? (#663) | grilling | — | closed |
-| Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | open |
+| Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | open |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
@@ -113,7 +130,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | What do our own model tests measure? (#669) | grilling | — | closed |
 | How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | open |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
-| Which factory measures do we track? (#672) | grilling | — | open |
+| Which factory measures do we track? (#672) | grilling | — | closed |
 | What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | open |
 
 ### Closing
