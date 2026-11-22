@@ -281,7 +281,9 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
    in the lock and checks before every step that the run still owns the lock and
    has not been told to stop. Each such server-side script (the switch, and the
    recording of the pass) runs in its own process group, recorded in the lock, so
-   that a rollback can wait for everything it started; if a group cannot be made,
+   that a rollback can wait for everything it started (the record is removed only once
+   the whole group is confirmed gone, never by the shell's own exit handling, which
+   bash runs on HUP or TERM while a child lives on); if a group cannot be made,
    the step fails rather than running unfenced. A crashed run's lock is left for a person to remove,
    and so is the lock of a rollback that could not confirm the test copy is at rest;
    the message says where.

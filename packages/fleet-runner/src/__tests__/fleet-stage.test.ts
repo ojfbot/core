@@ -1091,6 +1091,57 @@ describe("fleet-stage.sh", () => {
     expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
   }, 90_000);
 
+  // bash runs an EXIT trap when HUP or TERM ends it while a child keeps running; dash does not. The
+  // real server's sh is bash, so this runs the server side under bash.
+  it.each(["SIGTERM", "SIGHUP"] as const)(
+    "keeps the group record when %s ends the fenced shell while its Compose child lives on (MEDIUM)",
+    async (signal) => {
+      prepare();
+      const [a, b] = box.revs as [string, string];
+      expect(stage([a, "--release", release(a)]).status).toBe(0);
+      const bashSh = join(box.root, "bash-sh");
+      mkdirSync(bashSh, { recursive: true });
+      symlinkSync("/bin/bash", join(bashSh, "sh"));
+      const upBefore = upCount();
+      const child = spawn(
+        "bash",
+        [join(scriptsIn(box), "fleet-stage.sh"), b, "--release", release(b)],
+        {
+          cwd: box.repo,
+          env: {
+            ...process.env,
+            ...stageEnv({
+              FAKE_PRE_UP_SLEEP: "4",
+              PATH: `${bashSh}:${box.bin}:${process.env.PATH ?? ""}`,
+            }),
+          },
+        },
+      );
+      let out = "";
+      child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+      child.stderr.on("data", (d: Buffer) => (out += d.toString()));
+      const closed = new Promise<number | null>((ok) => child.on("close", ok));
+      await waitForUp(upBefore);
+      const pidFile = join(box.nasDeploy, ".stage-lock", "fenced.pid");
+      const shellPid = Number(readFileSync(pidFile, "utf8"));
+      // The connection and the wrapper are gone; the fenced shell gets a catchable signal, so its
+      // own EXIT handling runs, while the Compose child it started is left running.
+      spawnSync("pkill", ["-9", "-f", `sh -s -- .*${box.nasDeploy}`]);
+      process.kill(shellPid, signal);
+      expect(await closed).not.toBe(0);
+      await new Promise((ok) => setTimeout(ok, 6000));
+      expect(out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+      // The child finished starting b before the rollback went on; the rollback then stopped it.
+      expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+      expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+        `FLEET_REVISION=${a}`,
+      );
+      expect(isStaged(b)).toBe(false);
+      expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+    },
+    90_000,
+  );
+
   it("fences the recording of the pass: a client lost around it cannot publish a rolled-back revision (MEDIUM)", async () => {
     prepare();
     const [a, b] = box.revs as [string, string];

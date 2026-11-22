@@ -254,8 +254,10 @@ shift 2
 lock="$dir/.stage-lock"
 pgid="$(ps -o pgid= -p $$ | tr -d ' ')"
 [ "$pgid" = "$$" ] || { echo "FAIL could not run in its own process group"; exit 1; }
+# The group record is NOT removed from here: bash runs an EXIT trap when HUP or TERM ends the shell
+# while a child it started keeps running, and that would erase the only thing a rollback can wait
+# on. It is removed only once the whole group is confirmed gone (by the wrapper, or the rollback).
 echo "$$" > "$lock/fenced.pid"
-trap 'rm -f "$lock/fenced.pid"' EXIT
 step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
 EOF_HEAD
   printf '%s\n' "$1"
@@ -276,6 +278,7 @@ while kill -0 "-$child" 2>/dev/null; do
   [ "$i" -lt 900 ] || break
   sleep 1
 done
+kill -0 "-$child" 2>/dev/null || rm -f "$lock/fenced.pid"
 exit "$rc"
 EOF_TAIL
 }
@@ -362,6 +365,7 @@ if [ -n "$pid" ]; then
     [ "$i" -le "$wait" ] || { echo "FAIL the server-side step (process group $pid) is still running after $wait seconds; the lock is kept"; exit 1; }
     sleep 1
   done
+  rm -f "$lock/fenced.pid"
 fi
 [ -f "fleet-staging.env.pre-$runid" ] && cp -p "fleet-staging.env.pre-$runid" fleet-staging.env
 [ -f "compose.yaml.pre-$runid" ] && cp -p "compose.yaml.pre-$runid" compose.yaml
