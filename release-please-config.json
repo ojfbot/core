@@ -22,7 +22,8 @@
       "component": "commitlint-config"
     },
     "packages/fleet-runner": {
-      "component": "fleet-runner"
+      "component": "fleet-runner",
+      "release-as": "0.3.0"
     },
     "packages/native-dispatch": {
       "component": "native-dispatch"

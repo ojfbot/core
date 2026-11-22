@@ -59,12 +59,12 @@ const subject = (type) => (dir) => {
 
 // What the next release of each package is, per kind of commit, from the manifest as committed.
 const expected = {
-  fix: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.2.6-bookcase.2', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
-  perf: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.2.6-bookcase.2', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
-  revert: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.2.6-bookcase.2', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
-  feat: { core: '0.2.0', 'commitlint-config': '0.2.0', 'fleet-runner': '0.3.0-bookcase.2', 'native-dispatch': '0.5.0', 'read-model-contract': '0.2.0', workflows: '0.2.0', 'launcher-tests': '0.1.0' },
+  fix: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.3.0', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
+  perf: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.3.0', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
+  revert: { core: '0.1.1', 'commitlint-config': '0.1.1', 'fleet-runner': '0.3.0', 'native-dispatch': '0.4.6', 'read-model-contract': '0.1.1', workflows: '0.1.1', 'launcher-tests': '0.1.0' },
+  feat: { core: '0.2.0', 'commitlint-config': '0.2.0', 'fleet-runner': '0.3.0', 'native-dispatch': '0.5.0', 'read-model-contract': '0.2.0', workflows: '0.2.0', 'launcher-tests': '0.1.0' },
   // below 1.0 a breaking change bumps the minor (bump-minor-pre-major)
-  'feat!': { core: '0.2.0', 'commitlint-config': '0.2.0', 'fleet-runner': '0.3.0-bookcase.2', 'native-dispatch': '0.5.0', 'read-model-contract': '0.2.0', workflows: '0.2.0', 'launcher-tests': '0.1.0' },
+  'feat!': { core: '0.2.0', 'commitlint-config': '0.2.0', 'fleet-runner': '0.3.0', 'native-dispatch': '0.5.0', 'read-model-contract': '0.2.0', workflows: '0.2.0', 'launcher-tests': '0.1.0' },
 };
 
 describe('release-please dry run over every package', () => {
@@ -78,6 +78,16 @@ describe('release-please dry run over every package', () => {
 
   it.each(['docs', 'chore', 'ci', 'test', 'build', 'style', 'refactor'])('a %s commit releases nothing', async (type) => {
     expect(await dryRun(subject(type))).toEqual({});
+  });
+
+  it("FleetRunner's first release is the plain 0.3.0 (owner decision: drop the bookcase tail), forced once", async () => {
+    expect(manifest['packages/fleet-runner']).toBe('0.2.5-bookcase.2');
+    expect(config.packages['packages/fleet-runner']['release-as']).toBe('0.3.0');
+    const forced = Object.entries(config.packages).filter(([, p]) => p['release-as'] !== undefined);
+    expect(forced.map(([dir]) => dir)).toEqual(['packages/fleet-runner']);
+    for (const type of ['fix', 'feat', 'feat!']) {
+      expect((await dryRun(subject(type)))['fleet-runner']).toBe('0.3.0');
+    }
   });
 
   it('a package at 0.0.0 starts at 0.1.0, never 1.0.0 (initial-version)', async () => {
