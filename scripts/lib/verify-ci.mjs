@@ -38,6 +38,14 @@ export const GITHUB_ONLY = {
     short: "reusable workflow from another repository (TruffleHog, key grep, dist guard, pnpm audit)",
     why: "a reusable workflow from another repository: a secret scan with the TruffleHog action over the PR's commit range, an API-key grep, a committed-dist guard and `pnpm audit`. It runs on GitHub only",
   },
+  "./.github/workflows/reusable-commitlint.yml": {
+    short: "reusable workflow that reads the pull request event; run `pnpm exec commitlint --from origin/main --to HEAD` instead",
+    why: "a reusable workflow that lints every commit in the pull request and its title from the GitHub event payload. Locally, `pnpm exec commitlint --from origin/main --to HEAD` lints the same commits, and ci/build-test lints HEAD (adr:deterministic-fleet-versioning)",
+  },
+  "./.github/workflows/reusable-version-edit-check.yml": {
+    short: "reusable workflow that reads the pull request event; run the check by hand",
+    why: "a reusable workflow that compares the pull request's base and head from the GitHub event payload. Locally, `BASE_SHA=origin/main HEAD_SHA=HEAD node scripts/fleet-versioning/check-versions.mjs all` runs the same check, and ci/build-test runs its coverage half (adr:deterministic-fleet-versioning)",
+  },
 };
 
 /**
@@ -67,6 +75,8 @@ export const JOB_NEEDS = {
   "fleet-reconcile/reconcile": [],
   "claude-skill-audit/skill-audit": [],
   "security-scan/security": [],
+  "versioning/commitlint": [],
+  "versioning/versions": [],
   "fleet-runner-release/release-image": ["docker", "buildx", "git-head"],
 };
 
