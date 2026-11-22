@@ -16,7 +16,13 @@
 # values from release.json: it needs only POSIX sh and re-hashes the archive against the checked
 # SHA-256 before loading.
 set -euo pipefail
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Locate the sibling scripts with shell builtins only: this must work, and must reach the checks
+# below, on a PATH that holds nothing but the tools they use.
+script_path="${BASH_SOURCE[0]}"
+case "$script_path" in
+  */*) script_dir="$(cd "${script_path%/*}" && pwd)" ;;
+  *) script_dir="$(pwd)" ;;
+esac
 
 usage() {
   echo "usage: verify-release.sh check|load <release-directory> [revision]" >&2
