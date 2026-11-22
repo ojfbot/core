@@ -39,7 +39,7 @@ phases:
     goal: "One staging action rebuilds from raw records, with a status per link, through every journal; journals are hash-chained and witnessed; the ask-first gate and the merge proof are on."
   - id: PH12
     name: "Agent trust build — Phase 3: seats and stops"
-    goal: "A stop is proven or reported \"not complete\"; ending a record ends everything below it; child seats, succession, baskets, check-ups and the lost-phone drill work as ruled."
+    goal: "A stop is proven or reported “not complete”; ending a record ends everything below it; child seats, succession, baskets, check-ups and the lost-phone drill work as ruled."
   - id: PH13
     name: "Agent trust build — Tests lane (runs alongside, one slice at a time)"
     goal: "Model tests, the three scores, factory measures and guided PR review are measured and shown on the board with honest labels."
@@ -637,7 +637,7 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#126 (trust build slice P0-PROBE)."
     entrance: "None. Can start now."
-    success: "A read-only script, run from a Mac with the agent key, tries a fixed list of harmless admin reads and reports each as refused, allowed or unknown. Any \"allowed\" or \"unknown\" fails it. It changes nothing on the NAS. It has a self-test mode against a fake NAS."
+    success: "A read-only script, run from a Mac with the agent key, tries a fixed list of harmless admin reads and reports each as refused, allowed or unknown. Any “allowed” or “unknown” fails it. It changes nothing on the NAS. It has a self-test mode against a fake NAS."
     check: "bash scripts/check-nas-admin-refused --self-test"
     autonomy: gate-0
     claimable_by: human_only
@@ -682,9 +682,9 @@ slices:
     moves_from: 30
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#129 (trust build slice AU-1a)."
-    entrance: "None to build and stage. Nothing it records counts as enforced until OW-0 is done."
-    success: "A new package `packages/authority` runs under its own account and key on staging. Every record goes into an append-only, hash-chained journal with replay (`has_more`, `latest_sequence`) from day one. It serves a read-only status for the status display. It relays no messages, reads no tickets or posts, and holds no GitHub keys."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1a.test"
+    entrance: "None to build and test locally. Its first staging install, under its own account, happens at AU-1b after OW-SVC."
+    success: "A new package `packages/authority`, built and tested on a local test copy with fixtures (its staging install under its own account follows OW-SVC, at AU-1b). Every record goes into an append-only, hash-chained journal with replay (`has_more`, `latest_sequence`) from day one. It serves a read-only status for the status display. It relays no messages, reads no tickets or posts, and holds no GitHub keys."
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -692,21 +692,37 @@ slices:
     status: queued
   - id: S44
     phase: PH8
+    title: "OW-SVC — (owner-only) Owner: create a NAS account and key for each new service (authority service, token issuer, checker, data layer)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "Owner step recorded on ojfbot/LocalHelp#199 (trust build slice OW-SVC)."
+    entrance: "OW-0 done (only the owner can create accounts now)."
+    success: "Each of the four new services has its own NAS account and its own key, made by the owner, for staging and for go-live. No Mac account can administer them. The checker and data-layer accounts may be made now or just before DA-1a and CK-1a."
+    check: "bash scripts/check-nas-admin-refused --services"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S41"
+  - id: S45
+    phase: PH8
     title: "AU-1b — Signing keys, the pinned first key and the passkey signing page"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#130 (trust build slice AU-1b)."
-    entrance: "AU-1a merged."
-    success: "A signing-key log and the support for adding the first key at the NAS and pinning it on one Mac, proven with test keys and fixtures. The real first key is added by the owner at OW-K1. The authority service serves the signing page, so what the owner sees comes from the service that records it. The canonical record bytes include the challenge nonce, so a checker can re-verify from stored data alone."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1b.test"
+    entrance: "AU-1a merged; OW-SVC done (the service accounts exist)."
+    success: "The authority service is installed on staging under its own owner-made account. A signing-key log and the support for adding the first key at the NAS and pinning it on one Mac, proven with test keys and fixtures. The real first key is added by the owner at OW-K1. The authority service serves the signing page, so what the owner sees comes from the service that records it. The canonical record bytes include the challenge nonce, so a checker can re-verify from stored data alone."
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S43"
-  - id: S45
+  - id: S46
     phase: PH8
     title: "AU-1c — Approval records and the spent-approval ledger"
     advances: "ns:l2-ojfbot#P2"
@@ -714,15 +730,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#132 (trust build slice AU-1c)."
     entrance: "AU-1b merged."
-    success: "An approval names one action, one target, one environment and who may spend it. It lapses at 24 hours. It is spent once per decision, keyed by its ID, never by the wording of a quote. Until AU-2a exists, \"who may spend it\" is checked against the session named in the approval only, and that limit is written on the record."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1c.test"
+    success: "An approval names one action, one target, one environment and who may spend it. It lapses at 24 hours. It is spent once per decision, keyed by its ID, never by the wording of a quote. Until AU-2a exists, “who may spend it” is checked against the session named in the approval only, and that limit is written on the record."
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1c.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S44"
-  - id: S46
+    depends_on: "rm:rm-l2-ojfbot#S45"
+  - id: S47
     phase: PH8
     title: "AU-1d — `helpdesk-promote` spends an approval ID at the authority service (closes LocalHelp#124)"
     advances: "ns:l2-ojfbot#P2"
@@ -731,45 +747,29 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#133 (trust build slice AU-1d)."
     entrance: "AU-1c merged."
     success: "`scripts/helpdesk-promote` takes an approval ID, asks the authority service to spend it for that revision and environment, and refuses on any other answer, including no answer. The old text-hash used-approval record (`promote.log`) is imported into the spent-approval ledger as spent, so nothing approved under the old rule can be spent again, and then the text-hash check is retired."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1d.test && bash scripts/test-helpdesk-promote.sh"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1d.test && bash scripts/test-helpdesk-promote.sh"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S45"
-  - id: S47
+    depends_on: "rm:rm-l2-ojfbot#S46"
+  - id: S48
     phase: PH8
     title: "TI-1a — Token issuer skeleton: own account, key store and enrolment, no minting yet"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#136 (trust build slice TI-1a)."
-    entrance: "OW-0 done (the issuer's keys must sit where no Mac can read them)."
+    entrance: "OW-0 and OW-SVC done (the issuer runs under an owner-made account, and its keys must sit where no Mac can read them)."
     success: "A new package `packages/token-issuer` runs on staging under its own account. It can enrol GitHub App keys and the gate App key, and holds them where no Mac account can read them. It has no settings or secrets power and mints nothing yet. It serves a read-only status."
-    check: "pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-1a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-1a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S41"
-  - id: S48
-    phase: PH8
-    title: "OW-SVC — (owner-only) Owner: create a NAS account and key for each new service (authority service, token issuer, checker, data layer)"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "Owner step recorded on ojfbot/LocalHelp#199 (trust build slice OW-SVC)."
-    entrance: "OW-0 done (only the owner can create accounts now)."
-    success: "Each of the four new services has its own NAS account and its own key, made by the owner. No Mac account can administer them. The checker and data-layer accounts may be made now or just before DA-1a and CK-1a."
-    check: "bash scripts/check-nas-admin-refused --services"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S41"
+    depends_on: "rm:rm-l2-ojfbot#S44"
   - id: S49
     phase: PH8
     title: "OW-BK-AU — (owner-only) Owner: add the authority service data and the issuer's keys to the NAS backup (separate reviewed change)"
@@ -777,7 +777,7 @@ slices:
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#141 (trust build slice OW-BK-AU)."
-    entrance: "AU-1a and TI-1a on staging; OW-0 done."
+    entrance: "AU-1b and TI-1a on staging."
     success: "The authority journal and the issuer's key store are in the NAS backup, through a separately reviewed change applied by the owner. An agent may draft that change as a PR only when the owner asks."
     check: "the reviewed change's own restore test (named in that PR)"
     autonomy: gate-0
@@ -785,7 +785,7 @@ slices:
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S43"
+    depends_on: "rm:rm-l2-ojfbot#S45"
   - id: S50
     phase: PH8
     title: "P0-GL — Install the authority service and the token issuer at the go-live level (one owner tap)"
@@ -795,13 +795,13 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#200 (trust build slice P0-GL)."
     entrance: "AU-1d and TI-1a merged; OW-SVC and OW-BK-AU done."
     success: "The authority service and the token issuer are installed at the go-live level under their own accounts, with one owner tap. This is the instance the owner's real keys go into (OW-K1, OW-1b). It is the one go-live install #674 places before the outside review, for the Face ID promote only: no enforcement is switched on."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-golive.test && pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-golive.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-golive.test && pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-golive.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S46"
+    depends_on: "rm:rm-l2-ojfbot#S47"
   - id: S51
     phase: PH8
     title: "OW-K1 — (owner-only) Owner: add the first signing key at the NAS and pin it on one Mac"
@@ -811,7 +811,7 @@ slices:
     deliverable: "Owner step recorded on ojfbot/LocalHelp#131 (trust build slice OW-K1)."
     entrance: "P0-GL done (the go-live authority service exists)."
     success: "The first passkey is added at the NAS to the go-live authority service, not from a Mac, and its fingerprint is pinned on one Mac. Agents never touch the key."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1b-pinned.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1b-pinned.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -827,13 +827,13 @@ slices:
     deliverable: "Owner step recorded on ojfbot/LocalHelp#134 (trust build slice OW-FID)."
     entrance: "AU-1d on staging; OW-K1 done."
     success: "The owner approves one real promote on the phone with Face ID; promote spends that approval ID once; a second promote with the same ID is refused."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-1-e2e.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-1-e2e.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S46"
+    depends_on: "rm:rm-l2-ojfbot#S47"
   - id: S53
     phase: PH8
     title: "OW-ACK — (owner-only) Owner: re-make one listener acknowledgement in the confirmed format, at a real terminal, before that Mac's gated listener upgrade"
@@ -842,7 +842,7 @@ slices:
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#135 (trust build slice OW-ACK)."
     entrance: "None. Must be done before the gated 0.9.15 listener upgrade on that Mac (ojfbot/LocalHelp#113 doctor)."
-    success: "The owner re-makes one old-format listener acknowledgement for an \"unknown\" delivery, at a real terminal on that Mac (a terminal check, then typing the delivery-ID prefix). The 0.9.15 doctor then passes it."
+    success: "The owner re-makes one old-format listener acknowledgement for an “unknown” delivery, at a real terminal on that Mac (a terminal check, then typing the delivery-ID prefix). The 0.9.15 doctor then passes it."
     check: "the 0.9.15 doctor on that Mac reports the acknowledgement as confirmed (read-only; ojfbot/LocalHelp#113)"
     autonomy: gate-0
     claimable_by: human_only
@@ -889,7 +889,7 @@ slices:
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#139 (trust build slice OW-2)."
     entrance: "P0-WIZ merged."
-    success: "A fine-grained terminal token per Mac with no Administration or Secrets write; `gh` signed in with it; the old classic token revoked. The time is noted as \"the switch\"."
+    success: "A fine-grained terminal token per Mac with no Administration or Secrets write; `gh` signed in with it; the old classic token revoked. The time is noted as “the switch”."
     check: "bash scripts/check-terminal-token-refused"
     autonomy: gate-0
     claimable_by: human_only
@@ -919,8 +919,8 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/core#694 (trust build slice RETRO-0)."
     entrance: "Every other phase 0 slice closed."
-    success: "The conductor (or a fresh session) re-reads the discoveries issue and every phase 0 slice's \"Deviations and discoveries\" section; re-checks each phase 1 entrance condition and the unknowns it touches; re-plans any phase 1 slice whose assumptions moved; and sends any change to a ruled decision to the owner through the conductor. The retro is recorded as a comment on the phase 0 epic."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:0-phase0\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:0-phase0\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/daily-logger --label \"layer:0-phase0\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    success: "The conductor (or a fresh session) re-reads the discoveries issue and every phase 0 slice's “Deviations and discoveries” section; re-checks each phase 1 entrance condition and the unknowns it touches; re-plans any phase 1 slice whose assumptions moved; and sends any change to a ruled decision to the owner through the conductor. The retro is recorded as a comment on the phase 0 epic."
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -936,7 +936,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#142 (trust build slice HD-1a)."
     entrance: "RETRO-0 done."
     success: "Each registration keeps the handshake challenge bytes, the session key's signature, the device key's vouching signature, and HelpDesk's sequence and time; a rotation also keeps the old key's endorsement. Replay returns registration, rotation, reclaim and retire events. A fresh checker re-verifies a registration from stored bytes alone."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-1a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-1a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -952,7 +952,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#143 (trust build slice HD-1b)."
     entrance: "HD-1a merged."
     success: "HelpDesk serves a signed read of a named holder's current state (latest registration, expiry, retired, reclaimed or rotated) that any device and the authority service can fetch. If it can't be fetched, the state is unknown. Across 24 hours of 6-hour renewals the holder stays live."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-1b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-1b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -968,13 +968,13 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#144 (trust build slice AU-2a)."
     entrance: "AU-1c and HD-1b merged."
     success: "The charter record (top seats, standbys, standing exceptions) with its `replaces` chain. Seats bind to session name and key ID, and any live registration of that key counts. The seat check reads HelpDesk's holder state when work is admitted and again right before the effect, and uses the newest charter. Replay returns owner records. AU-1c's spender check now uses the charter."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-2a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-2a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S45"
+    depends_on: "rm:rm-l2-ojfbot#S46"
   - id: S62
     phase: PH9
     title: "AU-2b — Mac-side record checker in the device client"
@@ -984,7 +984,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#145 (trust build slice AU-2b)."
     entrance: "AU-2a merged."
     success: "The device client replays owner records and the charter to the end (`has_more` false, up to the latest sequence at check time) and checks each against the Mac's pinned first key, without trusting the host. If replay can't finish, the result is unknown and risky actions stop. It remembers the newest charter sequence it has seen. It is labelled declared, never enforcement."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run AU-2b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run AU-2b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1000,7 +1000,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#146 (trust build slice AU-3a)."
     entrance: "AU-2a merged."
     success: "Work-grant records that narrow scope and validity at both ends, carry hops left (at most the parent's minus 1 and the count left from the nearest seat), never authorize ask-first or never actions, and stop risky actions when records contradict. Nothing is honored before the charter and this check exist. A key rotation pauses only the rotated holder's own authority."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-3a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-3a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1016,7 +1016,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#147 (trust build slice AU-3b)."
     entrance: "AU-3a and AU-2b merged."
     success: "Replay returns work-grant and set-aside records. The Mac-side checker verifies a two-hop chain from raw records alone up to the owner's passkey."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run AU-3b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run AU-3b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1031,8 +1031,8 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#148 (trust build slice AU-4a)."
     entrance: "AU-3a merged."
-    success: "One signed live call answers \"is this allowed?\" for a named grant and its chain, using the newest charter and HelpDesk's holder state. Every answer, yes or no, is an observed record in the authority journal naming the grant by ID and fingerprint and the asking service's request. Which actions count as risky per service is written down here."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-4a.test"
+    success: "One signed live call answers “is this allowed?” for a named grant and its chain, using the newest charter and HelpDesk's holder state. Every answer, yes or no, is an observed record in the authority journal naming the grant by ID and fingerprint and the asking service's request. Which actions count as risky per service is written down here."
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-4a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1048,7 +1048,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#149 (trust build slice AU-4b)."
     entrance: "AU-4a merged."
     success: "One counter: set-asides plus reserved runs never exceed the pot at any level. Each reservation is made in the same call as the grant check. Unused runs return only when accounted for; unknown use stays counted. While the authority service can't be reached, nothing is reserved."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-4b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-4b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1064,7 +1064,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#150 (trust build slice AU-4c)."
     entrance: "AU-4b merged."
     success: "When a grant expires or one record is ended, the authority service tells the token issuer by a signed call, and records that it did. The full cascade stays in AU-9."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-4c.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-4c.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1080,13 +1080,13 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#151 (trust build slice TI-1b)."
     entrance: "TI-1a, AU-4b and OW-1b done."
     success: "The issuer mints a one-hour token limited to the grant's repos only after the authority service's check and one reserved run. It fails closed when the authority service can't be reached. On staging it first runs watch-only: it records every refusal it would make and a weekly count."
-    check: "pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-1b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-1b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S47"
+    depends_on: "rm:rm-l2-ojfbot#S48"
   - id: S69
     phase: PH9
     title: "CH-1b — Pin agent sessions to the Mac's App: token helper and session settings (#681 S1)"
@@ -1112,7 +1112,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#152 (trust build slice TI-2)."
     entrance: "TI-1b and AU-4c merged."
     success: "On a grant-end notice the issuer revokes every live token it minted for that grant with GitHub's revoke call and records the time GitHub took. It remembers the newest authority sequence it has seen and refuses to mint against an authority service that has gone back to older data."
-    check: "pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-2.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-2.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1128,7 +1128,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#696 (trust build slice FR-1)."
     entrance: "AU-4b merged."
     success: "Enqueue checks the grant live. The first claim, a retry after failure and a re-claim after release each make a live grant check and reserve one run before the job is handed out. While the authority service is down, nothing is claimed and queued jobs wait; an attempt already claimed carries on under its fence. Watch-only first on staging."
-    check: "pnpm vitest run packages/fleet-runner FR-1.test"
+    check: "pnpm vitest run --dir packages/fleet-runner FR-1.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1144,7 +1144,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#153 (trust build slice HD-2)."
     entrance: "AU-4b merged."
     success: "Before a TASK runs, the listener or wake checks the grant and reserves a run at the authority service; it acts only on signed TASKs from sessions on that Mac's list. If the authority service can't be reached, no new TASK starts. Watch-only first."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-2.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-2.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1160,7 +1160,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#154 (trust build slice AU-5)."
     entrance: "AU-4b merged."
     success: "After a restore that loses authority records, the authority service admits nothing and reserves no run until the owner re-signs the charter. Test: snapshot, spend the last run and end the grant, restore, then reserve → refused."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-5.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-5.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1176,7 +1176,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#697 (trust build slice FR-4)."
     entrance: "FR-1 merged."
     success: "FleetRunner remembers the newest authority sequence it has seen and refuses to admit or claim against an authority service that has gone back to older data."
-    check: "pnpm vitest run packages/fleet-runner FR-4.test"
+    check: "pnpm vitest run --dir packages/fleet-runner FR-4.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1192,7 +1192,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#155 (trust build slice HD-3)."
     entrance: "HD-1a merged."
     success: "After a HelpDesk restore that loses newer registration records, receivers do not honor a holder that a newer handover, reclaim or rotation replaced; the owner gets one BLOCKER. Mac memory of the newest sequence is a declared backup, not enforcement."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-3.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-3.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1224,7 +1224,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#699 (trust build slice RETRO-1)."
     entrance: "Every other phase 1 slice closed and running watch-only on staging for at least one week."
     success: "As RETRO-0, plus: the watch-only counts for each enforcer (would-refuse, wrong refusals, unknowns) are summarised with their thresholds for going live. A wrong refusal or an unexplained unknown keeps that enforcer in watch-only. The review packet (OR-PACK) scope is confirmed."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:1-enforcement\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:1-enforcement\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/daily-logger --label \"layer:1-enforcement\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1254,7 +1254,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#158 (trust build slice OR-PACK)."
     entrance: "RETRO-1 done."
     success: "A private packet, kept outside Git: scope (phase 1 on staging), how to reach staging, the rulings, the watch-only data, and the known limits (a compromised NAS, one Mac account). Nothing from the private threat notes goes into any repo or issue."
-    check: "test -r \"$PRIVATE_REVIEW_DIR/packet.md\" && test -r \"$PRIVATE_REVIEW_DIR/denylist.txt\" && { git grep -n -f \"$PRIVATE_REVIEW_DIR/denylist.txt\"; test $? -eq 1; }"
+    check: 'test -r "$PRIVATE_REVIEW_DIR/packet.md" && test -r "$PRIVATE_REVIEW_DIR/denylist.txt" && { git grep -n -f "$PRIVATE_REVIEW_DIR/denylist.txt"; test $? -eq 1; }'
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1270,7 +1270,7 @@ slices:
     deliverable: "Owner step recorded on ojfbot/LocalHelp#159 (trust build slice OW-8)."
     entrance: "OW-8a and OR-PACK done."
     success: "The report is filed privately. No phase 1 slice goes live without it."
-    check: "test -f \"$PRIVATE_REVIEW_DIR/report.md\""
+    check: 'test -f "$PRIVATE_REVIEW_DIR/report.md"'
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1286,7 +1286,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#160 (trust build slice OR-TRIAGE)."
     entrance: "OW-8 done."
     success: "Each finding is classed (as in the challenge triage: decision, detail, duplicate, doesn't hold). Details become build checks on the named slices (edited into their issues, without attack detail). Decisions go to the owner through the conductor. A short public summary goes on the phase 1 epic."
-    check: "bash scripts/check-review-triage \"$PRIVATE_REVIEW_DIR\""
+    check: 'bash scripts/check-review-triage "$PRIVATE_REVIEW_DIR"'
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1302,7 +1302,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#161 (trust build slice P1-GL-LH)."
     entrance: "OR-TRIAGE done, and every build check it added to a LocalHelp phase 1 slice is merged."
     success: "For the token issuer, the listener and wake, the authority service's refusals, and HelpDesk's phase 1 changes (HD-1a, HD-1b, HD-3, which stay switched off in production until now): the watch-only data clears RETRO-1's thresholds, then each is switched to enforcing at the go-live install level with one owner tap. A breach after the switch rolls that enforcer back to watch-only."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-mode.test && pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-mode.test && pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-2-mode.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-mode.test && pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-mode.test && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-2-mode.test && pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-1-mode.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1318,7 +1318,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#700 (trust build slice P1-GL-FR)."
     entrance: "OR-TRIAGE done, and its build checks for FR-1 and FR-4 merged."
     success: "As P1-GL-LH, for FleetRunner."
-    check: "pnpm vitest run packages/fleet-runner FR-mode.test"
+    check: "pnpm vitest run --dir packages/fleet-runner FR-mode.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1350,7 +1350,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#701 (trust build slice RETRO-2)."
     entrance: "P1-GL-LH and P1-GL-FR done."
     success: "As RETRO-0, for phase 2. Includes a check that #668's sequencing rule still holds (the ask-first gate switches on only with signed approvals, which exist since AU-1)."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:2-outside-review\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:2-outside-review\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:2-outside-review --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:2-outside-review --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1366,7 +1366,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#162 (trust build slice DA-1a)."
     entrance: "RETRO-2 done."
     success: "A new package `packages/data-layer` on staging, under its own account and key. It only adds: an edit or delete is refused. Each write gets a signed receipt; the journal is hash-chained; it serves a read-only status. It is a same-host copy, never the independent witness."
-    check: "pnpm --filter @localhelp/data-layer build && pnpm --filter @localhelp/data-layer exec vitest run DA-1a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/data-layer build && pnpm --fail-if-no-match --filter @localhelp/data-layer exec vitest run DA-1a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
@@ -1375,12 +1375,44 @@ slices:
     depends_on: "rm:rm-l2-ojfbot#S85"
   - id: S87
     phase: PH11
+    title: "CK-1a — Checker skeleton: read-only, own account and key, signed findings only"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#168 (trust build slice CK-1a)."
+    entrance: "RETRO-2 done."
+    success: "A new package `packages/checker` on staging. It reads only; it writes only its own signed findings; it accepts no writes from a Mac; it allows or blocks nothing. It lints that nothing on a Mac is credited as enforcement. It serves a read-only status."
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-1a.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S85"
+  - id: S88
+    phase: PH11
+    title: "P2-INST — Install the data layer and the checker at the go-live level (one owner tap)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#205 (trust build slice P2-INST)."
+    entrance: "DA-1a and CK-1a merged; OW-SVC done."
+    success: "The data layer and the checker are installed at the go-live level under their own owner-made accounts, with one owner tap. The checker stays read-only and reports only; nothing it finds blocks anything."
+    check: "pnpm --fail-if-no-match --filter @localhelp/data-layer build && pnpm --fail-if-no-match --filter @localhelp/data-layer exec vitest run DA-golive.test && pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-golive.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S86"
+  - id: S89
+    phase: PH11
     title: "OW-BK-DA — (owner-only) Owner: add the data-layer store to the NAS backup (separate reviewed change)"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#163 (trust build slice OW-BK-DA)."
-    entrance: "DA-1a on staging."
+    entrance: "P2-INST done (the go-live data layer exists)."
     success: "The data-layer store is in the NAS backup through a separately reviewed change applied by the owner."
     check: "the reviewed change's own restore test (named in that PR)"
     autonomy: gate-0
@@ -1388,8 +1420,8 @@ slices:
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S86"
-  - id: S88
+    depends_on: "rm:rm-l2-ojfbot#S88"
+  - id: S90
     phase: PH11
     title: "CH-7 — Hook logs: identifiers only, numbered, with an end-of-run count, copied to the data layer"
     advances: "ns:l2-ojfbot#P2"
@@ -1405,7 +1437,7 @@ slices:
     repo: core
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S86"
-  - id: S89
+  - id: S91
     phase: PH11
     title: "HD-4a — HelpDesk: stored request signatures with full inputs, and hash-chained events"
     advances: "ns:l2-ojfbot#P2"
@@ -1414,14 +1446,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#164 (trust build slice HD-4a)."
     entrance: "RETRO-2 done."
     success: "Each stored request signature keeps its full signed inputs (method, exact target, time, nonce, body digest), so a checker can re-verify it. The `events` table is hash-chained."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-4a.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-4a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S85"
-  - id: S90
+  - id: S92
     phase: PH11
     title: "HD-4b — HelpDesk: parent links on TASK and RESULT, journaled listener grants, verdict split from posting"
     advances: "ns:l2-ojfbot#P2"
@@ -1430,14 +1462,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#165 (trust build slice HD-4b)."
     entrance: "HD-4a merged."
     success: "TASK and RESULT carry the parent ID and digest. Listener grants are journaled. A RESULT is split into the verdict (claimed) and the posting (observed), so a wake PASS is claimed."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-4b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-4b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S89"
-  - id: S91
+    depends_on: "rm:rm-l2-ojfbot#S91"
+  - id: S93
     phase: PH11
     title: "FR-2 — FleetRunner chain fields: admitter, output digest, attempt ID"
     advances: "ns:l2-ojfbot#P2"
@@ -1446,14 +1478,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#703 (trust build slice FR-2)."
     entrance: "RETRO-2 done."
     success: "Each job names who admitted it and its parent by ID and digest (the grant check or TASK that caused it), each attempt has its own ID, and each output carries a digest. FleetRunner's journal is hash-chained, so editing one row breaks the chain. Worker output stays claimed."
-    check: "pnpm vitest run packages/fleet-runner FR-2.test"
+    check: "pnpm vitest run --dir packages/fleet-runner FR-2.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: core
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S85"
-  - id: S92
+  - id: S94
     phase: PH11
     title: "AU-W — Authority journal sends its fingerprint on every append or once a minute"
     advances: "ns:l2-ojfbot#P2"
@@ -1462,39 +1494,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#166 (trust build slice AU-W)."
     entrance: "DA-1a on staging."
     success: "The authority service sends its latest journal fingerprint on every append or at least once a minute to the device client's copies and to the data layer."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-W.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: s
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S86"
-  - id: S93
-    phase: PH11
-    title: "FR-W — FleetRunner journal sends its fingerprint on every append or once a minute"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#704 (trust build slice FR-W)."
-    entrance: "DA-1a on staging; FR-2 merged."
-    success: "As AU-W, for FleetRunner's journal."
-    check: "pnpm vitest run packages/fleet-runner FR-W.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: s
-    repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S86"
-  - id: S94
-    phase: PH11
-    title: "DA-W — Data layer journal sends its fingerprint on every append or once a minute"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#201 (trust build slice DA-W)."
-    entrance: "DA-1a merged."
-    success: "As AU-W, for the data layer's own journal: its latest fingerprint goes to the device client's copies on each Mac."
-    check: "pnpm --filter @localhelp/data-layer build && pnpm --filter @localhelp/data-layer exec vitest run DA-W.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-W.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1503,6 +1503,38 @@ slices:
     depends_on: "rm:rm-l2-ojfbot#S86"
   - id: S95
     phase: PH11
+    title: "FR-W — FleetRunner journal sends its fingerprint on every append or once a minute"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#704 (trust build slice FR-W)."
+    entrance: "DA-1a on staging; FR-2 merged."
+    success: "As AU-W, for FleetRunner's journal."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-W.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S86"
+  - id: S96
+    phase: PH11
+    title: "DA-W — Data layer journal sends its fingerprint on every append or once a minute"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#201 (trust build slice DA-W)."
+    entrance: "DA-1a merged."
+    success: "As AU-W, for the data layer's own journal: its latest fingerprint goes to the device client's copies on each Mac."
+    check: "pnpm --fail-if-no-match --filter @localhelp/data-layer build && pnpm --fail-if-no-match --filter @localhelp/data-layer exec vitest run DA-W.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S86"
+  - id: S97
+    phase: PH11
     title: "HD-5 — HelpDesk sends fingerprints, and the device client keeps witness copies on each Mac"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
@@ -1510,46 +1542,30 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#167 (trust build slice HD-5)."
     entrance: "HD-4a merged; DA-1a on staging."
     success: "HelpDesk sends its fingerprint like AU-W. The device client on each Mac keeps copies of every journal's fingerprints (authority service, HelpDesk, FleetRunner, data layer)."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-5.test && pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-5.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-5.test && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-5.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S89"
-  - id: S96
-    phase: PH11
-    title: "CK-1a — Checker skeleton: read-only, own account and key, signed findings only"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#168 (trust build slice CK-1a)."
-    entrance: "RETRO-2 done."
-    success: "A new package `packages/checker` on staging. It reads only; it writes only its own signed findings; it accepts no writes from a Mac; it allows or blocks nothing. It lints that nothing on a Mac is credited as enforcement. It serves a read-only status."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-1a.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S85"
-  - id: S97
+    depends_on: "rm:rm-l2-ojfbot#S91"
+  - id: S98
     phase: PH11
     title: "OW-CK — (owner-only) Owner: give the checker a read-only GitHub credential and its settings-event source"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#202 (trust build slice OW-CK)."
-    entrance: "CK-1a on staging."
-    success: "The checker gets a read-only GitHub credential (no write anywhere) and the settings-event source CK-4 needs (security log access or a webhook), set up by the owner."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-credential.test"
+    entrance: "P2-INST done (the go-live checker exists)."
+    success: "The go-live checker gets a read-only GitHub credential (no write anywhere) and the settings-event source CK-4 needs (security log access or a webhook), set up by the owner."
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-credential.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S96"
-  - id: S98
+    depends_on: "rm:rm-l2-ojfbot#S88"
+  - id: S99
     phase: PH11
     title: "CK-1b — Linker: rebuild one staging action from raw records, with a status per link"
     advances: "ns:l2-ojfbot#P2"
@@ -1558,14 +1574,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#169 (trust build slice CK-1b)."
     entrance: "CK-1a, HD-1a, HD-4b and FR-2 merged."
     success: "The checker rebuilds one staging action through the authority journal, HelpDesk and FleetRunner, with one of #663's statuses per link. A rebuild passes only if every link to the owner's record is verified; a fixture with every link claimed fails. Ask-first is reported only."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-1b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-1b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S96"
-  - id: S99
+    depends_on: "rm:rm-l2-ojfbot#S87"
+  - id: S100
     phase: PH11
     title: "CK-2 — Scope check after the fact"
     advances: "ns:l2-ojfbot#P2"
@@ -1574,14 +1590,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#170 (trust build slice CK-2)."
     entrance: "CK-1b merged."
     success: "An out-of-scope result is caught after the fact from records the agent can't write. A gap or a self-report-only effect counts as unknown. It also sweeps agent work that did not appear under the Mac's App."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-2.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-2.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S98"
-  - id: S100
+    depends_on: "rm:rm-l2-ojfbot#S99"
+  - id: S101
     phase: PH11
     title: "CK-5 — Compare witness copies and report which witnesses are independent"
     advances: "ns:l2-ojfbot#P2"
@@ -1590,14 +1606,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#171 (trust build slice CK-5)."
     entrance: "HD-5, AU-W, FR-W, DA-W and CK-1a merged."
     success: "The checker compares each journal with its witness copies, reports truncation inside the window and a same-host rewrite of two journals, and says which witnesses are independent (only a copy held off the host counts)."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-5.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-5.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S95"
-  - id: S101
+    depends_on: "rm:rm-l2-ojfbot#S97"
+  - id: S102
     phase: PH11
     title: "DLG-1 — DailyLogger publish door record"
     advances: "ns:l2-ojfbot#P2"
@@ -1613,7 +1629,7 @@ slices:
     repo: daily-logger
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S85"
-  - id: S102
+  - id: S103
     phase: PH11
     title: "AU-6 — Ask-first gate with a fixed prediction at the spend"
     advances: "ns:l2-ojfbot#P2"
@@ -1622,14 +1638,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#172 (trust build slice AU-6)."
     entrance: "RETRO-2 done (AU-1c and AU-2a exist)."
     success: "An ask-first action needs an approval that is verified by a named procedure, with its predicted impact fixed in the approval, and clean links; anything claimed, inferred, unknown, unchecked or disputed stops it. Go-live approvals for DailyLogger publishing merges and the standing exception for articles live here."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-6.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-6.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S85"
-  - id: S103
+  - id: S104
     phase: PH11
     title: "TI-4 — Gate App posts the merge-proof check only on a verified, unspent approval at that head"
     advances: "ns:l2-ojfbot#P2"
@@ -1637,15 +1653,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#173 (trust build slice TI-4)."
     entrance: "AU-6 and TI-1b merged."
-    success: "The check-only gate App, with its key in the issuer, posts a required check on a PR only when the authority service confirms a verified, unspent approval for that exact head. Covers go-live merges, DailyLogger publishing merges (with the standing exception) and high-risk PRs. It also ships `scripts/check-rulesets`, a read-only check the owner runs after OW-5."
-    check: "pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-4.test"
+    success: "The check-only gate App, with its key in the issuer, posts a required check on a PR only when the authority service confirms a verified, unspent approval for that exact head. Covers go-live merges, DailyLogger publishing merges (with the standing exception) and high-risk PRs. It also ships `scripts/check-rulesets`, a read-only check the owner runs after OW-5a and OW-5b."
+    check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-4.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S102"
-  - id: S104
+    depends_on: "rm:rm-l2-ojfbot#S103"
+  - id: S105
     phase: PH11
     title: "DLG-5 — Publishing merges need the merge proof or the written standing exception"
     advances: "ns:l2-ojfbot#P2"
@@ -1660,8 +1676,8 @@ slices:
     kind: m
     repo: daily-logger
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S103"
-  - id: S105
+    depends_on: "rm:rm-l2-ojfbot#S104"
+  - id: S106
     phase: PH11
     title: "OW-4 — (owner-only) Owner: approve the daily-article standing exception once, as written"
     advances: "ns:l2-ojfbot#P2"
@@ -1670,14 +1686,14 @@ slices:
     deliverable: "Owner step recorded on ojfbot/LocalHelp#174 (trust build slice OW-4)."
     entrance: "AU-6 on staging."
     success: "The standing exception is signed once in the charter with its exact scope."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-6-exception.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-6-exception.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S102"
-  - id: S106
+    depends_on: "rm:rm-l2-ojfbot#S103"
+  - id: S107
     phase: PH11
     title: "P2-GL — Switch the ask-first gate and the merge proof from watch-only to enforcing (one owner tap each)"
     advances: "ns:l2-ojfbot#P2"
@@ -1686,30 +1702,30 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#203 (trust build slice P2-GL)."
     entrance: "AU-6, TI-4 and OW-4 done, with at least one week of watch-only data."
     success: "The ask-first gate (AU-6) and the gate App's merge proof (TI-4) clear their numeric thresholds in watch-only (wrong stops, unknowns), then each is switched to enforcing at the go-live install level with one owner tap. A breach after the switch rolls it back to watch-only in one step."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-6-mode.test && pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-4-mode.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-6-mode.test && pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-4-mode.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S102"
-  - id: S107
+    depends_on: "rm:rm-l2-ojfbot#S103"
+  - id: S108
     phase: PH11
-    title: "OW-5 — (owner-only) Owner: rulesets and required checks (defect lint, quiz gate, merge proof), no direct push to main"
+    title: "OW-5a — (owner-only) Owner: rulesets that require the merge-proof check, and no direct push to main"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
-    deliverable: "Owner step recorded on ojfbot/LocalHelp#175 (trust build slice OW-5)."
-    entrance: "P2-GL done (the merge proof is enforcing), and DLG-5, CH-3b and CH-5e merged: the checks it makes required must exist and be live first."
-    success: "Rulesets make the merge-proof, defect-lint and quiz-gate checks required where ruled, and no identity on the Macs can bypass them or push to main."
+    deliverable: "Owner step recorded on ojfbot/LocalHelp#175 (trust build slice OW-5a)."
+    entrance: "P2-GL done (the merge proof is enforcing) and DLG-5 merged."
+    success: "Rulesets make the merge-proof check required on go-live, publishing and high-risk merges where ruled, and no identity on the Macs can bypass it or push to main."
     check: "bash scripts/check-rulesets"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S106"
-  - id: S108
+    depends_on: "rm:rm-l2-ojfbot#S107"
+  - id: S109
     phase: PH11
     title: "CK-3 — Critical-violation alarms through HelpDesk's alert route"
     advances: "ns:l2-ojfbot#P2"
@@ -1718,14 +1734,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#176 (trust build slice CK-3)."
     entrance: "CK-1b merged."
     success: "A live critical violation alerts the owner through HelpDesk's alert route and holds growth until closed. Agent-supplied content is claimed; support text changing never changes a verdict."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-3.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-3.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S98"
-  - id: S109
+    depends_on: "rm:rm-l2-ojfbot#S99"
+  - id: S110
     phase: PH11
     title: "CK-4 — Settings watcher: every settings change reaches the phone within the deadline"
     advances: "ns:l2-ojfbot#P2"
@@ -1734,14 +1750,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#177 (trust build slice CK-4)."
     entrance: "CK-1a merged."
     success: "Settings changes come from an event source (security log or webhook), not a state poll; each reaches the owner within 15 minutes, on its own alert budget outside the general cap; a change reverted between two polls still alerts."
-    check: "pnpm --filter @localhelp/checker build && pnpm --filter @localhelp/checker exec vitest run CK-4.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/checker build && pnpm --fail-if-no-match --filter @localhelp/checker exec vitest run CK-4.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S96"
-  - id: S110
+    depends_on: "rm:rm-l2-ojfbot#S87"
+  - id: S111
     phase: PH11
     title: "RETRO-3 — Layer retro: evidence is in, re-check phase 3 assumptions"
     advances: "ns:l2-ojfbot#P2"
@@ -1750,14 +1766,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#705 (trust build slice RETRO-3)."
     entrance: "Every other phase 2 slice closed."
     success: "As RETRO-0, for phase 3. Confirms P2-GL switched the ask-first gate and merge proof to enforcing, or records why they stay watch-only."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:3-evidence\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:3-evidence\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/daily-logger --label \"layer:3-evidence\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S87"
-  - id: S111
+    depends_on: "rm:rm-l2-ojfbot#S89"
+  - id: S112
     phase: PH12
     title: "HD-6 — Wake stop-now: abort and check a running review on pause or revoke"
     advances: "ns:l2-ojfbot#P2"
@@ -1765,31 +1781,31 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#178 (trust build slice HD-6)."
     entrance: "RETRO-3 done."
-    success: "A stop ends a running wake review now. \"Stopped\" needs a process check that succeeds and finds no member; a failed listing is unknown. The abort is checked right before each outside call, and nothing spawns on an aborted signal. A found marker counts only on a comment by this Mac's App whose body hash matches."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-6.test"
+    success: "A stop ends a running wake review now. “Stopped” needs a process check that succeeds and finds no member; a failed listing is unknown. The abort is checked right before each outside call, and nothing spawns on an aborted signal. A found marker counts only on a comment by this Mac's App whose body hash matches."
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-6.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S112
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S113
     phase: PH12
-    title: "HD-7a — Stop verdict record and routing: \"not complete\" until every item is proven"
+    title: "HD-7a — Stop verdict record and routing: “not complete” until every item is proven"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#179 (trust build slice HD-7a)."
     entrance: "RETRO-3 done."
-    success: "Each stop yields one verdict list with a #663 status per item; it is \"not complete\" while any item is unknown or unchecked, with one BLOCKER; \"not landed\" is inferred only after the writer is gone and both read-backs are done; a late sighting reopens the BLOCKER."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-7a.test"
+    success: "Each stop yields one verdict list with a #663 status per item; it is “not complete” while any item is unknown or unchecked, with one BLOCKER; “not landed” is inferred only after the writer is gone and both read-backs are done; a late sighting reopens the BLOCKER."
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-7a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S113
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S114
     phase: PH12
     title: "HD-7b — HelpDesk stop support: look-up without posting, saved answers dropped, registered-sessions switch"
     advances: "ns:l2-ojfbot#P2"
@@ -1798,14 +1814,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#180 (trust build slice HD-7b)."
     entrance: "HD-7a merged."
     success: "A `command_id` look-up that does not post; saved answers dropped on stop; a revoked session's posts can't land once the registered-sessions switch is on."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-7b.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-7b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S112"
-  - id: S114
+    depends_on: "rm:rm-l2-ojfbot#S113"
+  - id: S115
     phase: PH12
     title: "AU-9 — Ending and cascade: ending a record ends everything below it"
     advances: "ns:l2-ojfbot#P2"
@@ -1814,30 +1830,30 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#181 (trust build slice AU-9)."
     entrance: "RETRO-3 done."
     success: "Ending a record ends everything below it: no new run starts and new reservations are refused; fenced late writes are refused; other effects get a stop verdict. A normal handover leaves children running to expiry."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-9.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-9.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S115
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S116
     phase: PH12
-    title: "FR-3 — FleetRunner \"stop attempt\" transition that voids the fence"
+    title: "FR-3 — FleetRunner “stop attempt” transition that voids the fence"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/core#706 (trust build slice FR-3)."
     entrance: "RETRO-3 done."
-    success: "A \"stop attempt\" event voids the attempt's fence, so its renewal and completion are refused; S6 reports \"refused at fence\" only once that event exists."
-    check: "pnpm vitest run packages/fleet-runner FR-3.test"
+    success: "A “stop attempt” event voids the attempt's fence, so its renewal and completion are refused; S6 reports “refused at fence” only once that event exists."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-3.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S116
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S117
     phase: PH12
     title: "TI-3 — Per-Mac cut at the issuer, with the cut runbook"
     advances: "ns:l2-ojfbot#P2"
@@ -1846,14 +1862,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#182 (trust build slice TI-3)."
     entrance: "RETRO-3 done."
     success: "Cutting one Mac: the issuer stops minting for it, and a runbook covers suspending its App, revoking its terminal token and ending its web sessions (owner steps). Other Macs keep working."
-    check: "pnpm --filter @localhelp/token-issuer build && pnpm --filter @localhelp/token-issuer exec vitest run TI-3.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-3.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S117
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S118
     phase: PH12
     title: "HD-7c — Cancel queued GitHub effects with an issuer token, and read them back"
     advances: "ns:l2-ojfbot#P2"
@@ -1862,16 +1878,16 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#183 (trust build slice HD-7c)."
     entrance: "HD-7a and TI-3 merged."
     success: "A stop turns auto-merge off (including on publishing DailyLogger PRs), cancels Actions runs where the Apps have Actions write, and reads each back as cancelled, using a token from the issuer."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-7c.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-7c.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S112"
-  - id: S118
+    depends_on: "rm:rm-l2-ojfbot#S113"
+  - id: S119
     phase: PH12
-    title: "DLG-4 — Hosted writers' cut: disable the workflows and narrow their secret on a stop"
+    title: "DLG-4 — Hosted writers in the stop inventory: stop automation for the hosted workflows, and the owner's secret runbook"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
@@ -1884,8 +1900,8 @@ slices:
     kind: s
     repo: daily-logger
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S119
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S120
     phase: PH12
     title: "OW-3 — (owner-only) Owner: switch DailyLogger's stored workflow token to an App token or a narrowed token"
     advances: "ns:l2-ojfbot#P2"
@@ -1900,8 +1916,8 @@ slices:
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S118"
-  - id: S120
+    depends_on: "rm:rm-l2-ojfbot#S119"
+  - id: S121
     phase: PH12
     title: "AU-10 — Child seats and takeover records"
     advances: "ns:l2-ojfbot#P2"
@@ -1910,14 +1926,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#185 (trust build slice AU-10)."
     entrance: "RETRO-3 done."
     success: "Child-seat records named only by owner-named seats, one level down, checkable to the owner's passkey. Takeover records after 12 hours of registry lapse. Nothing a child seat grants is honored before re-delegation is checkable."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-10.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-10.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S121
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S122
     phase: PH12
     title: "HD-8 — Registry lapse warning at 8 hours, and alert-route rules"
     advances: "ns:l2-ojfbot#P2"
@@ -1926,14 +1942,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#186 (trust build slice HD-8)."
     entrance: "AU-10 merged."
     success: "The registry warns at 8 hours without renewal. A session-written BLOCKER rings the owner only from the top seat's holder (asked of the authority service); service-written alerts always ring, including the authority service's own alerts sent through the alert route under its own writer key (lapse warnings, takeovers, check-up reminders); other BLOCKERs climb the tree with a deadline."
-    check: "pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-8.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-8.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S120"
-  - id: S122
+    depends_on: "rm:rm-l2-ojfbot#S121"
+  - id: S123
     phase: PH12
     title: "FR-5 — Work-register baskets (ADR-0110 amendment)"
     advances: "ns:l2-ojfbot#P2"
@@ -1941,15 +1957,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/core#707 (trust build slice FR-5)."
     entrance: "RETRO-3 done. The owner has picked the parent seat's clash deadline (asked through the conductor when this slice starts)."
-    success: "Baskets nest; the nearest basket owns; claims and self-claims in a basket need that seat or its assignee; a claimant's \"done\" stays claimed until a verification record exists; a clash reaches the nearest shared parent first with a deadline."
-    check: "pnpm vitest run packages/fleet-runner FR-5.test"
+    success: "Baskets nest; the nearest basket owns; claims and self-claims in a basket need that seat or its assignee; a claimant's “done” stays claimed until a verification record exists; a clash reaches the nearest shared parent first with a deadline."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-5.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S123
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S124
     phase: PH12
     title: "AU-7 — Check-up and renewal: reminders at day 80, 87 and 89"
     advances: "ns:l2-ojfbot#P2"
@@ -1958,14 +1974,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#187 (trust build slice AU-7)."
     entrance: "RETRO-3 done."
     success: "A deterministic scheduled job sends check-up reminders through HelpDesk's alert route at day 80, 87 and 89, supports chained key renewal and re-signing the top seats; records stay checkable after their key retires normally."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-7.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-7.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S124
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S125
     phase: PH12
     title: "AU-8 — Second key, revocations and the lost-phone drill (agent part)"
     advances: "ns:l2-ojfbot#P2"
@@ -1973,31 +1989,47 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#188 (trust build slice AU-8)."
     entrance: "RETRO-3 done."
-    success: "Support, proven with test keys and fixtures, for: a backup key added at the NAS and approved by the first key in the same sitting; the three revocation effects of #679 O11 (a record signed after its key's revocation is refused, a record cancelled as stolen is refused, and a lost key can be revoked while work carries on under the other key); \"record revoked\" withdraws a record while its key stays live; the seat cascade after a lost phone."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-8.test"
+    success: "Support, proven with test keys and fixtures, for: a backup key added at the NAS and approved by the first key in the same sitting; the three revocation effects of #679 O11 (a record signed after its key's revocation is refused, a record cancelled as stolen is refused, and a lost key can be revoked while work carries on under the other key); “record revoked” withdraws a record while its key stays live; the seat cascade after a lost phone."
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-8.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: l
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S125
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S126
+    phase: PH12
+    title: "P3-GL — Switch the phase 3 controls to go-live (one owner tap each)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#204 (trust build slice P3-GL)."
+    entrance: "HD-6, HD-7a, HD-7b, HD-7c, AU-9, HD-8, AU-10, AU-7, AU-8 and TI-3 merged, with at least one week of watch-only data."
+    success: "Each phase 3 control that blocks or changes alerts clears its numeric thresholds in watch-only, then goes live with one owner tap: wake stop-now (HD-6), the registered-sessions switch (HD-7b), queued-effect cancels (HD-7c), ending and cascade (AU-9), the alert-route rule (HD-8), child seats (AU-10), the per-Mac cut at the issuer (TI-3), the hosted-writer stops (DLG-4, used by HD-7c), and the check-up and second-key code (AU-7, AU-8) installed at go-live. A breach rolls that control back in one step."
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-6-mode.test && pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-7-mode.test && pnpm --fail-if-no-match --filter @localhelp/helpdesk build && pnpm --fail-if-no-match --filter @localhelp/helpdesk exec vitest run HD-8-mode.test && pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run P3-mode.test && pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-3-mode.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S112"
+  - id: S127
     phase: PH12
     title: "OW-K2 — (owner-only) Owner: add the backup key and run the lost-phone drill"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#189 (trust build slice OW-K2)."
-    entrance: "AU-8 on staging."
+    entrance: "P3-GL done (AU-8's code is installed at go-live)."
     success: "The owner adds the backup key at the NAS to the go-live authority service and approves it with the first key in the same sitting, then runs the lost-phone drill on staging with test keys."
-    check: "pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-8-drill.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/authority build && pnpm --fail-if-no-match --filter @localhelp/authority exec vitest run AU-8-drill.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S124"
-  - id: S126
+    depends_on: "rm:rm-l2-ojfbot#S126"
+  - id: S128
     phase: PH12
     title: "HD-9 — Wake audience and quote check"
     advances: "ns:l2-ojfbot#P2"
@@ -2006,14 +2038,14 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#190 (trust build slice HD-9)."
     entrance: "RETRO-3 done."
     success: "Text never widens what a receiver may do, and a wake review never publishes what the PR's readers may not see."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-9.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/helpdesk-device build && pnpm --fail-if-no-match --filter @localhelp/helpdesk-device exec vitest run HD-9.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S127
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S129
     phase: PH12
     title: "CH-6 — Status labels and claim fixes in Core: `/resume` and GitHub actions"
     advances: "ns:l2-ojfbot#P2"
@@ -2021,15 +2053,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/core#708 (trust build slice CH-6)."
     entrance: "RETRO-3 done."
-    success: "`/resume` marks a bead verified only from evidence tied to that bead (closes core#677). Records label GitHub actions with #663 statuses (\"observed: App X acted\", \"claimed\" for the agent behind it), and no GitHub action is acted on as the owner's yes."
+    success: "`/resume` marks a bead verified only from evidence tied to that bead (closes core#677). Records label GitHub actions with #663 statuses (“observed: App X acted”, “claimed” for the agent behind it), and no GitHub action is acted on as the owner's yes."
     check: "pnpm vitest run CH-6.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S128
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S130
     phase: PH12
     title: "DLG-3a — DailyLogger claim-check fix: verdicts depend only on independent records"
     advances: "ns:l2-ojfbot#P2"
@@ -2037,15 +2069,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/daily-logger#598 (trust build slice DLG-3a)."
     entrance: "RETRO-3 done."
-    success: "The claim check's verdict depends only on independent records (daily-logger#593). With the records held fixed, a real file claim and a ghost-file claim get different verdicts, and adding supporting text never changes the ghost file's verdict."
+    success: "The claim check's verdict depends only on independent records (daily-logger#593), and it passes the fixture named in #670 second-challenge build check 4."
     check: "pnpm vitest run DLG-3a.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: daily-logger
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S110"
-  - id: S129
+    depends_on: "rm:rm-l2-ojfbot#S111"
+  - id: S131
     phase: PH12
     title: "DLG-3b — DailyLogger comment actuators and status labels"
     advances: "ns:l2-ojfbot#P2"
@@ -2053,31 +2085,31 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/daily-logger#601 (trust build slice DLG-3b)."
     entrance: "DLG-3a merged."
-    success: "Every GitHub-comment actuator is classed: stop-direction commands may stay routine, and anything that starts, re-enables, merges or publishes needs a yes from outside GitHub. Action-review grants are reclassified as claimed. The `owner-record` class, the outcome stamp and the \"explicit owner request\" check change, with a fixture each. GitHub actions carry #663 status labels."
+    success: "Every GitHub-comment actuator is classed: stop-direction commands may stay routine, and anything that starts, re-enables, merges or publishes needs a yes from outside GitHub. Action-review grants are reclassified as claimed. The `owner-record` class, the outcome stamp and the “explicit owner request” check change, with a fixture each. GitHub actions carry #663 status labels."
     check: "pnpm vitest run DLG-3b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: daily-logger
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S128"
-  - id: S130
+    depends_on: "rm:rm-l2-ojfbot#S130"
+  - id: S132
     phase: PH12
-    title: "P3-GL — Switch the phase 3 controls to go-live (one owner tap each)"
+    title: "P3-GL-FR — Switch FleetRunner's stop transition and baskets to go-live (one owner tap each)"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#204 (trust build slice P3-GL)."
-    entrance: "HD-6, HD-7a, HD-7b, HD-7c, AU-9, HD-8 and AU-10 merged, with at least one week of watch-only data."
-    success: "Each phase 3 control that blocks or changes alerts clears its numeric thresholds in watch-only, then goes live with one owner tap: wake stop-now (HD-6), the registered-sessions switch (HD-7b), queued-effect cancels (HD-7c), ending and cascade (AU-9), the alert-route rule (HD-8) and child seats (AU-10). A breach rolls that control back in one step."
-    check: "pnpm --filter @localhelp/helpdesk-device build && pnpm --filter @localhelp/helpdesk-device exec vitest run HD-6-mode.test && pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-7b-mode.test && pnpm --filter @localhelp/helpdesk build && pnpm --filter @localhelp/helpdesk exec vitest run HD-8-mode.test && pnpm --filter @localhelp/authority build && pnpm --filter @localhelp/authority exec vitest run AU-9-mode.test"
+    deliverable: "A reviewed PR closing ojfbot/core#722 (trust build slice P3-GL-FR)."
+    entrance: "FR-3 and FR-5 merged, with at least one week of watch-only data."
+    success: "As P3-GL, for FleetRunner: the stop transition that voids a fence (FR-3) and basket claim rules (FR-5)."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-3-mode.test && pnpm vitest run --dir packages/fleet-runner FR-5-mode.test"
     autonomy: gate-0
     claimable_by: human_only
-    kind: m
-    repo: LocalHelp
+    kind: s
+    repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S111"
-  - id: S131
+    depends_on: "rm:rm-l2-ojfbot#S116"
+  - id: S133
     phase: PH12
     title: "RETRO-4 — Layer retro: seats and stops done; close the map's build"
     advances: "ns:l2-ojfbot#P2"
@@ -2086,14 +2118,60 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#709 (trust build slice RETRO-4)."
     entrance: "Every other phase 3 slice closed."
     success: "As RETRO-0. Also: list every guarantee in #674's table with its final mark, and every open unknown with where it now lives."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:4-seats-stops\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:4-seats-stops\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/daily-logger --label \"layer:4-seats-stops\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S130"
-  - id: S132
+    depends_on: "rm:rm-l2-ojfbot#S126"
+  - id: S134
+    phase: PH13
+    title: "BD-1 — Accepted changes and spec-to-merge on the board, with a “ready to build” label"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#191 (trust build slice BD-1)."
+    entrance: "None; tests lane runs alongside, one slice at a time."
+    success: "Accepted changes and spec-ready-to-merge per repo for the last 4 weeks, with a “no mark” count. A “ready to build” label exists in LocalHelp, Core and DailyLogger."
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-1.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: LocalHelp
+    status: queued
+  - id: S135
+    phase: PH13
+    title: "BD-2 — Weekly total-spend collector with completeness"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#192 (trust build slice BD-2)."
+    entrance: "BD-1 merged."
+    success: "CI minutes, Claude tokens and Codex tokens per week across both Macs, including every factory execution path; a week shows “unknown” when any source is missing."
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-2.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S134"
+  - id: S136
+    phase: PH13
+    title: "CH-4 — Regression kind in the defect ledger (ADR-0104 amendment)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#710 (trust build slice CH-4)."
+    entrance: "None."
+    success: "`defect-file` and the sweep handle `regression` with a cause probe; settling a report as “cause unknown” never removes the growth hold."
+    check: "pnpm vitest run CH-4.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+  - id: S137
     phase: PH13
     title: "CH-3a — Probe approvals pin the text, the commit and the sandbox profile"
     advances: "ns:l2-ojfbot#P2"
@@ -2109,7 +2187,7 @@ slices:
     repo: core
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S52"
-  - id: S133
+  - id: S138
     phase: PH13
     title: "CH-3b — Defect sweep as a fixed FleetRunner job in a sandbox, with the defect lint at merge"
     advances: "ns:l2-ojfbot#P2"
@@ -2124,8 +2202,88 @@ slices:
     kind: m
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S132"
-  - id: S134
+    depends_on: "rm:rm-l2-ojfbot#S137"
+  - id: S139
+    phase: PH13
+    title: "BD-3 — Growth reading: grow, hold or unknown, and the deciding condition"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#193 (trust build slice BD-3)."
+    entrance: "BD-2 and CH-4 merged."
+    success: "The board shows grow, hold or unknown and the condition that decided it, including “hold” on an open critical violation."
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-3.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S135"
+  - id: S140
+    phase: PH13
+    title: "FR-6a — Model-test job kinds on the Mac workers"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#713 (trust build slice FR-6a)."
+    entrance: "FR-1 merged."
+    success: "Fixed model-test job kinds run on the Mac workers with a running record of writes and network use (or a sandbox that blocks out-of-scope writes); without one, the transient-write check shows unchecked."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-6a.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: l
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S71"
+  - id: S141
+    phase: PH13
+    title: "DA-2 — Private model-test set in the data layer"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#194 (trust build slice DA-2)."
+    entrance: "DA-1a merged."
+    success: "The private test set lives in the data layer, add-only; a copied answer is detected even without its marker."
+    check: "pnpm --fail-if-no-match --filter @localhelp/data-layer build && pnpm --fail-if-no-match --filter @localhelp/data-layer exec vitest run DA-2.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S86"
+  - id: S142
+    phase: PH13
+    title: "FR-6b — Held-out rules, family exclusion and run manifests for model tests"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#714 (trust build slice FR-6b)."
+    entrance: "FR-6a and DA-2 merged."
+    success: "Held-out results never select outcomes; seeded variants respect family exclusion; matching labels are backed by the same manifest; owner confirmations are checkable."
+    check: "pnpm vitest run --dir packages/fleet-runner FR-6b.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: l
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S140"
+  - id: S143
+    phase: PH13
+    title: "BD-5 — Score cards and status labels (the three scores kept apart)"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/LocalHelp#195 (trust build slice BD-5)."
+    entrance: "FR-6b merged."
+    success: "The three scores show apart, with unknown and unchecked never shown as clean, and #663 status labels on GitHub actions."
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-5.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S142"
+  - id: S144
     phase: PH13
     title: "CH-5a — Guided review: risk lists and matcher, read from the base branch"
     advances: "ns:l2-ojfbot#P2"
@@ -2140,7 +2298,7 @@ slices:
     kind: m
     repo: core
     status: queued
-  - id: S135
+  - id: S145
     phase: PH13
     title: "CH-5b — Guided review: fact skeleton with no model"
     advances: "ns:l2-ojfbot#P2"
@@ -2148,170 +2306,12 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/core#716 (trust build slice CH-5b)."
     entrance: "CH-5a merged."
-    success: "Top-screen facts, evidence, findings and supporting changes are built from the issue, diff, CI and review records at the head commit; the same inputs give byte-identical output; body claims appear only under \"author says\"; skipped jobs show as unchecked."
+    success: "Top-screen facts, evidence, findings and supporting changes are built from the issue, diff, CI and review records at the head commit; the same inputs give byte-identical output; body claims appear only under “author says”; skipped jobs show as unchecked."
     check: "pnpm vitest run CH-5b.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
     repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S134"
-  - id: S136
-    phase: PH13
-    title: "CH-5d — Guided review: review-input records, reviews independent of the guide"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#718 (trust build slice CH-5d)."
-    entrance: "CH-5b merged."
-    success: "Each review run records its inputs; the builder waits for both reviews; a guide identifier in a review's input fails it."
-    check: "pnpm vitest run CH-5d.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: s
-    repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S135"
-  - id: S137
-    phase: PH13
-    title: "CH-5e — Guided review: the quiz gate recomputes the score from the marks"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#719 (trust build slice CH-5e)."
-    entrance: "CH-5d merged."
-    success: "Quiz records hold the questions, answers, marks, grader and head SHA; the merge check recomputes the score and refuses a number-only record; a \"merge anyway\" note is claimed until it is an approval bound to that head (AU-6 / TI-4), and is refused after a later hold."
-    check: "pnpm vitest run CH-5e.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S136"
-  - id: S138
-    phase: PH13
-    title: "BD-1 — Accepted changes and spec-to-merge on the board, with a \"ready to build\" label"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#191 (trust build slice BD-1)."
-    entrance: "None; tests lane runs alongside, one slice at a time."
-    success: "Accepted changes and spec-ready-to-merge per repo for the last 4 weeks, with a \"no mark\" count. A \"ready to build\" label exists in LocalHelp, Core and DailyLogger."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-1.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: s
-    repo: LocalHelp
-    status: queued
-  - id: S139
-    phase: PH13
-    title: "BD-2 — Weekly total-spend collector with completeness"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#192 (trust build slice BD-2)."
-    entrance: "BD-1 merged."
-    success: "CI minutes, Claude tokens and Codex tokens per week across both Macs, including every factory execution path; a week shows \"unknown\" when any source is missing."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-2.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S138"
-  - id: S140
-    phase: PH13
-    title: "CH-4 — Regression kind in the defect ledger (ADR-0104 amendment)"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#710 (trust build slice CH-4)."
-    entrance: "None."
-    success: "`defect-file` and the sweep handle `regression` with a cause probe; settling a report as \"cause unknown\" never removes the growth hold."
-    check: "pnpm vitest run CH-4.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: core
-    status: queued
-  - id: S141
-    phase: PH13
-    title: "BD-3 — Growth reading: grow, hold or unknown, and the deciding condition"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#193 (trust build slice BD-3)."
-    entrance: "BD-2 and CH-4 merged."
-    success: "The board shows grow, hold or unknown and the condition that decided it, including \"hold\" on an open critical violation."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-3.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S139"
-  - id: S142
-    phase: PH13
-    title: "FR-6a — Model-test job kinds on the Mac workers"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#713 (trust build slice FR-6a)."
-    entrance: "FR-1 merged."
-    success: "Fixed model-test job kinds run on the Mac workers with a running record of writes and network use (or a sandbox that blocks out-of-scope writes); without one, the transient-write check shows unchecked."
-    check: "pnpm vitest run packages/fleet-runner FR-6a.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: l
-    repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S71"
-  - id: S143
-    phase: PH13
-    title: "DA-2 — Private model-test set in the data layer"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#194 (trust build slice DA-2)."
-    entrance: "DA-1a merged."
-    success: "The private test set lives in the data layer, add-only; a copied answer is detected even without its marker."
-    check: "pnpm --filter @localhelp/data-layer build && pnpm --filter @localhelp/data-layer exec vitest run DA-2.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S86"
-  - id: S144
-    phase: PH13
-    title: "FR-6b — Held-out rules, family exclusion and run manifests for model tests"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/core#714 (trust build slice FR-6b)."
-    entrance: "FR-6a and DA-2 merged."
-    success: "Held-out results never select outcomes; seeded variants respect family exclusion; matching labels are backed by the same manifest; owner confirmations are checkable."
-    check: "pnpm vitest run packages/fleet-runner FR-6b.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: l
-    repo: core
-    status: queued
-    depends_on: "rm:rm-l2-ojfbot#S142"
-  - id: S145
-    phase: PH13
-    title: "BD-5 — Score cards and status labels (the three scores kept apart)"
-    advances: "ns:l2-ojfbot#P2"
-    moves_from: 30
-    moves_to: 30
-    deliverable: "A reviewed PR closing ojfbot/LocalHelp#195 (trust build slice BD-5)."
-    entrance: "FR-6b merged."
-    success: "The three scores show apart, with unknown and unchecked never shown as clean, and #663 status labels on GitHub actions."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-5.test"
-    autonomy: gate-0
-    claimable_by: human_only
-    kind: m
-    repo: LocalHelp
     status: queued
     depends_on: "rm:rm-l2-ojfbot#S144"
   - id: S146
@@ -2329,8 +2329,40 @@ slices:
     kind: m
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S135"
+    depends_on: "rm:rm-l2-ojfbot#S145"
   - id: S147
+    phase: PH13
+    title: "CH-5d — Guided review: review-input records, reviews independent of the guide"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#718 (trust build slice CH-5d)."
+    entrance: "CH-5b merged."
+    success: "Each review run records its inputs; the builder waits for both reviews; a guide identifier in a review's input fails it."
+    check: "pnpm vitest run CH-5d.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: s
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S145"
+  - id: S148
+    phase: PH13
+    title: "CH-5e — Guided review: the quiz gate recomputes the score from the marks"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "A reviewed PR closing ojfbot/core#719 (trust build slice CH-5e)."
+    entrance: "CH-5d merged."
+    success: "Quiz records hold the questions, answers, marks, grader and head SHA; the merge check recomputes the score and refuses a number-only record; a “merge anyway” note is claimed until it is an approval bound to that head (AU-6 / TI-4), and is refused after a later hold."
+    check: "pnpm vitest run CH-5e.test"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: core
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S147"
+  - id: S149
     phase: PH13
     title: "BD-4 — Owner-minutes estimate per accepted change"
     advances: "ns:l2-ojfbot#P2"
@@ -2338,15 +2370,15 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#196 (trust build slice BD-4)."
     entrance: "BD-1 merged."
-    success: "Weekly owner minutes ÷ accepted changes, labelled \"estimate\"."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-4.test"
+    success: "Weekly owner minutes ÷ accepted changes, labelled “estimate”."
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-4.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S138"
-  - id: S148
+    depends_on: "rm:rm-l2-ojfbot#S134"
+  - id: S150
     phase: PH13
     title: "DLG-2 — Measures block pasted from the feed, written by code"
     advances: "ns:l2-ojfbot#P2"
@@ -2361,8 +2393,8 @@ slices:
     kind: s
     repo: daily-logger
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S141"
-  - id: S149
+    depends_on: "rm:rm-l2-ojfbot#S139"
+  - id: S151
     phase: PH13
     title: "BD-6 — Guide measures: taught quiz scores and owner minutes, before and after guides"
     advances: "ns:l2-ojfbot#P2"
@@ -2371,14 +2403,30 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#197 (trust build slice BD-6)."
     entrance: "CH-5e and BD-4 merged."
     success: "Taught quiz scores and owner minutes per accepted change, before and after guides, labelled, with taught and cold kept apart."
-    check: "pnpm --filter @localhelp/board build && pnpm --filter @localhelp/board exec vitest run BD-6.test"
+    check: "pnpm --fail-if-no-match --filter @localhelp/board build && pnpm --fail-if-no-match --filter @localhelp/board exec vitest run BD-6.test"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S137"
-  - id: S150
+    depends_on: "rm:rm-l2-ojfbot#S148"
+  - id: S152
+    phase: PH13
+    title: "OW-5b — (owner-only) Owner: make the defect-lint and quiz-gate checks required"
+    advances: "ns:l2-ojfbot#P2"
+    moves_from: 30
+    moves_to: 30
+    deliverable: "Owner step recorded on ojfbot/LocalHelp#206 (trust build slice OW-5b)."
+    entrance: "CH-3b and CH-5e merged; OW-5a done."
+    success: "Rulesets make the defect-lint check (unapproved probes) and the quiz-gate check (high-risk PRs) required where ruled, with no bypass for any identity on the Macs."
+    check: "bash scripts/check-rulesets"
+    autonomy: gate-0
+    claimable_by: human_only
+    kind: m
+    repo: LocalHelp
+    status: queued
+    depends_on: "rm:rm-l2-ojfbot#S138"
+  - id: S153
     phase: PH13
     title: "RETRO-5 — Tests lane retro: re-check measures and whether any AI judge is being proposed"
     advances: "ns:l2-ojfbot#P2"
@@ -2387,13 +2435,13 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#720 (trust build slice RETRO-5)."
     entrance: "Every other tests-lane slice closed."
     success: "As RETRO-0. Also: confirm no AI-judge flag gates anything (#671: none gates yet), and list which measures are claimed."
-    check: "test \"$(gh issue list -R ojfbot/LocalHelp --label \"layer:5-tests-lane\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/core --label \"layer:5-tests-lane\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0 && test \"$(gh issue list -R ojfbot/daily-logger --label \"layer:5-tests-lane\" --label trust-slice --state open --limit 200 --json title -q '[.[]|select(.title|test(\"RETRO-\")|not)]|length')\" = 0"
+    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
     repo: core
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S133"
+    depends_on: "rm:rm-l2-ojfbot#S152"
 ---
 
 # Roadmap — l2-ojfbot (northstar coverage via the voice relay)
@@ -2630,7 +2678,7 @@ movement value, status change, queue, runtime or dispatch grant.
 
 ## PH8–PH13 — Agent trust build (wayfinder map core#661)
 
-**Route.** The map "agent trust and factory evaluation" (ojfbot/core#661) is ruled. Its closing ticket, ojfbot/core#674 ("Resolution (revised)"), gives about 120 guarantees, one owner each, six NAS services and an ordered slice list. Here that list is split until each slice fits one build session and one reviewable PR: 111 slices in six layers. Each layer is one roadmap phase and one epic issue, and each slice is a sub-issue of its epic. The slices advance `ns:l2-ojfbot#P2` only indirectly, by making the fleet's work checkable, so none claims movement (`moves_from = moves_to = 30`).
+**Route.** The map "agent trust and factory evaluation" (ojfbot/core#661) is ruled. Its closing ticket, ojfbot/core#674 ("Resolution (revised)"), gives about 120 guarantees, one owner each, six NAS services and an ordered slice list. Here that list is split until each slice fits one build session and one reviewable PR: 114 slices in six layers. Each layer is one roadmap phase and one epic issue, and each slice is a sub-issue of its epic. The slices advance `ns:l2-ojfbot#P2` only indirectly, by making the fleet's work checkable, so none claims movement (`moves_from = moves_to = 30`).
 
 Epics:
 - Phase 0: owner setup and the authority service: ojfbot/core#688 (fleet roadmap `PH8`)
@@ -2643,7 +2691,7 @@ Epics:
 Discoveries and plan gaps: ojfbot/core#687. Sanity-check brief: kept privately beside the research notes.
 
 **How these slices are worked.**
-- Order: phase 0 (owner setup and the authority service), phase 1 (enforcement), the outside security review and each enforcer's go-live tap, phase 2 (evidence), phase 3 (seats and stops). The tests lane runs alongside, one slice at a time. Inside a layer, dispatch in roadmap order (the S-numbers), which follows #674's listed order. The native GitHub "blocked by" links are the hard prerequisites. The Core fleet roadmap's `depends_on` names only each slice's first blocker.
+- Order: phase 0 (owner setup and the authority service), phase 1 (enforcement), the outside security review and each enforcer's go-live tap, phase 2 (evidence), phase 3 (seats and stops). The tests lane runs alongside, one slice at a time. Inside a layer, dispatch in the order the layer's epic lists its slices, which follows #674's listed order. S-numbers are assigned once and never reused, so they are identities, not an order. The native GitHub "blocked by" links are the hard prerequisites. The Core fleet roadmap's `depends_on` names only each slice's first blocker.
 - **Numbering.** Layer 0 is phase 0 and roadmap phase PH8. Layer 1 is phase 1 (PH9), layer 2 is the outside review (PH10), layer 3 is phase 2 (PH11), layer 4 is phase 3 (PH12), and layer 5 is the tests lane (PH13).
 - **Watch-only first.** Every check that blocks something ships watch-only on staging. It records what it would refuse and blocks nothing. It switches to blocking on data, with one owner tap at go-live. This is a data-gated promotion under ADR-0086 (watch-only is what the harness calls shadow mode).
 - **Owner-only steps** (`OW-*`, labelled `owner-only`) are never done by agents. Agents may write the runbook or wizard and run the read-only check afterwards.
@@ -2656,7 +2704,7 @@ Discoveries and plan gaps: ojfbot/core#687. Sanity-check brief: kept privately b
 - A discovery that **only changes a slice** gets a re-plan of that slice, not of the whole map.
 - Each layer ends with a **layer retro** slice (`RETRO-0` to `RETRO-5`) that re-checks the next layer's assumptions before it starts.
 
-Owner-only issues: `OW-0` ojfbot/LocalHelp#127, `OW-SVC` ojfbot/LocalHelp#199, `OW-BK-AU` ojfbot/LocalHelp#141, `OW-K1` ojfbot/LocalHelp#131, `OW-FID` ojfbot/LocalHelp#134, `OW-ACK` ojfbot/LocalHelp#135, `OW-1a` ojfbot/LocalHelp#137, `OW-1b` ojfbot/LocalHelp#138, `OW-2` ojfbot/LocalHelp#139, `OW-6` ojfbot/LocalHelp#140, `OW-8a` ojfbot/LocalHelp#157, `OW-8` ojfbot/LocalHelp#159, `OW-7` ojfbot/LocalHelp#156, `OW-BK-DA` ojfbot/LocalHelp#163, `OW-CK` ojfbot/LocalHelp#202, `OW-4` ojfbot/LocalHelp#174, `OW-5` ojfbot/LocalHelp#175, `OW-3` ojfbot/LocalHelp#184, `OW-K2` ojfbot/LocalHelp#189.
+Owner-only issues: `OW-0` ojfbot/LocalHelp#127, `OW-SVC` ojfbot/LocalHelp#199, `OW-BK-AU` ojfbot/LocalHelp#141, `OW-K1` ojfbot/LocalHelp#131, `OW-FID` ojfbot/LocalHelp#134, `OW-ACK` ojfbot/LocalHelp#135, `OW-1a` ojfbot/LocalHelp#137, `OW-1b` ojfbot/LocalHelp#138, `OW-2` ojfbot/LocalHelp#139, `OW-6` ojfbot/LocalHelp#140, `OW-8a` ojfbot/LocalHelp#157, `OW-8` ojfbot/LocalHelp#159, `OW-7` ojfbot/LocalHelp#156, `OW-BK-DA` ojfbot/LocalHelp#163, `OW-CK` ojfbot/LocalHelp#202, `OW-4` ojfbot/LocalHelp#174, `OW-5a` ojfbot/LocalHelp#175, `OW-3` ojfbot/LocalHelp#184, `OW-K2` ojfbot/LocalHelp#189, `OW-5b` ojfbot/LocalHelp#206.
 
 ### PH8 — Phase 0: owner setup and the authority service
 
@@ -2668,12 +2716,12 @@ Epic ojfbot/core#688. The Macs can no longer administer the NAS; the authority s
 | S41 | `OW-0` | **owner-only** · Owner: take NAS admin away from the Macs (slice 0) | LocalHelp | ojfbot/LocalHelp#127 | `P0-PROBE` | high |
 | S42 | `P0-WIZ` | Owner-setup wizard for the GitHub Apps, key enrolment and the terminal token switch (#681 S1 wizard part) | LocalHelp | ojfbot/LocalHelp#128 | — | low |
 | S43 | `AU-1a` | Authority service skeleton: own account and key, hash-chained journal, replay and read-only status | LocalHelp | ojfbot/LocalHelp#129 | — | high |
-| S44 | `AU-1b` | Signing keys, the pinned first key and the passkey signing page | LocalHelp | ojfbot/LocalHelp#130 | `AU-1a` | high |
-| S45 | `AU-1c` | Approval records and the spent-approval ledger | LocalHelp | ojfbot/LocalHelp#132 | `AU-1b` | high |
-| S46 | `AU-1d` | `helpdesk-promote` spends an approval ID at the authority service (closes LocalHelp#124) | LocalHelp | ojfbot/LocalHelp#133 | `AU-1c` | medium |
-| S47 | `TI-1a` | Token issuer skeleton: own account, key store and enrolment, no minting yet | LocalHelp | ojfbot/LocalHelp#136 | `OW-0` | high |
-| S48 | `OW-SVC` | **owner-only** · Owner: create a NAS account and key for each new service (authority service, token issuer, checker, data layer) | LocalHelp | ojfbot/LocalHelp#199 | `OW-0` | medium |
-| S49 | `OW-BK-AU` | **owner-only** · Owner: add the authority service data and the issuer's keys to the NAS backup (separate reviewed change) | LocalHelp | ojfbot/LocalHelp#141 | `AU-1a`, `TI-1a`, `OW-SVC` | medium |
+| S44 | `OW-SVC` | **owner-only** · Owner: create a NAS account and key for each new service (authority service, token issuer, checker, data layer) | LocalHelp | ojfbot/LocalHelp#199 | `OW-0` | medium |
+| S45 | `AU-1b` | Signing keys, the pinned first key and the passkey signing page | LocalHelp | ojfbot/LocalHelp#130 | `AU-1a`, `OW-SVC` | high |
+| S46 | `AU-1c` | Approval records and the spent-approval ledger | LocalHelp | ojfbot/LocalHelp#132 | `AU-1b` | high |
+| S47 | `AU-1d` | `helpdesk-promote` spends an approval ID at the authority service (closes LocalHelp#124) | LocalHelp | ojfbot/LocalHelp#133 | `AU-1c` | medium |
+| S48 | `TI-1a` | Token issuer skeleton: own account, key store and enrolment, no minting yet | LocalHelp | ojfbot/LocalHelp#136 | `OW-SVC` | high |
+| S49 | `OW-BK-AU` | **owner-only** · Owner: add the authority service data and the issuer's keys to the NAS backup (separate reviewed change) | LocalHelp | ojfbot/LocalHelp#141 | `AU-1b`, `TI-1a` | medium |
 | S50 | `P0-GL` | Install the authority service and the token issuer at the go-live level (one owner tap) | LocalHelp | ojfbot/LocalHelp#200 | `AU-1d`, `TI-1a`, `OW-SVC`, `OW-BK-AU` | medium |
 | S51 | `OW-K1` | **owner-only** · Owner: add the first signing key at the NAS and pin it on one Mac | LocalHelp | ojfbot/LocalHelp#131 | `P0-GL` | medium |
 | S52 | `OW-FID` | **owner-only** · Owner: the first Face ID promote approval, end to end | LocalHelp | ojfbot/LocalHelp#134 | `AU-1d`, `OW-K1` | medium |
@@ -2732,30 +2780,31 @@ Epic ojfbot/core#691. One staging action rebuilds from raw records, with a statu
 | Roadmap | Slice | Title | Repo | Issue | Blocked by | Complexity (draft) |
 |---|---|---|---|---|---|---|
 | S86 | `DA-1a` | Data layer: add-only store with signed receipts and a hash-chained journal | LocalHelp | ojfbot/LocalHelp#162 | `RETRO-2` | high |
-| S87 | `OW-BK-DA` | **owner-only** · Owner: add the data-layer store to the NAS backup (separate reviewed change) | LocalHelp | ojfbot/LocalHelp#163 | `DA-1a` | medium |
-| S88 | `CH-7` | Hook logs: identifiers only, numbered, with an end-of-run count, copied to the data layer | core | ojfbot/core#702 | `DA-1a` | medium |
-| S89 | `HD-4a` | HelpDesk: stored request signatures with full inputs, and hash-chained events | LocalHelp | ojfbot/LocalHelp#164 | `RETRO-2` | high |
-| S90 | `HD-4b` | HelpDesk: parent links on TASK and RESULT, journaled listener grants, verdict split from posting | LocalHelp | ojfbot/LocalHelp#165 | `HD-4a` | medium |
-| S91 | `FR-2` | FleetRunner chain fields: admitter, output digest, attempt ID | core | ojfbot/core#703 | `RETRO-2` | medium |
-| S92 | `AU-W` | Authority journal sends its fingerprint on every append or once a minute | LocalHelp | ojfbot/LocalHelp#166 | `DA-1a` | low |
-| S93 | `FR-W` | FleetRunner journal sends its fingerprint on every append or once a minute | core | ojfbot/core#704 | `DA-1a`, `FR-2` | low |
-| S94 | `DA-W` | Data layer journal sends its fingerprint on every append or once a minute | LocalHelp | ojfbot/LocalHelp#201 | `DA-1a` | low |
-| S95 | `HD-5` | HelpDesk sends fingerprints, and the device client keeps witness copies on each Mac | LocalHelp | ojfbot/LocalHelp#167 | `HD-4a`, `DA-1a` | medium |
-| S96 | `CK-1a` | Checker skeleton: read-only, own account and key, signed findings only | LocalHelp | ojfbot/LocalHelp#168 | `RETRO-2` | medium |
-| S97 | `OW-CK` | **owner-only** · Owner: give the checker a read-only GitHub credential and its settings-event source | LocalHelp | ojfbot/LocalHelp#202 | `CK-1a` | medium |
-| S98 | `CK-1b` | Linker: rebuild one staging action from raw records, with a status per link | LocalHelp | ojfbot/LocalHelp#169 | `CK-1a`, `HD-1a`, `HD-4b`, `FR-2` | high |
-| S99 | `CK-2` | Scope check after the fact | LocalHelp | ojfbot/LocalHelp#170 | `CK-1b`, `OW-CK` | medium |
-| S100 | `CK-5` | Compare witness copies and report which witnesses are independent | LocalHelp | ojfbot/LocalHelp#171 | `HD-5`, `AU-W`, `FR-W`, `DA-W`, `CK-1a` | medium |
-| S101 | `DLG-1` | DailyLogger publish door record | daily-logger | ojfbot/daily-logger#595 | `RETRO-2` | low |
-| S102 | `AU-6` | Ask-first gate with a fixed prediction at the spend | LocalHelp | ojfbot/LocalHelp#172 | `RETRO-2` | high |
-| S103 | `TI-4` | Gate App posts the merge-proof check only on a verified, unspent approval at that head | LocalHelp | ojfbot/LocalHelp#173 | `AU-6`, `TI-1b` | high |
-| S104 | `DLG-5` | Publishing merges need the merge proof or the written standing exception | daily-logger | ojfbot/daily-logger#596 | `TI-4` | medium |
-| S105 | `OW-4` | **owner-only** · Owner: approve the daily-article standing exception once, as written | LocalHelp | ojfbot/LocalHelp#174 | `AU-6` | low |
-| S106 | `P2-GL` | Switch the ask-first gate and the merge proof from watch-only to enforcing (one owner tap each) | LocalHelp | ojfbot/LocalHelp#203 | `AU-6`, `TI-4`, `OW-4` | medium |
-| S107 | `OW-5` | **owner-only** · Owner: rulesets and required checks (defect lint, quiz gate, merge proof), no direct push to main | LocalHelp | ojfbot/LocalHelp#175 | `P2-GL`, `DLG-5`, `CH-3b`, `CH-5e` | medium |
-| S108 | `CK-3` | Critical-violation alarms through HelpDesk's alert route | LocalHelp | ojfbot/LocalHelp#176 | `CK-1b` | medium |
-| S109 | `CK-4` | Settings watcher: every settings change reaches the phone within the deadline | LocalHelp | ojfbot/LocalHelp#177 | `CK-1a`, `OW-CK` | medium |
-| S110 | `RETRO-3` | Layer retro: evidence is in, re-check phase 3 assumptions | core | ojfbot/core#705 | `OW-BK-DA`, `CH-7`, `CK-2`, `CK-5`, `DLG-1`, `OW-5`, `CK-3`, `CK-4` | low |
+| S87 | `CK-1a` | Checker skeleton: read-only, own account and key, signed findings only | LocalHelp | ojfbot/LocalHelp#168 | `RETRO-2` | medium |
+| S88 | `P2-INST` | Install the data layer and the checker at the go-live level (one owner tap) | LocalHelp | ojfbot/LocalHelp#205 | `DA-1a`, `CK-1a` | medium |
+| S89 | `OW-BK-DA` | **owner-only** · Owner: add the data-layer store to the NAS backup (separate reviewed change) | LocalHelp | ojfbot/LocalHelp#163 | `P2-INST` | medium |
+| S90 | `CH-7` | Hook logs: identifiers only, numbered, with an end-of-run count, copied to the data layer | core | ojfbot/core#702 | `DA-1a` | medium |
+| S91 | `HD-4a` | HelpDesk: stored request signatures with full inputs, and hash-chained events | LocalHelp | ojfbot/LocalHelp#164 | `RETRO-2` | high |
+| S92 | `HD-4b` | HelpDesk: parent links on TASK and RESULT, journaled listener grants, verdict split from posting | LocalHelp | ojfbot/LocalHelp#165 | `HD-4a` | medium |
+| S93 | `FR-2` | FleetRunner chain fields: admitter, output digest, attempt ID | core | ojfbot/core#703 | `RETRO-2` | medium |
+| S94 | `AU-W` | Authority journal sends its fingerprint on every append or once a minute | LocalHelp | ojfbot/LocalHelp#166 | `DA-1a` | low |
+| S95 | `FR-W` | FleetRunner journal sends its fingerprint on every append or once a minute | core | ojfbot/core#704 | `DA-1a`, `FR-2` | low |
+| S96 | `DA-W` | Data layer journal sends its fingerprint on every append or once a minute | LocalHelp | ojfbot/LocalHelp#201 | `DA-1a` | low |
+| S97 | `HD-5` | HelpDesk sends fingerprints, and the device client keeps witness copies on each Mac | LocalHelp | ojfbot/LocalHelp#167 | `HD-4a`, `DA-1a` | medium |
+| S98 | `OW-CK` | **owner-only** · Owner: give the checker a read-only GitHub credential and its settings-event source | LocalHelp | ojfbot/LocalHelp#202 | `P2-INST` | medium |
+| S99 | `CK-1b` | Linker: rebuild one staging action from raw records, with a status per link | LocalHelp | ojfbot/LocalHelp#169 | `CK-1a`, `HD-1a`, `HD-4b`, `FR-2` | high |
+| S100 | `CK-2` | Scope check after the fact | LocalHelp | ojfbot/LocalHelp#170 | `CK-1b`, `OW-CK` | medium |
+| S101 | `CK-5` | Compare witness copies and report which witnesses are independent | LocalHelp | ojfbot/LocalHelp#171 | `HD-5`, `AU-W`, `FR-W`, `DA-W`, `CK-1a` | medium |
+| S102 | `DLG-1` | DailyLogger publish door record | daily-logger | ojfbot/daily-logger#595 | `RETRO-2` | low |
+| S103 | `AU-6` | Ask-first gate with a fixed prediction at the spend | LocalHelp | ojfbot/LocalHelp#172 | `RETRO-2` | high |
+| S104 | `TI-4` | Gate App posts the merge-proof check only on a verified, unspent approval at that head | LocalHelp | ojfbot/LocalHelp#173 | `AU-6`, `TI-1b` | high |
+| S105 | `DLG-5` | Publishing merges need the merge proof or the written standing exception | daily-logger | ojfbot/daily-logger#596 | `TI-4` | medium |
+| S106 | `OW-4` | **owner-only** · Owner: approve the daily-article standing exception once, as written | LocalHelp | ojfbot/LocalHelp#174 | `AU-6` | low |
+| S107 | `P2-GL` | Switch the ask-first gate and the merge proof from watch-only to enforcing (one owner tap each) | LocalHelp | ojfbot/LocalHelp#203 | `AU-6`, `TI-4`, `OW-4` | medium |
+| S108 | `OW-5a` | **owner-only** · Owner: rulesets that require the merge-proof check, and no direct push to main | LocalHelp | ojfbot/LocalHelp#175 | `P2-GL`, `DLG-5` | medium |
+| S109 | `CK-3` | Critical-violation alarms through HelpDesk's alert route | LocalHelp | ojfbot/LocalHelp#176 | `CK-1b` | medium |
+| S110 | `CK-4` | Settings watcher: every settings change reaches the phone within the deadline | LocalHelp | ojfbot/LocalHelp#177 | `CK-1a`, `OW-CK` | medium |
+| S111 | `RETRO-3` | Layer retro: evidence is in, re-check phase 3 assumptions | core | ojfbot/core#705 | `OW-BK-DA`, `CH-7`, `CK-2`, `CK-5`, `DLG-1`, `OW-5a`, `CK-3`, `CK-4` | low |
 
 ### PH12 — Phase 3: seats and stops
 
@@ -2763,27 +2812,28 @@ Epic ojfbot/core#692. A stop is proven or reported "not complete"; ending a reco
 
 | Roadmap | Slice | Title | Repo | Issue | Blocked by | Complexity (draft) |
 |---|---|---|---|---|---|---|
-| S111 | `HD-6` | Wake stop-now: abort and check a running review on pause or revoke | LocalHelp | ojfbot/LocalHelp#178 | `RETRO-3` | high |
-| S112 | `HD-7a` | Stop verdict record and routing: "not complete" until every item is proven | LocalHelp | ojfbot/LocalHelp#179 | `RETRO-3` | medium |
-| S113 | `HD-7b` | HelpDesk stop support: look-up without posting, saved answers dropped, registered-sessions switch | LocalHelp | ojfbot/LocalHelp#180 | `HD-7a` | medium |
-| S114 | `AU-9` | Ending and cascade: ending a record ends everything below it | LocalHelp | ojfbot/LocalHelp#181 | `RETRO-3` | high |
-| S115 | `FR-3` | FleetRunner "stop attempt" transition that voids the fence | core | ojfbot/core#706 | `RETRO-3` | medium |
-| S116 | `TI-3` | Per-Mac cut at the issuer, with the cut runbook | LocalHelp | ojfbot/LocalHelp#182 | `RETRO-3` | medium |
-| S117 | `HD-7c` | Cancel queued GitHub effects with an issuer token, and read them back | LocalHelp | ojfbot/LocalHelp#183 | `HD-7a`, `TI-3` | medium |
-| S118 | `DLG-4` | Hosted writers' cut: disable the workflows and narrow their secret on a stop | daily-logger | ojfbot/daily-logger#597 | `RETRO-3` | low |
-| S119 | `OW-3` | **owner-only** · Owner: switch DailyLogger's stored workflow token to an App token or a narrowed token | LocalHelp | ojfbot/LocalHelp#184 | `DLG-4` | medium |
-| S120 | `AU-10` | Child seats and takeover records | LocalHelp | ojfbot/LocalHelp#185 | `RETRO-3` | high |
-| S121 | `HD-8` | Registry lapse warning at 8 hours, and alert-route rules | LocalHelp | ojfbot/LocalHelp#186 | `AU-10` | medium |
-| S122 | `FR-5` | Work-register baskets (ADR-0110 amendment) | core | ojfbot/core#707 | `RETRO-3` | medium |
-| S123 | `AU-7` | Check-up and renewal: reminders at day 80, 87 and 89 | LocalHelp | ojfbot/LocalHelp#187 | `RETRO-3`, `HD-8` | medium |
-| S124 | `AU-8` | Second key, revocations and the lost-phone drill (agent part) | LocalHelp | ojfbot/LocalHelp#188 | `RETRO-3` | high |
-| S125 | `OW-K2` | **owner-only** · Owner: add the backup key and run the lost-phone drill | LocalHelp | ojfbot/LocalHelp#189 | `AU-8` | medium |
-| S126 | `HD-9` | Wake audience and quote check | LocalHelp | ojfbot/LocalHelp#190 | `RETRO-3` | medium |
-| S127 | `CH-6` | Status labels and claim fixes in Core: `/resume` and GitHub actions | core | ojfbot/core#708 | `RETRO-3` | medium |
-| S128 | `DLG-3a` | DailyLogger claim-check fix: verdicts depend only on independent records | daily-logger | ojfbot/daily-logger#598 | `RETRO-3` | medium |
-| S129 | `DLG-3b` | DailyLogger comment actuators and status labels | daily-logger | ojfbot/daily-logger#601 | `DLG-3a` | medium |
-| S130 | `P3-GL` | Switch the phase 3 controls to go-live (one owner tap each) | LocalHelp | ojfbot/LocalHelp#204 | `HD-6`, `HD-7b`, `HD-7c`, `AU-9`, `HD-8`, `AU-10` | medium |
-| S131 | `RETRO-4` | Layer retro: seats and stops done; close the map's build | core | ojfbot/core#709 | `P3-GL`, `FR-3`, `OW-3`, `FR-5`, `AU-7`, `OW-K2`, `HD-9`, `CH-6`, `DLG-3b` | low |
+| S112 | `HD-6` | Wake stop-now: abort and check a running review on pause or revoke | LocalHelp | ojfbot/LocalHelp#178 | `RETRO-3` | high |
+| S113 | `HD-7a` | Stop verdict record and routing: "not complete" until every item is proven | LocalHelp | ojfbot/LocalHelp#179 | `RETRO-3` | medium |
+| S114 | `HD-7b` | HelpDesk stop support: look-up without posting, saved answers dropped, registered-sessions switch | LocalHelp | ojfbot/LocalHelp#180 | `HD-7a` | medium |
+| S115 | `AU-9` | Ending and cascade: ending a record ends everything below it | LocalHelp | ojfbot/LocalHelp#181 | `RETRO-3` | high |
+| S116 | `FR-3` | FleetRunner "stop attempt" transition that voids the fence | core | ojfbot/core#706 | `RETRO-3` | medium |
+| S117 | `TI-3` | Per-Mac cut at the issuer, with the cut runbook | LocalHelp | ojfbot/LocalHelp#182 | `RETRO-3` | medium |
+| S118 | `HD-7c` | Cancel queued GitHub effects with an issuer token, and read them back | LocalHelp | ojfbot/LocalHelp#183 | `HD-7a`, `TI-3` | medium |
+| S119 | `DLG-4` | Hosted writers in the stop inventory: stop automation for the hosted workflows, and the owner's secret runbook | daily-logger | ojfbot/daily-logger#597 | `RETRO-3` | low |
+| S120 | `OW-3` | **owner-only** · Owner: switch DailyLogger's stored workflow token to an App token or a narrowed token | LocalHelp | ojfbot/LocalHelp#184 | `DLG-4` | medium |
+| S121 | `AU-10` | Child seats and takeover records | LocalHelp | ojfbot/LocalHelp#185 | `RETRO-3` | high |
+| S122 | `HD-8` | Registry lapse warning at 8 hours, and alert-route rules | LocalHelp | ojfbot/LocalHelp#186 | `AU-10` | medium |
+| S123 | `FR-5` | Work-register baskets (ADR-0110 amendment) | core | ojfbot/core#707 | `RETRO-3` | medium |
+| S124 | `AU-7` | Check-up and renewal: reminders at day 80, 87 and 89 | LocalHelp | ojfbot/LocalHelp#187 | `RETRO-3`, `HD-8` | medium |
+| S125 | `AU-8` | Second key, revocations and the lost-phone drill (agent part) | LocalHelp | ojfbot/LocalHelp#188 | `RETRO-3` | high |
+| S126 | `P3-GL` | Switch the phase 3 controls to go-live (one owner tap each) | LocalHelp | ojfbot/LocalHelp#204 | `HD-6`, `HD-7b`, `HD-7c`, `AU-9`, `HD-8`, `AU-10`, `AU-7`, `AU-8`, `TI-3`, `DLG-4` | medium |
+| S127 | `OW-K2` | **owner-only** · Owner: add the backup key and run the lost-phone drill | LocalHelp | ojfbot/LocalHelp#189 | `P3-GL` | medium |
+| S128 | `HD-9` | Wake audience and quote check | LocalHelp | ojfbot/LocalHelp#190 | `RETRO-3` | medium |
+| S129 | `CH-6` | Status labels and claim fixes in Core: `/resume` and GitHub actions | core | ojfbot/core#708 | `RETRO-3` | medium |
+| S130 | `DLG-3a` | DailyLogger claim-check fix: verdicts depend only on independent records | daily-logger | ojfbot/daily-logger#598 | `RETRO-3` | medium |
+| S131 | `DLG-3b` | DailyLogger comment actuators and status labels | daily-logger | ojfbot/daily-logger#601 | `DLG-3a` | medium |
+| S132 | `P3-GL-FR` | Switch FleetRunner's stop transition and baskets to go-live (one owner tap each) | core | ojfbot/core#722 | `FR-3`, `FR-5` | low |
+| S133 | `RETRO-4` | Layer retro: seats and stops done; close the map's build | core | ojfbot/core#709 | `P3-GL`, `P3-GL-FR`, `OW-3`, `OW-K2`, `HD-9`, `CH-6`, `DLG-3b` | low |
 
 ### PH13 — Tests lane (runs alongside, one slice at a time)
 
@@ -2791,22 +2841,23 @@ Epic ojfbot/core#693. Model tests, the three scores, factory measures and guided
 
 | Roadmap | Slice | Title | Repo | Issue | Blocked by | Complexity (draft) |
 |---|---|---|---|---|---|---|
-| S132 | `CH-3a` | Probe approvals pin the text, the commit and the sandbox profile | core | ojfbot/core#711 | `OW-FID` | high |
-| S133 | `CH-3b` | Defect sweep as a fixed FleetRunner job in a sandbox, with the defect lint at merge | core | ojfbot/core#712 | `CH-3a`, `FR-1` | medium |
-| S134 | `CH-5a` | Guided review: risk lists and matcher, read from the base branch | core | ojfbot/core#715 | — | medium |
-| S135 | `CH-5b` | Guided review: fact skeleton with no model | core | ojfbot/core#716 | `CH-5a` | medium |
-| S136 | `CH-5d` | Guided review: review-input records, reviews independent of the guide | core | ojfbot/core#718 | `CH-5b` | low |
-| S137 | `CH-5e` | Guided review: the quiz gate recomputes the score from the marks | core | ojfbot/core#719 | `CH-5d` | medium |
-| S138 | `BD-1` | Accepted changes and spec-to-merge on the board, with a "ready to build" label | LocalHelp | ojfbot/LocalHelp#191 | — | low |
-| S139 | `BD-2` | Weekly total-spend collector with completeness | LocalHelp | ojfbot/LocalHelp#192 | `BD-1` | medium |
-| S140 | `CH-4` | Regression kind in the defect ledger (ADR-0104 amendment) | core | ojfbot/core#710 | — | medium |
-| S141 | `BD-3` | Growth reading: grow, hold or unknown, and the deciding condition | LocalHelp | ojfbot/LocalHelp#193 | `BD-2`, `CH-4` | medium |
-| S142 | `FR-6a` | Model-test job kinds on the Mac workers | core | ojfbot/core#713 | `FR-1` | high |
-| S143 | `DA-2` | Private model-test set in the data layer | LocalHelp | ojfbot/LocalHelp#194 | `DA-1a` | medium |
-| S144 | `FR-6b` | Held-out rules, family exclusion and run manifests for model tests | core | ojfbot/core#714 | `FR-6a`, `DA-2` | high |
-| S145 | `BD-5` | Score cards and status labels (the three scores kept apart) | LocalHelp | ojfbot/LocalHelp#195 | `FR-6b` | medium |
+| S134 | `BD-1` | Accepted changes and spec-to-merge on the board, with a "ready to build" label | LocalHelp | ojfbot/LocalHelp#191 | — | low |
+| S135 | `BD-2` | Weekly total-spend collector with completeness | LocalHelp | ojfbot/LocalHelp#192 | `BD-1` | medium |
+| S136 | `CH-4` | Regression kind in the defect ledger (ADR-0104 amendment) | core | ojfbot/core#710 | — | medium |
+| S137 | `CH-3a` | Probe approvals pin the text, the commit and the sandbox profile | core | ojfbot/core#711 | `OW-FID` | high |
+| S138 | `CH-3b` | Defect sweep as a fixed FleetRunner job in a sandbox, with the defect lint at merge | core | ojfbot/core#712 | `CH-3a`, `FR-1` | medium |
+| S139 | `BD-3` | Growth reading: grow, hold or unknown, and the deciding condition | LocalHelp | ojfbot/LocalHelp#193 | `BD-2`, `CH-4` | medium |
+| S140 | `FR-6a` | Model-test job kinds on the Mac workers | core | ojfbot/core#713 | `FR-1` | high |
+| S141 | `DA-2` | Private model-test set in the data layer | LocalHelp | ojfbot/LocalHelp#194 | `DA-1a` | medium |
+| S142 | `FR-6b` | Held-out rules, family exclusion and run manifests for model tests | core | ojfbot/core#714 | `FR-6a`, `DA-2` | high |
+| S143 | `BD-5` | Score cards and status labels (the three scores kept apart) | LocalHelp | ojfbot/LocalHelp#195 | `FR-6b` | medium |
+| S144 | `CH-5a` | Guided review: risk lists and matcher, read from the base branch | core | ojfbot/core#715 | — | medium |
+| S145 | `CH-5b` | Guided review: fact skeleton with no model | core | ojfbot/core#716 | `CH-5a` | medium |
 | S146 | `CH-5c` | Guided review: explainer and per-link-type link check | core | ojfbot/core#717 | `CH-5b` | medium |
-| S147 | `BD-4` | Owner-minutes estimate per accepted change | LocalHelp | ojfbot/LocalHelp#196 | `BD-1` | low |
-| S148 | `DLG-2` | Measures block pasted from the feed, written by code | daily-logger | ojfbot/daily-logger#599 | `BD-3` | low |
-| S149 | `BD-6` | Guide measures: taught quiz scores and owner minutes, before and after guides | LocalHelp | ojfbot/LocalHelp#197 | `CH-5e`, `BD-4` | low |
-| S150 | `RETRO-5` | Tests lane retro: re-check measures and whether any AI judge is being proposed | core | ojfbot/core#720 | `CH-3b`, `BD-5`, `CH-5c`, `DLG-2`, `BD-6` | low |
+| S147 | `CH-5d` | Guided review: review-input records, reviews independent of the guide | core | ojfbot/core#718 | `CH-5b` | low |
+| S148 | `CH-5e` | Guided review: the quiz gate recomputes the score from the marks | core | ojfbot/core#719 | `CH-5d` | medium |
+| S149 | `BD-4` | Owner-minutes estimate per accepted change | LocalHelp | ojfbot/LocalHelp#196 | `BD-1` | low |
+| S150 | `DLG-2` | Measures block pasted from the feed, written by code | daily-logger | ojfbot/daily-logger#599 | `BD-3` | low |
+| S151 | `BD-6` | Guide measures: taught quiz scores and owner minutes, before and after guides | LocalHelp | ojfbot/LocalHelp#197 | `CH-5e`, `BD-4` | low |
+| S152 | `OW-5b` | **owner-only** · Owner: make the defect-lint and quiz-gate checks required | LocalHelp | ojfbot/LocalHelp#206 | `CH-3b`, `CH-5e`, `OW-5a` | medium |
+| S153 | `RETRO-5` | Tests lane retro: re-check measures and whether any AI judge is being proposed | core | ojfbot/core#720 | `OW-5b`, `BD-5`, `CH-5c`, `DLG-2`, `BD-6` | low |
