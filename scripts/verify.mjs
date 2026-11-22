@@ -510,11 +510,12 @@ function startRunner(job, jobLog) {
   if (image.fail) return image;
   const name = `core-verify-${runId}-${job.id}-runner`;
   const base = `/home/runner/work/${runId}`;
+  // --init: process-group tests need a PID 1 that reaps exited children, as GitHub's runner has.
   // The Docker socket is given only to a job that builds images, and then it can do what Docker can do.
   const socket = JOB_NEEDS[job.key].includes("docker")
     ? ["--group-add", "0", "-v", "/var/run/docker.sock:/var/run/docker.sock"]
     : [];
-  const started = run("docker", ["run", "-d", "--name", name, "--label", `core.verify=${runId}`, ...socket,
+  const started = run("docker", ["run", "-d", "--init", "--name", name, "--label", `core.verify=${runId}`, ...socket,
     "-v", "core-verify-pnpm-store:/home/runner/.local/share/pnpm", image.tag]);
   appendFileSync(jobLog, `${started.stdout}${started.stderr}`);
   if (started.status !== 0) return { fail: `could not start the runner: ${started.stderr.trim().split("\n").pop()}`, hint: "Check `docker ps -a`." };
