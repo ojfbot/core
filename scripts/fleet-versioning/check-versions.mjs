@@ -119,8 +119,12 @@ function noreplyLogin(email) {
  * Whether this pull request really is release-please's, as a list of reasons it is not (empty means
  * it is). A branch name proves nothing: anyone who can push can pick one. What a collaborator cannot
  * do is open a pull request as the release-please actor, so the author is the anchor; the commit
- * authors and the file set then keep anyone from adding to a real release PR's branch. What this
- * cannot prove is that a version is the number release-please computed: reviewing the release PR does that.
+ * authors and the file set then limit what anyone can add to a real release PR's branch. Commit
+ * author emails are NOT proof of identity (anyone can set them), and the shared Actions bot is a
+ * shared identity; this guards against mistakes and imitation, not against a writer who can edit
+ * workflows or push to the branch. Branch protection, required checks and CODEOWNERS on .github/
+ * carry that (see versioning-convention.md, "Threat model"). It also cannot prove a version is the
+ * number release-please computed: reviewing the release PR does that.
  */
 export function releasePrProblems({ cwd, base, headSha, changed, headRef, headRepo, baseRepo, prAuthor, actors, extraFiles, manifestPath }) {
   const why = [];

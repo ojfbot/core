@@ -121,6 +121,20 @@ Non-Node packages (Python, etc.) use the matching release-please `release-type` 
 manifest entry and a component; the coverage check currently finds packages by `package.json`, so a
 repo with other package kinds lists them in its PR and extends the check in Core first.
 
+## Threat model of the version-edit check
+
+The check stops mistakes: a person or an agent bumping a version by hand, or a branch that merely
+imitates release-please. It is **not** a defence against someone with write access to the repo.
+Such a person can edit the caller workflow in their own branch, can push commits to a release PR's
+branch under any author name (git author emails are not proof of identity), and, with the default
+actor `github-actions[bot]`, can open a pull request as that bot from a workflow of their own. What
+makes it hold anyway is repo configuration, which each adoption PR must state it relies on:
+branch protection or rulesets that require the `versions` and `commitlint` checks and a review,
+CODEOWNERS on `.github/` so a workflow change needs the owner, and no write access for untrusted
+accounts. Prefer a dedicated release-please GitHub App or bot account over the shared Actions bot
+(pass its login as `release-actors`), and never put a human's login in that list. The check also
+cannot tell that a version is the number release-please computed; reviewing the release PR does.
+
 ## What the checks guarantee, and what they do not
 
 They refuse a hand-edited version, an uncovered `package.json`, a malformed commit or PR title, and
