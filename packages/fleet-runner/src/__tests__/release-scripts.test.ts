@@ -1,6 +1,14 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,6 +41,9 @@ interface ArchiveShape {
   indexDigest?: string | null;
   manifest?: boolean;
   images?: number;
+  // Replace the manifest text; receives the blob names of the recorded image and an unrelated one.
+  manifestRaw?: (good: string, other: string) => string;
+  duplicateManifest?: boolean;
 }
 
 // A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
@@ -43,6 +54,9 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     const blob = `blobs/sha256/${sha(config)}`;
     mkdirSync(join(stage, "blobs/sha256"), { recursive: true });
     writeFileSync(join(stage, blob), config);
+    const otherConfig = Buffer.from('{"config":"an unrelated image"}');
+    const other = `blobs/sha256/${sha(otherConfig)}`;
+    writeFileSync(join(stage, other), otherConfig);
     const entries = Array.from({ length: shape.images ?? 1 }, () => ({
       Config: blob,
       RepoTags: shape.tags ?? [TAG],
@@ -50,7 +64,10 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     }));
     const names = ["blobs"];
     if (shape.manifest !== false) {
-      writeFileSync(join(stage, "manifest.json"), JSON.stringify(entries));
+      writeFileSync(
+        join(stage, "manifest.json"),
+        shape.manifestRaw ? shape.manifestRaw(blob, other) : JSON.stringify(entries),
+      );
       names.push("manifest.json");
     }
     if (shape.indexDigest !== null) {
@@ -62,6 +79,9 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     const out = join(stage, "image.tar");
     const tar = spawnSync("tar", ["-cf", out, ...names], { cwd: stage });
     if (tar.status !== 0) throw new Error("tar failed");
+    if (shape.duplicateManifest) {
+      spawnSync("tar", ["-rf", out, "manifest.json"], { cwd: stage });
+    }
     return readFileSync(out);
   } finally {
     rmSync(stage, { recursive: true, force: true });
@@ -117,7 +137,7 @@ function run(args: string[], env: Record<string, string> = {}) {
   const result = spawnSync("/bin/bash", [verify, ...args], {
     encoding: "utf8",
     env: {
-      PATH: `${bin}:/usr/bin:/bin:/usr/local/bin`,
+      PATH: `${bin}:${dirname(process.execPath)}:/usr/bin:/bin:/usr/local/bin`,
       FAKE_DOCKER_LOG: join(dir, "docker.log"),
       ...env,
     },
@@ -220,7 +240,7 @@ describe("verify-release.sh check", () => {
 
   it("refuses an archive with no manifest.json or with two images", () => {
     writeRelease({}, { manifest: false });
-    expect(run(["check", dir]).out).toContain("FAIL archive has no manifest.json");
+    expect(run(["check", dir]).out).toContain("FAIL archive has no single manifest.json");
     writeRelease({}, { images: 2 });
     expect(run(["check", dir]).out).toContain("FAIL archive does not hold exactly one image");
   });
@@ -228,6 +248,80 @@ describe("verify-release.sh check", () => {
   it("checks the archive's own identity in check mode too", () => {
     writeRelease();
     expect(run(["check", dir]).out).toContain(`PASS archive holds ${TAG}`);
+  });
+
+  it("reads the real top-level fields, not a decoy nested object or a regex-friendly lookalike", () => {
+    // The real Config and RepoTags use spaced keys and name an unrelated image; a compact decoy
+    // holding the recorded image sits inside a nested object. Docker loads the real one.
+    const forged = (good: string, other: string) =>
+      `[{"Config" : "${other}", "RepoTags" : ["${TAG}"], "Layers" : [], ` +
+      `"decoy":{"Config":"${good}","RepoTags":["${TAG}"]}}]`;
+    writeRelease({}, { manifestRaw: forged });
+    const r = run(["load", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive image ID");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("reads the real RepoTags when a decoy holds the right tag", () => {
+    const forged = (good: string) =>
+      `[{"Config" : "${good}", "RepoTags" : ["fleet-runner:latest"], "decoy":{"RepoTags":["${TAG}"]}}]`;
+    writeRelease({}, { manifestRaw: forged });
+    expect(run(["check", dir]).out).toContain("FAIL archive tags are not exactly");
+  });
+
+  it("accepts a valid manifest however it is spaced", () => {
+    const spaced = (good: string) =>
+      `[ { "Config" : "${good}" , "RepoTags" : [ "${TAG}" ] , "Layers" : [ ] } ]`;
+    writeRelease({}, { manifestRaw: spaced });
+    expect(run(["check", dir]).status).toBe(0);
+  });
+
+  it("refuses a manifest that is not exactly one top-level entry", () => {
+    writeRelease({}, { manifestRaw: () => "{}" });
+    expect(run(["check", dir]).out).toContain("FAIL archive does not hold exactly one image");
+    writeRelease({}, { manifestRaw: () => "not json" });
+    expect(run(["check", dir]).out).toContain("FAIL manifest.json is not valid JSON");
+  });
+
+  it("refuses an archive with two manifest.json members", () => {
+    writeRelease({}, { duplicateManifest: true });
+    const r = run(["load", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive has no single manifest.json");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("fails closed when node is not available to read the archive", () => {
+    writeRelease();
+    const bare = mkdtempSync(join(tmpdir(), "fleet-release-bare-"));
+    try {
+      for (const tool of [
+        "tar",
+        "sed",
+        "awk",
+        "grep",
+        "head",
+        "tr",
+        "wc",
+        "cat",
+        "shasum",
+        "sha256sum",
+      ]) {
+        const found = spawnSync("sh", ["-c", `command -v ${tool}`], {
+          encoding: "utf8",
+        }).stdout.trim();
+        if (found) symlinkSync(found, join(bare, tool));
+      }
+      const result = spawnSync("/bin/bash", [verify, "check", dir], {
+        encoding: "utf8",
+        env: { PATH: bare },
+      });
+      expect(result.status).toBe(1);
+      expect(`${result.stdout}${result.stderr}`).toContain("FAIL node is required");
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
   });
 
   it("fails when release.json or the archive is missing", () => {
@@ -288,6 +382,34 @@ describe("verify-release.sh load", () => {
     writeFileSync(join(dir, ARCHIVE), "tampered");
     expect(run(["load", dir]).status).toBe(1);
     expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+});
+
+describe("fleet-runner-release.yml", () => {
+  const workflow = readFileSync(
+    resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../../../.github/workflows/fleet-runner-release.yml",
+    ),
+    "utf8",
+  );
+
+  it("checks out full history, so a rebuild can prove the revision belongs to main", () => {
+    // GitHub expressions treat the number 0 as false, so `cond && 0 || 1` is always 1. Keep the
+    // value a plain literal.
+    expect(workflow).toMatch(/^\s+fetch-depth: 0$/m);
+    expect(workflow).not.toMatch(/fetch-depth:.*\$\{\{/);
+  });
+
+  it("gives every non-pull-request run its own concurrency group and never cancels it", () => {
+    expect(workflow).toContain("github.run_id");
+    expect(workflow).toContain("cancel-in-progress: ${{ github.event_name == 'pull_request' }}");
+  });
+
+  it("publishes only from main pushes and dispatches", () => {
+    expect(workflow).toContain(
+      "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
+    );
   });
 });
 

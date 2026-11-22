@@ -129,9 +129,11 @@ only stored output is one archive per `main` push.
 
 To rebuild a release whose artifact has expired, run the workflow from `main`
 in the Actions tab (`workflow_dispatch`) and give the `revision` input. The
-revision must be an ancestor of `main`; the workflow builds that commit, using
-the build files from that commit. If the revision's artifact has not yet
-expired, the upload step fails on the duplicate name: use the existing one.
+revision must be an ancestor of `main`; the workflow checks out full history to
+prove that, then builds that commit using the build files from that commit.
+Artifact names only have to be unique within one run, so rebuilding a revision
+that still has an artifact (or rebuilding it twice) creates a second artifact
+with the same name in a different run. See the rule below for which one to use.
 
 ### Trusting a downloaded release
 
@@ -141,18 +143,30 @@ loading anything: it must hold exactly one image whose config hashes to
 `image_id`, carry exactly the tag `fleet-runner:<revision>`, and (when
 recorded) have an index naming `manifest_digest`. A different archive cannot
 pass by sharing a tag the host already has. After loading, the image ID must
-again match.
+again match. The archive is read with a real JSON parser (`node`), so spaced
+keys or decoy fields in nested objects cannot change what is checked; duplicate
+`manifest.json` members are refused, and a host without `node` fails the check
+rather than skipping it.
 
 None of that proves the build came from this repository. On a public
 repository a fork's pull request runs the *fork's* copy of the workflow, which
 can publish an artifact with the same name as a real `main` release. A consumer
-(the stage script, slice 3) must therefore select the workflow run, not the
-artifact name: workflow file `fleet-runner-release.yml`, event `push`, branch
-`main`, head SHA equal to the full revision, head repository `ojfbot/core`.
-Then download the artifact by that run's ID. Never download by artifact name
-alone.
+(the stage script, slice 3) must therefore select the workflow run, never the
+artifact name, and download by that run's ID. Never download by artifact name
+alone. Two kinds of run are acceptable, all with workflow file
+`fleet-runner-release.yml`, head repository `ojfbot/core` and branch `main`:
 
-Check a downloaded release anywhere with only bash, sed, awk, tar and a SHA-256
+- **A push run:** event `push`, and head SHA equal to the full revision.
+- **A rebuild run:** event `workflow_dispatch`. Its head SHA is the tip of
+  `main` when it was dispatched, *not* the rebuilt revision, so that field
+  cannot be used. Accept it only when `release.json`'s `revision` is the
+  requested commit (`verify-release.sh ... <revision>` checks this, and it
+  binds the revision to the archive's own tag).
+
+Prefer a successful push run when one exists and has not expired; otherwise
+take the **newest successful rebuild run** for that revision.
+
+Check a downloaded release anywhere with bash, sed, awk, tar, node and a SHA-256
 tool (plus Docker for `load`):
 
 ```sh
