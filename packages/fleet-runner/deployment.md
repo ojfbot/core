@@ -216,6 +216,85 @@ bash packages/fleet-runner/scripts/verify-release.sh load  <release-dir> <revisi
 `bash packages/fleet-runner/scripts/release-image.sh <new-directory> [commit]`
 on a machine with Docker Buildx.
 
+## Test copy and stage script
+
+A permanent FleetRunner **test copy** on the server (ojfbot/core#647, slices 2
+and 3) takes a release from CI, proves it works, and leaves it ready for a
+promote. It has its own Compose project, folders, port, database, TLS
+certificate and signing keys, separate from production, and it runs only while a
+test is under way. Staging needs no approval; going live always needs the
+owner's own yes naming the revision, and no script here promotes anything.
+
+Nothing machine-specific is in this repository. The scripts read a private
+config file outside Git (default `~/.fleet-runner-stage/stage.conf`, mode 0600;
+a file others can write is refused), documented at the top of
+`scripts/lib/fleet-stage-lib.sh`: the SSH alias, the deploy folder and service
+root of the test copy, its LAN address, port and name, the private folder on this
+Mac for the test keys and CA certificate, and production's port and container
+name, declared only so the scripts can refuse to collide with them.
+
+### One-time setup
+
+```sh
+scripts/fleet-stage-setup.sh --tls      # idempotent; never overwrites a key, certificate or env file
+```
+
+On the server it creates the deploy folder (`compose.yaml`, `fleet-staging.env`,
+`releases/`) and the service root (`state/`, `output/`, `public-keys/`, `tls/`),
+each carrying a marker file. Every later run refuses to change anything unless
+both markers are present, so a run can only ever target a folder this setup
+created for the test copy; a folder that already holds files but has no marker
+is refused. The env file holds no secret.
+
+On the Mac it generates the test copy's own `owner` and `stage-worker` signing
+keys with `fleet-runner keygen`. The private tokens stay in the private folder;
+only the `.pub` files go to the server's registry. These are never production's
+keys. With `--tls` the server's TLS key is made on the server and never leaves
+it; the certificate is signed here with the private CA, naming the test copy's
+host and address, and only the certificate is copied back. A passphrase-protected
+CA key stops this step: it never asks for or types one.
+
+### Staging a revision
+
+```sh
+scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
+```
+
+1. **Isolation.** Refuses unless both markers exist, the test copy's root and
+   deploy folder are not inside production's declared root (or the reverse), the
+   port differs from production's and is not published by another container, and
+   the name differs from production's. It compares declared values and lists
+   container names and ports only; it does not inspect or touch production.
+2. **Release.** Uses `--release <dir>`, or the copy already on the server, or
+   downloads the CI artifact by **run ID**, choosing the run by the rule in
+   "Trusting a downloaded release": workflow `fleet-runner-release.yml`, this
+   repository, branch `main`, success, and either a push run whose head SHA is the
+   revision, or (newest first) a rebuild run whose `release.json` names the
+   revision. A fork's look-alike artifact is never selected.
+3. **Verify, copy, load.** `verify-release.sh check` here, then the archive, its
+   checksum, `release.json`, and that revision's own `compose.yaml` and
+   `load-release.sh` go to the server, where `load-release.sh` re-hashes the
+   archive against the checked SHA-256, loads it, and checks the image ID,
+   platform and non-root user.
+4. **Switch.** Backs up the env file, `compose.yaml` and the state folder, stops
+   the test copy, writes the new revision, starts it, and checks that the running
+   image is the checked one.
+5. **Smoke test** from this Mac with the test copy's own keys
+   (`scripts/stage-smoke.mjs`, using the built client of this checkout): the
+   signed status answers ready with exactly this revision as its build; a signed
+   job submit is accepted; a worker claims that job and finishes it.
+6. **Result.** On success the test copy is stopped again (`--keep-running` leaves
+   it up), `releases/<revision>/STAGED_OK` is written, and every earlier
+   `STAGED_OK` was cleared at the start, so only a passing run leaves a revision
+   promotable. On any failure the previous state folder, env file and
+   `compose.yaml` are put back, the previous revision is started, checked to
+   answer as that revision, and stopped; with no previous revision the test copy
+   returns to its empty state. State copies (`state.pre-*`, `state.failed-*`) are
+   kept; prune them by hand.
+
+The test copy's containers are never restarted by the engine (`restart: "no"`),
+and no scheduled job starts them.
+
 ## Worker interruption and diagnostics
 
 A transient heartbeat failure is retried within the known lease budget; an
