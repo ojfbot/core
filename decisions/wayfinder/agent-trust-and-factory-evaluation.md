@@ -115,6 +115,16 @@ filed under `decisions/research/` and linked from the tickets they inform.
   window. A live critical violation alerts the owner and blocks growth. — How are model,
   pipeline and rule-following scores kept apart? (#670, owner confirmed in the conductor
   chat 2026-11-22)
+- HelpDesk session trust. The charter is a record the owner signs with their phone
+  passkey, naming the conductor by session name and key with ordered standbys. The
+  conductor job moves only three ways: the owner; a signed handover to a listed standby;
+  or the first standby after HelpDesk's registry shows a 12-hour lapse (6-hour warning,
+  takeover alert). A key reclaim ends authority, and an old conductor stays replaced.
+  Listeners and wakes act only on signed TASKs from each Mac's own list. When records
+  disagree, only risky actions stop. A stop counts only with proof; "can't tell" goes to
+  the owner as one BLOCKER. The Mac is the read boundary. Threat detail is kept in a
+  private note. — What must each step of a HelpDesk session's life prove? (#666, owner
+  confirmed in the conductor chat 2026-11-22)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -134,7 +144,9 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Which shared trust words do we adopt? (#663) | grilling | — | reopened (challenge rejected; revising) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
-| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | open |
+| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed |
+| Which in-flight work can be proven stopped? (#678) | grilling | — | open |
+| What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
 
@@ -156,6 +168,8 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Not yet specified
 
+- Separate macOS users per agent, so keys stop sharing one Mac-wide wall (from #666).
+- What happens if the owner loses their phone, the only passkey (from #666).
 - Local versus cloud model routing by capability, latency, privacy and cost.
 - Whether fixed rule engines should replace repeatedly generated reasoning anywhere.
 - Whether a "swap the model" trial is needed before the scores can be ruled.
