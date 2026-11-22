@@ -2,7 +2,8 @@ name: Reusable version-edit check
 
 # adr:deterministic-fleet-versioning. Fails a pull request that hand-edits a package.json
 # "version" or an existing release-please manifest entry, and fails a repo where some package.json
-# is not covered by release-please. Only release-please's own release PR may change versions.
+# is not covered by release-please. Only release-please's own release PR may change versions, and it
+# is recognised by its author, its commits' authors and the files it changes, never by branch name.
 #
 #   jobs:
 #     versions:
@@ -18,6 +19,20 @@ on:
       manifest-file:
         type: string
         default: .release-please-manifest.json
+      release-actors:
+        description: >-
+          Comma-separated logins that open release-please's pull requests. The default is the
+          Actions bot, which opens them when no RELEASE_PLEASE_TOKEN is set. A repo that gives
+          release-please a token must name that token's account here, and should use a dedicated
+          bot or app account: whoever holds the login is trusted to change versions.
+        type: string
+        default: github-actions[bot]
+      release-extra-files:
+        description: >-
+          Comma-separated paths (`*` allowed) release-please also writes in this repo, such as
+          pyproject.toml; a release PR touching any other file is refused.
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -64,6 +79,9 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RELEASE_ACTORS: ${{ inputs.release-actors }}
+          RELEASE_EXTRA_FILES: ${{ inputs.release-extra-files }}
           RELEASE_PLEASE_CONFIG: ${{ inputs.config-file }}
           RELEASE_PLEASE_MANIFEST: ${{ inputs.manifest-file }}
         run: node .fleet-core/scripts/fleet-versioning/check-versions.mjs all

