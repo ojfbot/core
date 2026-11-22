@@ -3,7 +3,7 @@ type: wayfinder-map
 slug: agent-trust-and-factory-evaluation
 northstar: l2-ojfbot
 tracker_issue: "#661"
-status: handing-off
+status: handed-off
 ---
 
 # Wayfinder — agent trust and factory evaluation
@@ -290,6 +290,23 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | Which service owns each guarantee, and do we need new services? (#674) | grilling | Where are agent permissions enforced; How is the evidence chain recorded; How are model, pipeline and rule-following scores kept apart? | closed (revised: authority split) |
+
+## Handed off (2026-11-22)
+
+The map is handed off to the build. #674's ordered slices are split into 104 slices in six layers, each one build session and one reviewable PR:
+- fleet roadmap `decisions/northstar/roadmap-l2-ojfbot.md`, phases PH8–PH13;
+- epics:
+  - Phase 0: owner setup and the authority service: ojfbot/core#688
+  - Phase 1: enforcement (watch-only on staging): ojfbot/core#689
+  - Outside security review, then enforcement go-live: ojfbot/core#690
+  - Phase 2: evidence: ojfbot/core#691
+  - Phase 3: seats and stops: ojfbot/core#692
+  - Tests lane (runs alongside, one slice at a time): ojfbot/core#693
+- discoveries and plan gaps: ojfbot/core#687;
+- per-repo sections: LocalHelp `ROADMAP.md`, Core `.claude/roadmap.md`, DailyLogger `docs/agent-service/delivery-roadmap.md`.
+
+Arrived still does not mean built. A discovery that changes a ruled decision goes back to the owner through the conductor. One that only changes a slice re-plans that slice.
+
 ## Not yet specified
 
 - Exactly-once remote effects (offered for out of scope on 2026-11-22; the owner kept it open).

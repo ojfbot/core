@@ -748,3 +748,17 @@ Yojimbo's own administration requests and limited LAN ingress to Yuri.
 - Final review reproduced terminal-report replacement after a lost accepted acknowledgement and restart past expiry. The directly approved follow-up freezes report bytes and command ID atomically, replays the same terminal command, and keeps later cleanup observations separate.
 
 - The required root typecheck exposed23 unchanged test-fixture errors despite successful package builds. The approved follow-up repairs only fixture typing and unused bindings instead of excluding tests or waiving the gate; all369 emitted production files remain byte-identical across the typing repair.
+
+## Deviations — trust build slicing (2026-11-22)
+
+Slicing core#674 into roadmap slices and issues (discoveries issue ojfbot/core#687).
+
+- 2026-11-22 (slicing): #674 puts the token issuer in phase 1, but the owner's phase 0 key enrolment (OW-1) needs one. Went: a skeleton issuer (TI-1a, key store and enrolment, no minting) moves into phase 0 after OW-0.
+- 2026-11-22 (slicing): #674 lists #679 O14 (only the seat holder spends an approval) under AU-1, but the charter arrives at AU-2. Went: AU-1c checks the session named in the approval, and AU-2a completes the check.
+- 2026-11-22 (slicing): TI-2 (phase 1) revokes tokens on grant end, but ending is AU-9 (phase 3). Went: a small AU-4c slice sends the grant-end notice for expiry and single-record end.
+- 2026-11-22 (slicing): #681 owner step 7 (review third-party apps) had no slice. Went: owner-only OW-6.
+- 2026-11-22 (slicing): #674 names OW-4 and OW-5 without defining them. Went: read as #681 owner steps 5 and 6.
+- 2026-11-22 (slicing): The task named only the data layer for the backup step, but #674's ledger lists the authority service, the data layer and the issuer's keys. Went: two owner-only steps (OW-BK-AU, OW-BK-DA).
+- 2026-11-22 (slicing): #674 names no watch-only stage, and ADR-0086 requires one for every check that blocks. Went: each enforcer ships watch-only on staging, with go-live slices (P1-GL-LH, P1-GL-FR) after the outside review, one owner tap each.
+- 2026-11-22 (slicing): The owner-only step "re-make the old acknowledgement file" is not in any ruling. The conductor confirmed it is one listener acknowledgement in the old format, tied to LocalHelp #113. Went: owner-only OW-ACK, linked from phase 0. Promote's used-approval record is migrated inside AU-1d instead.
+- 2026-11-22 (slicing): The roadmap schema takes one `depends_on`. Went: it names each slice's first blocker; native GitHub links hold the full graph.

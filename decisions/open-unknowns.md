@@ -292,3 +292,38 @@ fixture proves a deployed producer.
 **Standard considerations not covered**
 - Long-term retention, redaction, deletion and access-control policy for evidence and telemetry artifacts.
 - Performance, size and backpressure limits for future runtime producers; the first pack is a deterministic conformance harness, not a throughput qualification.
+
+---
+
+## 2026-11-22 — agent trust build handoff (wayfinder #661, closing ticket #674)
+
+Ruling: about 120 guarantees, one owner each, across six NAS services (HelpDesk, FleetRunner, and the new authority service, token issuer, checker and data layer). The build is sliced into the fleet roadmap's phases PH8–PH13. New unknowns found while building go to ojfbot/core#687, not here; layer retros copy the lasting ones here.
+
+**Deferred decisions**
+- The outside reviewer and budget. Unblocked by: the owner, before the outside review (OW-8a).
+- Whether the GitHub Apps get Actions write, so a stop can cancel Actions runs (#678 S8). Unblocked by: the owner, at OW-1a.
+- The owner's path for real deploys and promotes (#667). Unblocked by: the owner, at OW-0.
+- Adding the authority service, the data layer and the issuer's keys to the NAS backup. Unblocked by: separate reviewed changes (OW-BK-AU, OW-BK-DA).
+- The record formats for the authority journal and the data layer. Unblocked by: AU-1a and DA-1a, with #505 for link fields.
+- The parent seat's clash deadline (#682 T12). Unblocked by: the owner, at FR-5.
+- Which actions count as risky per service, and the fixed probe kinds. Unblocked by: AU-4a and CH-3a.
+- When an AI judge may gate. Unblocked by: #671's bars, when a judge is first proposed.
+- DailyLogger's publication adapter tokens. Unblocked by: DailyLogger's M3 plan.
+- The thresholds that move each enforcer from watch-only to enforcing. Unblocked by: RETRO-1's watch-only data.
+
+**Unvalidated assumptions**
+- The NAS has room for four more small services.
+- The live grant check and the holder-state read stay fast enough with the two of them in separate services.
+- The checker can read GitHub's settings events without write power.
+- Model-test results from Mac workers are only as trustworthy as the Mac sandbox.
+- Rebuilding the linker index is cheap enough to skip backing it up.
+- GitHub's token revoke takes effect within a short, measured time.
+- A running record of writes and network use can be kept for Claude Code and Codex runs on both Macs (#670); if not, the sandbox must block out-of-scope writes.
+- FleetRunner's checks can run under Core's root `vitest` (it has no package test script).
+
+**Standard considerations not covered**
+- A compromised NAS: all six services share one host.
+- Availability: an outage of the authority service or HelpDesk stops new runs. A checker outage makes findings unknown, never clean.
+- Restore drills for the four new services.
+- Load from the minute-by-minute witnessing.
+- Open tickets stay open: #675 FleetRunner budget, #684 owner-only GitHub organization, #685 unregistered and native sessions, #686 key protection on one Mac.

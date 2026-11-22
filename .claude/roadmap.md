@@ -341,3 +341,43 @@ draft with its red-team addenda as promotion criteria. S12 tests the measured ac
 (forced-eval commitment block) in shadow. S13 decides the two coverage gaps on evidence. S14
 measures whether the MANDATORY convention actually works and trials chaining + the router-skill
 option. S15 is deliberately last and deliberately likely to be dropped.
+
+## Agent trust build slices in Core (map core#661)
+
+The FleetRunner (`FR-*`), Core harness (`CH-*`) and layer retro (`RETRO-*`) slices of the agent trust build land in this repo. They are registered in the fleet roadmap (`decisions/northstar/roadmap-l2-ojfbot.md`, phases PH8–PH13), not here, so each slice has one ID. Discoveries: ojfbot/core#687.
+
+| Roadmap | Slice | Title | Repo | Issue | Blocked by | Complexity (draft) |
+|---|---|---|---|---|---|---|
+| S56 | `RETRO-0` | Layer retro: phase 0 done, re-check phase 1 assumptions | core | ojfbot/core#694 | `OW-FID`, `OW-1b`, `OW-2`, `OW-BK-AU`, `OW-6` | low |
+| S67 | `CH-1b` | Pin agent sessions to the Mac's App: token helper and session settings (#681 S1) | core | ojfbot/core#695 | `TI-1b`, `OW-2` | medium |
+| S69 | `FR-1` | Enqueue checks the grant; every claim reserves a run (watch-only first) | core | ojfbot/core#696 | `AU-4b` | medium |
+| S72 | `FR-4` | FleetRunner rollback guard | core | ojfbot/core#697 | `FR-1` | medium |
+| S74 | `CH-2` | Speed-bump settings for Claude Code and Codex (#667 slice 7) | core | ojfbot/core#698 | `RETRO-0` | low |
+| S76 | `RETRO-1` | Layer retro: phase 1 watch-only data, re-check the outside review's assumptions | core | ojfbot/core#699 | `HD-2`, `FR-4`, `HD-3`, `AU-5`, `TI-2`, `CH-1b`, `AU-3b`, `OW-7` | medium |
+| S82 | `P1-GL-FR` | Switch FleetRunner's grant check and rollback guard from watch-only to enforcing (one owner tap) | core | ojfbot/core#700 | `OR-TRIAGE` | low |
+| S83 | `RETRO-2` | Layer retro: enforcement is live, re-check phase 2 assumptions | core | ojfbot/core#701 | `P1-GL-LH`, `P1-GL-FR` | low |
+| S86 | `CH-7` | Hook logs: identifiers only, numbered, with an end-of-run count, copied to the data layer | core | ojfbot/core#702 | `DA-1a` | medium |
+| S89 | `FR-2` | FleetRunner chain fields: admitter, output digest, attempt ID | core | ojfbot/core#703 | `RETRO-2` | low |
+| S91 | `FR-W` | FleetRunner journal sends its fingerprint on every append or once a minute | core | ojfbot/core#704 | `DA-1a`, `FR-2` | low |
+| S105 | `RETRO-3` | Layer retro: evidence is in, re-check phase 3 assumptions | core | ojfbot/core#705 | `OW-BK-DA`, `CH-7`, `CK-2`, `CK-5`, `DLG-1`, `OW-4`, `OW-5`, `CK-3`, `CK-4` | low |
+| S110 | `FR-3` | FleetRunner "stop attempt" transition that voids the fence | core | ojfbot/core#706 | `RETRO-3` | medium |
+| S117 | `FR-5` | Work-register baskets (ADR-0110 amendment) | core | ojfbot/core#707 | `RETRO-3` | medium |
+| S122 | `CH-6` | Status labels and claim fixes in Core: `/resume` and GitHub actions | core | ojfbot/core#708 | `RETRO-3` | medium |
+| S124 | `RETRO-4` | Layer retro: seats and stops done; close the map's build | core | ojfbot/core#709 | `HD-6`, `HD-7b`, `HD-7c`, `AU-9`, `FR-3`, `OW-3`, `HD-8`, `FR-5`, `AU-7`, `OW-K2`, `HD-9`, `CH-6`, `DLG-3` | low |
+| S127 | `CH-4` | Regression kind in the defect ledger (ADR-0104 amendment) | core | ojfbot/core#710 | — | medium |
+| S128 | `CH-3a` | Probe approvals pin the text, the commit and the sandbox profile | core | ojfbot/core#711 | `AU-1c` | high |
+| S129 | `CH-3b` | Defect sweep as a fixed FleetRunner job in a sandbox, with the defect lint at merge | core | ojfbot/core#712 | `CH-3a`, `FR-1` | medium |
+| S131 | `FR-6a` | Model-test job kinds on the Mac workers | core | ojfbot/core#713 | `FR-1` | high |
+| S133 | `FR-6b` | Held-out rules, family exclusion and run manifests for model tests | core | ojfbot/core#714 | `FR-6a`, `DA-2` | high |
+| S135 | `CH-5a` | Guided review: risk lists and matcher, read from the base branch | core | ojfbot/core#715 | — | medium |
+| S136 | `CH-5b` | Guided review: fact skeleton with no model | core | ojfbot/core#716 | `CH-5a` | medium |
+| S137 | `CH-5c` | Guided review: explainer and per-link-type link check | core | ojfbot/core#717 | `CH-5b` | medium |
+| S138 | `CH-5d` | Guided review: review-input records, reviews independent of the guide | core | ojfbot/core#718 | `CH-5b` | low |
+| S139 | `CH-5e` | Guided review: the quiz gate recomputes the score from the marks | core | ojfbot/core#719 | `CH-5d` | medium |
+| S143 | `RETRO-5` | Tests lane retro: re-check measures and whether any AI judge is being proposed | core | ojfbot/core#720 | `CH-3b`, `BD-5`, `CH-5c`, `DLG-2`, `BD-6` | low |
+
+**Catching surprises.** Every slice issue has a "Deviations and discoveries" section. Builders append to it, and to the repo's `implementation-notes.md` under `## Deviations`, whenever reality differs from the plan. Newly found unknowns go in the tracking issue ojfbot/core#687 ("Trust build: discoveries and plan gaps"), which every epic links.
+
+- A discovery that **changes a ruled decision** (#662–#682, #674) goes to the owner **through the conductor**.
+- A discovery that **only changes a slice** gets a re-plan of that slice, not of the whole map.
+- Each layer ends with a **layer retro** slice (`RETRO-0` to `RETRO-5`) that re-checks the next layer's assumptions before it starts.
