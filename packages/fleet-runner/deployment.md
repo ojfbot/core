@@ -166,7 +166,7 @@ alone. Two kinds of run are acceptable, all with workflow file
 Prefer a successful push run when one exists and has not expired; otherwise
 take the **newest successful rebuild run** for that revision.
 
-Check a downloaded release anywhere with bash, sed, awk, tar, node and a SHA-256
+Check a downloaded release anywhere with bash, sed, awk, node and a SHA-256
 tool (plus Docker for `load`):
 
 ```sh

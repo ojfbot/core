@@ -47,7 +47,12 @@ interface ArchiveShape {
   // An extra member that tar and Docker may name differently, or a link.
   dotSlashManifest?: boolean;
   symlink?: boolean;
+  // Rewrite the first member's type flag (for example to a pax extended header, `x`).
+  typeflag?: string;
 }
+
+// Plain ustar, as BuildKit writes it; COPYFILE_DISABLE stops macOS tar adding metadata members.
+const tarOptions = (cwd: string) => ({ cwd, env: { ...process.env, COPYFILE_DISABLE: "1" } });
 
 // A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
 function makeArchive(shape: ArchiveShape = {}): Buffer {
@@ -80,17 +85,20 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
       names.push("index.json");
     }
     const out = join(stage, "image.tar");
-    const tar = spawnSync("tar", ["-cf", out, ...names], { cwd: stage });
+    const tar = spawnSync("tar", ["--format=ustar", "-cf", out, ...names], tarOptions(stage));
     if (tar.status !== 0) throw new Error("tar failed");
-    if (shape.dotSlashManifest) spawnSync("tar", ["-rf", out, "./manifest.json"], { cwd: stage });
+    if (shape.dotSlashManifest)
+      spawnSync("tar", ["--format=ustar", "-rf", out, "./manifest.json"], tarOptions(stage));
     if (shape.symlink) {
       symlinkSync("manifest.json", join(stage, "link"));
-      spawnSync("tar", ["-rf", out, "link"], { cwd: stage });
+      spawnSync("tar", ["--format=ustar", "-rf", out, "link"], tarOptions(stage));
     }
     if (shape.duplicateManifest) {
-      spawnSync("tar", ["-rf", out, "manifest.json"], { cwd: stage });
+      spawnSync("tar", ["--format=ustar", "-rf", out, "manifest.json"], tarOptions(stage));
     }
-    return readFileSync(out);
+    const bytes = readFileSync(out);
+    if (shape.typeflag) bytes[156] = shape.typeflag.charCodeAt(0);
+    return bytes;
   } finally {
     rmSync(stage, { recursive: true, force: true });
   }
@@ -302,9 +310,22 @@ describe("verify-release.sh check", () => {
 
   it("refuses a manifest.json that tar lists as ./manifest.json, and link members", () => {
     writeRelease({}, { dotSlashManifest: true });
-    expect(run(["check", dir]).out).toContain("FAIL archive has a member that is not a plain");
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive has a member that is not canonically named",
+    );
     writeRelease({}, { symlink: true });
-    expect(run(["check", dir]).out).toContain("FAIL archive has a member that is not a plain");
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive has a member that is not a plain file or directory",
+    );
+  });
+
+  it("refuses pax and GNU extension records, which tar and Docker may read differently", () => {
+    for (const flag of ["x", "g", "L", "K"]) {
+      writeRelease({}, { typeflag: flag });
+      expect(run(["check", dir]).out).toContain(
+        "FAIL archive has a member that is not a plain file or directory",
+      );
+    }
   });
 
   it("always reads an index.json that is present, and needs the release to record its digest", () => {
