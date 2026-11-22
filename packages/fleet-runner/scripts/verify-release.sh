@@ -77,6 +77,29 @@ else
   fail "archive checksum"
 fi
 
+# A checksum only proves the files agree with each other. Before anything is loaded, read what the
+# archive itself says it is: its one image's config blob must hash to image_id, its only tag must be
+# the release tag, and (when recorded) its index must name manifest_digest. A different archive
+# cannot pass by sharing a tag the host already has.
+member() {
+  tar -xOf "$dir/$archive" "$1" 2>/dev/null || true
+}
+manifest_json="$(member manifest.json)"
+[[ -n "$manifest_json" ]] || fail "archive has no manifest.json"
+configs="$(printf '%s' "$manifest_json" | grep -o '"Config":"[^"]*"' || true)"
+[[ -n "$configs" && "$(printf '%s\n' "$configs" | wc -l | tr -d ' ')" == "1" ]] || fail "archive does not hold exactly one image"
+config_name="$(printf '%s' "$configs" | sed 's/^"Config":"\(.*\)"$/\1/')"
+[[ "$config_name" =~ ^(blobs/sha256/)?[0-9a-f]{64}(\.json)?$ ]] || fail "archive config name"
+actual_id="sha256:$(member "$config_name" | { sha256sum 2>/dev/null || shasum -a 256; } | awk '{print $1}')"
+[[ "$actual_id" == "$image_id" ]] || fail "archive image ID is $actual_id, not the recorded one"
+archive_tags="$(printf '%s' "$manifest_json" | sed -n 's/.*"RepoTags":\[\([^]]*\)\].*/\1/p')"
+[[ "$archive_tags" == "\"$tag\"" ]] || fail "archive tags are not exactly $tag"
+if [[ -n "$manifest_digest" ]]; then
+  index_digest="$(member index.json | sed -n 's/.*"manifests":\[{[^}]*"digest":"\(sha256:[0-9a-f]*\)".*/\1/p' | head -n 1)"
+  [[ "$index_digest" == "$manifest_digest" ]] || fail "archive manifest digest is not the recorded one"
+fi
+echo "PASS archive holds $tag with image ID $image_id"
+
 [[ "$mode" == "load" ]] || exit 0
 
 matches() {

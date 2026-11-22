@@ -109,8 +109,10 @@ Every push to `main` runs `.github/workflows/fleet-runner-release.yml`
 (ojfbot/core#647, slice 1). It builds the service image from a `git archive` of
 that commit, twice, without cache, for `linux/amd64`, with timestamps rewritten
 to the commit time. The two image IDs must be identical or the run fails. It
-then runs `scripts/verify-release.sh load` on the result: checksum, load, image
-ID, `linux/amd64`, and a numeric non-root user.
+then runs `scripts/verify-release.sh load` on the result: checksum, the
+archive's own identity, load, image ID, `linux/amd64`, and a numeric non-root
+user. Each non-PR run has its own concurrency group and is never cancelled, so
+every `main` revision gets a release even when pushes arrive close together.
 
 The run publishes one artifact, `fleet-runner-release-<12-character revision>`,
 kept 7 days, holding three files:
@@ -123,11 +125,35 @@ kept 7 days, holding three files:
 
 Pull requests that touch the build inputs run the same build and verification
 but publish nothing. This repository is public, so runner minutes are free; the
-only stored output is one archive per `main` push. `workflow_dispatch` on `main`
-rebuilds a release whose artifact has expired.
+only stored output is one archive per `main` push.
 
-Check a downloaded release anywhere with only bash, sed, awk and a SHA-256 tool
-(plus Docker for `load`):
+To rebuild a release whose artifact has expired, run the workflow from `main`
+in the Actions tab (`workflow_dispatch`) and give the `revision` input. The
+revision must be an ancestor of `main`; the workflow builds that commit, using
+the build files from that commit. If the revision's artifact has not yet
+expired, the upload step fails on the duplicate name: use the existing one.
+
+### Trusting a downloaded release
+
+Checksums only prove the three files agree with each other, not who built
+them. `verify-release.sh` therefore also reads the archive itself *before*
+loading anything: it must hold exactly one image whose config hashes to
+`image_id`, carry exactly the tag `fleet-runner:<revision>`, and (when
+recorded) have an index naming `manifest_digest`. A different archive cannot
+pass by sharing a tag the host already has. After loading, the image ID must
+again match.
+
+None of that proves the build came from this repository. On a public
+repository a fork's pull request runs the *fork's* copy of the workflow, which
+can publish an artifact with the same name as a real `main` release. A consumer
+(the stage script, slice 3) must therefore select the workflow run, not the
+artifact name: workflow file `fleet-runner-release.yml`, event `push`, branch
+`main`, head SHA equal to the full revision, head repository `ojfbot/core`.
+Then download the artifact by that run's ID. Never download by artifact name
+alone.
+
+Check a downloaded release anywhere with only bash, sed, awk, tar and a SHA-256
+tool (plus Docker for `load`):
 
 ```sh
 bash packages/fleet-runner/scripts/verify-release.sh check <release-dir> <revision>

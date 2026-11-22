@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,9 @@ const verify = join(scripts, "verify-release.sh");
 const releaseImage = join(scripts, "release-image.sh");
 
 const REVISION = "0123456789abcdef0123456789abcdef01234567";
-const IMAGE_ID = `sha256:${"a".repeat(64)}`;
+const TAG = `fleet-runner:${REVISION}`;
+const CONFIG = '{"config":"the image config"}';
+const IMAGE_ID = `sha256:${sha(Buffer.from(CONFIG))}`;
 const MANIFEST_DIGEST = `sha256:${"b".repeat(64)}`;
 const ARCHIVE = "fleet-runner-image.tar";
 
@@ -25,23 +27,62 @@ function sha(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function writeRelease(
-  overrides: Record<string, unknown> = {},
-  archive = Buffer.from("not really an image"),
-): void {
+interface ArchiveShape {
+  config?: string;
+  tags?: string[];
+  indexDigest?: string | null;
+  manifest?: boolean;
+  images?: number;
+}
+
+// A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
+function makeArchive(shape: ArchiveShape = {}): Buffer {
+  const stage = mkdtempSync(join(tmpdir(), "fleet-release-stage-"));
+  try {
+    const config = Buffer.from(shape.config ?? CONFIG);
+    const blob = `blobs/sha256/${sha(config)}`;
+    mkdirSync(join(stage, "blobs/sha256"), { recursive: true });
+    writeFileSync(join(stage, blob), config);
+    const entries = Array.from({ length: shape.images ?? 1 }, () => ({
+      Config: blob,
+      RepoTags: shape.tags ?? [TAG],
+      Layers: [],
+    }));
+    const names = ["blobs"];
+    if (shape.manifest !== false) {
+      writeFileSync(join(stage, "manifest.json"), JSON.stringify(entries));
+      names.push("manifest.json");
+    }
+    if (shape.indexDigest !== null) {
+      const digest = shape.indexDigest ?? MANIFEST_DIGEST;
+      const index = { schemaVersion: 2, manifests: [{ mediaType: "m", digest, size: 1 }] };
+      writeFileSync(join(stage, "index.json"), JSON.stringify(index));
+      names.push("index.json");
+    }
+    const out = join(stage, "image.tar");
+    const tar = spawnSync("tar", ["-cf", out, ...names], { cwd: stage });
+    if (tar.status !== 0) throw new Error("tar failed");
+    return readFileSync(out);
+  } finally {
+    rmSync(stage, { recursive: true, force: true });
+  }
+}
+
+function writeRelease(overrides: Record<string, unknown> = {}, shape: ArchiveShape = {}): void {
+  const archive = makeArchive(shape);
   const release = {
     format: "fleet-runner-release/1",
     revision: REVISION,
     short_revision: REVISION.slice(0, 12),
     source_date_epoch: 1,
-    tag: `fleet-runner:${REVISION}`,
+    tag: TAG,
     platform: "linux/amd64",
     user: "node",
     image_id: IMAGE_ID,
     manifest_digest: MANIFEST_DIGEST,
     layers: 3,
     archive: ARCHIVE,
-    archive_sha256: sha(Buffer.from("not really an image")),
+    archive_sha256: sha(archive),
     inputs: { base_image: "x", pnpm: "9.15.4", buildkit: "y", lockfile_sha256: "z" },
     reproducibility: { builds: 2, identical: true, seconds: [1, 2] },
     ...overrides,
@@ -150,6 +191,43 @@ describe("verify-release.sh check", () => {
     expect(r.status).toBe(1);
     expect(r.out).toContain(`FAIL`);
     expect(r.out).toContain(what);
+  });
+
+  it("refuses an archive that does not hold the recorded image, before anything is loaded", () => {
+    // Same tag, different image: what a host that already has the tag would otherwise accept.
+    writeRelease({}, { config: '{"config":"a different image"}' });
+    const r = run(["load", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive image ID");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("refuses an archive that carries another tag, or more than one", () => {
+    writeRelease({}, { tags: ["fleet-runner:latest"] });
+    expect(run(["load", dir]).out).toContain("FAIL archive tags are not exactly");
+    writeRelease({}, { tags: [TAG, "fleet-runner:latest"] });
+    expect(run(["load", dir]).out).toContain("FAIL archive tags are not exactly");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("refuses an archive whose index names another manifest digest", () => {
+    writeRelease({}, { indexDigest: `sha256:${"e".repeat(64)}` });
+    const r = run(["load", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive manifest digest");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("refuses an archive with no manifest.json or with two images", () => {
+    writeRelease({}, { manifest: false });
+    expect(run(["check", dir]).out).toContain("FAIL archive has no manifest.json");
+    writeRelease({}, { images: 2 });
+    expect(run(["check", dir]).out).toContain("FAIL archive does not hold exactly one image");
+  });
+
+  it("checks the archive's own identity in check mode too", () => {
+    writeRelease();
+    expect(run(["check", dir]).out).toContain(`PASS archive holds ${TAG}`);
   });
 
   it("fails when release.json or the archive is missing", () => {
