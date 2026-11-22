@@ -3,7 +3,7 @@ type: wayfinder-map
 slug: agent-trust-and-factory-evaluation
 northstar: l2-ojfbot
 tracker_issue: "#661"
-status: working
+status: handing-off
 ---
 
 # Wayfinder — agent trust and factory evaluation
@@ -236,6 +236,15 @@ filed under `decisions/research/` and linked from the tickets they inform.
   alert route) that holds no authority. New NAS services: authority service, GitHub token
   issuer, read-only checker, add-only data layer. — Which service owns each guarantee?
   (#674, owner 2026-11-22)
+- Ownership and handoff. About 120 guarantees, each with exactly one owner. There are six
+  NAS services: HelpDesk (relay, no authority) and FleetRunner, plus four new ones — the
+  authority service (the one decision point), the GitHub token issuer, the read-only
+  checker and the add-only data layer. No AI grader gates yet. Merge proof is required
+  only for go-live and high-risk PRs. Build order: owner phase 0 (Macs lose NAS admin;
+  the authority service stands up with one Face ID promote; the GitHub Apps and terminal
+  switch), then enforcement, then one outside review on staging, then evidence, then
+  seats and stops, with the tests lane alongside. — Which service owns each guarantee?
+  (#674, owner confirmed 2026-11-22, revised for the authority split)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -280,8 +289,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| Which service owns each guarantee, and do we need new services? (#674) | grilling | Where are agent permissions enforced; How is the evidence chain recorded; How are model, pipeline and rule-following scores kept apart? | open |
-
+| Which service owns each guarantee, and do we need new services? (#674) | grilling | Where are agent permissions enforced; How is the evidence chain recorded; How are model, pipeline and rule-following scores kept apart? | closed (revised: authority split) |
 ## Not yet specified
 
 - Exactly-once remote effects (offered for out of scope on 2026-11-22; the owner kept it open).
