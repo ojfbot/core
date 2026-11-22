@@ -87,9 +87,10 @@ How a repo adopts all of this is in `domain-knowledge/versioning-convention.md`.
 - release-please's own PRs and tags do not trigger other workflows when made with the default
   `GITHUB_TOKEN`. A repo that requires checks on release PRs must give it a token (documented in the
   reusable workflow).
-- A package already on a pre-release version (`0.2.5-bookcase.2`) starts the manifest at exactly
-  that string; its next version is whatever release-please computes, so any consumer that accepts
-  only plain `x.y.z` must be checked before the first release PR is merged.
+- A package already on a pre-release version (`0.2.5-bookcase.2`) starts the manifest at exactly that
+  string, and release-please keeps the suffix when it bumps (`0.2.6-bookcase.2`). Any consumer that
+  accepts only plain `x.y.z` must be dealt with before that package's first release PR is merged:
+  either a one-time `release-as` or retiring the suffix.
 
 ### Neutral
 - The root `package.json` of a workspace is a package like any other and is versioned too; its
