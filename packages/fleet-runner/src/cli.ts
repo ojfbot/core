@@ -32,6 +32,9 @@ import { statusView, currentSnapshot } from "./status.js";
 import type { StatusView } from "./status.js";
 import { isIPv4 } from "node:net";
 import { networkInterfaces } from "node:os";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { existsSync } from "node:fs";
 import {
   constants,
   accessSync,
@@ -70,6 +73,18 @@ function isLocalLan(address: string): boolean {
 
 async function main(args: string[]): Promise<void> {
   const [command, ...values] = args;
+  if (command === "practice") {
+    const helper = [
+      new URL("./practice.mjs", import.meta.url),
+      new URL("../scripts/ledger-proof-local-practice.mjs", import.meta.url),
+    ]
+      .map((url) => fileURLToPath(url))
+      .find(existsSync);
+    if (!helper) throw Error("practice-helper-missing: install the complete FleetRunner release");
+    const result = spawnSync(process.execPath, [helper, ...values], { stdio: "inherit" });
+    process.exitCode = result.status ?? 1;
+    return;
+  }
   if (
     (command === "ledger-proof-relay" || command === "ledger-proof-power") &&
     values.length === 5 &&
@@ -117,8 +132,13 @@ async function main(args: string[]): Promise<void> {
     console.log(JSON.stringify(result));
     return;
   }
-  if (command === "ledger-proof-snapshot" && values.length === 2) {
-    process.stdout.write(`${JSON.stringify(readProofSnapshot(values[0]!, values[1]!))}\n`);
+  if (
+    ["ledger-proof-snapshot", "practice-snapshot"].includes(command ?? "") &&
+    values.length === 2
+  ) {
+    process.stdout.write(
+      `${JSON.stringify(readProofSnapshot(values[0]!, values[1]!, command === "practice-snapshot"))}\n`,
+    );
     return;
   }
   if (
@@ -423,6 +443,7 @@ async function main(args: string[]): Promise<void> {
     observers: (process.env.FLEET_OBSERVERS ?? "observer").split(",").filter(Boolean),
     workers: (process.env.FLEET_WORKERS ?? "yuri,yojimbo").split(",").filter(Boolean),
     build: process.env.FLEET_BUILD_REF ?? "unknown",
+    ...(process.env.FLEET_PRACTICE_ID ? { practiceId: process.env.FLEET_PRACTICE_ID } : {}),
     ...(cert && key
       ? {
           tls: { cert: readFileSync(cert), key: readFileSync(key), minVersion: "TLSv1.2" as const },

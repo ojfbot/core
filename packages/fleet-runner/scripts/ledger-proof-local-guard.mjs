@@ -173,11 +173,10 @@ export function verifyLocalGo(settings, io) {
   return go;
 }
 
-/** Preflight is inside the guarded block, so its failure still invokes exact cleanup. */
-export function launchLocalProof(input, overrides = {}) {
+/** Validate immutable inputs without consuming GO or writing a receipt. */
+export function inspectLocalProof(input, overrides = {}) {
   const settings = parseLocalGuard(input);
   const io = { ...realIo, ...overrides };
-  const go = verifyLocalGo(settings, io);
   const binding = readPrivate(settings.binding.settings, io);
   if (hash(canonical(binding)) !== settings.binding.sha256 || binding.proofId !== settings.proofId)
     fail("binding-drift");
@@ -216,6 +215,56 @@ export function launchLocalProof(input, overrides = {}) {
       settings.roles.some(({ role }) => !binding.roles.some((entry) => entry.role === role)))
   )
     fail("practice-role-binding-mismatch");
+  return { settings, io, binding, operator };
+}
+
+/** The same read-only checks run before READY and again immediately before bootstrap. */
+export function checkLocalProofReady({ settings, io, binding, operator }) {
+  checkLocalIdleBinding(binding, io);
+  const op = (mode) => {
+    try {
+      return JSON.parse(
+        invoke(
+          io,
+          binding.client.node,
+          [settings.operator.program, "--settings", settings.operator.settings, "--mode", mode],
+          JSON.stringify({ proofId: settings.proofId }),
+          20_000,
+        ),
+      );
+    } catch (error) {
+      error.check = mode;
+      throw error;
+    }
+  };
+  const snapshot = op("snapshot");
+  if (
+    snapshot.schema !== operator.snapshot.schema ||
+    snapshot.rows?.length !== 0 ||
+    snapshot.events?.length !== 0 ||
+    snapshot.accepted !== null
+  )
+    fail("queue-not-empty");
+  const probe = op("protected-probe");
+  if (
+    probe.proofId !== settings.proofId ||
+    probe.protectedIdle !== true ||
+    probe.baselineUnchanged !== true
+  )
+    fail("protected-not-ready");
+  for (const role of settings.roles) {
+    const absent = io.run("/bin/launchctl", ["print", `${settings.domain}/${role.label}`]);
+    if (absent.status !== 113 || !/Could not find service/.test(absent.stderr))
+      fail("role-not-absent");
+  }
+  return { proofId: settings.proofId, snapshot, ready: true };
+}
+
+/** Preflight is inside the guarded block, so its failure still invokes exact cleanup. */
+export function launchLocalProof(input, overrides = {}) {
+  const prepared = inspectLocalProof(input, overrides);
+  const { settings, io, binding, operator } = prepared;
+  const go = verifyLocalGo(settings, io);
   const now = io.now();
   if (now < settings.startsAtMs - 600_000 || now >= settings.endsAtMs - 720_000)
     fail("outside-window");
@@ -250,22 +299,7 @@ export function launchLocalProof(input, overrides = {}) {
     state: "HELD",
   };
   try {
-    checkLocalIdleBinding(binding, io);
-    const snapshot = op("snapshot", { proofId: settings.proofId });
-    if (
-      snapshot.schema !== operator.snapshot.schema ||
-      snapshot.rows?.length !== 0 ||
-      snapshot.events?.length !== 0 ||
-      snapshot.accepted !== null
-    )
-      fail("queue-not-empty");
-    const probe = op("protected-probe", { proofId: settings.proofId });
-    if (
-      probe.proofId !== settings.proofId ||
-      probe.protectedIdle !== true ||
-      probe.baselineUnchanged !== true
-    )
-      fail("protected-not-ready");
+    checkLocalProofReady(prepared);
     for (const role of settings.roles) {
       if (io.now() >= settings.endsAtMs - 720_000) fail("startup-deadline");
       const label = `${settings.domain}/${role.label}`;
@@ -319,6 +353,7 @@ export function launchLocalProof(input, overrides = {}) {
 }
 
 if (
+  typeof __FLEET_PRACTICE_BUNDLE__ === "undefined" &&
   process.argv[1] &&
   realpathSync(resolve(process.argv[1])) === realpathSync(fileURLToPath(import.meta.url))
 ) {

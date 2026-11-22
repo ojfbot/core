@@ -9,12 +9,22 @@ import {
 } from "./ledger-proof-local-operator.mjs";
 const proofId = "00000000-0000-4000-8000-000000000001";
 const sha = (x) => createHash("sha256").update(x).digest("hex");
+test("host mount sources are refused before any snapshot process starts", () => {
+  const f = fixture();
+  f.settings.snapshot.database = "/private-fixture/jobs.sqlite";
+  assert.throws(() => validateSettings(f.settings), /snapshot-path-outside-container-mount/);
+  assert.equal(f.calls.length, 0);
+});
+
 function fixture() {
   const raw = (id) => ({
     Id: id,
     Image: "sha256:" + "c".repeat(64),
     Config: { Labels: { "cg307-u1.proof": proofId }, User: "1000" },
-    Mounts: [{ Source: "/private-fixture", Destination: "/state", RW: true }],
+    Mounts: [
+      { Source: "/private-fixture", Destination: "/state", RW: true },
+      { Source: "/private-output", Destination: "/output", RW: true },
+    ],
     HostConfig: {
       PortBindings: {},
       NanoCpus: 1e9,
