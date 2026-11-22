@@ -84,3 +84,15 @@ describe('lint-commits (the script CI and pnpm verify both run)', () => {
     expect(lint('', '').status).toBe(2);
   });
 });
+
+describe('lint-commits failure summary', () => {
+  it('ends with the problems, so a tail of the log shows why', () => {
+    git('reset', '-q', '--hard', base);
+    const head = commit('feat add a thing without a colon');
+    const r = lint(base, head);
+    expect(r.status).toBe(1);
+    const tail = r.out.trim().split('\n').slice(-4).join('\n');
+    expect(tail).toMatch(/problems:/);
+    expect(tail).toMatch(/commits: .*✖/);
+  });
+});

@@ -51,11 +51,18 @@ export function main(env = process.env, cwd = process.cwd()) {
   const runner = env.COMMITLINT_RUNNER === 'exec' ? 'exec' : 'dlx';
   console.log(`commitlint ${COMMITLINT_VERSION} with ${CONFIG_RELATIVE}`);
   let failed = false;
+  const problems = [];
+  const collect = (output, label) => {
+    for (const line of output.split('\n')) {
+      if (/^\s*(✖|×|x)\s/.test(line) || line.includes('✖')) problems.push(`${label}: ${line.trim()}`);
+    }
+  };
 
   const range = runCommitlint({ args: ['--from', base, '--to', head, '--verbose'], runner, cwd });
   console.log(range.output);
   console.log(`commits ${base.slice(0, 7)}..${head.slice(0, 7)}: ${range.ok ? 'PASS' : 'FAIL'}`);
   failed ||= !range.ok;
+  collect(range.output, 'commits');
 
   let title = env.PR_TITLE;
   if (title === undefined && env.PR_TITLE_B64 !== undefined) {
@@ -68,7 +75,9 @@ export function main(env = process.env, cwd = process.cwd()) {
     console.log(result.output);
     console.log(`pull request title ${JSON.stringify(title)}: ${result.ok ? 'PASS' : 'FAIL'}`);
     failed ||= !result.ok;
+    collect(result.output, 'title');
   }
+  if (problems.length > 0) console.log(`\nproblems:\n${problems.join('\n')}`);
   return failed ? 1 : 0;
 }
 
