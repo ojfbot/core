@@ -101,11 +101,16 @@ try {
 } catch {
   fail("archive is not a readable tar");
 }
-const count = (name) => names.filter((n) => n.replace(/^(\.\/)+/, "") === name).length;
-const read = (name) => {
-  if (count(name) !== 1 || !names.includes(name)) return null;
-  return run(["-xOf", archive, name]);
-};
+// Docker and tar can disagree about a name like ./manifest.json, a doubled slash or a ..
+// segment, so accept only canonical names, and only plain files and directories (no links).
+const types = run(["-tvf", archive]).toString("utf8").split("\n").filter(Boolean).map((l) => l[0]);
+if (types.length !== names.length) fail("archive listing is inconsistent");
+names.forEach((n, i) => {
+  const canonical = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*\/?$/.test(n) && !n.split("/").some((part) => part === "." || part === "..");
+  if (!canonical || (types[i] !== "-" && types[i] !== "d")) fail("archive has a member that is not a plain, canonically named file");
+});
+const count = (name) => names.filter((n) => n === name).length;
+const read = (name) => (count(name) === 1 ? run(["-xOf", archive, name]) : null);
 const parse = (buf, what) => {
   try {
     return JSON.parse(buf.toString("utf8"));
@@ -138,15 +143,19 @@ if (actualId !== imageId) fail(`archive image ID is ${actualId}, not the recorde
 if (!Array.isArray(entry.RepoTags) || entry.RepoTags.length !== 1 || entry.RepoTags[0] !== tag) {
   fail(`archive tags are not exactly ${tag}`);
 }
-if (manifestDigest !== "") {
-  const indexBytes = read("index.json");
-  if (indexBytes === null) fail("archive has no single index.json");
+// An index.json, when present, is part of what Docker loads: always parse it, require exactly one
+// manifest, and require the release to record that manifest's digest.
+const indexBytes = read("index.json");
+if (indexBytes === null && count("index.json") > 0) fail("archive has more than one index.json");
+if (indexBytes === null && manifestDigest !== "") fail("archive has no single index.json");
+if (indexBytes !== null) {
   const index = parse(indexBytes, "index.json");
-  if (!isObject(index) || !Array.isArray(index.manifests) || index.manifests.length !== 1 || index.manifests[0]?.digest !== manifestDigest) {
+  if (!isObject(index) || !Array.isArray(index.manifests) || index.manifests.length !== 1) {
+    fail("archive index does not hold exactly one manifest");
+  }
+  if (manifestDigest === "" || index.manifests[0]?.digest !== manifestDigest) {
     fail("archive manifest digest is not the recorded one");
   }
-} else if (count("index.json") > 1) {
-  fail("archive has more than one index.json");
 }
 console.log(`PASS archive holds ${tag} with image ID ${imageId}`);
 NODE
