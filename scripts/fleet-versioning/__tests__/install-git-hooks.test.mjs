@@ -26,6 +26,15 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 describe('scripts/install-git-hooks.sh', () => {
+  it('fails when .githooks has no executable commit-msg that runs commitlint', () => {
+    writeFileSync(join(dir, '.githooks', 'commit-msg'), '#!/bin/sh\nexit 0\n');
+    chmodSync(join(dir, '.githooks', 'commit-msg'), 0o755);
+    expect(install().status).toBe(1);
+    writeFileSync(join(dir, '.githooks', 'commit-msg'), '#!/bin/sh\nexec pnpm exec commitlint --edit "$1"\n');
+    chmodSync(join(dir, '.githooks', 'commit-msg'), 0o644);
+    expect(install().err).toMatch(/missing or not executable/);
+  });
+
   it('points a clean clone at .githooks, and again without changing anything', () => {
     expect(install().status).toBe(0);
     expect(hooksPath()).toBe('.githooks');
@@ -83,10 +92,56 @@ describe('scripts/install-git-hooks.sh', () => {
       expect(hooksPath()).toBe('.husky/_');
     });
 
-    it('is satisfied by a Husky commit-msg hook that runs commitlint, and leaves Husky in charge', () => {
+    const husky = () => {
+      // what `husky` leaves behind: core.hooksPath at .husky/_ and an executable shim there
+      mkdirSync(join(dir, '.husky', '_'), { recursive: true });
+      writeFileSync(join(dir, '.husky', '_', 'commit-msg'), '#!/bin/sh\n. "$(dirname "$0")/h"\n');
+      chmodSync(join(dir, '.husky', '_', 'commit-msg'), 0o755);
+      git('config', 'core.hooksPath', '.husky/_');
+    };
+
+    it('is satisfied by a Husky commit-msg hook that runs commitlint once Husky has run, and leaves Husky in charge', () => {
       writeFileSync(join(dir, '.husky', 'commit-msg'), 'pnpm exec commitlint --edit "$1"\n');
+      husky();
       expect(install().status).toBe(0);
       expect(hooksPath()).toBe('.husky/_');
+    });
+
+    it('fails when Husky has not run: the source hook exists but nothing is active', () => {
+      writeFileSync(join(dir, '.husky', 'commit-msg'), 'pnpm exec commitlint --edit "$1"\n');
+      git('config', '--unset', 'core.hooksPath');
+      const r = install();
+      expect(r.status).toBe(1);
+      expect(r.err).toMatch(/core\.hooksPath is not set, so no commit-msg hook is active/);
+      expect(r.err).toMatch(/husky && sh scripts\/install-git-hooks\.sh/);
+    });
+
+    it('fails when the generated shim is missing or Husky\'s hook does not run commitlint', () => {
+      writeFileSync(join(dir, '.husky', 'commit-msg'), 'pnpm exec commitlint --edit "$1"\n');
+      expect(install().err).toMatch(/is missing or not executable/); // hooksPath set, .husky/_ not generated
+      husky();
+      writeFileSync(join(dir, '.husky', 'commit-msg'), 'echo hello\n');
+      expect(install().status).toBe(1); // no commitlint in .husky/commit-msg at all
+    });
+
+    it('a fresh clone of a Husky repo fails the install until Husky has run, then passes', () => {
+      writeFileSync(join(dir, '.husky', 'commit-msg'), 'pnpm exec commitlint --edit "$1"\n');
+      git('config', '--unset', 'core.hooksPath');
+      git('add', '-A');
+      git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'chore: husky repo', '--no-gpg-sign');
+      const clone = `${dir}-clone`;
+      execFileSync('git', ['clone', '-q', dir, clone]);
+      try {
+        const first = install(clone);
+        expect(first.status).toBe(1); // a fresh clone: no core.hooksPath, no .husky/_
+        mkdirSync(join(clone, '.husky', '_'), { recursive: true });
+        writeFileSync(join(clone, '.husky', '_', 'commit-msg'), '#!/bin/sh\n. "$(dirname "$0")/h"\n');
+        chmodSync(join(clone, '.husky', '_', 'commit-msg'), 0o755);
+        execFileSync('git', ['config', 'core.hooksPath', '.husky/_'], { cwd: clone });
+        expect(install(clone).status).toBe(0);
+      } finally {
+        rmSync(clone, { recursive: true, force: true });
+      }
     });
   });
 });

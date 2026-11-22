@@ -9,15 +9,43 @@
 #   - core.hooksPath already points somewhere else: put the commitlint call in that hook directory
 #     (the one line in .githooks/commit-msg) or move its hooks into .githooks/.
 #   - the repo uses Husky (.husky/): Husky owns core.hooksPath, so do not use .githooks/ here; add
-#     .husky/commit-msg containing `pnpm exec commitlint --edit "$1"` (this script checks it is there).
+#     .husky/commit-msg containing `pnpm exec commitlint --edit "$1"` and make `prepare` run Husky
+#     first: "prepare": "husky && sh scripts/install-git-hooks.sh". A fresh clone has neither
+#     core.hooksPath nor Husky's generated .husky/_ until Husky has run, so this script FAILS when
+#     the hook is not actually active, instead of passing because the source file exists.
 #   - executable hooks sit in the clone's own .git/hooks: git ignores them once core.hooksPath is set,
 #     so move them into .githooks/ first.
-# Outside a git checkout (a Docker build context, a tarball install) it does nothing.
+# Whatever the path, it ends by checking the commit-msg hook is really live: core.hooksPath names a
+# directory with an executable commit-msg that runs commitlint (directly, or for Husky's generated
+# shim through .husky/commit-msg). Outside a git checkout (a Docker build context, a tarball
+# install) it does nothing.
 git rev-parse --git-dir >/dev/null 2>&1 || exit 0
+
+verify_active() {
+  top=$(git rev-parse --show-toplevel)
+  hp=$(git config --get core.hooksPath || true)
+  if [ -z "$hp" ]; then
+    echo "install-git-hooks: core.hooksPath is not set, so no commit-msg hook is active." >&2
+    return 1
+  fi
+  case "$hp" in /*) dir="$hp" ;; *) dir="$top/$hp" ;; esac
+  hook="$dir/commit-msg"
+  if [ ! -x "$hook" ]; then
+    echo "install-git-hooks: core.hooksPath is \"$hp\" but $hook is missing or not executable, so no commit-msg hook is active." >&2
+    return 1
+  fi
+  if grep -qs 'commitlint' "$hook"; then return 0; fi
+  # Husky's generated shim sources .husky/commit-msg; accept it only when that runs commitlint.
+  case "$hp" in .husky/_ | .husky/_/) grep -qs 'commitlint' "$top/.husky/commit-msg" && return 0 ;; esac
+  echo "install-git-hooks: the active commit-msg hook ($hook) does not run commitlint." >&2
+  return 1
+}
 
 if [ -d .husky ]; then
   if grep -qs 'commitlint' .husky/commit-msg; then
-    exit 0
+    if verify_active; then exit 0; fi
+    echo "  Run Husky before this script: \"prepare\": \"husky && sh scripts/install-git-hooks.sh\"." >&2
+    exit 1
   fi
   echo "install-git-hooks: this repo uses Husky, and .husky/commit-msg does not run commitlint." >&2
   echo "  Add .husky/commit-msg containing: pnpm exec commitlint --edit \"\$1\"" >&2
@@ -51,3 +79,4 @@ if [ -d "$hooks_dir" ]; then
 fi
 
 git config core.hooksPath .githooks
+verify_active || exit 1

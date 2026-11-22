@@ -24,10 +24,12 @@ shows the next version of every package for every type.)
 
 **Every commit is linted, with no built-in exceptions.** `fixup!`, `squash!`, `Revert "..."` and a
 bare `1.2.3` are rejected (squash fixups with an interactive rebase before committing; write a
-revert as `revert: <subject>`). Exactly two merge headers pass, because git and GitHub write them:
-`Merge branch '<branch>' into <branch>` (git merge, the "Update branch" button) and
-`Merge pull request #<n> from <owner>/<branch>`; the rest of such a message may only be blank or `#`
-comment lines. Any other merge header must be rewritten as a conventional commit.
+revert as `revert: <subject>`). Exactly two merge shapes pass, because git and GitHub write them:
+`Merge branch '<branch>' into <branch>` (git merge, the "Update branch" button; nothing else in the
+message but `#` comment lines) and GitHub's merge button, `Merge pull request #<n> from
+<owner>/<branch>` followed by at most one body line, the pull request's title (which is linted on
+the pull request itself). Squash merges need nothing special: the header is the PR title. Any other
+merge message must be rewritten as a conventional commit.
 
 ```
 feat(fleet-runner): add a stage dry run
@@ -79,8 +81,10 @@ Each adoption is one PR, pinned to a Core commit SHA (`<core-sha>` below; never 
    works in every worktree of the clone (the setting is shared, the hook files are tracked).
    **Repos that already have hooks:** the installer never replaces them. A repo that uses Husky keeps
    Husky in charge: skip `.githooks/`, add `.husky/commit-msg` containing
-   `pnpm exec commitlint --edit "$1"`, and the installer (still the `prepare` script) checks that line
-   is there and fails the install if not. A repo with another `core.hooksPath`, or executable hooks
+   `pnpm exec commitlint --edit "$1"`, and set `"prepare": "husky && sh scripts/install-git-hooks.sh"`.
+   The installer ends by checking that the hook is really active (`core.hooksPath` names a directory
+   with an executable `commit-msg` that runs commitlint, directly or through Husky's generated shim)
+   and fails the install if not, so a fresh clone cannot end up with the source file but no hook. A repo with another `core.hooksPath`, or executable hooks
    in `.git/hooks`, gets an error naming the hook: fold the commitlint call into that hook (the one
    line in `.githooks/commit-msg`) or move its hooks into `.githooks/`.
    Why tracked hooks and not Husky: Husky's generated directory is untracked, so a new worktree has
