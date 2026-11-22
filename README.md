@@ -139,15 +139,26 @@ pnpm verify --verbose       # also stream every step's output
 pnpm verify --check         # check that the workflow files and verify still agree; runs nothing
 ```
 
-`scripts/verify.mjs` reads the jobs, steps, environment variables and service containers from
+`scripts/verify.mjs` reads the jobs, steps and environment variables from
 `.github/workflows/*.yml`, so they cannot drift. A workflow key or action it does not understand
 (for example `needs:`, `strategy:` or `shell:`) is reported by name, never skipped, and
 `scripts/lib/__tests__/verify-ci.test.mjs` fails when a job has no verify entry.
 
 - **Needs** Docker Desktop running (SKIPPED with the fix if not). Off Linux, every job runs in an
-  Ubuntu 24.04 container (`scripts/verify-runner/`, built once per Node version) on a clean clone of
+  Ubuntu container (`scripts/verify-runner/`, built once per Ubuntu release and Node version) on a clean clone of
   `HEAD`, as GitHub runs on a fresh runner: **commit first**, since uncommitted files are not tested.
-  `--quick` and `--native` run on your Mac and working tree.
+  `--quick` and `--native` run on your machine and working tree; on a Linux host too the default is the container, so a host on another Ubuntu release cannot pass what the job's own image fails. A native run prints a WARNING when the host OS or Python differs from the job's `runs-on` image, and starts with an empty scratch `HOME` and `TMPDIR` (so its first `pnpm install` downloads again).
+- **Which Ubuntu.** Each job's `runs-on` picks the release: `ubuntu-latest` is Ubuntu 26.04 (what GitHub
+  resolves it to today; `LINUX_RUNNERS` in `scripts/lib/verify-ci.mjs` must be kept current by hand),
+  `ubuntu-24.04` is 24.04, and the run prints which one each job used. The container holds the tools
+  core's jobs use (bash, git, Python 3, jq, sqlite3, build tools, Node, pnpm, the Docker CLI), not
+  GitHub's full runner image, so a job that relies on another preinstalled tool fails here until the
+  tool is added to the Dockerfile. A job for Windows or macOS is `SKIPPED` (verify only stands in for
+  Linux). An unknown `runs-on` label is reported by name.
+- **Service containers** (`services:`) are not supported yet: `--check` and every run refuse them by
+  name until a service can be reached by name and on `localhost` as on GitHub. No core job uses one.
+- **Secrets** anywhere in a job, including a top-level `env:`, make the job `SKIPPED` (GitHub-only).
+  A job that crashes verify is reported `FAIL` and the remaining jobs and the summary still run.
 - **Event.** Jobs run as a pull request would (`github.event_name` is `pull_request`). A workflow
   with `on.pull_request.paths` runs only when your branch changes one of its paths, as on GitHub,
   and `--job` runs it anyway. Workflows with no `pull_request` trigger (`claude.yml`,
@@ -166,8 +177,8 @@ pnpm verify --check         # check that the workflow files and verify still agr
   start containers that mount your folders or read other containers' secrets (GitHub runs it on a
   throwaway engine). So the default `pnpm verify` does not run it: it shows `SKIPPED ... opt-in, NOT RUN`
   and **exits non-zero when your branch triggers it** (changes under `packages/fleet-runner/**`, the root
-  `package.json`, the lockfile and so on). Run it with `pnpm verify --job fleet-runner-release` once
-  you have read the branch's changes to the scripts it runs; it prints a loud warning and takes about a
+  `package.json`, the lockfile and so on). Run it as a second run, `pnpm verify --job fleet-runner-release`, once
+  you have read the branch's changes to the scripts it runs (the default run keeps exiting 2 for it on such a branch, by design; paste both summaries); it prints a loud warning and takes about a
   minute. Every other job, including the Linux runner, gets no Docker socket. A nested Docker engine
   with no host socket is the alternative, not built yet.
 - **What a job can see.** In the runner: a clean container with no host mounts but the pnpm download

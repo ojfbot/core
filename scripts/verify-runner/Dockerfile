@@ -1,15 +1,20 @@
-# A stand-in for the GitHub `ubuntu-latest` / `ubuntu-24.04` runner, used by `pnpm verify` on a Mac.
-# Core's workflows run bash, Python, git, Node and pnpm, and one job builds Docker images, so each job
-# runs in this container on a clean clone of HEAD, as on GitHub's fresh runner. It talks to the same
-# Docker engine as the host (the socket is mounted only into a job that builds images).
+# A stand-in for the GitHub Ubuntu runner a job's `runs-on` names, used by `pnpm verify` on a Mac.
+# It is built from the Ubuntu release of that label (`ubuntu-latest` is 26.04 at the time of
+# writing, see LINUX_RUNNERS in scripts/lib/verify-ci.mjs) and holds the tools core's jobs use:
+# bash, git, Python 3, jq, sqlite3, build tools, Node, pnpm and the Docker CLI with Buildx. It is NOT
+# GitHub's full runner image (which has far more preinstalled), so a job that relies on a tool that
+# is only there fails here for a reason GitHub would not give; add the tool when that happens.
+# Each job runs in it on a clean clone of HEAD. The Docker socket is mounted only into the opt-in
+# release job.
 #
-# The versions come from the repository as build arguments: NODE_VERSION from the job's setup-node
-# step, PNPM_VERSION from package.json "packageManager". The Docker CLI, Buildx and Compose are
-# copied from the pinned official CLI image.
+# The versions come from the repository as build arguments: UBUNTU_VERSION from the job's runs-on,
+# NODE_VERSION from its setup-node step, PNPM_VERSION from package.json "packageManager". The Docker
+# CLI, Buildx and Compose are copied from the pinned official CLI image.
 ARG NODE_VERSION
+ARG UBUNTU_VERSION
 FROM node:${NODE_VERSION}-bookworm-slim AS node
 FROM docker:27.5.1-cli AS docker-cli
-FROM ubuntu:24.04
+FROM ubuntu:${UBUNTU_VERSION}
 ARG PNPM_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
@@ -25,7 +30,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
 # sqlite3 is on GitHub's ubuntu image; the Codex-automation tests call its command line.
-# Ubuntu 24.04 ships Python 3.12, the python3 on GitHub's ubuntu-24.04 image.
+# python3 is the release's own (3.12 on 24.04), as on GitHub's image of the same release.
 # The runner user, with passwordless sudo like the GitHub runner's.
 RUN userdel -r ubuntu 2>/dev/null; useradd --create-home --uid 1001 --shell /bin/bash runner \
  && echo 'runner ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/runner \

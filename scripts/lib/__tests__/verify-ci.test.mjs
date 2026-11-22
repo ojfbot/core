@@ -1,7 +1,7 @@
 // Drift tests for `pnpm verify` (ojfbot/core#650): the real workflow files must be fully understood by
 // scripts/lib/verify-ci.mjs, and a key, action or job it does not know must be reported by name.
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,12 +14,14 @@ import {
   buildNativeEnv,
   checkPlan,
   checkoutDestination,
+  describeHostMismatch,
   githubOnlyReason,
   globToRegExp,
   loadWorkflows,
   outOfScope,
   pathFilterMatches,
   redactText,
+  runnerFor,
   stepCondition,
   substitute,
 } from "../verify-ci.mjs";
@@ -306,5 +308,136 @@ describe("opt-in jobs", () => {
   it("is reported when the list names a job that is not there", () => {
     const dir = workflowsWith({ "ci.yml": CI });
     expect(checkPlan(loadWorkflows(dir)).join("\n")).toContain('lists "fleet-runner-release/release-image" as opt-in');
+  });
+});
+
+describe("a workflow-level secret is GitHub-only, not a crash", () => {
+  it("is found in the top-level env as well as the job's", () => {
+    const [workflow] = loadWorkflows(workflowsWith({ "ci.yml": `${CI}env:\n  TOKEN: \${{ secrets.MY_TOKEN }}\n` }));
+    const reason = githubOnlyReason(workflow.jobs[0], { workspace: "/w", runnerTemp: "/t", sha: "0", runId: "1" });
+    expect(reason?.full).toMatch(/repository secret/);
+  });
+});
+
+describe("runs-on names the machine", () => {
+  const job = (runsOn) => ({ runsOn });
+
+  it("maps ubuntu labels to the release they name, with ubuntu-latest as GitHub resolves it", () => {
+    expect(runnerFor(job("ubuntu-latest")).ubuntu).toBe("26.04");
+    expect(runnerFor(job("ubuntu-24.04")).ubuntu).toBe("24.04");
+    expect(runnerFor(job("ubuntu-22.04")).ubuntu).toBe("22.04");
+  });
+
+  it("marks Windows and macOS labels as another operating system", () => {
+    expect(runnerFor(job("windows-latest")).otherOs).toBe("windows-latest");
+    expect(runnerFor(job("macos-14")).otherOs).toBe("macos-14");
+  });
+
+  it("does not know self-hosted, matrix or list labels, and --check names them", () => {
+    expect(runnerFor(job("self-hosted"))).toBeNull();
+    expect(runnerFor(job(["ubuntu-latest"]))).toBeNull();
+    const dir = workflowsWith({ "ci.yml": CI.replace("ubuntu-latest", "self-hosted") });
+    expect(checkPlan(loadWorkflows(dir)).join("\n")).toContain('runs-on "self-hosted" is not one verify knows');
+  });
+
+  it("a job with no runs-on is reported", () => {
+    const dir = workflowsWith({ "ci.yml": CI.replace("    runs-on: ubuntu-latest\n", "") });
+    expect(checkPlan(loadWorkflows(dir)).join("\n")).toContain("has no runs-on");
+  });
+});
+
+describe("service containers are refused by name until they work as on GitHub", () => {
+  it("--check reports the key", () => {
+    const dir = workflowsWith({ "ci.yml": CI.replace("    steps:", "    services:\n      db:\n        image: postgres:17\n        ports: [5432]\n    steps:") });
+    const problems = checkPlan(loadWorkflows(dir)).join("\n");
+    expect(problems).toContain('the key "services" is not one verify understands');
+    expect(problems).toContain("not supported yet");
+  });
+});
+
+describe("a doctored copy of the real workflows, run on this machine", () => {
+  /** The real workflow files with one edit, so every job still has its JOB_NEEDS entry. */
+  function doctored(edit) {
+    const dir = mkdtempSync(join(tmpdir(), "verify-doctored-"));
+    dirs.push(dir);
+    cpSync(realWorkflows, dir, { recursive: true });
+    const file = join(dir, "ci.yml");
+    writeFileSync(file, edit(readFileSync(file, "utf8")));
+    return dir;
+  }
+  const verifyNative = (dir) =>
+    spawnSync(process.execPath, [join(repoRoot, "scripts/verify.mjs"), "--native", "--job", "ci/check-provenance"], {
+      encoding: "utf8",
+      env: { ...process.env, CORE_VERIFY_WORKFLOWS: dir, CORE_VERIFY_DIR: mkdtempSync(join(tmpdir(), "verify-state-")) },
+    });
+
+  it("reports a top-level secret as SKIPPED with the reason: no stack trace, no path, a summary, exit 0", () => {
+    const dir = doctored((text) => text.replace("jobs:", "env:\n  TOKEN: ${{ secrets.MY_TOKEN }}\n\njobs:"));
+    const result = verifyNative(dir);
+    const output = result.stdout + result.stderr;
+    expect(result.status).toBe(0);
+    expect(output).toMatch(/SKIPPED\s+ci\/check-provenance\s+needs GitHub, uses a repository secret/);
+    expect(output).toContain("verify summary");
+    expect(output).not.toMatch(/node:internal|\n\s+at /);
+    expect(output).not.toContain(repoRoot);
+  });
+
+  it("reports a Windows job as SKIPPED, not run in the Ubuntu container", () => {
+    const dir = doctored((text) => text.replace(/(check-provenance:[\s\S]*?runs-on: )ubuntu-latest/, "$1windows-latest"));
+    const result = verifyNative(dir);
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/SKIPPED\s+ci\/check-provenance\s+needs windows-latest/);
+  });
+
+  it("reports every selected job and still prints the summary", () => {
+    // Both jobs are SKIPPED before anything runs: a native run deletes packages/*/dist, which the
+    // tests that are running this one need.
+    const dir = doctored((text) => text.replace(/runs-on: ubuntu-latest/g, "runs-on: windows-latest"));
+    const result = spawnSync(process.execPath, [join(repoRoot, "scripts/verify.mjs"), "--native", "--job", "ci/check-provenance", "--job", "ci/build-test"], {
+      encoding: "utf8",
+      env: { ...process.env, CORE_VERIFY_WORKFLOWS: dir, CORE_VERIFY_DIR: mkdtempSync(join(tmpdir(), "verify-state-")) },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/SKIPPED\s+ci\/build-test/);
+    expect(result.stdout).toMatch(/SKIPPED\s+ci\/check-provenance/);
+    expect(result.stdout).toContain("verify summary");
+  });
+});
+
+describe("a native run says how the machine differs from the job's runs-on image", () => {
+  const target = { label: "ubuntu-latest", ubuntu: "26.04" };
+
+  it("flags an older Ubuntu host (it could pass what GitHub's image fails)", () => {
+    const message = describeHostMismatch(target, { platform: "linux", osId: "ubuntu", osVersion: "22.04", python: "3.10.12" });
+    expect(message).toContain("ubuntu 22.04");
+    expect(message).toContain("runs-on: ubuntu-latest is Ubuntu 26.04");
+    expect(message).toContain("python3 is 3.10.12");
+  });
+
+  it("flags macOS and a non-Ubuntu Linux", () => {
+    expect(describeHostMismatch(target, { platform: "darwin", osId: "", osVersion: "", python: "3.13.1" })).toContain("on macOS");
+    expect(describeHostMismatch(target, { platform: "linux", osId: "fedora", osVersion: "41", python: "3.13.1" })).toContain("fedora 41");
+  });
+
+  it("flags a matching release with a different Python, where the image's Python is known", () => {
+    const t = { label: "ubuntu-24.04", ubuntu: "24.04" };
+    expect(describeHostMismatch(t, { platform: "linux", osId: "ubuntu", osVersion: "24.04", python: "3.11.4" })).toContain("that image's is 3.12.x");
+    expect(describeHostMismatch(t, { platform: "linux", osId: "ubuntu", osVersion: "24.04", python: "3.12.3" })).toBeNull();
+  });
+
+  it("says nothing only for the same release (Python not recorded for 26.04)", () => {
+    expect(describeHostMismatch(target, { platform: "linux", osId: "ubuntu", osVersion: "26.04", python: "3.14.0" })).toBeNull();
+  });
+});
+
+describe("every host uses the runner container by default", () => {
+  it("a job without Docker is SKIPPED, never run natively (on Linux too)", () => {
+    const result = spawnSync(process.execPath, [join(repoRoot, "scripts/verify.mjs"), "--job", "ci/check-provenance"], {
+      encoding: "utf8",
+      env: { ...process.env, DOCKER_HOST: "unix:///nonexistent.sock", CORE_VERIFY_DIR: mkdtempSync(join(tmpdir(), "verify-state-")) },
+    });
+    const output = result.stdout + result.stderr;
+    expect(result.status, output).toBe(2);
+    expect(output).toMatch(/SKIPPED\s+ci\/check-provenance\s+Docker not running/);
   });
 });

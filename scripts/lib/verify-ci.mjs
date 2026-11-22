@@ -2,7 +2,7 @@
 // can run on this machine, which it cannot (and says so), and the checks that fail when the two
 // drift apart.
 //
-// The commands, environment, service containers and step order come from the workflow files
+// The commands, environment and step order come from the workflow files
 // themselves. This file only holds what they cannot say: what each job needs from the machine, how
 // to stand in for the GitHub actions (`uses:`) a laptop does not have, and which GitHub-only
 // features no local run can reproduce. Ported from LocalHelp's scripts/lib/verify-ci.mjs
@@ -70,6 +70,32 @@ export const JOB_NEEDS = {
   "fleet-runner-release/release-image": ["docker", "buildx", "git-head"],
 };
 
+/**
+ * The runner each `runs-on` label stands for. verify builds its Linux runner from the Ubuntu release
+ * the label names: `ubuntu-latest` is whatever GitHub currently points it at (ubuntu-26.04 in the
+ * CI log of 2026-11-22: "Image: ubuntu-26.04"), so UBUNTU_LATEST is a fact to keep current by hand.
+ * The container has the tools core's jobs use (bash, git, python3, jq, sqlite3, Node, pnpm, the
+ * Docker CLI); it is a stand-in, not GitHub's full runner image. Labels for another operating
+ * system are SKIPPED with the reason; any other label is reported by name.
+ */
+export const UBUNTU_LATEST = "26.04";
+export const LINUX_RUNNERS = {
+  "ubuntu-latest": UBUNTU_LATEST,
+  "ubuntu-26.04": "26.04",
+  "ubuntu-24.04": "24.04",
+  "ubuntu-22.04": "22.04",
+};
+export const OTHER_OS_RUNNER = /^(windows|macos)-/;
+
+/** `{ ubuntu: "26.04" }` for a Linux label, `{ otherOs: label }` for Windows or macOS, else null. */
+export function runnerFor(job) {
+  const label = job.runsOn;
+  if (typeof label !== "string") return null;
+  if (label in LINUX_RUNNERS) return { ubuntu: LINUX_RUNNERS[label], label };
+  if (OTHER_OS_RUNNER.test(label)) return { otherOs: label, label };
+  return null;
+}
+
 /** The jobs `--quick` runs, on the working tree on this machine: the build and the unit tests. */
 export const QUICK_JOBS = ["ci/build-test"];
 
@@ -96,8 +122,7 @@ export const OPT_IN_JOBS = {
  */
 export const SUPPORTED_KEYS = {
   workflow: ["env", "jobs"],
-  job: ["name", "env", "services", "steps", "if", "timeout-minutes", "uses"],
-  service: ["image", "env", "ports", "options"],
+  job: ["name", "env", "runs-on", "steps", "if", "timeout-minutes", "uses"],
   step: ["id", "name", "uses", "with", "run", "env", "if", "working-directory", "continue-on-error"],
   pullRequest: ["paths", "paths-ignore"],
 };
@@ -110,12 +135,10 @@ export const IGNORED_KEYS = {
     concurrency: "cancels older runs on GitHub; verify runs one at a time",
   },
   job: {
-    "runs-on": "the machine type; verify runs on this machine or in its own Linux runner",
     permissions: "the token's scope on GitHub; verify uses no token",
     with: "inputs of a reusable workflow, which is not run here (GITHUB_ONLY)",
     secrets: "secrets of a reusable workflow, which is not run here (GITHUB_ONLY)",
   },
-  service: {},
   step: {},
   pullRequest: {
     types: "which pull request actions start the run; verify stands in for an open pull request",
@@ -206,8 +229,8 @@ export function loadWorkflows(dir) {
         key: `${stem}/${id}`,
         name: job.name ?? id,
         env: job.env ?? {},
-        services: job.services ?? {},
-        serviceKeys: Object.fromEntries(Object.entries(job.services ?? {}).map(([name, service]) => [name, keysOf(service)])),
+        runsOn: job["runs-on"],
+        workflowEnv: doc.env ?? {},
         uses: job.uses === undefined ? null : String(job.uses),
         if: job.if,
         timeoutMinutes: job["timeout-minutes"],
@@ -234,7 +257,7 @@ export function loadWorkflows(dir) {
 function unsupportedKeys(keys, level, where) {
   return keys
     .filter((key) => !SUPPORTED_KEYS[level].includes(key) && !(key in IGNORED_KEYS[level]))
-    .map((key) => `${where}: the key "${key}" is not one verify understands, so a pass here would not mean a pass on GitHub; teach scripts/lib/verify-ci.mjs, or take the key out of the workflow`);
+    .map((key) => `${where}: the key "${key}" is not one verify understands, so a pass here would not mean a pass on GitHub; ${key === "services" ? "service containers are not supported yet (a service must be reachable by name and on localhost as on GitHub)" : "teach scripts/lib/verify-ci.mjs, or take the key out of the workflow"}`);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -421,8 +444,8 @@ export function githubOnlyReason(job, ctx) {
   const known = new Set(job.steps.filter((step) => step.id).map((step) => step.id));
   const probe = { ...ctx, stepOutputs: {}, knownSteps: known };
   const texts = [
+    ...Object.values(job.workflowEnv ?? {}),
     ...Object.values(job.env),
-    ...Object.values(job.services).flatMap((service) => Object.values(service.env ?? {})),
     ...job.steps.flatMap((step) => [step.run, ...Object.values(step.env ?? {}), ...Object.values(step.with ?? {})]),
   ];
   for (const text of texts) {
@@ -504,15 +527,16 @@ function checkJob(workflow, job) {
   if (job.timeoutMinutes !== undefined && !(Number(job.timeoutMinutes) > 0)) {
     problems.push(`${job.key}: timeout-minutes "${job.timeoutMinutes}" is not a number of minutes`);
   }
-  for (const [name, keys] of Object.entries(job.serviceKeys)) {
-    problems.push(...unsupportedKeys(keys, "service", `${job.key}: service "${name}"`));
+  if (job.runsOn === undefined) {
+    problems.push(`${job.key}: has no runs-on, so verify cannot tell which machine GitHub would give it`);
+  } else if (!runnerFor(job)) {
+    problems.push(`${job.key}: runs-on "${typeof job.runsOn === "string" ? job.runsOn : JSON.stringify(job.runsOn)}" is not one verify knows (${Object.keys(LINUX_RUNNERS).join(", ")}, or windows-* / macos-*, which are SKIPPED); teach LINUX_RUNNERS in scripts/lib/verify-ci.mjs`);
   }
   const known = new Set(job.steps.filter((step) => step.id).map((step) => step.id));
   const ctx = { workspace: "/w", runnerTemp: "/t", sha: "0".repeat(40), runId: "1", stepOutputs: {}, knownSteps: known };
   const strings = [
     ...Object.values(workflow.env),
     ...Object.values(job.env),
-    ...Object.values(job.services).flatMap((service) => Object.values(service.env ?? {})),
   ];
   for (const step of job.steps) {
     problems.push(...unsupportedKeys(step.rawKeys, "step", `${job.key}: step ${step.index + 1}`));
@@ -649,4 +673,25 @@ export function redactText(text, { repoRoot, home, tmp, extra = [] }) {
   return result
     .replace(/\/Users\/[^/\s:'"`)]+/g, "~")
     .replace(/\/home\/(?!runner\b)[^/\s:'"`)]+/g, "~");
+}
+
+/** Python 3 of each Ubuntu release, where known (Ubuntu 26.04's is not recorded here). */
+export const PYTHON_OF_UBUNTU = { "22.04": "3.10", "24.04": "3.12" };
+
+/**
+ * How a machine running a job natively differs from the Ubuntu image its `runs-on` names, as one
+ * sentence, or null when it is the same release with the same Python. A pass on a different
+ * release can hide a failure on GitHub's, so a native run always says so.
+ * `target`: { label, ubuntu }. `host`: { platform, osId, osVersion, python }.
+ */
+export function describeHostMismatch(target, host) {
+  const wantedPython = PYTHON_OF_UBUNTU[target.ubuntu];
+  const where = host.platform === "linux" ? (host.osId ? `${host.osId} ${host.osVersion}`.trim() : "Linux of unknown release") : host.platform === "darwin" ? "macOS" : host.platform;
+  const sameOs = host.platform === "linux" && host.osId === "ubuntu" && host.osVersion === target.ubuntu;
+  const pythonSame = host.python && wantedPython ? host.python.startsWith(`${wantedPython}.`) : true;
+  if (sameOs && pythonSame) return null;
+  const python = host.python
+    ? `this machine's python3 is ${host.python}${wantedPython ? `, that image's is ${wantedPython}.x` : ", that image's is not recorded here"}`
+    : "python3 was not found here";
+  return `on ${where}, but runs-on: ${target.label} is Ubuntu ${target.ubuntu} on GitHub, so a pass here is not a pass there (${python})`;
 }
