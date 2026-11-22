@@ -180,3 +180,50 @@ describe('lint-commits installs the locked CLI by itself (the CI and verify path
     }
   });
 });
+
+describe('every GitHub merge method lands commits that pass the push check', () => {
+  const reset = () => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+  };
+
+  it('PR title length leaves room for the squash suffix GitHub appends', () => {
+    reset();
+    const head = commit('feat: fine');
+    const fits = `feat: ${'x'.repeat(84)}`; // 90 characters, 100 with " (#999999)"
+    const tooLong = `feat: ${'x'.repeat(85)}`; // 91 characters, 101 with the suffix
+    expect(fits).toHaveLength(90);
+    expect(lint(base, head, { PR_TITLE: fits }).status).toBe(0);
+    const r = lint(base, head, { PR_TITLE: tooLong });
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/header-max-length/);
+  });
+
+  it('a squash-merged commit (title + " (#N)", bullets, co-author footer) passes', () => {
+    reset();
+    const squashed = `feat(fleet-runner): ${'x'.repeat(60)} (#1234)\n\n* feat: first change\n* fix: second change\n\nCo-authored-by: Someone <someone@example.com>`;
+    const head = commit(squashed);
+    expect(lint(base, head).status).toBe(0);
+  });
+
+  it('a merge-commit merge (branch commits plus the merge-button message) passes', () => {
+    reset();
+    git('checkout', '-q', '-b', 'topic2');
+    commit('feat: first topic commit');
+    commit('fix: second topic commit');
+    git('checkout', '-q', 'main');
+    execFileSync('git', ['merge', '--no-ff', '-q', '-m', 'Merge pull request #5 from o/topic2\n\nfeat: the pull request title', 'topic2', '--no-gpg-sign'], {
+      cwd: dir,
+      env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.com', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.com' },
+    });
+    expect(lint(base, git('rev-parse', 'HEAD')).status).toBe(0);
+    git('branch', '-q', '-D', 'topic2');
+  });
+
+  it('a rebase-merged branch passes as plain conventional commits', () => {
+    reset();
+    commit('feat: rebased one');
+    const head = commit('fix: rebased two');
+    expect(lint(base, head).status).toBe(0);
+  });
+});

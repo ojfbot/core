@@ -17,6 +17,12 @@ import { fileURLToPath } from 'node:url';
 
 /** The CLI version both CI and the local hook use; a test keeps it equal to the root devDependency. */
 export const COMMITLINT_VERSION = '21.2.4';
+/**
+ * GitHub appends " (#<number>)" to a squash-merge title, and the result is what lands on the default
+ * branch, where the push check lints it. The pull request title is therefore linted with room for
+ * that suffix (up to a six-digit number), so a title that passes here cannot fail there for length.
+ */
+export const SQUASH_SUFFIX = ' (#999999)';
 /** The one rules file, relative to the root of the Core checkout this script lives in. */
 export const CONFIG_RELATIVE = 'packages/commitlint-config/index.mjs';
 
@@ -106,9 +112,9 @@ export function main(env = process.env, cwd = process.cwd()) {
   if (title === undefined) {
     console.log(`pull request title: SKIPPED (${env.PR_TITLE_SKIP_REASON || 'no title was given'})`);
   } else {
-    const result = runCommitlint({ args: [], input: `${title}\n`, cwd });
+    const result = runCommitlint({ args: [], input: `${title}${SQUASH_SUFFIX}\n`, cwd });
     console.log(result.output);
-    console.log(`pull request title ${JSON.stringify(title)}: ${result.ok ? 'PASS' : 'FAIL'}`);
+    console.log(`pull request title ${JSON.stringify(title)} (checked with the squash suffix${SQUASH_SUFFIX}): ${result.ok ? 'PASS' : 'FAIL'}`);
     failed ||= !result.ok;
     collect(result.output, 'title');
   }

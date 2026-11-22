@@ -39,8 +39,17 @@ feat(read-model-contract)!: drop the v1 snapshot shape
 
 The **scope is optional** and, when present, lowercase kebab-case (`fleet-runner`, not
 `Fleet Runner`). It is for the reader. release-please decides which package a commit belongs to by
-the files it changed, so a wrong scope never changes a version. Squash-merge repos: the PR title is
-the commit that lands, so it must pass too.
+the files it changed, so a wrong scope never changes a version. The PR title is the commit that
+lands in a squash-merge repo, so it must pass too; it is linted with room for the " (#N)" GitHub adds
+to a squash title, so a title that passes on the PR cannot fail on the default branch for length.
+
+**Merge methods.** All three GitHub merge methods are supported, and each adopting repo chooses
+(Core and HouseholdAgentKit are rebase-only; the others may use merge commits or squash). The push
+check lints every commit in the pushed range: rebase merges land plain conventional commits, squash
+merges land the PR title plus `(#N)` (a conventional header) with the commit titles as a body, and
+merge-commit merges land the branch's own commits plus GitHub's `Merge pull request #N from …`
+message with the PR title as its body, which the config accepts. Tests cover each shape. Nothing
+needs to be switched off or per-repo configured for any of them.
 
 ## Rules a contributor follows
 
@@ -99,8 +108,10 @@ Each adoption is one PR, pinned to a Core commit SHA (`<core-sha>` below; never 
 3. **Workflows.** Three small caller files, each pinned:
 
    ```yaml
-   # .github/workflows/versioning.yml
-   on: { pull_request: { types: [opened, edited, synchronize, reopened] } }
+   # .github/workflows/versioning.yml  (name the jobs exactly commitlint and versions)
+   on:
+     pull_request: { types: [opened, edited, synchronize, reopened] }
+     push: { branches: [main] }   # backstop for direct pushes: the same checks over the pushed range
    permissions: { contents: read }
    jobs:
      commitlint:
@@ -120,8 +131,8 @@ Each adoption is one PR, pinned to a Core commit SHA (`<core-sha>` below; never 
    ```
 
    Moving the pin to a newer Core commit is a deliberate PR in that repo.
-4. **Repo settings.** Make `commitlint / commitlint` and `versions / versions` **required status
-   checks** on the default branch (branch protection or a ruleset), public repo or private, with
+4. **Repo settings.** Make `commitlint / commitlint` and `versions / versions` (the check-run names
+   are the same on pull requests and on pushes) **required status checks** on the default branch (branch protection or a ruleset), public repo or private, with
    a review required and CODEOWNERS on `.github/`. That is what actually blocks a merge; without
    it the checks only report. (Name the caller jobs `commitlint` and `versions` and the check runs
    are exactly those names.) The same workflows also run on pushes to the default branch as a
@@ -160,6 +171,9 @@ bumps. Its config entry carries a one-time `release-as: 0.3.0`, so the first rel
 `fleet-runner-v0.3.0` tag exists): until then it would force every later release to 0.3.0, and the
 coverage check fails any pull request or push once that tag exists while the key is still set.
 The worker installer accepts SemVer pre-releases (since 8fc6e85), so nothing breaks either way.
+Plainly: nothing *blocks* merging that release PR with a different number. That the first release is
+`0.3.0` holds by construction (the config forces it, and the dry-run test asserts it); only the
+later cleanup of `release-as` is enforced by a check, and only after the tag exists.
 
 ## What the checks guarantee, and what they do not
 
