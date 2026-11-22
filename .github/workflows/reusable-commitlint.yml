@@ -53,6 +53,7 @@ jobs:
           sparse-checkout: |
             package.json
             packages/commitlint-config
+            scripts/fleet-versioning
           persist-credentials: false
 
       - name: Install pnpm (the version Core pins)
@@ -60,15 +61,10 @@ jobs:
         with:
           package_json_file: .fleet-core/package.json
 
-      - name: Lint the pull request title
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          printf '%s\n' "$PR_TITLE" | pnpm dlx @commitlint/cli@21.2.4 --config .fleet-core/packages/commitlint-config/index.mjs
-
-      - name: Lint every commit in the pull request
+      - name: Lint every commit in the pull request, then its title
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          pnpm dlx @commitlint/cli@21.2.4 --config .fleet-core/packages/commitlint-config/index.mjs --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        # One script for CI and `pnpm verify`: same rules file, same pinned CLI.
+        run: node .fleet-core/scripts/fleet-versioning/lint-commits.mjs
