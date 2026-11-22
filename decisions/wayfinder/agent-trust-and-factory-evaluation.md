@@ -198,6 +198,12 @@ filed under `decisions/research/` and linked from the tickets they inform.
   forever; adding that store to the backup is a separate reviewed change. Journals are
   hash-chained and witness each other hourly. — How is the evidence chain recorded across
   services? (#668, owner confirmed 2026-11-22)
+- AI-grader trust (research, nothing chosen). No judge has passed any bar yet. Three
+  candidate bars are costed in owner minutes: about 40 labels; about 100 labels plus
+  planted traps; or the second bar where the judge may only hold, plus a monthly blind
+  audit. Drift is checked by re-scoring frozen owner-labelled anchors on any judge, model
+  or prompt change. Critical violations stay machine-only. Findings:
+  `decisions/research/grader-trust-671.md`. — How do we keep AI graders honest? (#671)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -234,7 +240,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 |-------------------------------|------|------------|--------|
 | What do our own model tests measure? (#669) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
 | How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | closed (revised; second challenge queued) |
-| How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
+| How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | closed |
 | Which factory measures do we track? (#672) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
 | What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | closed (challenge queued) |
 
