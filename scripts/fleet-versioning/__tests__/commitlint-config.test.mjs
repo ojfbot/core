@@ -29,6 +29,8 @@ const accept = [
 const reject = [
   ['fixed the bug', /type may not be empty|subject may not be empty/],
   ['wip: stuff', /type must be one of/],
+  ['feat add a thing', /type may not be empty|subject may not be empty/],
+  ['feat(scope) add a thing', /type may not be empty|subject may not be empty/],
   ['Feat: x', /type must be lower-case|type must be one of/],
   ['feat(Fleet Runner): x', /scope|type may not be empty/],
   ['feat(Bad_Scope): x', /scope/],

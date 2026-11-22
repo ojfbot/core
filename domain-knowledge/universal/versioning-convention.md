@@ -116,6 +116,8 @@ reviewer's call, and a wrong type is fixed by correcting the commit or PR title 
 Core adopts all of this by local path (so a PR that changes a workflow is tested by itself):
 `.github/workflows/versioning.yml` and `release-please.yml`, `release-please-config.json`,
 `.release-please-manifest.json`, `commitlint.config.mjs`, `.githooks/commit-msg`, and
-`scripts/fleet-versioning/` (tests: `pnpm test:versioning`). `pnpm verify` runs the coverage check and
-lints HEAD through `ci/build-test`; run `pnpm exec commitlint --from origin/main --to HEAD` for the
-whole branch.
+`scripts/fleet-versioning/` (tests: `pnpm test:versioning`). `pnpm verify` runs `versioning/commitlint` and `versioning/versions` for real (never SKIPPED): the
+commits since `origin/main` and the PR title (from `gh`; reported SKIPPED with the reason when there
+is no PR) through `scripts/fleet-versioning/lint-commits.mjs`, the same script CI runs, and the
+version checks through `check-versions.mjs`. Tests keep the local hook, CI and verify on one rules file
+and one commitlint version.
