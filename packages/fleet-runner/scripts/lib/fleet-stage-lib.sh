@@ -118,7 +118,18 @@ select_runs() {
 # production's declared root, and its port and name are not production's or another container's.
 # This reads nothing of production; it only compares the values the private config declares.
 # Run before anything changes.
-ISOLATION='
+# The env file is what Compose reads, and Compose's dotenv parser accepts more than KEY=value:
+# `export KEY=...`, quotes, and a later duplicate that wins. Rather than re-implement that parser,
+# only the plainest form is accepted: one KEY=value per line, no export, no quotes, no duplicates,
+# nothing that could be interpolated. fleet-stage-setup.sh writes exactly that, and so does the
+# stage script.
+ENV_PLAIN_FN='
+env_is_plain() {
+  if grep -v -e "^\$" "$1" | grep -qv -e "^[A-Z][A-Z0-9_]*=[A-Za-z0-9_./:@+-]*\$"; then return 1; fi
+  [ -z "$(sed -n "s/^\([A-Z][A-Z0-9_]*\)=.*/\1/p" "$1" | sort | uniq -d)" ]
+}
+'
+ISOLATION="$ENV_PLAIN_FN"'
 deploy="$1" root="$2" prod_root="$3" port="$4" prod_port="$5" project="$6" prod_container="$7" lan="$8"
 bad=0
 [ -f "$root/.fleet-runner-staging" ] || { echo "FAIL $root is not marked as the test copy: run fleet-stage-setup.sh"; bad=1; }
@@ -139,7 +150,9 @@ fi
 # The container is configured by the server env file, the checks by the private config: they must
 # say the same thing, or the checks would be about a different test copy than the one that runs.
 envv() { sed -n "s/^$1=//p" "$deploy/fleet-staging.env" 2>/dev/null | tail -n 1; }
-if [ -f "$deploy/fleet-staging.env" ]; then
+if [ -f "$deploy/fleet-staging.env" ] && ! env_is_plain "$deploy/fleet-staging.env"; then
+  echo "FAIL fleet-staging.env is not one plain KEY=value per line (no export, quotes or duplicate keys)"; bad=1
+elif [ -f "$deploy/fleet-staging.env" ]; then
   for pair in "FLEET_STAGE_ROOT=$root" "FLEET_HOST_PORT=$port" "FLEET_LAN_IP=$lan" "FLEET_COMPOSE_PROJECT=$project"; do
     k="${pair%%=*}"; v="${pair#*=}"
     [ "$(envv "$k")" = "$v" ] || { echo "FAIL fleet-staging.env $k differs from the private config"; bad=1; }

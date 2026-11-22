@@ -61,7 +61,7 @@ say "== stage $short into $STAGE_PROJECT ($runid)"
 check_isolation
 
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/fleet-stage-$short.XXXXXX")"
-have_lock=no switching=no passed=no rolled_back=no
+have_lock=no switching=no passed=no rolled_back=no keep_lock=no
 prev="" prev_label="the empty state"
 
 # Stop what this run started or left, on any way out, and let go of the lock.
@@ -70,10 +70,12 @@ cleanup() {
   trap - EXIT INT TERM
   if [ "$switching" = yes ] && [ "$passed" != yes ] && [ "$rolled_back" != yes ]; then
     say "FAIL $short did not pass in the test copy; rolling back to $prev_label"
-    do_rollback || true
+    do_rollback || keep_lock=yes
     [ "$rc" -ne 0 ] || rc=1
   fi
-  if [ "$have_lock" = yes ]; then
+  if [ "$have_lock" = yes ] && [ "$keep_lock" = yes ]; then
+    say "the stage lock is kept because the test copy may not be at rest: look at it, then remove the lock folder"
+  elif [ "$have_lock" = yes ]; then
     nas "$UNLOCK" "$NAS_STAGE_DIR" "$runid" || say "FAIL could not release the run lock on the server"
   fi
   rm -rf "$tmp"
@@ -219,19 +221,31 @@ STOP="$STOP_FN"'stop_project "$1"'
 SWITCH="$STOP_FN"'
 dir="$1" project="$2" rev="$3" runid="$4" root="$5" image_id="$6" manifest_digest="$7"
 cd "$dir"
+# If the connection that started this drops, this script keeps running on the server. Record its
+# process, and check before every step that this run still owns the lock and was not told to stop:
+# the rollback sets "abort", then waits for this process to end before it touches anything.
+lock="$dir/.stage-lock"
+echo "$$" > "$lock/switch.pid"
+trap "rm -f \"$lock/switch.pid\"" EXIT
+step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
+step
 [ -d "$root/state" ] || { echo "FAIL no test copy state folder"; exit 1; }
 { cp -p fleet-staging.env "fleet-staging.env.pre-$runid.part" && mv "fleet-staging.env.pre-$runid.part" "fleet-staging.env.pre-$runid"; } ||
   { echo "FAIL backing up fleet-staging.env"; exit 1; }
 { cp -p compose.yaml "compose.yaml.pre-$runid.part" && mv "compose.yaml.pre-$runid.part" "compose.yaml.pre-$runid"; } ||
   { echo "FAIL backing up compose.yaml"; exit 1; }
+step
 stop_project "$project" || { echo "FAIL could not stop the test copy"; exit 1; }
+step
 cp -a "$root/state" "$root/state.pre-$runid.part" || { echo "FAIL copying the test copy state folder"; exit 1; }
 mv "$root/state.pre-$runid.part" "$root/state.pre-$runid"
+step
 { cp "releases/$rev/compose.yaml" compose.yaml.new && mv compose.yaml.new compose.yaml; } || exit 1
 grep -v -e "^FLEET_REVISION=" -e "^FLEET_IMAGE=" "fleet-staging.env.pre-$runid" > fleet-staging.env.new || true
 printf "FLEET_REVISION=%s\nFLEET_IMAGE=fleet-runner:%s\n" "$rev" "$rev" >> fleet-staging.env.new
 { chmod 0600 fleet-staging.env.new && mv fleet-staging.env.new fleet-staging.env; } || exit 1
 c="docker compose -p $project --env-file fleet-staging.env -f compose.yaml"
+step
 # Never pull: the only image this may run is the one just loaded from the checked archive.
 $c up -d --pull never >/dev/null 2>&1 || { echo "FAIL compose up"; exit 1; }
 id="$($c ps -q fleet-runner)"
@@ -250,9 +264,32 @@ fi
 # failed; the caller then checks it and stops it.
 ROLLBACK="$STOP_FN"'
 set +e
-dir="$1" project="$2" runid="$3" root="$4" prev="$5"
+dir="$1" project="$2" runid="$3" root="$4" prev="$5" rev="$6" wait="$7"
 bad=0
 cd "$dir" || exit 1
+# Fence: a switch that is still running on the server (its connection may be long gone) must end
+# before anything is put back, or it could start the untested revision after this has finished.
+# Never killed: a stale pid could belong to someone else; if it does not end, the lock is kept.
+lock="$dir/.stage-lock"
+[ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run no longer owns the lock; nothing was changed"; exit 1; }
+: > "$lock/abort"
+pid="$(cat "$lock/switch.pid" 2>/dev/null)"
+if [ -n "$pid" ]; then
+  i=0
+  while kill -0 "$pid" 2>/dev/null; do
+    i=$((i + 1))
+    [ "$i" -le "$wait" ] || { echo "FAIL the switch (process $pid) is still running after $wait seconds; the lock is kept"; exit 1; }
+    sleep 1
+  done
+fi
+# The pass record is undone first, whatever happened to the acknowledgement of writing it: a revision
+# that was rolled back must not look promotable, and last-passed must name what is really running.
+rm -f "releases/$rev/STAGED_OK"
+if [ -n "$prev" ]; then
+  printf "%s\n" "$prev" > last-passed.new && mv last-passed.new last-passed || { echo "FAIL could not restore last-passed"; bad=1; }
+else
+  rm -f last-passed
+fi
 [ -f "fleet-staging.env.pre-$runid" ] && cp -p "fleet-staging.env.pre-$runid" fleet-staging.env
 [ -f "compose.yaml.pre-$runid" ] && cp -p "compose.yaml.pre-$runid" compose.yaml
 if stop_project "$project"; then
@@ -285,7 +322,7 @@ exit "$bad"
 do_rollback() {
   local ok=yes
   rolled_back=yes
-  nas "$ROLLBACK" "$NAS_STAGE_DIR" "$STAGE_PROJECT" "$runid" "$NAS_STAGE_ROOT" "$prev" || ok=no
+  nas "$ROLLBACK" "$NAS_STAGE_DIR" "$STAGE_PROJECT" "$runid" "$NAS_STAGE_ROOT" "$prev" "$rev" "${FLEET_FENCE_WAIT:-300}" || ok=no
   if [ "$ok" = yes ] && [ -n "$prev" ]; then
     wait_ready "$prev" || ok=no
   fi
@@ -316,7 +353,10 @@ if [ "$keep_running" = no ]; then
   nas "$STOP" "$STAGE_PROJECT" || { say "FAIL could not stop the test copy"; exit 1; }
   say "the test copy is stopped again (it runs only while a test is under way)"
 fi
-nas 'printf "%s staged and smoke-tested\n" "$3" > "$1/releases/$2/STAGED_OK" && printf "%s\n" "$2" > "$1/last-passed"' \
+# One server-side step writes both files. If the acknowledgement is lost after it ran, the exit trap
+# rolls back and its first act is to remove them again, so the two can never disagree.
+nas 'printf "%s\n" "$2" > "$1/last-passed.new" && printf "%s staged and smoke-tested\n" "$3" > "$1/releases/$2/STAGED_OK.new" &&
+  mv "$1/last-passed.new" "$1/last-passed" && mv "$1/releases/$2/STAGED_OK.new" "$1/releases/$2/STAGED_OK"' \
   "$NAS_STAGE_DIR" "$rev" "$runid" || { say "FAIL could not record the pass"; exit 1; }
 passed=yes
 say "PASS $short is staged and smoke-tested in $STAGE_PROJECT (was $prev_label)"

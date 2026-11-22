@@ -270,11 +270,18 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
    values and lists container names and ports only; it does not inspect or touch
    production. The env file is the one Compose actually reads, so a root, port or
    address in it that differs from the private config (for example one that names
-   production's root) is refused before anything changes.
+   production's root) is refused before anything changes. Compose's own env
+   parser accepts more than `KEY=value` (`export KEY=...`, quotes, and a later
+   duplicate that wins), so instead of re-implementing it the file must be exactly
+   one plain `KEY=value` per line: no `export`, no quotes, no duplicate keys, no
+   interpolation. Setup and the stage script write that form themselves.
 2. **Lock.** One run at a time: an atomic lock folder on the server, owned by this
    run's ID (the time plus the process ID, which also names every backup of the
-   run) and released on every way out. A crashed run's lock is left for a person
-   to remove; the message says where.
+   run) and released on every way out. The switch records its server-side process
+   in the lock and checks before every step that the run still owns the lock and
+   has not been told to stop. A crashed run's lock is left for a person to remove,
+   and so is the lock of a rollback that could not confirm the test copy is at rest;
+   the message says where.
 3. **Release, verified here every time.** Uses `--release <dir>`, or downloads the
    CI artifact by **run ID**, choosing the run by the rule in "Trusting a
    downloaded release": workflow `fleet-runner-release.yml`, this repository,
@@ -302,14 +309,19 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
    job submit is accepted; a worker claims that job and finishes it.
 7. **Result.** On success the test copy is stopped (`--keep-running` leaves it
    up), then `releases/<revision>/STAGED_OK` and `last-passed` are written
-   together; every earlier `STAGED_OK` was cleared at the start, so only a
-   passing run leaves a revision promotable. **On any failure, Ctrl-C, SIGTERM or
+   together in one server-side step; every earlier `STAGED_OK` was cleared at the
+   start, so only a passing run leaves a revision promotable. **On any failure, Ctrl-C, SIGTERM or
    lost connection after the switch began, an exit trap rolls back**: the state
    folder, env file and `compose.yaml` are put back, the env file is set to the
    revision in `last-passed` (the last one that passed, not whatever a partial run
    left in the env file), that revision is started, checked to answer as itself,
    and stopped; with none yet, the test copy returns to its empty state. Rollback
-   prints PASS only if every step worked. State copies (`state.pre-*`,
+   prints PASS only if every step worked. Its first act is to tell any switch still
+   running on the server (its connection may have dropped while it kept going) to
+   stop, and to wait for it to end before touching anything, so a half-finished
+   switch can never start the untested revision after the rollback; its second is
+   to remove that revision's `STAGED_OK` and put `last-passed` back, whatever
+   happened to the acknowledgement of writing them. State copies (`state.pre-*`,
    `state.failed-*`) are kept; prune them by hand.
 
 The test copy's containers are never restarted by the engine (`restart: "no"`),

@@ -37,7 +37,7 @@ cd "$repo"
 say "== set up the test copy $STAGE_PROJECT"
 
 # 1. Folders, marker, env file, compose.yaml.
-nas '
+nas "$ENV_PLAIN_FN"'
 deploy="$1" root="$2" project="$3" lan="$4" port="$5"
 mark=.fleet-runner-staging
 # A folder that already holds files but has no marker is not ours to use.
@@ -62,6 +62,8 @@ if [ ! -f "$deploy/fleet-staging.env" ]; then
   echo "PASS wrote fleet-staging.env"
 else
   # It is the configuration the container runs with: it must still say what the private config says.
+  env_is_plain "$deploy/fleet-staging.env" ||
+    { echo "FAIL fleet-staging.env is not one plain KEY=value per line (no export, quotes or duplicate keys)"; exit 1; }
   envv() { sed -n "s/^$1=//p" "$deploy/fleet-staging.env" | tail -n 1; }
   for pair in "FLEET_STAGE_ROOT=$root" "FLEET_HOST_PORT=$port" "FLEET_LAN_IP=$lan" "FLEET_COMPOSE_PROJECT=$project"; do
     k="${pair%%=*}"; v="${pair#*=}"
