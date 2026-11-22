@@ -119,7 +119,7 @@ select_runs() {
 # This reads nothing of production; it only compares the values the private config declares.
 # Run before anything changes.
 ISOLATION='
-deploy="$1" root="$2" prod_root="$3" port="$4" prod_port="$5" project="$6" prod_container="$7"
+deploy="$1" root="$2" prod_root="$3" port="$4" prod_port="$5" project="$6" prod_container="$7" lan="$8"
 bad=0
 [ -f "$root/.fleet-runner-staging" ] || { echo "FAIL $root is not marked as the test copy: run fleet-stage-setup.sh"; bad=1; }
 [ -f "$deploy/.fleet-runner-staging" ] || { echo "FAIL $deploy is not marked as the test copy: run fleet-stage-setup.sh"; bad=1; }
@@ -136,6 +136,17 @@ if [ -n "$prod_root" ]; then
   d="$(real "$deploy")"
   case "$d/" in "$p"/*) echo "FAIL the test copy deploy folder is inside production root"; bad=1 ;; esac
 fi
+# The container is configured by the server env file, the checks by the private config: they must
+# say the same thing, or the checks would be about a different test copy than the one that runs.
+envv() { sed -n "s/^$1=//p" "$deploy/fleet-staging.env" 2>/dev/null | tail -n 1; }
+if [ -f "$deploy/fleet-staging.env" ]; then
+  for pair in "FLEET_STAGE_ROOT=$root" "FLEET_HOST_PORT=$port" "FLEET_LAN_IP=$lan" "FLEET_COMPOSE_PROJECT=$project"; do
+    k="${pair%%=*}"; v="${pair#*=}"
+    [ "$(envv "$k")" = "$v" ] || { echo "FAIL fleet-staging.env $k differs from the private config"; bad=1; }
+  done
+else
+  echo "FAIL $deploy/fleet-staging.env is missing: run fleet-stage-setup.sh"; bad=1
+fi
 [ "$port" != "$prod_port" ] || { echo "FAIL the test copy and production share a port"; bad=1; }
 # A port some other container already publishes would fail at start, or worse; compose projects
 # other than ours are other containers. docker ps lists names and ports only.
@@ -146,6 +157,6 @@ others="$(docker ps --format "{{.Names}} {{.Ports}}" 2>/dev/null | awk -v p=":$p
 exit "$bad"
 '
 check_isolation() {
-  nas "$ISOLATION" "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$NAS_PROD_ROOT" "$STAGE_PORT" "$PROD_PORT" "$STAGE_PROJECT" "$PROD_CONTAINER" ||
+  nas "$ISOLATION" "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$NAS_PROD_ROOT" "$STAGE_PORT" "$PROD_PORT" "$STAGE_PROJECT" "$PROD_CONTAINER" "$STAGE_LAN_IP" ||
     die "the test copy is not isolated from production; nothing was changed"
 }

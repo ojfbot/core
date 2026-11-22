@@ -260,37 +260,53 @@ CA key stops this step: it never asks for or types one.
 scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
 ```
 
-1. **Isolation.** Refuses unless both markers exist, the test copy's root and
-   deploy folder are not inside production's declared root (or the reverse), the
-   port differs from production's and is not published by another container, and
-   the name differs from production's. It compares declared values and lists
-   container names and ports only; it does not inspect or touch production.
-2. **Release.** Uses `--release <dir>`, or the copy already on the server, or
-   downloads the CI artifact by **run ID**, choosing the run by the rule in
-   "Trusting a downloaded release": workflow `fleet-runner-release.yml`, this
-   repository, branch `main`, success, and either a push run whose head SHA is the
-   revision, or (newest first) a rebuild run whose `release.json` names the
-   revision. A fork's look-alike artifact is never selected.
-3. **Verify, copy, load.** `verify-release.sh check` here, then the archive, its
-   checksum, `release.json`, and that revision's own `compose.yaml` and
-   `load-release.sh` go to the server, where `load-release.sh` re-hashes the
-   archive against the checked SHA-256, loads it, and checks the image ID,
-   platform and non-root user.
-4. **Switch.** Backs up the env file, `compose.yaml` and the state folder, stops
-   the test copy, writes the new revision, starts it, and checks that the running
-   image is the checked one.
-5. **Smoke test** from this Mac with the test copy's own keys
+1. **Isolation.** Refuses unless both markers exist, the server's
+   `fleet-staging.env` says the same `FLEET_STAGE_ROOT`, `FLEET_HOST_PORT`,
+   `FLEET_LAN_IP` and project as the private config (the container is configured
+   by the one, the checks by the other, so they must agree), the test copy's root
+   and deploy folder are not inside production's declared root (or the reverse),
+   the port differs from production's and is not published by another
+   container, and the name differs from production's. It compares declared
+   values and lists container names and ports only; it does not inspect or touch
+   production.
+2. **Lock.** One run at a time: an atomic lock folder on the server, owned by this
+   run's ID (the time plus the process ID, which also names every backup of the
+   run) and released on every way out. A crashed run's lock is left for a person
+   to remove; the message says where.
+3. **Release, verified here every time.** Uses `--release <dir>`, or downloads the
+   CI artifact by **run ID**, choosing the run by the rule in "Trusting a
+   downloaded release": workflow `fleet-runner-release.yml`, this repository,
+   branch `main`, success, and either a push run whose head SHA is the revision,
+   or (newest first) a rebuild run whose `release.json` names the revision. A
+   fork's look-alike artifact is never selected. `verify-release.sh check` runs
+   on this machine even when the server already holds a copy of that revision;
+   that copy must then be byte-identical to the verified `release.json`, else it
+   is refused and never trusted for its own checksum.
+4. **Copy and load.** The archive, its checksum, `release.json`, and that
+   revision's own `compose.yaml` and `load-release.sh` go to the server, where
+   `load-release.sh` re-hashes the archive against the checksum checked here,
+   loads it, and checks the image ID, platform and non-root user.
+5. **Switch.** Backs up the env file, `compose.yaml` and the state folder (names
+   carry the run ID), stops the test copy, writes the new revision, starts it
+   (never pulling an image), and checks that the running image is the checked
+   one. The test copy is always stopped by its Compose project label rather than
+   through Compose, which would first have to interpolate an env file that may
+   hold no revision; a stop that fails, or leaves a container running, is a FAIL.
+6. **Smoke test** from this Mac with the test copy's own keys
    (`scripts/stage-smoke.mjs`, using the built client of this checkout): the
    signed status answers ready with exactly this revision as its build; a signed
    job submit is accepted; a worker claims that job and finishes it.
-6. **Result.** On success the test copy is stopped again (`--keep-running` leaves
-   it up), `releases/<revision>/STAGED_OK` is written, and every earlier
-   `STAGED_OK` was cleared at the start, so only a passing run leaves a revision
-   promotable. On any failure the previous state folder, env file and
-   `compose.yaml` are put back, the previous revision is started, checked to
-   answer as that revision, and stopped; with no previous revision the test copy
-   returns to its empty state. State copies (`state.pre-*`, `state.failed-*`) are
-   kept; prune them by hand.
+7. **Result.** On success the test copy is stopped (`--keep-running` leaves it
+   up), then `releases/<revision>/STAGED_OK` and `last-passed` are written
+   together; every earlier `STAGED_OK` was cleared at the start, so only a
+   passing run leaves a revision promotable. **On any failure, Ctrl-C, SIGTERM or
+   lost connection after the switch began, an exit trap rolls back**: the state
+   folder, env file and `compose.yaml` are put back, the env file is set to the
+   revision in `last-passed` (the last one that passed, not whatever a partial run
+   left in the env file), that revision is started, checked to answer as itself,
+   and stopped; with none yet, the test copy returns to its empty state. Rollback
+   prints PASS only if every step worked. State copies (`state.pre-*`,
+   `state.failed-*`) are kept; prune them by hand.
 
 The test copy's containers are never restarted by the engine (`restart: "no"`),
 and no scheduled job starts them.

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   chmodSync,
@@ -16,12 +16,14 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Slices 2 and 3 of the release pipeline, end to end without a server or Docker: the real scripts
 // run from a sandbox git repo; `ssh` runs the "server" side locally in a sandbox folder; `docker`,
 // `gh` and `pnpm` are fakes; and the "container" is a real fleet-runner server over TLS from the
 // built package, so the signed status, submit and claim are the real ones.
+// Each stage run starts a real TLS server and polls it, so give every test room.
+vi.setConfig({ testTimeout: 120_000 });
 const pkg = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const IMAGE_ID_OF = (rev: string) => `sha256:${sha(Buffer.from(`config of ${rev}`))}`;
 
@@ -146,10 +148,16 @@ function makeRelease(dir: string, rev: string): void {
 }
 
 const FAKE_SSH = `#!/bin/bash
-# Run the remote command locally, in the sandbox "server".
+# Run the remote command locally, in the sandbox "server". FAKE_SSH_FAIL_MATCH makes any call whose
+# command or input contains that text fail like a lost connection.
 while [ "$1" = -o ]; do shift 2; done
 shift
-exec sh -c "$1"
+cmd="$1"
+in="$(mktemp)"; cat > "$in"
+if [ -n "$FAKE_SSH_FAIL_MATCH" ] && { grep -q -e "$FAKE_SSH_FAIL_MATCH" "$in" || printf '%s' "$cmd" | grep -q -e "$FAKE_SSH_FAIL_MATCH"; }; then
+  rm -f "$in"; echo "ssh: connection lost" >&2; exit 255
+fi
+sh -c "$cmd" < "$in"; rc=$?; rm -f "$in"; exit $rc
 `;
 
 // compose stop/up/ps and the few engine calls the scripts make. Containers are real fleet-runner
@@ -166,16 +174,22 @@ case "$1" in
     done
     cmd="$1"; shift
     pidf="$S/$project.pid"
+    # Compose interpolates the whole file for every subcommand: a missing required variable fails.
+    if [ -z "$(envget FLEET_REVISION)" ] || [ -z "$(envget FLEET_IMAGE)" ]; then
+      echo "required variable FLEET_REVISION is missing a value" >&2; exit 1
+    fi
     stop() { if [ -f "$pidf" ]; then kill "$(cat "$pidf")" 2>/dev/null; while kill -0 "$(cat "$pidf")" 2>/dev/null; do sleep 0.1; done; rm -f "$pidf"; fi; }
     case "$cmd" in
       stop) stop ;;
       up)
         rev="$(envget FLEET_REVISION)"; [ -n "$rev" ] || { echo "FLEET_REVISION unset" >&2; exit 1; }
         stop
-        build="$rev"; [ "$rev" = "$FAKE_BAD_REV" ] && build="0000000000000000000000000000000000000000"
+        build="$rev"
+        case ",$FAKE_BAD_REV," in *",$rev,"*) build="0000000000000000000000000000000000000000" ;; esac
         FAKE_ROOT="$(envget FLEET_STAGE_ROOT)" FAKE_PORT="$(envget FLEET_HOST_PORT)" FAKE_BUILD="$build" \\
           nohup node "$FAKE_SERVER" >> "$S/server.log" 2>&1 &
         echo $! > "$pidf"; echo "$(envget FLEET_IMAGE)" > "$S/$project.image"
+        sleep "\${FAKE_UP_SLEEP:-0}"
         ;;
       ps) [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null && echo "cid-$project" ;;
     esac
@@ -198,7 +212,22 @@ case "$1" in
         esac ;;
     esac ;;
   run) echo 1000 ;;
-  ps) cat "$S/ps.txt" 2>/dev/null || true ;;
+  ps)
+    if printf '%s\n' "$@" | grep -q -e '^-q$'; then
+      project="$(printf '%s\n' "$@" | sed -n 's/^label=com.docker.compose.project=//p')"
+      pidf="$S/$project.pid"
+      if [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then echo "cid-$project"; fi
+    else
+      cat "$S/ps.txt" 2>/dev/null || true
+    fi ;;
+  stop)
+    [ -z "$FAKE_STOP_FAILS" ] || { echo "cannot stop" >&2; exit 1; }
+    for a in "$@"; do
+      case "$a" in cid-*)
+        pidf="$S/\${a#cid-}.pid"
+        if [ -f "$pidf" ]; then kill "$(cat "$pidf")" 2>/dev/null; while kill -0 "$(cat "$pidf")" 2>/dev/null; do sleep 0.1; done; rm -f "$pidf"; fi ;;
+      esac
+    done ;;
 esac
 `;
 
@@ -245,6 +274,9 @@ function stageEnv(extra: Record<string, string> = {}): Record<string, string> {
     FAKE_SERVER: join(box.bin, "fake-server.mjs"),
     FAKE_PKG: pkg,
     FAKE_BAD_REV: "",
+    FAKE_UP_SLEEP: "0",
+    FAKE_SSH_FAIL_MATCH: "",
+    FAKE_STOP_FAILS: "",
     FLEET_READY_TRIES: "15",
     FLEET_READY_SLEEP: "0.4",
     ...extra,
@@ -449,7 +481,7 @@ describe("fleet-stage.sh", () => {
     expect(readdirSync(box.nasDeploy).some((f) => f.startsWith("fleet-staging.env.pre-"))).toBe(
       true,
     );
-    expect(r.out).toContain(`previous test revision: ${a.slice(0, 7)}`);
+    expect(r.out).toContain(`last revision that passed in the test copy: ${a.slice(0, 7)}`);
   });
 
   it("puts the previous revision back, checks it, and stops it when the new one fails its smoke test", () => {
@@ -483,6 +515,192 @@ describe("fleet-stage.sh", () => {
       "FLEET_REVISION",
     );
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+  });
+
+  it("stops the failed container by its project label, even though the env file has no revision (HIGH 1)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const r = stage([a, "--release", release(a)], { FAKE_BAD_REV: a, FLEET_READY_TRIES: "3" });
+    expect(r.status).toBe(1);
+    // The fake compose, like the real one, refuses every subcommand when the env file lacks the
+    // required revision, so only a label-based stop can have worked.
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(readFileSync(fakeState("docker.log"), "utf8")).toContain("docker stop");
+    expect(readdirSync(box.nasRoot).some((f) => f.startsWith("state.failed-"))).toBe(true);
+  });
+
+  it("never reports PASS when the stop fails: a container left running is a FAIL (HIGH 1)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const r = stage([a, "--release", release(a)], {
+      FAKE_BAD_REV: a,
+      FLEET_READY_TRIES: "3",
+      FAKE_STOP_FAILS: "1",
+    });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL could not stop the test copy");
+    expect(r.out).toContain("FAIL could not confirm the test copy is stopped");
+    expect(r.out).not.toContain("PASS the test copy is back");
+    // The state folder was not swapped under a container that is still running.
+    expect(readdirSync(box.nasRoot).some((f) => f.startsWith("state.failed-"))).toBe(false);
+  });
+
+  it("rolls back and stops when the connection is lost after the smoke test passed (HIGH 2)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    // Recording the pass is the last call; losing the connection there must not leave b running or
+    // promotable.
+    const r = stage([b, "--release", release(b)], {
+      FAKE_SSH_FAIL_MATCH: "staged and smoke-tested",
+    });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL could not record the pass");
+    expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(readFileSync(join(box.nasDeploy, "last-passed"), "utf8").trim()).toBe(a);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+  });
+
+  it("reports FAIL, not PASS, when the previous revision does not come back either (HIGH 2)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const r = stage([b, "--release", release(b)], {
+      FAKE_BAD_REV: `${a},${b}`,
+      FLEET_READY_TRIES: "3",
+    });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL the test copy did not come back cleanly");
+    expect(r.out).not.toContain("PASS the test copy is back");
+    // Even then nothing is left running.
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+  });
+
+  it("rolls back and stops when the run is terminated in the middle of the switch (HIGH 2)", async () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const dir = release(b);
+    const child = spawn("bash", [join(scriptsIn(box), "fleet-stage.sh"), b, "--release", dir], {
+      cwd: box.repo,
+      env: { ...process.env, ...stageEnv({ FAKE_UP_SLEEP: "3" }) },
+    });
+    let out = "";
+    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    child.stderr.on("data", (d: Buffer) => (out += d.toString()));
+    const closed = new Promise<number | null>((ok) => child.on("close", ok));
+    // b's container has started (the fake `up` is sleeping): terminate the script, as Ctrl-C would.
+    for (let i = 0; i < 100 && !existsSync(fakeState("fleet-runner-staging.pid")); i += 1) {
+      await new Promise((ok) => setTimeout(ok, 100));
+    }
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(true);
+    child.kill("SIGTERM");
+    const status = await closed;
+    expect(status).not.toBe(0);
+    expect(out).toContain(`rolling back to ${a.slice(0, 7)}`);
+    expect(out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+  }, 60_000);
+
+  it("puts back the last revision that PASSED, not whatever the env file holds (MEDIUM 3)", () => {
+    prepare();
+    const [a, b, c] = box.revs as [string, string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    // A partial earlier run left the env file naming a revision that never passed.
+    const envFile = join(box.nasDeploy, "fleet-staging.env");
+    writeFileSync(
+      envFile,
+      `${readFileSync(envFile, "utf8").replace(/^FLEET_(REVISION|IMAGE)=.*\n/gm, "")}FLEET_REVISION=${c}\nFLEET_IMAGE=fleet-runner:${c}\n`,
+    );
+    const r = stage([b, "--release", release(b)], { FAKE_BAD_REV: b, FLEET_READY_TRIES: "3" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(`last revision that passed in the test copy: ${a.slice(0, 7)}`);
+    expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    const env = readFileSync(envFile, "utf8");
+    expect(env).toContain(`FLEET_REVISION=${a}`);
+    expect(env).not.toContain(c);
+    // A failed run does not move the record.
+    expect(readFileSync(join(box.nasDeploy, "last-passed"), "utf8").trim()).toBe(a);
+  });
+
+  it("holds a lock for the whole run, names every backup by run ID, and refuses a second run (MEDIUM 3)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    // Another run holds the lock: refused, and the other run's lock is left alone.
+    mkdirSync(join(box.nasDeploy, ".stage-lock"));
+    writeFileSync(join(box.nasDeploy, ".stage-lock", "owner"), "someone-else");
+    const refused = stage([a, "--release", release(a)]);
+    expect(refused.status).toBe(1);
+    expect(refused.out).toContain("another stage run holds the lock (someone-else)");
+    expect(existsSync(join(box.nasDeploy, ".stage-lock", "owner"))).toBe(true);
+    expect(existsSync(join(box.nasDeploy, "releases", a))).toBe(false);
+    rmSync(join(box.nasDeploy, ".stage-lock"), { recursive: true });
+    // A normal run releases its own lock, and its backups carry its run ID.
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    expect(stage([b, "--release", release(b)]).status).toBe(0);
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+    const backups = readdirSync(box.nasDeploy).filter((f) =>
+      f.startsWith("fleet-staging.env.pre-"),
+    );
+    expect(backups).toHaveLength(2);
+    for (const f of backups) expect(f).toMatch(/pre-\d{8}T\d{6}Z-\d+$/);
+    expect(new Set(backups).size).toBe(2);
+  });
+
+  it("verifies on this machine every time, and refuses a server copy that is not the verified release (MEDIUM 4)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const good = release(a);
+    expect(stage([a, "--release", good]).status).toBe(0);
+    // A tampered local release is refused even though the server already holds a good copy.
+    const bad = join(box.root, "release-bad");
+    cpSync(good, bad, { recursive: true });
+    writeFileSync(join(bad, "fleet-runner-image.tar"), "tampered");
+    let r = stage([a, "--release", bad]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive checksum");
+    // A server copy that differs from the verified release is refused, never trusted for itself.
+    const remote = join(box.nasDeploy, "releases", a, "release.json");
+    writeFileSync(remote, readFileSync(remote, "utf8").replace('"layers": 0', '"layers": 7'));
+    r = stage([a, "--release", good]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("is not the release just verified");
+    // The identical copy is accepted without being sent again.
+    writeFileSync(remote, readFileSync(join(good, "release.json"), "utf8"));
+    r = stage([a, "--release", good]);
+    expect(r.status, r.out).toBe(0);
+    expect(r.out).toContain("the server already holds exactly this release");
+  });
+
+  it("refuses when the server env file and the private config disagree (MEDIUM 5)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const dir = release(a);
+    const envFile = join(box.nasDeploy, "fleet-staging.env");
+    const original = readFileSync(envFile, "utf8");
+    for (const [key, wrong] of [
+      ["FLEET_HOST_PORT", "1"],
+      ["FLEET_STAGE_ROOT", "/somewhere/else"],
+      ["FLEET_LAN_IP", "192.0.2.1"],
+    ] as const) {
+      writeFileSync(envFile, original.replace(new RegExp(`^${key}=.*$`, "m"), `${key}=${wrong}`));
+      const r = stage([a, "--release", dir]);
+      expect(r.status, key).toBe(1);
+      expect(r.out, key).toContain(`${key} differs from the private config`);
+      expect(existsSync(join(box.nasDeploy, "releases", a)), key).toBe(false);
+      // Setup refuses it too, instead of leaving it as it is.
+      expect(setup().out, key).toContain(`${key} differs from the private config`);
+    }
   });
 
   it("refuses a release that does not verify, before anything reaches the server", () => {

@@ -61,7 +61,13 @@ if [ ! -f "$deploy/fleet-staging.env" ]; then
   } > "$deploy/fleet-staging.env.new" && mv "$deploy/fleet-staging.env.new" "$deploy/fleet-staging.env"
   echo "PASS wrote fleet-staging.env"
 else
-  echo "PASS fleet-staging.env already exists; left as it is"
+  # It is the configuration the container runs with: it must still say what the private config says.
+  envv() { sed -n "s/^$1=//p" "$deploy/fleet-staging.env" | tail -n 1; }
+  for pair in "FLEET_STAGE_ROOT=$root" "FLEET_HOST_PORT=$port" "FLEET_LAN_IP=$lan" "FLEET_COMPOSE_PROJECT=$project"; do
+    k="${pair%%=*}"; v="${pair#*=}"
+    [ "$(envv "$k")" = "$v" ] || { echo "FAIL fleet-staging.env $k differs from the private config; fix one of them"; exit 1; }
+  done
+  echo "PASS fleet-staging.env already exists and matches the private config; left as it is"
 fi
 echo "PASS test copy folders are ready and marked"
 ' "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$STAGE_PROJECT" "$STAGE_LAN_IP" "$STAGE_PORT"
