@@ -642,8 +642,8 @@ async function runJob(job) {
   const need = preflight(job);
   if (need) return { ...result, status: "SKIPPED", kind: need.kind, detail: need.reason, fix: need.fix };
   if (job.key in OPT_IN_JOBS) {
-    out(`    !! WARNING: ${job.key} runs with this machine's Docker engine: it ${OPT_IN_JOBS[job.key]}.`);
-    out("    !! Run it only on a branch whose changes you have read (its scripts run with that access).");
+    out(`    !! WARNING: ${job.key} runs with this machine's Docker engine: a branch's changes to its scripts could start containers that mount your folders.`);
+    out("    !! Run it only on a branch whose changes you have read.");
     warn(`${job.key} ran with this machine's Docker engine (opt-in); read the branch's changes to its build scripts before trusting that run`);
   }
   const jobLog = join(logDir, `${job.workflow.stem}-${job.id}.log`);
@@ -822,7 +822,7 @@ async function runJob(job) {
 // Main
 
 function platformNotes() {
-  if (docker?.ok && docker.arch !== "x86_64" && selected.some((job) => job.key === "fleet-runner-release/release-image")) {
+  if (docker?.ok && docker.arch !== "x86_64" && selected.some((job) => job.key === "fleet-runner-release/release-image" && forced.has(job.key))) {
     notes.push(`Docker here is ${docker.arch}; the release image job builds linux/amd64 under emulation, so it runs slower than on GitHub`);
   }
   if (useRunner()) {
