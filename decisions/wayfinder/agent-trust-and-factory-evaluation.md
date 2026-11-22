@@ -75,6 +75,14 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Decisions so far
 
+- Trust words ruled. A session is one keyed chat. An actor is who really acts behind a
+  session. A grant is checkable authority; peer messages and role addresses are never
+  grants. A conductor may re-delegate only a strictly narrower part of its charter, and
+  until that can be checked link by link it only assigns work existing grants cover. A
+  role is an address only. Claims carry one of seven statuses (claimed, observed,
+  inferred, verified by a named procedure, disputed, superseded, unknown). "Coordinator"
+  is avoided. — Which shared trust words do we adopt? (#663, owner re-confirmed
+  2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -91,7 +99,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | open |
-| Which shared trust words do we adopt? (#663) | grilling | — | open |
+| Which shared trust words do we adopt? (#663) | grilling | — | closed |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | open |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | open |
