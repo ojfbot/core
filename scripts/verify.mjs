@@ -29,6 +29,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
@@ -42,13 +43,18 @@ import {
   GITHUB_ONLY,
   GitHubOnly,
   JOB_NEEDS,
+  OPT_IN_JOBS,
   QUICK_JOBS,
+  assertRemovable,
+  buildNativeEnv,
   checkPlan,
+  checkoutDestination,
   expectedLocalSkip,
   githubOnlyReason,
   loadWorkflows,
   outOfScope,
   pathFilterMatches,
+  redactText,
   requestedNode,
   stepCondition,
   substitute,
@@ -139,19 +145,28 @@ const stateRoot = join(
 );
 const scratch = join(stateRoot, "scratch");
 const logDir = join(stateRoot, "logs");
-rmSync(logDir, { recursive: true, force: true });
+
+/** Delete a folder verify made, or a package's git-ignored dist; refuses the repository and anything else (assertRemovable). */
+function remove(target) {
+  rmSync(assertRemovable(target, { repoRoot, stateRoot }), { recursive: true, force: true });
+}
+remove(logDir);
 mkdirSync(scratch, { recursive: true });
 mkdirSync(logDir, { recursive: true });
 
-/** A path as it is safe to print, and to paste into a public pull request: no home folder, no user temp folder. */
-function shown(path) {
-  let text = String(path);
-  const tmp = process.env.TMPDIR ?? tmpdir();
-  for (const [prefix, label] of [[tmp.replace(/\/$/, ""), "$TMPDIR"], [homedir(), "~"]]) {
-    if (prefix && text.startsWith(prefix)) text = label + text.slice(prefix.length);
-  }
-  return text;
-}
+/**
+ * Text as it is safe to print, log and paste into a public pull request: the home folder, the
+ * repository root and the user temp folder are replaced (redactText). Every line verify prints or
+ * writes to a log goes through it, including the output of the steps themselves.
+ */
+const redact = (text) =>
+  redactText(text, {
+    repoRoot,
+    home: homedir(),
+    tmp: process.env.TMPDIR ?? tmpdir(),
+    extra: [[`/home/runner/work/${runId}`, "<runner>"]],
+  });
+const shown = redact;
 const shownLogs = `${shown(stateRoot)}/logs`;
 
 const started = Date.now();
@@ -164,7 +179,8 @@ const startedContainers = new Set();
 let containersBefore = new Set();
 let imagesBefore = new Set();
 
-const out = (text = "") => process.stdout.write(`${text}\n`);
+const out = (text = "") => process.stdout.write(`${redact(text)}\n`);
+const appendLog = (file, text) => appendFileSync(file, redact(text));
 const seconds = (ms) => {
   const total = Math.round(ms / 1000);
   return total >= 60 ? `${Math.floor(total / 60)}m${String(total % 60).padStart(2, "0")}s` : `${total}s`;
@@ -178,32 +194,41 @@ const warn = (text) => {
 // ---------------------------------------------------------------------------------------------
 // Environment: what a fresh CI runner would see
 
-/** The shell's own settings that CI would not have: pnpm's, and the ones the fleet's tools read. */
-function cleanEnvironment() {
-  const env = { ...process.env };
-  const dropped = [];
-  for (const key of Object.keys(env)) {
-    const pnpmLeak = /^(npm_|PNPM_)/.test(key) || key === "INIT_CWD";
-    const ours = /^(FLEET_|CODEX_|CLAUDE|ANTHROPIC_|DOLT_|HELPDESK_|GH_|GITHUB_)/.test(key) && key !== "CORE_VERIFY_DIR";
-    if (pnpmLeak || ours) {
-      if (ours) dropped.push(key);
-      delete env[key];
-    }
+/** This machine's PATH without the entries pnpm adds to a script it runs (CI has none of them). */
+const cleanPath = (process.env.PATH ?? "")
+  .split(delimiter)
+  .filter((entry) => !entry.endsWith("/node_modules/.bin") && !entry.includes("/node_modules/.pnpm/"))
+  .join(delimiter);
+const nativeHome = join(stateRoot, "home");
+const nativeTmp = join(stateRoot, "tmp");
+mkdirSync(nativeHome, { recursive: true });
+mkdirSync(nativeTmp, { recursive: true });
+
+/**
+ * What a job run on this machine (not in the runner) can see: an allowlist (buildNativeEnv), never
+ * this shell's own environment, so no API key, cloud credential or agent socket reaches the pull
+ * request's code. `docker` is the extra a job that builds images gets: the engine's address and
+ * the CLI plugins, because the scratch HOME has neither.
+ */
+const dockerEndpoint = () => run("docker", ["context", "inspect", "--format", "{{.Endpoints.docker.Host}}"]).stdout.trim();
+function nativeEnvironment({ docker: needsDocker } = {}) {
+  const { env, dropped } = buildNativeEnv(process.env, { home: nativeHome, tmp: nativeTmp, path: cleanPath });
+  if (needsDocker) {
+    const config = join(stateRoot, "docker-config");
+    mkdirSync(config, { recursive: true });
+    const plugins = join(homedir(), ".docker", "cli-plugins");
+    if (existsSync(plugins) && !existsSync(join(config, "cli-plugins"))) symlinkSync(plugins, join(config, "cli-plugins"));
+    env.DOCKER_CONFIG = config;
+    env.DOCKER_HOST = process.env.DOCKER_HOST ?? dockerEndpoint();
+    env.BUILDX_CONFIG = join(stateRoot, `buildx-${runId}`);
   }
-  env.PATH = (env.PATH ?? "")
-    .split(delimiter)
-    .filter((entry) => !entry.endsWith("/node_modules/.bin") && !entry.includes("/node_modules/.pnpm/"))
-    .join(delimiter);
-  env.CI = "true";
-  env.GITHUB_ACTIONS = "true";
-  env.NO_COLOR = "1"; // logs are files, not a terminal
-  delete env.FORCE_COLOR;
-  if (dropped.length > 0 && !useRunner()) {
-    notes.push(`ignored ${dropped.length} variable(s) from your shell that CI does not have (${[...new Set(dropped.map((key) => key.split("_")[0]))].join("_*, ")}_*)`);
+  if (!useRunner() && !notes.some((note) => note.startsWith("jobs on this machine"))) {
+    notes.push(`jobs on this machine get a minimal environment (${dropped} variables of your shell are not passed on; HOME and TMPDIR are scratch folders)`);
   }
   return env;
 }
-const baseEnv = cleanEnvironment();
+/** The docker client's own environment, for the commands verify runs itself; never given to a step. */
+const hostEnv = process.env;
 
 function git(...argv) {
   const result = run("git", argv);
@@ -244,32 +269,34 @@ if (dockerNeeded) {
   docker = dockerState();
   if (docker.ok) {
     containersBefore = new Set(run("docker", ["ps", "-aq"]).stdout.split("\n").filter(Boolean));
-    imagesBefore = new Set(run("docker", ["images", "-q", "fleet-runner"]).stdout.split("\n").filter(Boolean));
+    imagesBefore = new Set(run("docker", ["images", "--format", "{{.Repository}}:{{.Tag}}", "fleet-runner"]).stdout.split("\n").filter(Boolean));
   }
 }
 
 let cleaned = false;
+/** Builders this run made natively live in its own BUILDX_CONFIG (instances/<name>); in the runner, in the container's. */
+const nativeBuildxConfig = () => join(stateRoot, `buildx-${runId}`);
+function removeNativeBuilders() {
+  const env = { ...hostEnv, BUILDX_CONFIG: nativeBuildxConfig() };
+  for (const name of safeReaddir(join(nativeBuildxConfig(), "instances"))) {
+    run("docker", ["buildx", "rm", "--force", name], { env, stdio: "ignore" });
+  }
+  remove(nativeBuildxConfig());
+}
 function cleanup() {
   if (cleaned) return;
   cleaned = true;
   if (docker?.ok) {
-    const doomed = new Set();
-    for (const id of run("docker", ["ps", "-aq", "--filter", `label=core.verify=${runId}`]).stdout.split("\n").filter(Boolean)) doomed.add(id);
-    // BuildKit builder containers made by release-image.sh normally go with the script's own trap;
-    // after a kill they are still here.
-    for (const id of run("docker", ["ps", "-aq", "--filter", "name=buildx_buildkit_fleet-runner-release-"]).stdout.split("\n").filter(Boolean)) {
-      if (!containersBefore.has(id)) doomed.add(id);
-    }
-    if (doomed.size > 0) run("docker", ["rm", "-f", "-v", ...doomed], { stdio: "ignore" });
-    const builders = run("docker", ["buildx", "ls"]).stdout.match(/fleet-runner-release-\d+-\d+/g) ?? [];
-    for (const builder of new Set(builders)) run("docker", ["buildx", "rm", "--force", builder], { stdio: "ignore" });
-    // The release job loads fleet-runner:<commit> into the engine.
-    for (const id of run("docker", ["images", "-q", "fleet-runner"]).stdout.split("\n").filter(Boolean)) {
-      if (!imagesBefore.has(id)) run("docker", ["rmi", "-f", id], { stdio: "ignore" });
-    }
+    // Only what this run started: containers carrying its label, builders in its own buildx store
+    // (a concurrent run's builders, or yours, are never touched), and the image the release job
+    // tagged for this HEAD when it did not exist before.
+    const doomed = run("docker", ["ps", "-aq", "--filter", `label=core.verify=${runId}`]).stdout.split("\n").filter(Boolean);
+    if (existsSync(nativeBuildxConfig())) removeNativeBuilders();
+    if (doomed.length > 0) run("docker", ["rm", "-f", "-v", ...doomed], { stdio: "ignore" });
+    if (head && !imagesBefore.has(`fleet-runner:${head}`)) run("docker", ["rmi", "-f", `fleet-runner:${head}`], { stdio: "ignore" });
   }
   for (const name of safeReaddir(stateRoot)) {
-    if (name.startsWith("runner-temp-")) rmSync(join(stateRoot, name), { recursive: true, force: true });
+    if (name.startsWith("runner-temp-")) remove(join(stateRoot, name));
   }
 }
 const safeReaddir = (dir) => {
@@ -312,19 +339,28 @@ function runCommand(command, argv, { env, cwd, logFile }) {
       stdio: ["ignore", "pipe", "pipe"],
     });
     currentChild = child;
+    // Whole lines only, so a path split across two chunks is still redacted; the log gets the same text.
+    const pending = new Map();
+    const emit = (stream, text, final = false) => {
+      const buffered = (pending.get(stream) ?? "") + text;
+      const cut = final ? buffered.length : buffered.lastIndexOf("\n") + 1;
+      pending.set(stream, buffered.slice(cut));
+      if (cut === 0) return;
+      const safe = redact(buffered.slice(0, cut));
+      log.write(safe);
+      if (options.verbose) process.stdout.write(safe);
+    };
     for (const stream of [child.stdout, child.stderr]) {
-      stream.on("data", (chunk) => {
-        log.write(chunk);
-        if (options.verbose) process.stdout.write(chunk);
-      });
+      stream.on("data", (chunk) => emit(stream, chunk.toString("utf8")));
     }
     child.on("close", (code, signal) => {
       currentChild = null;
+      for (const stream of [child.stdout, child.stderr]) emit(stream, "", true);
       log.end(() => resolveRun({ code: code ?? (signal ? 128 : 1), signal }));
     });
     child.on("error", (error) => {
       currentChild = null;
-      log.write(`verify: could not start the step: ${error.message}\n`);
+      log.write(redact(`verify: could not start the step: ${error.message}\n`));
       log.end(() => resolveRun({ code: 127 }));
     });
   });
@@ -332,7 +368,7 @@ function runCommand(command, argv, { env, cwd, logFile }) {
 
 function tail(file, lines = 40) {
   try {
-    return readFileSync(file, "utf8").replace(/\x1b\[[0-9;]*m/g, "").trimEnd().split("\n").slice(-lines).join("\n");
+    return redact(readFileSync(file, "utf8")).replace(/\x1b\[[0-9;]*m/g, "").trimEnd().split("\n").slice(-lines).join("\n");
   } catch {
     return "";
   }
@@ -367,10 +403,13 @@ const actions = {
       // The pull request's own code is this working tree.
       return { note: "this working tree stands in for the checkout" };
     }
-    const destination = state.runner ? `${state.runner.ws}/${path ?? "."}` : join(repoRoot, path ?? ".");
-    if (!state.runner) {
-      rmSync(destination, { recursive: true, force: true });
-      mkdirSync(destination, { recursive: true });
+    // Another ref is only ever unpacked into the runner container's own workspace. On this machine
+    // it would be this repository, which verify never overwrites (checkoutDestination refuses).
+    let destination;
+    try {
+      destination = checkoutDestination({ base: state.runner?.ws ?? repoRoot, path, native: !state.runner });
+    } catch (error) {
+      return { fail: error.message, hint: "Run without --native / --quick so the job gets the Linux runner." };
     }
     if (run("git", ["cat-file", "-e", `${ref}^{commit}`]).status !== 0) {
       const fetched = run("git", ["fetch", "--quiet", "origin", ref]);
@@ -381,11 +420,9 @@ const actions = {
     const sparse = String(step.with?.["sparse-checkout"] ?? "").split(/\s+/).filter(Boolean);
     const archive = run("git", ["archive", "--format=tar", ref, ...(sparse.length > 0 ? ["--", ...sparse] : [])], { encoding: "buffer", maxBuffer: 1 << 28 });
     if (archive.status !== 0) return { fail: `git archive ${ref} failed: ${archive.stderr}` };
-    const extract = state.runner
-      ? spawnSync("docker", ["exec", "-i", state.runner.name, "sh", "-c", `mkdir -p ${destination} && tar -x -C ${destination}`], { input: archive.stdout })
-      : spawnSync("tar", ["-x", "-C", destination], { input: archive.stdout });
+    const extract = spawnSync("docker", ["exec", "-i", state.runner.name, "sh", "-c", 'mkdir -p "$1" && tar -x -C "$1"', "sh", destination], { input: archive.stdout });
     if (extract.status !== 0) return { fail: "could not unpack the reference checkout" };
-    return { note: `${ref.slice(0, 7)} unpacked into ${state.runner ? "the runner" : shown(destination)}` };
+    return { note: `${ref.slice(0, 7)} unpacked into the runner` };
   },
   "pnpm/action-setup": (step, job, state) => {
     if (state.runner) {
@@ -393,7 +430,7 @@ const actions = {
       return { note: `pnpm ${have} in the runner` };
     }
     const wanted = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).packageManager?.split("@")[1];
-    const have = run("pnpm", ["--version"], { env: baseEnv }).stdout.trim();
+    const have = run("pnpm", ["--version"], { env: { ...nativeEnvironment(), PATH: state.path.join(delimiter) } }).stdout.trim();
     if (wanted && have !== wanted) warn(`pnpm ${have} here, CI uses ${wanted} (package.json packageManager)`);
     return { note: `pnpm ${have}` };
   },
@@ -410,7 +447,7 @@ const actions = {
     ];
     const managed = wanted ? managers.find((dir) => existsSync(join(dir, "node"))) : undefined;
     if (managed) state.path = [managed, ...state.path];
-    const have = run("node", ["--version"], { env: { ...baseEnv, PATH: state.path.join(delimiter) } }).stdout.trim().replace(/^v/, "");
+    const have = run("node", ["--version"], { env: { ...nativeEnvironment(), PATH: state.path.join(delimiter) } }).stdout.trim().replace(/^v/, "");
     const matches = wanted && (have === wanted || have.startsWith(`${wanted}.`));
     if (wanted && !matches) warn(`Node ${have} here, CI uses ${wanted}; install ${wanted} (for example \`fnm install ${wanted}\`) or drop --native to match`);
     return { note: `node ${have}${managed ? " (version manager copy)" : ""}` };
@@ -437,7 +474,8 @@ const actions = {
     state.path = [join(venv, "bin"), ...state.path];
     return { note: `python ${found.version} in a fresh environment` };
   },
-  "actions/upload-artifact": () => ({ note: "nothing to upload from a local run" }),
+  // Uploading is GitHub-only: the step is reported as not run, and never counts as a check that passed.
+  "actions/upload-artifact": () => ({ notRun: "uploading an artifact is GitHub-only; nothing is uploaded from a local run" }),
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -458,9 +496,9 @@ async function startServices(job, ctx, jobLog) {
     // offered to the network.
     for (const port of service.ports ?? []) argv.push("-p", `127.0.0.1:${port}`);
     argv.push(...splitOptions(service.options), service.image);
-    appendFileSync(jobLog, `$ docker ${argv.join(" ")}\n`);
+    appendLog(jobLog, `$ docker ${argv.join(" ")}\n`);
     const result = run("docker", argv);
-    appendFileSync(jobLog, `${result.stdout}${result.stderr}`);
+    appendLog(jobLog, `${result.stdout}${result.stderr}`);
     if (result.status !== 0) {
       const portBusy = /port is already allocated|address already in use/i.test(result.stderr);
       return {
@@ -474,7 +512,7 @@ async function startServices(job, ctx, jobLog) {
       const health = run("docker", ["inspect", "--format", "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}", container]).stdout.trim();
       if (health === "healthy" || health === "none") break;
       if (health === "unhealthy" || Date.now() > deadline || interrupted) {
-        appendFileSync(jobLog, run("docker", ["logs", "--tail", "40", container]).stdout);
+        appendLog(jobLog, run("docker", ["logs", "--tail", "40", container]).stdout);
         return { fail: `the ${name} service container did not become healthy (${health})`, hint: "Read the log; try `docker ps -a` and remove stale containers." };
       }
       await new Promise((r) => setTimeout(r, 1_000));
@@ -499,7 +537,7 @@ function runnerImage(node, jobLog) {
   if (run("docker", ["image", "inspect", tag]).status === 0) return { tag };
   out(`    .. building the Linux runner image for Node ${node} (first time for this version only)`);
   const built = run("docker", ["build", "--build-arg", `NODE_VERSION=${node}`, "--build-arg", `PNPM_VERSION=${pnpm}`, "--tag", tag, dir]);
-  appendFileSync(jobLog, `${built.stdout}${built.stderr}`);
+  appendLog(jobLog, `${built.stdout}${built.stderr}`);
   if (built.status !== 0) return { fail: `could not build the runner image: ${built.stderr.trim().split("\n").pop()}`, hint: "Check Docker's network access and that the Node version exists as a node image, then re-run." };
   return { tag };
 }
@@ -517,22 +555,27 @@ function startRunner(job, jobLog) {
     : [];
   const started = run("docker", ["run", "-d", "--init", "--name", name, "--label", `core.verify=${runId}`, ...socket,
     "-v", "core-verify-pnpm-store:/home/runner/.local/share/pnpm", image.tag]);
-  appendFileSync(jobLog, `${started.stdout}${started.stderr}`);
+  appendLog(jobLog, `${started.stdout}${started.stderr}`);
   if (started.status !== 0) return { fail: `could not start the runner: ${started.stderr.trim().split("\n").pop()}`, hint: "Check `docker ps -a`." };
   startedContainers.add(name);
   const exec = (user, ...argv) => run("docker", ["exec", "-u", user, name, ...argv]);
   exec("0", "chown", "runner:runner", "/home/runner/.local/share/pnpm");
-  exec("0", "install", "-d", "-o", "runner", "-g", "runner", base, `${base}/temp`, `${base}/tmp`);
+  exec("0", "install", "-d", "-o", "runner", "-g", "runner", base, `${base}/temp`, `${base}/tmp`, `${base}/buildx`);
   const bundle = run("git", ["bundle", "create", "-", "HEAD"], { encoding: "buffer", maxBuffer: 1 << 30 });
   if (bundle.status !== 0) return { fail: `git bundle failed: ${bundle.stderr}`, hint: "Commit your work first." };
   const copied = spawnSync("docker", ["exec", "-i", name, "sh", "-c", `cat > ${base}/head.bundle`], { input: bundle.stdout, maxBuffer: 1 << 20 });
   const cloned = copied.status === 0 && exec("1001", "sh", "-c", `git clone -q ${base}/head.bundle ${base}/ws && git -C ${base}/ws checkout -q --detach ${head}`);
   if (!cloned || cloned.status !== 0) return { fail: `could not clone HEAD into the runner: ${cloned?.stderr ?? ""}`, hint: "Commit your work first." };
-  return { name, base, ws: `${base}/ws`, temp: `${base}/temp`, tmp: `${base}/tmp` };
+  return { name, base, ws: `${base}/ws`, temp: `${base}/temp`, tmp: `${base}/tmp`, buildx: `${base}/buildx` };
 }
 
 function stopRunner(runner) {
   if (!runner?.name) return;
+  // Builders the job made are in the container's own buildx store, so only this run's are listed.
+  // Anything the job's scripts still run is stopped first (they would otherwise make one more).
+  run("docker", ["exec", "-u", "0", runner.name, "sh", "-c",
+    'for p in $(pgrep -x "bash|docker|node|pnpm|python3|buildx"); do kill -KILL "$p" 2>/dev/null; done; sleep 1; ' +
+    `for b in $(ls "${runner.buildx}/instances" 2>/dev/null); do BUILDX_CONFIG="${runner.buildx}" docker buildx rm --force "$b" >/dev/null 2>&1; done`], { stdio: "ignore" });
   run("docker", ["rm", "-f", "-v", runner.name], { stdio: "ignore" });
   startedContainers.delete(runner.name);
 }
@@ -575,6 +618,16 @@ function notRunReason(job, ctx) {
   if (filtered && changed && !forced.has(job.key) && !options.quick && !pathFilterMatches(job.workflow, changed)) {
     return { kind: "not-triggered", detail: "path filter", fix: `this pull request changes none of the paths that start ${job.workflow.file}, so GitHub does not run it (\`--job ${job.key}\` runs it anyway)`, summary: "not triggered: this PR changes none of its paths, so GitHub does not run it either" };
   }
+  // A job that needs this machine's Docker engine runs only when asked for by name, and the pull
+  // request that triggers it must then run it before it is marked ready: that is a gap, not a pass.
+  if (job.key in OPT_IN_JOBS && !forced.has(job.key)) {
+    return {
+      kind: "opt-in",
+      detail: "opt-in: not run by default",
+      fix: `run \`pnpm verify --job ${job.key}\` before marking the PR ready; it ${OPT_IN_JOBS[job.key]}`,
+      summary: `opt-in, NOT RUN: this PR triggers it on GitHub; run \`pnpm verify --job ${job.key}\` (it uses this machine's Docker engine)`,
+    };
+  }
   return null;
 }
 
@@ -588,6 +641,11 @@ async function runJob(job) {
   if (skip) return { ...result, status: "SKIPPED", kind: skip.kind, detail: skip.detail, fix: skip.fix, summary: skip.summary };
   const need = preflight(job);
   if (need) return { ...result, status: "SKIPPED", kind: need.kind, detail: need.reason, fix: need.fix };
+  if (job.key in OPT_IN_JOBS) {
+    out(`    !! WARNING: ${job.key} runs with this machine's Docker engine: it ${OPT_IN_JOBS[job.key]}.`);
+    out("    !! Run it only on a branch whose changes you have read (its scripts run with that access).");
+    warn(`${job.key} ran with this machine's Docker engine (opt-in); read the branch's changes to its build scripts before trusting that run`);
+  }
   const jobLog = join(logDir, `${job.workflow.stem}-${job.id}.log`);
   writeFileSync(jobLog, "");
   let runner = null;
@@ -601,20 +659,20 @@ async function runJob(job) {
       runnerTemp = runner.temp;
       jobWorkspace = runner.ws;
     } else {
-      rmSync(runnerTemp, { recursive: true, force: true });
+      remove(runnerTemp);
       mkdirSync(runnerTemp, { recursive: true });
       // A fresh checkout has no build output; neither does the job here.
       for (const pkg of safeReaddir(join(repoRoot, "packages"))) {
-        rmSync(join(repoRoot, "packages", pkg, "dist"), { recursive: true, force: true });
+        remove(join(repoRoot, "packages", pkg, "dist"));
       }
     }
 
-    const state = { path: (baseEnv.PATH ?? "").split(delimiter), runner, runnerPath: runner ? run("docker", ["exec", runner.name, "printenv", "PATH"]).stdout.trim() : "" };
+    const state = { path: cleanPath.split(delimiter), runner, runnerPath: runner ? run("docker", ["exec", runner.name, "printenv", "PATH"]).stdout.trim() : "" };
     const summaryFile = runner ? `${runnerTemp}/step-summary` : join(runnerTemp, "step-summary");
     const github = { GITHUB_SHA: sha, GITHUB_REF: EVENT.ref, GITHUB_EVENT_NAME: EVENT.name, GITHUB_RUN_ID: runId, GITHUB_STEP_SUMMARY: summaryFile };
     const jobEnv = runner
-      ? { CI: "true", GITHUB_ACTIONS: "true", HOME: "/home/runner", NO_COLOR: "1", TMPDIR: runner.tmp, RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, ...github }
-      : { ...baseEnv, RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, ...github };
+      ? { CI: "true", GITHUB_ACTIONS: "true", HOME: "/home/runner", NO_COLOR: "1", TMPDIR: runner.tmp, RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, BUILDX_CONFIG: runner.buildx, ...github }
+      : { ...nativeEnvironment({ docker: JOB_NEEDS[job.key].includes("docker") }), RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, ...github };
     const ctx = {
       workspace: jobWorkspace,
       runnerTemp,
@@ -631,6 +689,9 @@ async function runJob(job) {
 
     let succeeded = true;
     const incomplete = [];
+    let checksRun = 0; // `run:` steps that ran and passed: setup actions and skipped steps are not checks
+    const notRun = []; // steps that did not run because only GitHub can do them
+    const allowed = []; // failed steps whose `continue-on-error: true` lets GitHub carry on
     for (const step of job.steps) {
       if (interrupted) break;
       const label = step.name ?? (step.uses ? `uses ${step.uses}` : String(step.run).trim().split("\n")[0]);
@@ -674,12 +735,12 @@ async function runJob(job) {
           }
           stepEnv.GITHUB_OUTPUT = outputFile;
           const script = substitute(step.run, ctx);
-          appendFileSync(jobLog, `\n=== ${label}\n$ ${script.trim()}\n`);
+          appendLog(jobLog, `\n=== ${label}\n$ ${script.trim()}\n`);
           let ran;
           if (runner) {
             const cwd = step["working-directory"] ? `${jobWorkspace}/${step["working-directory"]}` : jobWorkspace;
             const flags = Object.entries(stepEnv).flatMap(([key, value]) => ["-e", `${key}=${value}`]);
-            ran = await runCommand("docker", ["exec", "-w", cwd, ...flags, runner.name, "bash", "-e", "-c", script], { env: baseEnv, cwd: repoRoot, logFile: jobLog });
+            ran = await runCommand("docker", ["exec", "-w", cwd, ...flags, runner.name, "bash", "-e", "-c", script], { env: hostEnv, cwd: repoRoot, logFile: jobLog });
           } else {
             const cwd = step["working-directory"] ? join(repoRoot, step["working-directory"]) : repoRoot;
             ran = await runCommand("bash", ["-e", "-c", script], { env: stepEnv, cwd, logFile: jobLog });
@@ -705,9 +766,14 @@ async function runJob(job) {
       }
       const took = seconds(Date.now() - stepStart);
       if (outcome.fail && step["continue-on-error"] === true) {
-        // GitHub records the step as failed but carries on, and the job stays green.
+        // GitHub records the step as failed but carries on, and the job stays green. Here the job
+        // is reported as passing with an allowed failure, never as a plain PASS.
         out(`    ~  ${label} (${took}): ${outcome.fail}, but the step has continue-on-error, so GitHub continues`);
-        warn(`step "${label}" of ${job.key} failed (${outcome.fail}); continue-on-error lets the job pass on GitHub too`);
+        allowed.push(`step ${step.index + 1} "${label}" (${outcome.fail})`);
+        warn(`${job.key}: step "${label}" FAILED (${outcome.fail}); continue-on-error lets the job pass on GitHub too`);
+      } else if (outcome.notRun) {
+        out(`    -  ${label} (SKIPPED, GitHub-only: ${outcome.notRun})`);
+        notRun.push(`step ${step.index + 1} "${label}"`);
       } else if (outcome.fail) {
         succeeded = false;
         result.status = "FAIL";
@@ -718,6 +784,7 @@ async function runJob(job) {
         const lines = tail(jobLog);
         if (lines && !options.verbose) out(lines.split("\n").map((line) => `         | ${line}`).join("\n"));
       } else {
+        if (!step.uses) checksRun += 1;
         out(`    ok ${label} (${took})${outcome.note ? `: ${outcome.note}` : ""}`);
       }
     }
@@ -726,6 +793,14 @@ async function runJob(job) {
     result.log = jobLog;
     if (job.timeoutMinutes !== undefined && result.took > Number(job.timeoutMinutes) * 60_000) {
       warn(`${job.key} took ${seconds(result.took)}, over its ${job.timeoutMinutes}-minute cap on GitHub (a local run on emulated hardware is slower, so this is a prompt to look, not a failure)`);
+    }
+    result.allowed = allowed;
+    result.notRun = notRun;
+    if (result.status === "PASS" && checksRun === 0 && !incomplete.length) {
+      // Nothing but setup steps ran, so there is nothing that passed.
+      result.status = "INCOMPLETE";
+      result.detail = `no check ran: ${notRun.length > 0 ? `${notRun.join(", ")} cannot run here` : "every step was a setup step or was skipped"}`;
+      result.fix = "Run the job's checks, or take the job out of the pull request's workflows.";
     }
     if (result.status === "PASS" && incomplete.length > 0) {
       result.status = "INCOMPLETE";
@@ -739,7 +814,7 @@ async function runJob(job) {
       run("docker", ["rm", "-f", "-v", container], { stdio: "ignore" });
       startedContainers.delete(container);
     }
-    if (!runner) rmSync(runnerTemp, { recursive: true, force: true });
+    if (!runner) remove(runnerTemp);
   }
 }
 
@@ -787,6 +862,8 @@ const notRun = allJobs.filter((job) => !selected.includes(job));
 const width = Math.max(...results.map((r) => r.id.length), 8);
 out("");
 out(`verify summary - ${new Date().toISOString().slice(0, 19)}Z, HEAD ${head?.slice(0, 7) ?? "none"} ${dirty ? "(uncommitted changes)" : "(clean)"}, ${seconds(total)} wall clock`);
+const labelOf = (r) => (r.status === "PASS" && r.allowed?.length > 0 ? "PASS (allowed failure)" : r.status);
+const labelWidth = Math.max(10, ...results.map((r) => labelOf(r).length));
 for (const r of results) {
   const text =
     r.status === "SKIPPED" || r.status === "INCOMPLETE"
@@ -794,7 +871,8 @@ for (const r of results) {
       : r.status === "FAIL"
         ? r.detail
         : seconds(r.took);
-  out(`${r.status.padEnd(10)} ${r.id.padEnd(width)}  ${text}`);
+  const extra = r.status === "PASS" ? [...(r.allowed?.length ? [`allowed to fail on GitHub too: ${r.allowed.join("; ")}`] : []), ...(r.notRun?.length ? [`${r.notRun.join(", ")} not run: GitHub-only`] : [])] : [];
+  out(`${labelOf(r).padEnd(labelWidth)} ${r.id.padEnd(width)}  ${text}${extra.length ? `  [${extra.join("; ")}]` : ""}`);
 }
 if (notRun.length > 0 && !interrupted) out(`not run (${options.quick ? "--quick" : "--job"}): ${notRun.map((j) => j.key).join(", ")}`);
 for (const text of [...warnings.map((w) => `WARNING ${w}`), ...notes.map((n) => `note: ${n}`)]) out(text);
@@ -807,15 +885,17 @@ if (failed.length > 0) {
   process.exit(1);
 }
 if (incompleteJobs.length > 0 || missed.length > 0) {
-  out(`verify: ${incompleteJobs.length + missed.length} job(s) INCOMPLETE or SKIPPED because this machine was not ready, so not everything was checked; fix the reason above and run again`);
+  out(`verify: ${incompleteJobs.length + missed.length} job(s) INCOMPLETE, or SKIPPED because this machine was not ready or the job is opt-in (${[...incompleteJobs, ...missed].map((r) => r.id).join(", ")}), so not everything was checked; fix the reason above and run again`);
   process.exit(2);
 }
 const partial = options.quick || options.jobs.length > 0;
 const only = byDesign.filter((r) => r.kind === "github-only").map((r) => r.id);
 const untriggered = byDesign.filter((r) => r.kind !== "github-only").map((r) => r.id);
+const allowedJobs = results.filter((r) => r.status === "PASS" && r.allowed?.length > 0).map((r) => r.id);
 const designNote = [
   only.length > 0 ? `${only.length} job(s) need GitHub and were not checked here (${only.join(", ")})` : "",
   untriggered.length > 0 ? `${untriggered.length} job(s) are not triggered by this pull request (${untriggered.join(", ")})` : "",
+  allowedJobs.length > 0 ? `${allowedJobs.length} job(s) PASS only because GitHub allows a failed step (${allowedJobs.join(", ")})` : "",
 ]
   .filter(Boolean)
   .map((text) => `; ${text}`)

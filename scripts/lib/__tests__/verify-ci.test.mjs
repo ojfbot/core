@@ -9,12 +9,17 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   GitHubOnly,
   JOB_NEEDS,
+  OPT_IN_JOBS,
+  assertRemovable,
+  buildNativeEnv,
   checkPlan,
+  checkoutDestination,
   githubOnlyReason,
   globToRegExp,
   loadWorkflows,
   outOfScope,
   pathFilterMatches,
+  redactText,
   stepCondition,
   substitute,
 } from "../verify-ci.mjs";
@@ -203,5 +208,103 @@ describe("the command line", () => {
   it("rejects an unknown job and an unknown option", () => {
     expect(verify({}, "--job", "nope").status).toBe(2);
     expect(verify({}, "--bogus").status).toBe(2);
+  });
+});
+
+describe("verify never deletes the repository", () => {
+  const roots = { repoRoot: "/work/core", stateRoot: "/tmp/core-verify/abc" };
+
+  it("refuses the repository, anything above it and anything inside it except a package's dist", () => {
+    for (const target of ["/work/core", "/work/core/", "/work", "/", "/work/core/.git", "/work/core/src", "/work/core/packages/a", "/work/core/packages/a/src/dist", "/work/core/packages/a/dist/x"]) {
+      expect(() => assertRemovable(target, roots), target).toThrow(/refuses/);
+    }
+  });
+
+  it("refuses paths outside its own folder and the state folder itself", () => {
+    expect(() => assertRemovable("/Users/someone", roots)).toThrow(/refuses/);
+    expect(() => assertRemovable("/tmp/core-verify/abc", roots)).toThrow(/refuses/);
+  });
+
+  it("allows what it made: folders under its state folder and packages/<name>/dist", () => {
+    expect(assertRemovable("/tmp/core-verify/abc/runner-temp-ci", roots)).toBe("/tmp/core-verify/abc/runner-temp-ci");
+    expect(assertRemovable("/work/core/packages/fleet-runner/dist", roots)).toBe("/work/core/packages/fleet-runner/dist");
+  });
+
+  it("refuses a state folder that is the repository or contains it", () => {
+    expect(() => assertRemovable("/work/core/x", { repoRoot: "/work/core", stateRoot: "/work" })).toThrow(/refuses/);
+  });
+});
+
+describe("a checkout of another ref never lands on the repository", () => {
+  it("is refused on this machine (--native, --quick), with or without a path", () => {
+    expect(() => checkoutDestination({ base: "/work/core", path: undefined, native: true })).toThrow(/overwrite the repository/);
+    expect(() => checkoutDestination({ base: "/work/core", path: "ref", native: true })).toThrow(/overwrite the repository/);
+  });
+
+  it("in the runner stays inside the container's workspace", () => {
+    expect(checkoutDestination({ base: "/home/runner/work/x/ws", path: "python-reference", native: false })).toBe("/home/runner/work/x/ws/python-reference");
+    expect(() => checkoutDestination({ base: "/home/runner/work/x/ws", path: "../../..", native: false })).toThrow(/leaves the workspace/);
+    expect(() => checkoutDestination({ base: "/home/runner/work/x/ws", path: "/etc", native: false })).toThrow(/leaves the workspace/);
+    expect(() => checkoutDestination({ base: "/home/runner/work/x/ws", path: ".git/hooks", native: false })).toThrow(/\.git/);
+  });
+});
+
+describe("a job on this machine gets an allowlisted environment", () => {
+  const parent = {
+    PATH: "/usr/bin",
+    HOME: "/Users/someone",
+    LANG: "en_US.UTF-8",
+    OPENAI_API_KEY: "probe-openai",
+    AWS_SECRET_ACCESS_KEY: "probe-aws",
+    ANTHROPIC_API_KEY: "probe-anthropic",
+    SSH_AUTH_SOCK: "/tmp/agent.sock",
+    GITHUB_TOKEN: "probe-gh",
+    npm_config_x: "1",
+  };
+  const { env, dropped } = buildNativeEnv(parent, { home: "/scratch/home", tmp: "/scratch/tmp", path: "/clean/bin" });
+
+  it("passes no credential, token or agent socket from the shell", () => {
+    const text = JSON.stringify(env);
+    for (const probe of ["probe-openai", "probe-aws", "probe-anthropic", "probe-gh", "agent.sock", "/Users/someone"]) expect(text).not.toContain(probe);
+    expect(dropped).toBeGreaterThanOrEqual(6);
+  });
+
+  it("passes only PATH, a scratch HOME and TMPDIR, the locale and the CI markers", () => {
+    expect(Object.keys(env).sort()).toEqual(["CI", "GITHUB_ACTIONS", "HOME", "LANG", "LOGNAME", "NO_COLOR", "PATH", "TMPDIR", "USER"]);
+    expect(env.HOME).toBe("/scratch/home");
+    expect(env.PATH).toBe("/clean/bin");
+  });
+});
+
+describe("printed and logged text carries no machine path", () => {
+  const where = { repoRoot: "/Users/someone/code/core", home: "/Users/someone", tmp: "/var/folders/ab/cd/T/" };
+
+  it("replaces the repository, the home folder and the temp folder", () => {
+    const text = redactText("at /Users/someone/code/core/src/a.ts and /Users/someone/.cache/x and /var/folders/ab/cd/T/core-verify/logs", where);
+    expect(text).toBe("at <repo>/src/a.ts and ~/.cache/x and $TMPDIR/core-verify/logs");
+  });
+
+  it("replaces any other user's home, but keeps the runner's", () => {
+    expect(redactText("/Users/other/x /home/other/y /home/runner/work/z", where)).toBe("~/x ~/y /home/runner/work/z");
+  });
+
+  it("replaces extra roots such as the runner's workspace", () => {
+    expect(redactText("/home/runner/work/ab12/ws/a.ts", { ...where, extra: [["/home/runner/work/ab12", "<runner>"]] })).toBe("<runner>/ws/a.ts");
+  });
+});
+
+describe("opt-in jobs", () => {
+  it("names a job that exists and gives a reason", () => {
+    const keys = loadWorkflows(realWorkflows).flatMap((w) => w.jobs.map((j) => j.key));
+    for (const [key, reason] of Object.entries(OPT_IN_JOBS)) {
+      expect(keys).toContain(key);
+      expect(reason.length).toBeGreaterThan(20);
+    }
+    expect(Object.keys(OPT_IN_JOBS)).toContain("fleet-runner-release/release-image");
+  });
+
+  it("is reported when the list names a job that is not there", () => {
+    const dir = workflowsWith({ "ci.yml": CI });
+    expect(checkPlan(loadWorkflows(dir)).join("\n")).toContain('lists "fleet-runner-release/release-image" as opt-in');
   });
 });

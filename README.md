@@ -161,13 +161,30 @@ pnpm verify --check         # check that the workflow files and verify still agr
   stand-in is `SKIPPED` with the reason, never passed: today `claude-skill-audit/skill-audit` (posts a
   PR comment) and `security-scan/security` (a reusable workflow from another repository). They are
   checked by GitHub only.
-- **The release image job** (`fleet-runner-release/release-image`) builds the FleetRunner image
-  twice for `linux/amd64` with no cache, so it is slow under emulation on Apple silicon. It runs
-  with the full `pnpm verify` when your branch changes the paths that start it (`packages/fleet-runner/**`,
-  root `package.json`, lockfile and so on), as on GitHub; `pnpm verify --job fleet-runner-release`
-  runs it alone.
-- **Cleanup.** Containers, the runner and its scratch folders are removed when it ends, including on
-  failure and Ctrl-C. Only the runner image, the pnpm download cache (a Docker volume) and pulled images
+- **The release image job is opt-in.** `fleet-runner-release/release-image` builds Docker images, so it
+  needs a Docker engine, and the only one here is this machine's own: a modified release script could
+  start containers that mount your folders or read other containers' secrets (GitHub runs it on a
+  throwaway engine). So the default `pnpm verify` does not run it: it shows `SKIPPED ... opt-in, NOT RUN`
+  and **exits non-zero when your branch triggers it** (changes under `packages/fleet-runner/**`, the root
+  `package.json`, the lockfile and so on). Run it with `pnpm verify --job fleet-runner-release` once
+  you have read the branch's changes to the scripts it runs; it prints a loud warning and takes about a
+  minute. Every other job, including the Linux runner, gets no Docker socket. A nested Docker engine
+  with no host socket is the alternative, not built yet.
+- **What a job can see.** In the runner: a clean container with no host mounts but the pnpm download
+  cache. On this machine (`--quick`, `--native`): an allowlist, never your shell's environment, so no API
+  key, cloud credential or agent socket reaches the branch's code: only `PATH`, a scratch `HOME` and
+  `TMPDIR`, the locale, the CI markers and what the workflow's own `env:` declares. A checkout of
+  another ref (`with.ref`) only runs in the runner; verify never deletes the repository (it removes only
+  its own scratch folders and `packages/*/dist`).
+- **Steps that GitHub allows to fail or that only GitHub can do.** A failed `continue-on-error: true` step
+  keeps the job green, as on GitHub, but the job is listed as `PASS (allowed failure)` with the step named,
+  never a plain `PASS`. An artifact upload is reported as `SKIPPED, GitHub-only` and never counts as a
+  check; a job in which no `run:` step passed is `INCOMPLETE`.
+- **Output is redacted.** Everything printed or logged has the home folder, the repository root and the
+  temp folder replaced (`~`, `<repo>`, `$TMPDIR`), including the output of the steps, so the summary is
+  safe to paste into a public PR.
+- **Cleanup.** Containers, the runner, the BuildKit builders this run created (in its own buildx store, never yours
+  or another run's) and its scratch folders are removed when it ends, including on failure and Ctrl-C. Only the runner image, the pnpm download cache (a Docker volume) and pulled images
   stay. Logs are under `$TMPDIR/core-verify/`; `--verbose` streams them.
 - **Flaky tests.** If `pnpm test` or `proof:local:test` fails on a FleetRunner test that passes on a
   re-run, that is the known flakiness tracked in [#649](https://github.com/ojfbot/core/issues/649);

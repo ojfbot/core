@@ -8,7 +8,7 @@
 // features no local run can reproduce. Ported from LocalHelp's scripts/lib/verify-ci.mjs
 // (LocalHelp issues #74 and #85) and extended to every workflow that runs on `pull_request`.
 import { readFileSync, readdirSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 import { parse } from "yaml";
 
 /** What verify pretends GitHub is doing: a pull request is open on this branch. */
@@ -72,6 +72,17 @@ export const JOB_NEEDS = {
 
 /** The jobs `--quick` runs, on the working tree on this machine: the build and the unit tests. */
 export const QUICK_JOBS = ["ci/build-test"];
+
+/**
+ * Jobs that `pnpm verify` runs only when asked for by name (`--job`), never as part of the default
+ * run, because they would hand the pull request's code more of this machine than a job should get.
+ * The reason is printed next to the job. A pull request that triggers one still needs it run before
+ * it is marked ready: the default run exits non-zero for it (see `optInGap` in verify.mjs).
+ */
+export const OPT_IN_JOBS = {
+  "fleet-runner-release/release-image":
+    "builds Docker images, so it needs a Docker engine; the only engine here is this machine's own, and the job's scripts (which the pull request can change) could start containers that mount this machine's folders or read other containers' secrets. GitHub runs it on a throwaway engine",
+};
 
 /**
  * Every key of a workflow file that verify knows. A key in neither list is reported by name
@@ -461,6 +472,9 @@ export function checkPlan(workflows) {
   for (const key of QUICK_JOBS) {
     if (!keys.includes(key)) problems.push(`--quick lists "${key}" but there is no such job`);
   }
+  for (const key of Object.keys(OPT_IN_JOBS)) {
+    if (!keys.includes(key)) problems.push(`verify lists "${key}" as opt-in but there is no such job: remove it from OPT_IN_JOBS`);
+  }
   for (const workflow of inScope) {
     problems.push(...unsupportedKeys(workflow.rawKeys, "workflow", workflow.file));
     problems.push(...unsupportedKeys(workflow.pullRequestKeys, "pullRequest", `${workflow.file}: on.pull_request`));
@@ -545,3 +559,94 @@ function checkJob(workflow, job) {
 /** Workflow files that do not run on pull_request, by file name: verify does not run them. */
 export const outOfScope = (workflows) =>
   workflows.filter((workflow) => !workflow.pullRequest).map((workflow) => `${workflow.file} (${workflow.triggers.join(", ") || "no trigger"})`);
+
+// ---------------------------------------------------------------------------------------------
+// Guards: what verify will delete, what a job may see, what it may print
+
+const inside = (parent, child) => child === parent || child.startsWith(parent.endsWith(sep) ? parent : parent + sep);
+
+/**
+ * Refuse to delete anything that is, contains or could be the repository itself. verify removes
+ * only (a) folders under its own state folder and (b) a package's git-ignored `dist`; every other
+ * path, and anything equal to or above the repository root (its `.git` and uncommitted files
+ * included), throws.
+ */
+export function assertRemovable(target, { repoRoot, stateRoot }) {
+  const path = resolve(target);
+  const repo = resolve(repoRoot);
+  const state = resolve(stateRoot);
+  if (inside(path, repo)) throw new Error(`verify refuses to delete the repository or a folder that contains it (${path})`);
+  if (inside(state, repo)) throw new Error(`verify refuses to delete anything: its state folder is or contains the repository (${state})`);
+  if (inside(state, path) && path !== state) return path;
+  if (inside(repo, path)) {
+    const relative = path.slice(repo.length + 1).split(sep);
+    if (relative.length === 3 && relative[0] === "packages" && relative[2] === "dist") return path;
+    throw new Error(`verify refuses to delete anything in the repository except packages/<name>/dist (${path})`);
+  }
+  throw new Error(`verify refuses to delete ${path}: it is outside verify's own folder`);
+}
+
+/**
+ * Where a `actions/checkout` step with `ref:` puts its files. Natively the step would replace the
+ * workspace, which is the repository, so it is refused; in the runner it is a path inside the
+ * container's own workspace. `path` may not climb out of the workspace, name `.git`, or be absolute.
+ */
+export function checkoutDestination({ base, path, native }) {
+  if (native) {
+    throw new Error("a checkout of another ref would overwrite the repository on this machine, so it only runs in the Linux runner (drop --native and --quick)");
+  }
+  const relative = String(path ?? ".");
+  const target = resolve(base, relative);
+  if (relative.startsWith("/") || !inside(resolve(base), target)) throw new Error(`checkout path "${relative}" leaves the workspace`);
+  if (target === resolve(base) && path !== undefined && path !== ".") throw new Error(`checkout path "${relative}" is the workspace itself`);
+  if (target.split(sep).includes(".git")) throw new Error(`checkout path "${relative}" is inside .git`);
+  return target;
+}
+
+/** Variables a native job gets from this machine's environment: locale only. Everything else is dropped. */
+const NATIVE_KEEP = /^(LANG|LANGUAGE|LC_[A-Z]+|TZ)$/;
+
+/**
+ * The environment of a job run natively: an allowlist, so a key or token in this shell (an API key,
+ * a cloud credential, an SSH agent) can never reach the pull request's code. Only PATH, a scratch
+ * HOME and TMPDIR, the locale, the CI markers and what the workflow itself declares get through.
+ * `workflowEnv` is what `env:` declares for the job and is added last by the caller.
+ * Returns the environment and the number of variables that were not passed on.
+ */
+export function buildNativeEnv(parent, { home, tmp, path }) {
+  const env = {};
+  for (const [key, value] of Object.entries(parent)) if (NATIVE_KEEP.test(key)) env[key] = value;
+  Object.assign(env, {
+    PATH: path,
+    HOME: home,
+    TMPDIR: tmp,
+    USER: "runner",
+    LOGNAME: "runner",
+    CI: "true",
+    GITHUB_ACTIONS: "true",
+    NO_COLOR: "1",
+  });
+  const dropped = Object.keys(parent).filter((key) => !(key in env)).length;
+  return { env, dropped };
+}
+
+/**
+ * Replace the home folder, the repository root, the temp folder and any other `/Users/<name>` or
+ * `/home/<name>` in text that is printed or logged, so output pasted into a public pull request
+ * carries no machine-specific path. Longest root first.
+ */
+export function redactText(text, { repoRoot, home, tmp, extra = [] }) {
+  const roots = [
+    [repoRoot, "<repo>"],
+    ...extra,
+    [tmp?.replace(/\/$/, ""), "$TMPDIR"],
+    [home, "~"],
+  ]
+    .filter(([root]) => root && root.length > 1)
+    .sort((a, b) => b[0].length - a[0].length);
+  let result = String(text);
+  for (const [root, label] of roots) result = result.split(root).join(label);
+  return result
+    .replace(/\/Users\/[^/\s:'"`)]+/g, "~")
+    .replace(/\/home\/(?!runner\b)[^/\s:'"`)]+/g, "~");
+}
