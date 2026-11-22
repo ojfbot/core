@@ -108,7 +108,8 @@ filed under `decisions/research/` and linked from the tickets they inform.
   review is required before trust rules guard anything live. Tickets closed before this
   rule (#663, #669, #672) get a backfill challenge pass (owner, 2026-11-22). — Who is the
   independent challenger, and what evidence persuades them? (#664, owner re-confirmed
-  2026-11-22)
+  2026-11-22. Amended 2026-11-22: after two challenge rounds, remaining findings become
+  build-slice checks, except a high finding that the decision is wrong, which goes to the owner)
 - Five factory measures, each counted per accepted change (a merged PR that closes an
   issue and is not reverted or hot-fixed within 7 days): accepted changes per week;
   spec-to-merge time; cost as CI minutes, Claude tokens and Codex tokens side by side,
@@ -147,6 +148,30 @@ filed under `decisions/research/` and linked from the tickets they inform.
   broker. No stateless pattern enforces a budget shared across children; a service must
   hold the counter. Findings: `decisions/research/permission-patterns-665.md`. — Which
   established permission patterns are worth evaluating? (#665)
+- Guided PR review adds to the two reviews and never replaces them. It is one top screen
+  plus 7 fixed chapters. A program writes the facts and the evidence, a fresh session
+  explains, and unlinked sentences are deleted. High risk comes from fixed areas plus each
+  repo's invariant list; a model may only raise it, and a repo with no list counts as high
+  risk. A high-risk PR needs a taught /merge-quiz with one retake, then an owner "merge
+  anyway" note. — What does a guided, chaptered PR review contain? (#673, owner confirmed
+  2026-11-22)
+- A stop blocks new work at once and stops running work. Queued effects are cancelled
+  where possible. Each item is proven stopped by a fence, or by the writer proven gone
+  plus read-backs now and after 6 minutes. Anything else is "can't tell" and goes in one
+  BLOCKER. Chats' GitHub work needs a revocable per-Mac credential. — Which in-flight work
+  can be proven stopped? (#678, owner confirmed 2026-11-22)
+- GitHub identity. Each Mac gets its own GitHub App with no settings or secrets power,
+  and Claude and Codex are pinned to it, so agent work is traced apart from the owner.
+  Pinning is setup, not a lock. The owner's gh login stays in their terminal. An
+  owner-name GitHub approval never counts as a yes. Agents merge after the owner's chat
+  yes. Phone taps cover settings changes and go-live. The terminal login has no settings
+  power, and any settings change alerts the phone. — How are owner actions told apart
+  from agent actions on GitHub? (#681, owner confirmed 2026-11-22)
+- Source check: the model-swap "acid test" and agents as insider risk are stated by
+  Nadella. "Intelligence sovereignty" was not found. The software-factory loop, maturity
+  stages, score splits and insider types are our interpretation, as are Linear's
+  "chapters" and "perspectives" ("sections" is Linear's word). — What do the original
+  sources actually say? (#662)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -162,15 +187,15 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What do the original sources actually say? (#662) | research | — | open |
+| What do the original sources actually say? (#662) | research | — | closed |
 | Which shared trust words do we adopt? (#663) | grilling | — | reopened (second challenge rejected; owner chose a full third revision) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | closed |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed (challenge rejected; revision waits on #682) |
-| Which in-flight work can be proven stopped? (#678) | grilling | — | open |
+| Which in-flight work can be proven stopped? (#678) | grilling | — | closed (challenge queued) |
 | What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
 | What does a checkable re-delegation record contain? (#680) | grilling | — | open |
-| How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | open |
+| How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | closing (owner confirmed) |
 | How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | open (first; #679, #680, #668 hold dependent parts) |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
@@ -179,11 +204,11 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What do our own model tests measure? (#669) | grilling | — | closed (revised; second challenge queued) |
+| What do our own model tests measure? (#669) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
 | How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | reopened (challenge rejected; revising) |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
-| Which factory measures do we track? (#672) | grilling | — | closed (revised; second challenge queued) |
-| What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | open |
+| Which factory measures do we track? (#672) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
+| What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | closed (challenge queued) |
 
 ### Closing
 
