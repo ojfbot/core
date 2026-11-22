@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   chmodSync,
+  copyFileSync,
   existsSync,
   lstatSync,
   mkdirSync,
@@ -15,7 +16,7 @@ import { createServer, request, type Server } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, expect, it } from "vitest";
 import { generateToken } from "../auth.js";
 import { fleetClient, FleetHttpError } from "../client.js";
 import { pinsHold, runDeclaredWorker, stageInputs, verifyJobInputs } from "../declared-worker.js";
@@ -50,8 +51,24 @@ let serviceEndpoint: string;
 let controller: AbortController;
 let corruptNext = 0;
 let inputDelayMs = 0;
-// The installed command is a program plus a script; both are pinned.
-const NODE_PIN = { path: process.execPath, sha256: sha(readFileSync(process.execPath)) };
+// The installed command is a program plus a script; both are pinned. A pin refuses a program that
+// group or others can write, and GitHub-hosted runners install Node into their tool cache as mode
+// 0777 (some images only). So the command runs a private, immutable copy, never process.execPath.
+let nodeDir: string;
+let NODE: string;
+let NODE_PIN: { path: string; sha256: string };
+
+beforeAll(() => {
+  nodeDir = mkdtempSync(join(tmpdir(), "worker-inputs-node-"));
+  NODE = join(nodeDir, "node");
+  copyFileSync(process.execPath, NODE);
+  chmodSync(NODE, 0o500);
+  NODE_PIN = { path: NODE, sha256: sha(readFileSync(NODE)) };
+});
+
+afterAll(() => {
+  rmSync(nodeDir, { recursive: true, force: true });
+});
 
 const listen = (s: Server) =>
   new Promise<string>((ok, fail) => {
@@ -139,7 +156,7 @@ function settings(pins = true, handler = handlerFile()) {
     kinds: {
       shout: {
         capabilities: [],
-        command: [process.execPath, handler],
+        command: [NODE, handler],
         pins: pins ? [{ path: handler, sha256: sha(readFileSync(handler)) }, NODE_PIN] : [],
       },
     },
@@ -277,7 +294,7 @@ it("validates pin and input directory settings", () => {
     tokenFile: join(dir, "worker"),
     outDir: join(dir, "attempts"),
     statusFile: join(dir, "status.json"),
-    kinds: { shout: { capabilities: [], command: [process.execPath], ...extra } },
+    kinds: { shout: { capabilities: [], command: [NODE], ...extra } },
   });
   expect(base.kinds.shout?.pins).toHaveLength(2);
   expect(() =>
@@ -337,7 +354,7 @@ it("refuses pins that leave part of the command unpinned", () => {
       outDir: join(dir, "attempts"),
       statusFile: join(dir, "status.json"),
       kinds: {
-        shout: { capabilities: [], command: [process.execPath, handler, "label"], pins },
+        shout: { capabilities: [], command: [NODE, handler, "label"], pins },
       },
     });
   expect(() => parse([handlerPin(handler)])).toThrow("pins-must-cover-command"); // not the program
@@ -356,7 +373,7 @@ it("requires a pin for an absolute path argument even if the file does not exist
       tokenFile: join(dir, "worker"),
       outDir: join(dir, "attempts"),
       statusFile: join(dir, "status.json"),
-      kinds: { shout: { capabilities: [], command: [process.execPath, handler, later], pins } },
+      kinds: { shout: { capabilities: [], command: [NODE, handler, later], pins } },
     });
   expect(existsSync(later)).toBe(false);
   expect(() => parse([handlerPin(handler), NODE_PIN])).toThrow("pins-must-cover-command");

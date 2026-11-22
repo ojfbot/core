@@ -13,6 +13,12 @@ import { fleetServer } from "../server.js";
 import { workOnce } from "../worker.js";
 
 const MAX_BODY = 16 * 1024 * 1024;
+// The store runs on the fake `clock`, but the worker arms real timers from it: it aborts a held job
+// at lease - margin of real milliseconds and heartbeats every lease / 3. A lease of 100 ms therefore
+// let ordinary scheduling jitter (a 60 ms stall) expire the job mid-test on a loaded runner. This
+// lease is far longer than any test run, so real timers never fire; tests expire it by moving the
+// fake clock, which is deterministic.
+const LEASE_MS = 600_000;
 let dir: string;
 let dbPath: string;
 let outDir: string;
@@ -78,7 +84,7 @@ beforeEach(async () => {
   dbPath = join(dir, "jobs.sqlite");
   outDir = join(dir, "accepted");
   clock = 10_000;
-  store = new JobStore(dbPath, { now: () => clock, leaseMs: 100 });
+  store = new JobStore(dbPath, { now: () => clock, leaseMs: LEASE_MS });
   openServer();
   await listen();
 });
@@ -166,7 +172,7 @@ describe("public signed fault contracts", () => {
 
     await closeServer();
     store.close();
-    store = new JobStore(dbPath, { now: () => clock, leaseMs: 100 });
+    store = new JobStore(dbPath, { now: () => clock, leaseMs: LEASE_MS });
     openServer();
     await listen();
     const reopenedOwner = fleetClient(endpoint, "owner", join(dir, "owner"));
@@ -179,7 +185,7 @@ describe("public signed fault contracts", () => {
     });
     expect(await reopenedOwner.verify(key)).toMatchObject({ verified: false });
 
-    clock += 101; // The previous process stopped renewing the lease while the job was reopened.
+    clock += LEASE_MS + 1; // The previous process stopped renewing the lease while the job was reopened.
     const second = await reopenedWorker.claim([], ["noop"]);
     if (!second) throw new Error("expected claim after reopen");
     expect(second.fence).toBe(first.fence + 1);
