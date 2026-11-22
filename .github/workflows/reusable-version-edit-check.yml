@@ -8,6 +8,9 @@ name: Reusable version-edit check
 #   jobs:
 #     versions:
 #       uses: ojfbot/core/.github/workflows/reusable-version-edit-check.yml@<core-commit-sha>
+# The check run is named "<caller job id> / versions"; name the caller job `versions` so the required
+# check is "versions / versions". It runs on pull_request and, as a backstop for direct pushes, on push
+# to the default branch.
 #
 # Needs only git and node, both on the runner. The script comes from Core at this workflow's SHA.
 on:
@@ -39,7 +42,7 @@ permissions:
 
 jobs:
   versions:
-    name: versions (no hand edits, every package covered)
+    name: versions
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -48,19 +51,23 @@ jobs:
           EVENT: ${{ github.event_name }}
           WORKFLOW_REPO: ${{ job.workflow_repository }}
           WORKFLOW_SHA: ${{ job.workflow_sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          [[ "$EVENT" == "pull_request" ]] || { echo "::error::Call this workflow from a pull_request event, not $EVENT."; exit 1; }
+          [[ "$EVENT" == "pull_request" || "$EVENT" == "push" ]] || { echo "::error::Call this workflow from a pull_request or push event, not $EVENT."; exit 1; }
+          [[ "$EVENT" == "pull_request" || "$BEFORE" =~ ^[0-9a-f]{40}$ && ! "$BEFORE" =~ ^0+$ ]] || { echo "::error::This push has no previous commit to compare with."; exit 1; }
           [[ -n "$WORKFLOW_REPO" && "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || {
             echo "::error::Could not resolve this workflow's own repository and commit (job.workflow_repository / job.workflow_sha); refusing to guess which checks to apply."
             exit 1
           }
 
-      - name: Check out the pull request history (commits and the files it touches)
+      # A full fetch, with every blob: a partial clone cannot read old file contents in a private
+      # repo without credentials, and the checker must never mistake an unreadable file for an absent
+      # one (it also fails on any git error, so this is belt and braces).
+      - name: Check out the full history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
-          filter: blob:none
           persist-credentials: false
 
       - name: Check out the checker at this workflow's commit
@@ -74,8 +81,9 @@ jobs:
 
       - name: Check versions
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
           BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}

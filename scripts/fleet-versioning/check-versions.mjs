@@ -12,6 +12,9 @@
 //             the changed files are only what release-please writes (version-only package.json
 //             edits, the manifest, CHANGELOG.md), and every version goes up.
 //
+// Any git error fails the check. For a push to the default branch set EVENT_NAME=push: there is no
+// pull request, so release-please's own merge is recognised by its commits and files alone.
+//
 // Usage: node check-versions.mjs [coverage|edits|all]   (default: all)
 // Environment for `edits`: BASE_SHA, HEAD_SHA, and optionally HEAD_REF, HEAD_REPO, BASE_REPO,
 // PR_AUTHOR (the pull request author's login), RELEASE_ACTORS (comma-separated logins allowed to
@@ -19,9 +22,9 @@
 // `*` allowed, that release-please also writes in this repo, for example pyproject.toml).
 // Optional: RELEASE_PLEASE_CONFIG, RELEASE_PLEASE_MANIFEST (paths relative to the repo root).
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, realpathSync } from 'node:fs';
 import { posix } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
 const RELEASE_BRANCH = /^release-please--branches--[A-Za-z0-9._/-]+$/;
 
@@ -32,14 +35,6 @@ function git(cwd, args, opts = {}) {
     maxBuffer: 64 * 1024 * 1024,
     stdio: ['ignore', 'pipe', opts.allowFail ? 'ignore' : 'inherit'],
   });
-}
-
-function tryGit(cwd, args) {
-  try {
-    return git(cwd, args, { allowFail: true });
-  } catch {
-    return null;
-  }
 }
 
 function parseJson(text, label) {
@@ -56,8 +51,14 @@ function dirOf(packageJsonPath) {
   return dir === '.' ? '.' : dir;
 }
 
+/**
+ * The file's text at `rev`, or null when the file is not in that commit. Absence is decided by the
+ * tree (`ls-tree`), never by a failed read: any git error, such as a blob a partial clone cannot
+ * fetch, throws and fails the check instead of reading as "file absent".
+ */
 function readAt(cwd, rev, path) {
-  return tryGit(cwd, ['show', `${rev}:${path}`]);
+  if (git(cwd, ['ls-tree', '--name-only', rev, '--', path]).trim() === '') return null;
+  return git(cwd, ['show', `${rev}:${path}`]);
 }
 
 function versionOf(text, label) {
@@ -116,47 +117,72 @@ function noreplyLogin(email) {
 }
 
 /**
- * Whether this pull request really is release-please's, as a list of reasons it is not (empty means
- * it is). A branch name proves nothing: anyone who can push can pick one. What a collaborator cannot
- * do is open a pull request as the release-please actor, so the author is the anchor; the commit
- * authors and the file set then limit what anyone can add to a real release PR's branch. Commit
+ * Whether this really is release-please's change, as a list of reasons it is not (empty means it
+ * is). A branch name proves nothing: anyone who can push can pick one. What a collaborator cannot
+ * do is open a pull request as the release-please actor, so the author is the anchor for a pull
+ * request; the commit authors and the file set then limit what anyone can add to a real release
+ * PR's branch. For a push (no pull request) only the commits and files can be checked. Commit
  * author emails are NOT proof of identity (anyone can set them), and the shared Actions bot is a
  * shared identity; this guards against mistakes and imitation, not against a writer who can edit
- * workflows or push to the branch. Branch protection, required checks and CODEOWNERS on .github/
- * carry that (see versioning-convention.md, "Threat model"). It also cannot prove a version is the
- * number release-please computed: reviewing the release PR does that.
+ * workflows or push to the branch. Required status checks, branch protection and CODEOWNERS on
+ * .github/ carry that (see versioning-convention.md, "Threat model"). It also cannot prove a version
+ * is the number release-please computed: reviewing the release PR does.
+ *
+ * Exactly one package may change: the one named by the branch (`...--components--<component>`), or
+ * for a push the only package directory the change touches. Only that package's version-only
+ * package.json, its CHANGELOG.md, the manifest entry for it and any named extra files may differ.
  */
-export function releasePrProblems({ cwd, base, headSha, changed, headRef, headRepo, baseRepo, prAuthor, actors, extraFiles, manifestPath }) {
+export function releasePrProblems({ cwd, base, headSha, changed, headRef, headRepo, baseRepo, prAuthor, actors, extraFiles, manifestPath, configPath, push = false }) {
   const why = [];
-  if (!(typeof headRef === 'string' && RELEASE_BRANCH.test(headRef))) return ['the branch is not named like a release-please branch'];
-  if (!headRepo || !baseRepo || headRepo !== baseRepo) why.push('the branch is not in this repository (a fork)');
   const allowed = new Set(actors);
-  if (!prAuthor || !allowed.has(prAuthor)) {
-    why.push(`the pull request was opened by "${prAuthor || '(unknown)'}", not a release-please actor (${[...allowed].join(', ')})`);
+  let dir;
+  if (!push) {
+    if (!(typeof headRef === 'string' && RELEASE_BRANCH.test(headRef))) return ['the branch is not named like a release-please branch'];
+    if (!headRepo || !baseRepo || headRepo !== baseRepo) why.push('the branch is not in this repository (a fork)');
+    if (!prAuthor || !allowed.has(prAuthor)) {
+      why.push(`the pull request was opened by "${prAuthor || '(unknown)'}", not a release-please actor (${[...allowed].join(', ')})`);
+    }
+    const component = /--components--(.+)$/.exec(headRef)?.[1];
+    if (!component) {
+      why.push('the branch names no component, but this repo releases one package per pull request');
+    } else {
+      const configText = readAt(cwd, base, configPath);
+      const packages = configText ? parseJson(configText, `${configPath} at base`).packages ?? {} : {};
+      dir = Object.keys(packages).find((d) => packages[d].component === component);
+      if (dir === undefined) why.push(`the branch names component "${component}", which ${configPath} does not define`);
+    }
+  } else {
+    const dirs = new Set(changed.filter((f) => f !== manifestPath).map((f) => (posix.dirname(f) === '.' ? '.' : posix.dirname(f))));
+    if (dirs.size !== 1) why.push(`a release changes exactly one package, but this touches ${dirs.size === 0 ? 'none' : [...dirs].join(', ')}`);
+    else dir = [...dirs][0];
   }
+
   const log = git(cwd, ['log', '--format=%H%x1f%ae%x1f%ce', `${base}..${headSha}`]).split('\n').filter(Boolean);
   if (log.length === 0) why.push('it has no commits');
   for (const line of log) {
     const [sha, authorEmail, committerEmail] = line.split('\x1f');
     if (!allowed.has(noreplyLogin(authorEmail))) why.push(`commit ${sha.slice(0, 7)} is authored by ${authorEmail}, not a release-please actor`);
+    // On a push the committer is whoever merged: a rebase merge rewrites it to the person who clicked
+    // the button, while the author stays release-please. Only a pull request branch constrains it.
     const committer = noreplyLogin(committerEmail);
-    if (!(allowed.has(committer) || committerEmail === 'noreply@github.com')) why.push(`commit ${sha.slice(0, 7)} is committed by ${committerEmail}, not a release-please actor or GitHub`);
+    if (!push && !(allowed.has(committer) || committerEmail === 'noreply@github.com')) why.push(`commit ${sha.slice(0, 7)} is committed by ${committerEmail}, not a release-please actor or GitHub`);
   }
+
+  const under = (file) => dir === undefined || dir === '.' || file === dir || file.startsWith(`${dir}/`);
+  const own = (name) => (dir === undefined || dir === '.' ? name : `${dir}/${name}`);
   const extra = extraFiles.map(globToRegExp);
   for (const file of changed) {
-    const name = posix.basename(file);
-    if (file === manifestPath || name === 'CHANGELOG.md' || extra.some((re) => re.test(file))) continue;
-    if (name === 'package.json') {
+    if (file === manifestPath || file === own('CHANGELOG.md')) continue;
+    if (dir !== undefined && extra.some((re) => re.test(file)) && under(file)) continue;
+    if (file === own('package.json')) {
       const oldText = readAt(cwd, base, file);
       const newText = readAt(cwd, headSha, file);
       if (oldText === null || newText === null) {
         why.push(`${file} is ${oldText === null ? 'added' : 'deleted'}; release-please only edits existing package.json files`);
         continue;
       }
-      const o = parseJson(oldText, `${file} at base`);
-      const n = parseJson(newText, `${file} at head`);
-      const { version: ov, ...oRest } = o;
-      const { version: nv, ...nRest } = n;
+      const { version: ov, ...oRest } = parseJson(oldText, `${file} at base`);
+      const { version: nv, ...nRest } = parseJson(newText, `${file} at head`);
       if (stable(oRest) !== stable(nRest)) why.push(`${file} changes more than "version"`);
       if (ov !== nv) {
         const order = compareSemver(nv, ov);
@@ -164,7 +190,16 @@ export function releasePrProblems({ cwd, base, headSha, changed, headRef, headRe
       }
       continue;
     }
-    why.push(`${file} is not a file release-please writes (version-only package.json edits, ${manifestPath}, CHANGELOG.md${extraFiles.length ? `, ${extraFiles.join(', ')}` : ''})`);
+    why.push(`${file} is not a file this release may change (only ${own('package.json')} (version only), ${own('CHANGELOG.md')}, ${manifestPath}${extraFiles.length ? `, ${extraFiles.join(', ')}` : ''})`);
+  }
+
+  // The manifest may change one entry, the package being released.
+  const mb = readAt(cwd, base, manifestPath);
+  const ma = readAt(cwd, headSha, manifestPath);
+  const before = mb ? parseJson(mb, `${manifestPath} at base`) : {};
+  const after = ma ? parseJson(ma, `${manifestPath} at head`) : {};
+  for (const key of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (before[key] !== after[key] && key !== dir) why.push(`${manifestPath} changes "${key}", but this release is for ${dir === undefined ? 'an unknown package' : `"${dir}"`}`);
   }
   return why;
 }
@@ -217,6 +252,15 @@ export function checkCoverage({ cwd, configPath, manifestPath }) {
   for (const dir of Object.keys(manifest)) {
     if (!(dir in packages)) problems.push(`${manifestPath} lists "${dir}" but ${configPath} does not`);
   }
+  // `release-as` forces one version for the next release only. Once that release's tag exists it
+  // must go, or every later release would be forced to the same number.
+  const tags = new Set(git(cwd, ['tag', '--list']).split('\n').map((t) => t.trim()).filter(Boolean));
+  for (const [dir, entry] of Object.entries(packages)) {
+    const forced = entry['release-as'] ?? config['release-as'];
+    if (forced !== undefined && entry.component && tags.has(`${entry.component}-v${forced}`)) {
+      problems.push(`${configPath}: "release-as" ${forced} is still set for "${dir}" but ${entry.component}-v${forced} is already released; remove it so later releases are computed again`);
+    }
+  }
   const components = Object.values(packages).map((p) => p.component).filter(Boolean);
   const dup = components.find((c, i) => components.indexOf(c) !== i);
   if (dup) problems.push(`${configPath}: component "${dup}" is used by two packages, so their tags would collide`);
@@ -234,22 +278,34 @@ export function checkCoverage({ cwd, configPath, manifestPath }) {
   return problems;
 }
 
-export function checkEdits({ cwd, configPath, manifestPath, baseSha, headSha, headRef, headRepo, baseRepo, prAuthor, actors = DEFAULT_ACTORS, extraFiles = [] }) {
+/** Whether any package.json version or manifest entry differs between the two commits. */
+function versionEdited(cwd, base, headSha, changed) {
+  return changed.some((f) => {
+    if (!(f === 'package.json' || f.endsWith('/package.json'))) return false;
+    return versionOf(readAt(cwd, base, f), f) !== versionOf(readAt(cwd, headSha, f), f);
+  });
+}
+
+export function checkEdits({ cwd, configPath, manifestPath, baseSha, headSha, headRef, headRepo, baseRepo, prAuthor, actors = DEFAULT_ACTORS, extraFiles = [], push = false }) {
   const problems = [];
   const base = git(cwd, ['merge-base', baseSha, headSha]).trim();
 
   const changed = git(cwd, ['diff', '--name-only', '-z', '--no-renames', base, headSha])
     .split('\0')
     .filter(Boolean);
-  const claimsRelease = typeof headRef === 'string' && RELEASE_BRANCH.test(headRef);
+  // A pull request claims to be release-please's by its branch name; a push has no branch to claim
+  // with, so it is judged on its commits and files alone.
+  const claimsRelease = push || (typeof headRef === 'string' && RELEASE_BRANCH.test(headRef));
   const notRelease = claimsRelease
-    ? releasePrProblems({ cwd, base, headSha, changed, headRef, headRepo, baseRepo, prAuthor, actors, extraFiles, manifestPath })
+    ? releasePrProblems({ cwd, base, headSha, changed, headRef, headRepo, baseRepo, prAuthor, actors, extraFiles, manifestPath, configPath, push })
     : [];
   const fromReleasePlease = claimsRelease && notRelease.length === 0;
-  if (claimsRelease && !fromReleasePlease) {
+  if (claimsRelease && !fromReleasePlease && !push) {
     problems.push(
       `the branch "${headRef}" is named like a release-please branch but this is not release-please's pull request, so it gets no exemption: ${notRelease.join('; ')}`,
     );
+  } else if (push && !fromReleasePlease && changed.length > 0 && (versionEdited(cwd, base, headSha, changed))) {
+    problems.push(`this push changes versions but is not release-please's merge, so it gets no exemption: ${notRelease.join('; ')}`);
   }
   const manifestBefore = readAt(cwd, base, manifestPath);
   const manifestAfter = readAt(cwd, headSha, manifestPath);
@@ -325,6 +381,7 @@ function main() {
         headRef: process.env.HEAD_REF,
         headRepo: process.env.HEAD_REPO,
         baseRepo: process.env.BASE_REPO,
+        push: process.env.EVENT_NAME === 'push',
         prAuthor: process.env.PR_AUTHOR,
         actors: (process.env.RELEASE_ACTORS || DEFAULT_ACTORS.join(',')).split(',').map((a) => a.trim()).filter(Boolean),
         extraFiles: (process.env.RELEASE_EXTRA_FILES || '').split(',').map((a) => a.trim()).filter(Boolean),
@@ -340,4 +397,26 @@ function main() {
   process.exit(1);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();
+/**
+ * Whether this file is the program being run. Paths are compared after resolving symlinks (macOS's
+ * temp folders and CI workspaces can be reached through one); comparing the raw URL would make a
+ * script run from such a path do nothing and exit 0, which for a check is a silent pass.
+ */
+function isMain() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+}
+
+if (isMain()) {
+  try {
+    main();
+  } catch (error) {
+    // Any failure to read the repository is a failed check, never a pass.
+    console.error(`::error::version check could not complete: ${error.message}`);
+    process.exit(1);
+  }
+}

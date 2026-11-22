@@ -6,13 +6,17 @@ name: Versioning
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
+  # Backstop for direct pushes to main: the pull request checks are the gate (required status checks
+  # on main); this makes anything that got past them, or around them, fail loudly on the pushed range.
+  push:
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
   group: versioning-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   commitlint:

@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { checkCoverage, checkEdits, compareSemver } from '../check-versions.mjs';
+import { renameSync, symlinkSync } from 'node:fs';
 
 const CONFIG = 'release-please-config.json';
 const MANIFEST = '.release-please-manifest.json';
@@ -182,7 +184,7 @@ describe('checkEdits', () => {
       bump();
       put('src/evil.mjs', 'process.exit(0)\n');
       const head = commit('chore(main): release a 0.3.0', BOT);
-      expect(run(base, head, release()).join('\n')).toMatch(/src\/evil\.mjs is not a file release-please writes/);
+      expect(run(base, head, release()).join('\n')).toMatch(/src\/evil\.mjs is not a file this release may change/);
     });
 
     it('refuses a release PR that changes more of package.json than the version', () => {
@@ -207,6 +209,46 @@ describe('checkEdits', () => {
       expect(run(base, head, release({ headRepo: 'fork/r' })).join('\n')).toMatch(/a fork/);
     });
 
+    it('refuses a release PR for component a that also bumps package b', () => {
+      const base = baseRepo();
+      put('packages/b/package.json', pkg('b', '0.1.0'));
+      put(CONFIG, config({ '.': { component: 'root' }, 'packages/a': { component: 'a' }, 'packages/b': { component: 'b' } }));
+      put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.2.0', 'packages/b': '0.1.0' });
+      const mid = commit('feat: add b');
+      put('packages/a/package.json', pkg('a', '0.3.0'));
+      put('packages/b/package.json', pkg('b', '0.2.0'));
+      put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0', 'packages/b': '0.2.0' });
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      const text = run(mid, head, release()).join('\n');
+      expect(text).toMatch(/packages\/b\/package\.json is not a file this release may change/);
+      expect(text).toMatch(/changes "packages\/b", but this release is for "packages\/a"/);
+    });
+
+    it('refuses a release PR that moves another package\'s manifest entry', () => {
+      const base = baseRepo();
+      put('packages/a/package.json', pkg('a', '0.3.0'));
+      put(MANIFEST, { '.': '9.0.0', 'packages/a': '0.3.0' });
+      const head = commit('chore(main): release a 0.3.0', BOT);
+      expect(run(base, head, release()).join('\n')).toMatch(/changes "\.", but this release is for "packages\/a"/);
+    });
+
+    it('refuses a branch whose component the config does not define', () => {
+      const base = baseRepo();
+      bump();
+      const head = commit('chore(main): release', BOT);
+      expect(run(base, head, release({ headRef: 'release-please--branches--main--components--nope' })).join('\n')).toMatch(/component "nope", which .* does not define/);
+      expect(run(base, head, release({ headRef: 'release-please--branches--main' })).join('\n')).toMatch(/names no component/);
+    });
+
+    it('a human commit pushed onto the real release PR fails it', () => {
+      const base = baseRepo();
+      bump();
+      commit('chore(main): release a 0.3.0', BOT);
+      put('packages/a/CHANGELOG.md', '# changed by hand\n');
+      const head = commit('docs: tweak the changelog', HUMAN);
+      expect(run(base, head, release()).join('\n')).toMatch(/is authored by t@example\.com/);
+    });
+
     it('honours a configured actor and extra release files, and nothing else', () => {
       const base = baseRepo();
       const app = { name: 'release-app[bot]', email: '7+release-app[bot]@users.noreply.github.com' };
@@ -215,7 +257,7 @@ describe('checkEdits', () => {
       const head = commit('chore(main): release a 0.3.0', app);
       const ctx = release({ prAuthor: 'release-app[bot]', actors: ['release-app[bot]'], extraFiles: ['packages/*/pyproject.toml'] });
       expect(run(base, head, ctx)).toEqual([]);
-      expect(run(base, head, release({ prAuthor: 'release-app[bot]', actors: ['release-app[bot]'] })).join('\n')).toMatch(/pyproject\.toml is not a file release-please writes/);
+      expect(run(base, head, release({ prAuthor: 'release-app[bot]', actors: ['release-app[bot]'] })).join('\n')).toMatch(/pyproject\.toml is not a file this release may change/);
     });
   });
 
@@ -258,4 +300,103 @@ describe('compareSemver', () => {
     expect(Math.sign(compareSemver(a, b))).toBe(sign);
   });
   it('is null for a non-version', () => expect(compareSemver('latest', '1.0.0')).toBeNull());
+});
+
+describe('a push to the default branch (no pull request)', () => {
+  const runPush = (base, head, extra = {}) =>
+    checkEdits({ cwd: dir, configPath: CONFIG, manifestPath: MANIFEST, baseSha: base, headSha: head, push: true, ...extra });
+
+  it('accepts a release-shaped push: bot commits, one package, version-only, rising', () => {
+    const base = baseRepo();
+    put('packages/a/package.json', pkg('a', '0.3.0'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
+    put('packages/a/CHANGELOG.md', '# Changelog\n');
+    expect(runPush(base, commit('chore(main): release a 0.3.0', BOT))).toEqual([]);
+  });
+
+  it('accepts it when a human rebase-merged it (author is the bot, committer is the person)', () => {
+    const base = baseRepo();
+    put('packages/a/package.json', pkg('a', '0.3.0'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
+    expect(runPush(base, commit('chore(main): release a 0.3.0', BOT, HUMAN))).toEqual([]);
+  });
+
+  it('refuses a push of human commits that bump a version', () => {
+    const base = baseRepo();
+    put('packages/a/package.json', pkg('a', '0.2.1'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.2.1' });
+    const text = runPush(base, commit('fix: bump by hand')).join('\n');
+    expect(text).toMatch(/version changed 0\.2\.0 -> 0\.2\.1/);
+    expect(text).toMatch(/Only release-please's release PR may change an existing entry/);
+  });
+
+  it('refuses a bot-looking push that touches two packages', () => {
+    const base = baseRepo();
+    put('package.json', pkg('root', '1.1.0'));
+    put('packages/a/package.json', pkg('a', '0.3.0'));
+    put(MANIFEST, { '.': '1.1.0', 'packages/a': '0.3.0' });
+    expect(runPush(base, commit('chore: release', BOT)).join('\n')).toMatch(/exactly one package/);
+  });
+});
+
+describe('an unreadable repository fails the check instead of passing it', () => {
+  it('throws when the base blobs cannot be fetched (partial clone whose source is gone)', () => {
+    const base = baseRepo();
+    git('config', 'uploadpack.allowFilter', 'true');
+    git('config', 'uploadpack.allowAnySHA1InWant', 'true');
+    put('packages/a/package.json', pkg('a', '9.9.9'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '9.9.9' });
+    const head = commit('fix: bump by hand');
+    const source = `${dir}-source`;
+    renameSync(dir, source);
+    const clone = `${dir}-clone`;
+    try {
+      execFileSync('git', ['clone', '-q', '--no-checkout', '--filter=blob:none', `file://${source}`, clone], { encoding: 'utf8' });
+      renameSync(source, `${source}-gone`);
+      expect(() =>
+        checkEdits({ cwd: clone, configPath: CONFIG, manifestPath: MANIFEST, baseSha: base, headSha: head }),
+      ).toThrow();
+      // and through the command line: a non-zero exit, never "ok"
+      const r = spawnSync('node', [join(dirname(fileURLToPath(import.meta.url)), '..', 'check-versions.mjs'), 'edits'], {
+        cwd: clone,
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, BASE_SHA: base, HEAD_SHA: head },
+      });
+      expect(r.status).toBe(1);
+      expect(`${r.stdout}${r.stderr}`).toMatch(/version check could not complete/);
+    } finally {
+      rmSync(`${source}-gone`, { recursive: true, force: true });
+      rmSync(clone, { recursive: true, force: true });
+      mkdirSync(dir, { recursive: true });
+    }
+  });
+});
+
+describe('release-as is one-shot', () => {
+  it('passes while the tag does not exist and fails once the release is tagged', () => {
+    baseRepo();
+    put(CONFIG, config({ '.': { component: 'root' }, 'packages/a': { component: 'a', 'release-as': '0.3.0' } }));
+    commit('chore: force the next release of a');
+    expect(checkCoverage({ cwd: dir, configPath: CONFIG, manifestPath: MANIFEST })).toEqual([]);
+    git('tag', 'a-v0.3.0');
+    const problems = checkCoverage({ cwd: dir, configPath: CONFIG, manifestPath: MANIFEST });
+    expect(problems.join('\n')).toMatch(/"release-as" 0\.3\.0 is still set for "packages\/a" but a-v0\.3\.0 is already released/);
+  });
+});
+
+describe('running the script through a symlinked path', () => {
+  it('still runs (a check that silently does nothing would read as a pass)', () => {
+    const real = join(dirname(fileURLToPath(import.meta.url)), '..', 'check-versions.mjs');
+    const link = `${dir}-link.mjs`;
+    symlinkSync(real, link);
+    try {
+      put('package.json', pkg('root', '1.0.0')); // no release-please config at all
+      commit('chore: init');
+      const r = spawnSync('node', [link, 'coverage'], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH } });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toMatch(/is missing/);
+    } finally {
+      rmSync(link, { force: true });
+    }
+  });
 });
