@@ -195,7 +195,8 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Which in-flight work can be proven stopped? (#678) | grilling | — | closed (challenge queued) |
 | What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
 | What does a checkable re-delegation record contain? (#680) | grilling | — | open |
-| How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | closing (owner confirmed) |
+| How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | closed (challenge queued) |
+| Should an owner-only GitHub account own the repos through an organization? (#684) | grilling | — | open (later) |
 | How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | open (first; #679, #680, #668 hold dependent parts) |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
