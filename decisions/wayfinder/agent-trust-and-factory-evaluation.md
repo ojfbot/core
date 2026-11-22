@@ -227,6 +227,15 @@ filed under `decisions/research/` and linked from the tickets they inform.
   Removing that access is an owner-only NAS change, and until then the wording promises
   only what holds today. The DailyLogger standing exception also covers the daily article
   run during a HelpDesk outage. — #667 (revised after challenge)
+- Authority split. The owner was worried about overloading HelpDesk and ruled to split
+  out a new authority service on the NAS, under its own account. It holds the owner
+  records (signing keys, the charter of seats, approvals and their spent ledger,
+  revocations), the seat tree and standbys, grants and re-delegations, and the run
+  counter, and it is the one decision point. HelpDesk goes back to being a small
+  coordination relay (messages, presence, session registration, role mailboxes, sign-in,
+  alert route) that holds no authority. New NAS services: authority service, GitHub token
+  issuer, read-only checker, add-only data layer. — Which service owns each guarantee?
+  (#674, owner 2026-11-22)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
