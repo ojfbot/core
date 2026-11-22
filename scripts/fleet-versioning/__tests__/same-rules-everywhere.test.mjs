@@ -68,10 +68,12 @@ describe('one rules file', () => {
     expect(yaml).toContain('uses: ./.github/workflows/reusable-version-edit-check.yml');
   });
 
-  it('ci/build-test lints HEAD with the repository config, never another file', () => {
-    const ci = read('.github/workflows/ci.yml');
-    expect(ci).toContain('pnpm exec commitlint --last --verbose');
-    expect(ci).not.toMatch(/commitlint[^\n]*--config/);
+  it('no other workflow runs commitlint with its own rules', () => {
+    for (const w of workflows) {
+      if (w.file === 'reusable-commitlint.yml') continue;
+      const text = w.jobs.flatMap((j) => j.steps.map((st) => String(st.run ?? ''))).join('\n');
+      expect(text, w.file).not.toMatch(/commitlint/);
+    }
   });
 });
 

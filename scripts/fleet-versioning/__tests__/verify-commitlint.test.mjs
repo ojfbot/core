@@ -103,6 +103,8 @@ describe('pnpm verify: versioning/commitlint', () => {
     ['missing colon', 'feat add a thing', /type-empty/],
     ['bad scope', 'feat(Fleet Runner): add a thing', /scope-case|fleet-scope-shape/],
     ['oversized header', `feat: ${'x'.repeat(120)}`, /header-max-length/],
+    ['fixup', 'fixup! feat: a conforming commit', /type-empty/],
+    ['bare version number', '1.2.3', /type-empty/],
   ];
   it.each(bad)('FAILs a branch with a %s commit, for that reason', { timeout: T }, (_label, message, rule) => {
     git('checkout', '-q', '-B', 'topic', 'origin/main');
@@ -112,6 +114,20 @@ describe('pnpm verify: versioning/commitlint', () => {
     expect(r.out).toMatch(/FAIL\s+versioning\/commitlint/);
     expect(r.out).toMatch(rule); // the lint ran and named the rule; not some other failure
     expect(r.status).not.toBe(0);
+  });
+
+  it("PASSes a branch that merged main in with GitHub's own merge header", { timeout: T }, () => {
+    git('checkout', '-q', '-B', 'topic', 'origin/main');
+    commit('feat: topic work');
+    git('checkout', '-q', '-B', 'moved', 'origin/main');
+    commit('chore: main moved on');
+    git('push', '-q', '-f', 'origin', 'moved:main');
+    git('fetch', '-q', 'origin');
+    git('checkout', '-q', 'topic');
+    git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'merge', '-q', '--no-ff', 'origin/main', '-m', "Merge branch 'main' into topic", '--no-gpg-sign');
+    const r = verify('versioning/commitlint');
+    expect(r.out).toMatch(/PASS\s+versioning\/commitlint/);
+    expect(r.status).toBe(0);
   });
 
   it('reports the pull request title SKIPPED with its reason when gh knows no pull request', { timeout: T }, () => {

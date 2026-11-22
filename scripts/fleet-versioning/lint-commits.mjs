@@ -30,8 +30,21 @@ function commitlintCommand(runner) {
     : ['pnpm', ['dlx', `@commitlint/cli@${COMMITLINT_VERSION}`]];
 }
 
-/** Runs commitlint; returns { ok, output }. `input` is piped to stdin for a single message. */
-export function runCommitlint({ args, input, runner, cwd }) {
+/**
+ * Runs commitlint; returns { ok, output }. `input` is piped to stdin for a single message. A run
+ * that fails without naming a single broken rule (the CLI could not be fetched or started, for
+ * example two `pnpm dlx` installs racing for the same cache) is tried once more; a real lint
+ * failure is never retried, so a bad commit cannot be turned into a pass.
+ */
+export function runCommitlint(options) {
+  const first = runOnce(options);
+  if (first.ok || first.output.includes('✖')) return first;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000);
+  const second = runOnce(options);
+  return second.ok ? second : { ok: false, output: `${first.output}\n(retried once)\n${second.output}` };
+}
+
+function runOnce({ args, input, runner, cwd }) {
   const [bin, base] = commitlintCommand(runner);
   const result = spawnSync(bin, [...base, '--config', configPath, ...args], {
     cwd,

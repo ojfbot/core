@@ -5,9 +5,9 @@
 // the calling repo. Do not add a dependency here without changing that workflow.
 //
 // Types follow Conventional Commits. release-please turns them into versions:
-//   fix -> patch, feat -> minor, `!` or a BREAKING CHANGE footer -> major
-// (below 1.0 the bump is lowered; see release-please-config.json). Every other type is allowed
-// but never releases by itself.
+//   feat -> minor; fix, perf and revert -> patch; `!` or a BREAKING CHANGE footer -> major
+// (below 1.0 a breaking change bumps the minor; see release-please-config.json). docs, style,
+// refactor, test, build, ci and chore are allowed but never release by themselves.
 export const types = [
   'feat',
   'fix',
@@ -58,7 +58,29 @@ const parserPreset = {
   },
 };
 
+// EVERY commit is linted: the conventional-commits default ignores (merge commits, `fixup!`,
+// `squash!`, `Revert "..."`, a bare version number) are switched off, so none of those slips through.
+// Exactly two merge-commit headers are allowed, because git and GitHub write them and no human
+// can add a type to them without breaking "Update branch" and `git merge`:
+//   Merge branch '<branch>' into <branch>     (git merge, GitHub "Update branch")
+//   Merge pull request #<n> from <owner>/<branch>   (GitHub merge button)
+// Anything else must be a conventional header. That means `git commit --fixup` commits are refused
+// (squash them with an interactive rebase before committing) and a reverting commit is written
+// `revert: <subject>`. Merge commits never release anything: release-please ignores them.
+export const mergeHeaders = [
+  /^Merge branch '[A-Za-z0-9._/-]+' into [A-Za-z0-9._/-]+$/,
+  /^Merge pull request #\d+ from [A-Za-z0-9._-]+\/[A-Za-z0-9._/-]+$/,
+];
+// The rest of the message may only be blank lines or `#` comment lines (what git adds for conflicts),
+// so a hand-written body cannot ride along unlinted behind a merge header.
+const isAllowedMerge = (message) => {
+  const [header, ...rest] = String(message).split('\n');
+  return mergeHeaders.some((re) => re.test(header)) && rest.every((line) => line.trim() === '' || line.startsWith('#'));
+};
+
 export default {
+  defaultIgnores: false,
+  ignores: [isAllowedMerge],
   parserPreset,
   plugins: [plugin],
   // Squash-merge bodies and release-please PR bodies carry long lines and URLs, so the body and

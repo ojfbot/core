@@ -22,13 +22,10 @@ jobs:
       - name: User-scope installer and hook isolation regression
         run: python3 scripts/__tests__/test_user_scope_install.py -v
 
-      # adr:deterministic-fleet-versioning. The full range and title checks run in versioning.yml
-      # (they need the pull request event); these two also run under `pnpm verify`.
+      # adr:deterministic-fleet-versioning. The commit range and title checks run in versioning.yml,
+      # and `pnpm verify` runs them as versioning/commitlint; this one needs no pull request event.
       - name: Every package is covered by release-please
         run: node scripts/fleet-versioning/check-versions.mjs coverage
-
-      - name: Commit message of HEAD follows the shared rules
-        run: pnpm exec commitlint --last --verbose
 
       - name: Build
         run: pnpm build

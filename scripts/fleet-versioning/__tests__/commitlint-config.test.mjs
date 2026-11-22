@@ -25,6 +25,10 @@ const accept = [
   'revert: undo the thing',
   'feat: x\n\nBREAKING CHANGE: the field is renamed',
   `fix: ${'x'.repeat(50)}\n\n${'long body line '.repeat(30)}`,
+  // the only two merge headers allowed: what git merge, "Update branch" and the merge button write
+  "Merge branch 'main' into feature/add-thing",
+  'Merge pull request #123 from ojfbot/claude/some-branch',
+  "Merge branch 'main' into feature/add-thing\n\n# Conflicts:\n#\tfile.txt",
 ];
 const reject = [
   ['fixed the bug', /type may not be empty|subject may not be empty/],
@@ -40,6 +44,17 @@ const reject = [
   ['feat:', /subject may not be empty|type may not be empty/],
   [`feat: ${'x'.repeat(120)}`, /header must not be longer/],
   ['feat: x\nbody without blank line', /blank line/],
+  // the conventional-commits default ignores are off: none of these slips through
+  ['fixup! feat: add a thing', /type may not be empty|subject may not be empty/],
+  ['squash! feat: add a thing', /type may not be empty|subject may not be empty/],
+  ['amend! feat: add a thing', /type may not be empty|subject may not be empty/],
+  ['1.2.3', /type may not be empty|subject may not be empty/],
+  ['v1.2.3', /type may not be empty|subject may not be empty/],
+  ['Revert "feat: add a thing"', /type may not be empty|subject may not be empty/],
+  ["Merge branch 'main'", /type may not be empty|subject may not be empty/],
+  ['Merge abc1234 into def5678', /type may not be empty|subject may not be empty/],
+  ["Merge remote-tracking branch 'origin/main'", /type may not be empty|subject may not be empty/],
+  ["Merge branch 'main' into feature/x\nand a hand-written extra line without a blank line", /type may not be empty|subject may not be empty/],
 ];
 
 describe('shared commitlint config', () => {

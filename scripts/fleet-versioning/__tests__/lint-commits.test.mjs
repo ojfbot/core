@@ -85,6 +85,39 @@ describe('lint-commits (the script CI and pnpm verify both run)', () => {
   });
 });
 
+describe('merge, fixup and version-number commits are linted too', () => {
+  it("passes GitHub's own \"Merge branch 'main' into <branch>\" and a conventional commit around it", () => {
+    git('reset', '-q', '--hard', base);
+    git('checkout', '-q', '-b', 'topic');
+    commit('feat: topic work');
+    git('checkout', '-q', 'main');
+    const tip = commit('chore: main moved on');
+    git('checkout', '-q', 'topic');
+    git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'merge', '-q', '--no-ff', 'main', '--no-gpg-sign');
+    const head = git('rev-parse', 'HEAD');
+    expect(git('log', '-1', '--format=%s')).toBe("Merge branch 'main' into topic");
+    const r = lint(tip, head);
+    expect(r.out).toMatch(/: PASS/);
+    expect(r.status).toBe(0);
+    git('checkout', '-q', 'main');
+  });
+
+  it.each([
+    ['a fixup commit', 'fixup! feat: topic work'],
+    ['a squash commit', 'squash! feat: topic work'],
+    ['a bare version number', '1.2.3'],
+    ['a git revert message', 'Revert "feat: topic work"'],
+    ['a merge in any other shape', "Merge branch 'main'"],
+  ])('FAILs %s', (_label, message) => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+    const head = commit(message);
+    const r = lint(base, head);
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/type-empty|subject-empty/);
+  });
+});
+
 describe('lint-commits failure summary', () => {
   it('ends with the problems, so a tail of the log shows why', () => {
     git('reset', '-q', '--hard', base);
