@@ -26,7 +26,17 @@ const REVISION = "0123456789abcdef0123456789abcdef01234567";
 const TAG = `fleet-runner:${REVISION}`;
 const CONFIG = '{"config":"the image config"}';
 const IMAGE_ID = `sha256:${sha(Buffer.from(CONFIG))}`;
-const MANIFEST_DIGEST = `sha256:${"b".repeat(64)}`;
+const OCI_MANIFEST = JSON.stringify({
+  schemaVersion: 2,
+  mediaType: "application/vnd.oci.image.manifest.v1+json",
+  config: {
+    mediaType: "application/vnd.oci.image.config.v1+json",
+    digest: IMAGE_ID,
+    size: CONFIG.length,
+  },
+  layers: [],
+});
+const MANIFEST_DIGEST = `sha256:${sha(Buffer.from(OCI_MANIFEST))}`;
 const ARCHIVE = "fleet-runner-image.tar";
 
 let dir: string;
@@ -53,6 +63,11 @@ interface ArchiveShape {
   // Rename a member in its tar header, as a name that tar and Docker may clean differently.
   rename?: [string, string];
   indexRaw?: string;
+  // The OCI manifest the index points at: its text, the bytes actually stored under its name, or none.
+  ociRaw?: string;
+  ociBlobBytes?: string;
+  omitOci?: boolean;
+  layout?: string | boolean;
 }
 
 // Plain ustar, as BuildKit writes it; COPYFILE_DISABLE stops macOS tar adding metadata members.
@@ -79,6 +94,9 @@ function renameMember(bytes: Buffer, from: string, to: string): void {
   throw new Error(`no member ${from}`);
 }
 
+const ociDigest = (shape: { ociRaw?: string }): string =>
+  `sha256:${sha(Buffer.from(shape.ociRaw ?? OCI_MANIFEST))}`;
+
 // A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
 function makeArchive(shape: ArchiveShape = {}): Buffer {
   const stage = mkdtempSync(join(tmpdir(), "fleet-release-stage-"));
@@ -95,7 +113,21 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
       RepoTags: shape.tags ?? [TAG],
       Layers: [],
     }));
+    if (!shape.omitOci) {
+      const ociName = ociDigest(shape).slice("sha256:".length);
+      writeFileSync(
+        join(stage, `blobs/sha256/${ociName}`),
+        shape.ociBlobBytes ?? shape.ociRaw ?? OCI_MANIFEST,
+      );
+    }
     const names = ["blobs"];
+    if (shape.layout) {
+      writeFileSync(
+        join(stage, "oci-layout"),
+        typeof shape.layout === "string" ? shape.layout : '{"imageLayoutVersion":"1.0.0"}',
+      );
+      names.push("oci-layout");
+    }
     if (shape.manifest !== false) {
       writeFileSync(
         join(stage, "manifest.json"),
@@ -104,7 +136,7 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
       names.push("manifest.json");
     }
     if (shape.indexDigest !== null) {
-      const digest = shape.indexDigest ?? MANIFEST_DIGEST;
+      const digest = shape.indexDigest ?? ociDigest(shape);
       const index = {
         schemaVersion: 2,
         mediaType: "application/vnd.oci.image.index.v1+json",
@@ -157,7 +189,7 @@ function writeRelease(overrides: Record<string, unknown> = {}, shape: ArchiveSha
     platform: "linux/amd64",
     user: "node",
     image_id: IMAGE_ID,
-    manifest_digest: MANIFEST_DIGEST,
+    manifest_digest: ociDigest(shape),
     layers: 3,
     archive: ARCHIVE,
     archive_sha256: sha(archive),
@@ -467,6 +499,71 @@ describe("verify-release.sh check", () => {
     expect(run(["check", dir]).out).toContain("FAIL archive index names another image");
     writeRelease({}, { indexRaw: index(`docker.io/library/${TAG}`, "arm64") });
     expect(run(["check", dir]).out).toContain("FAIL archive index platform");
+    const wrongRef = index(`docker.io/library/${TAG}`, "amd64").replace(
+      `"org.opencontainers.image.ref.name":"${REVISION}"`,
+      `"org.opencontainers.image.ref.name":"${"f".repeat(40)}"`,
+    );
+    writeRelease({}, { indexRaw: wrongRef });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive index ref name is not the release revision",
+    );
+  });
+
+  it("reads the OCI manifest the index points at, since a containerd-store engine ignores manifest.json", () => {
+    // Its bytes must hash to the recorded digest.
+    writeRelease({}, { ociBlobBytes: '{"schemaVersion":2}' });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive OCI manifest does not hash to the recorded manifest digest",
+    );
+    // It must exist.
+    writeRelease({}, { omitOci: true });
+    expect(run(["check", dir]).out).toContain("FAIL archive has no OCI manifest blob");
+    // Its config must be the checked image, even when its own hash matches the recorded digest.
+    const other = JSON.parse(OCI_MANIFEST);
+    other.config.digest = `sha256:${"9".repeat(64)}`;
+    writeRelease({}, { ociRaw: JSON.stringify(other) });
+    expect(run(["check", dir]).out).toContain("FAIL archive OCI manifest names another config");
+    // Its layers must be the ones manifest.json lists.
+    const layered = JSON.parse(OCI_MANIFEST);
+    layered.layers = [{ mediaType: "l", digest: `sha256:${"8".repeat(64)}`, size: 1 }];
+    writeRelease({}, { ociRaw: JSON.stringify(layered) });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive OCI manifest layers differ from manifest.json",
+    );
+    for (const text of [`{"MediaType":"x"}`, "not json"]) {
+      writeRelease({}, { ociRaw: text });
+      expect(run(["check", dir]).status).toBe(1);
+    }
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("holds the OCI manifest to the same exact-key and duplicate-key rule", () => {
+    const cased = JSON.parse(OCI_MANIFEST);
+    cased.Config = cased.config;
+    writeRelease({}, { ociRaw: JSON.stringify(cased) });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL the OCI manifest does not have exactly the expected keys",
+    );
+    const dup = OCI_MANIFEST.replace('"layers":[]', '"layers":[],"layers":[]');
+    writeRelease({}, { ociRaw: dup });
+    expect(run(["check", dir]).out).toContain('FAIL the OCI manifest repeats the key "layers"');
+    const extra = JSON.parse(OCI_MANIFEST);
+    extra.config.urls = ["x"];
+    writeRelease({}, { ociRaw: JSON.stringify(extra) });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL the OCI manifest config does not have exactly the expected keys",
+    );
+  });
+
+  it("requires an index when oci-layout is present, and an exact oci-layout", () => {
+    writeRelease({ manifest_digest: null }, { layout: true, indexDigest: null });
+    expect(run(["check", dir]).out).toContain("FAIL archive has an oci-layout but no index.json");
+    writeRelease({}, { layout: true });
+    expect(run(["check", dir]).status).toBe(0);
+    writeRelease({}, { layout: '{"imageLayoutVersion":"1.0.0","extra":1}' });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL oci-layout does not have exactly the expected keys",
+    );
   });
 
   it("fails closed when node is not available to read the archive", () => {

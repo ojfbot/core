@@ -156,11 +156,12 @@ const read = (name) => {
   if (member.size > MAX_MEMBER) fail("archive member is too large to check");
   const buffer = Buffer.alloc(member.size);
   readSync(fd, buffer, 0, member.size, member.dataStart);
-  return buffer.toString("utf8");
+  return buffer;
 };
+const readText = (name) => read(name)?.toString("utf8") ?? null;
 
 // ---- manifest.json: one image, its real Config, its only tag -----------------------------------
-const manifestText = read("manifest.json");
+const manifestText = readText("manifest.json");
 if (manifestText === null) fail("archive has no manifest.json");
 const manifest = parseStrict(manifestText, "manifest.json");
 if (!Array.isArray(manifest) || manifest.length !== 1) fail("archive does not hold exactly one image");
@@ -175,7 +176,7 @@ if (actualId !== imageId) fail(`archive image ID is ${actualId}, not the recorde
 if (entry.RepoTags.length !== 1 || entry.RepoTags[0] !== tag) fail(`archive tags are not exactly ${tag}`);
 
 // ---- index.json and oci-layout: part of what an engine loads, so held to the same rule ----------
-const indexText = read("index.json");
+const indexText = readText("index.json");
 if (indexText === null) {
   if (manifestDigest !== "") fail("archive has no index.json");
 } else {
@@ -199,8 +200,34 @@ if (indexText === null) {
   }
   exactKeys(descriptor.platform, ["architecture", "os"], "the index platform");
   if (descriptor.platform.architecture !== "amd64" || descriptor.platform.os !== "linux") fail("archive index platform");
+
+  // An engine using the containerd image store imports from index.json and ignores manifest.json,
+  // so the OCI manifest the index points at must say the same thing: its bytes hash to the digest
+  // the index and the release record, its config is the checked image, and its layers are the
+  // ones manifest.json lists.
+  if (!/^sha256:[0-9a-f]{64}$/.test(manifestDigest)) fail("manifest digest argument");
+  const ociBytes = read(`blobs/sha256/${manifestDigest.slice("sha256:".length)}`);
+  if (ociBytes === null) fail("archive has no OCI manifest blob");
+  if (`sha256:${createHash("sha256").update(ociBytes).digest("hex")}` !== manifestDigest) {
+    fail("archive OCI manifest does not hash to the recorded manifest digest");
+  }
+  const oci = parseStrict(ociBytes.toString("utf8"), "the OCI manifest");
+  exactKeys(oci, ["schemaVersion", "mediaType", "config", "layers"], "the OCI manifest");
+  if (oci.mediaType !== "application/vnd.oci.image.manifest.v1+json") fail("archive OCI manifest media type");
+  exactKeys(oci.config, ["mediaType", "digest", "size"], "the OCI manifest config");
+  if (oci.config.digest !== imageId) fail("archive OCI manifest names another config than the recorded image ID");
+  if (!Array.isArray(oci.layers)) fail("archive OCI manifest layers");
+  oci.layers.forEach((layer) => {
+    // BuildKit's timestamp rewrite adds one annotation to the layers it rewrote, and nothing else.
+    const annotated = isObject(layer) && "annotations" in layer;
+    exactKeys(layer, annotated ? ["mediaType", "digest", "size", "annotations"] : ["mediaType", "digest", "size"], "an OCI manifest layer");
+    if (annotated) exactKeys(layer.annotations, ["buildkit/rewritten-timestamp"], "an OCI layer annotation");
+  });
+  const ociLayers = oci.layers.map((layer) => `blobs/sha256/${String(layer.digest).replace(/^sha256:/, "")}`);
+  if (ociLayers.join("\n") !== entry.Layers.join("\n")) fail("archive OCI manifest layers differ from manifest.json");
 }
-const layoutText = read("oci-layout");
+const layoutText = readText("oci-layout");
+if (layoutText !== null && indexText === null) fail("archive has an oci-layout but no index.json");
 if (layoutText !== null) exactKeys(parseStrict(layoutText, "oci-layout"), ["imageLayoutVersion"], "oci-layout");
 
 console.log(`PASS archive holds ${tag} with image ID ${imageId}`);
