@@ -163,10 +163,10 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | open |
-| Which shared trust words do we adopt? (#663) | grilling | — | closed (revised; second challenge queued) |
+| Which shared trust words do we adopt? (#663) | grilling | — | reopened (second challenge rejected; owner chose a full third revision) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | closed |
-| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed |
+| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed (challenge rejected; revision waits on #682) |
 | Which in-flight work can be proven stopped? (#678) | grilling | — | open |
 | What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
 | What does a checkable re-delegation record contain? (#680) | grilling | — | open |
@@ -179,10 +179,10 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What do our own model tests measure? (#669) | grilling | — | reopened (challenge rejected; revising) |
-| How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | closed |
+| What do our own model tests measure? (#669) | grilling | — | closed (revised; second challenge queued) |
+| How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | reopened (challenge rejected; revising) |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
-| Which factory measures do we track? (#672) | grilling | — | reopened (challenge rejected; revising) |
+| Which factory measures do we track? (#672) | grilling | — | closed (revised; second challenge queued) |
 | What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | open |
 
 ### Closing
@@ -193,6 +193,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Not yet specified
 
+- Exactly-once remote effects (offered for out of scope on 2026-11-22; the owner kept it open).
 - Separate macOS users per agent, so keys stop sharing one Mac-wide wall (from #666).
 - What happens if the owner loses their phone, the only passkey (from #666).
 - Local versus cloud model routing by capability, latency, privacy and cost.
@@ -203,6 +204,8 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Out of scope
 
-_Nothing ruled yet. Candidates offered to the owner on 2026-11-22, not yet ruled: many
-humans and many agents (the notes' fourth stage); picking tools now; mobile and voice
-teaching; exactly-once remote effects._
+- Many humans and many agents: the notes' fourth stage, with several people, their own
+  identities and onboarding (owner, 2026-11-22).
+- Picking tools inside this map: policy engine, signing scheme, database. These belong to the
+  build slices after handoff (owner, 2026-11-22).
+- Mobile and voice teaching of reviews (owner, 2026-11-22).
