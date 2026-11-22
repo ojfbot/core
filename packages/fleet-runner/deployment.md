@@ -216,6 +216,127 @@ bash packages/fleet-runner/scripts/verify-release.sh load  <release-dir> <revisi
 `bash packages/fleet-runner/scripts/release-image.sh <new-directory> [commit]`
 on a machine with Docker Buildx.
 
+## Test copy and stage script
+
+A permanent FleetRunner **test copy** on the server (ojfbot/core#647, slices 2
+and 3) takes a release from CI, proves it works, and leaves it ready for a
+promote. It has its own Compose project, folders, port, database, TLS
+certificate and signing keys, separate from production, and it runs only while a
+test is under way. Staging needs no approval; going live always needs the
+owner's own yes naming the revision, and no script here promotes anything.
+
+Nothing machine-specific is in this repository. The scripts read a private
+config file outside Git (default `~/.fleet-runner-stage/stage.conf`, mode 0600;
+a file others can write is refused), documented at the top of
+`scripts/lib/fleet-stage-lib.sh`: the SSH alias, the deploy folder and service
+root of the test copy, its LAN address, port and name, the private folder on this
+Mac for the test keys and CA certificate, and production's port and container
+name, declared only so the scripts can refuse to collide with them.
+
+### One-time setup
+
+```sh
+scripts/fleet-stage-setup.sh --tls      # idempotent; never overwrites a key, certificate or env file
+```
+
+On the server it creates the deploy folder (`compose.yaml`, `fleet-staging.env`,
+`releases/`) and the service root (`state/`, `output/`, `public-keys/`, `tls/`),
+each carrying a marker file. Every later run refuses to change anything unless
+both markers are present, so a run can only ever target a folder this setup
+created for the test copy; a folder that already holds files but has no marker
+is refused. The env file holds no secret.
+
+On the Mac it generates the test copy's own `owner` and `stage-worker` signing
+keys with `fleet-runner keygen`. The private tokens stay in the private folder;
+only the `.pub` files go to the server's registry. These are never production's
+keys. With `--tls` the server's TLS key is made on the server and never leaves
+it; the certificate is signed here with the private CA, naming the test copy's
+host and address, and only the certificate is copied back. A passphrase-protected
+CA key stops this step: it never asks for or types one.
+
+### Staging a revision
+
+```sh
+scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
+```
+
+1. **Isolation.** Refuses unless both markers exist, the server's
+   `fleet-staging.env` says the same `FLEET_STAGE_ROOT`, `FLEET_HOST_PORT`,
+   `FLEET_LAN_IP` and project as the private config (the container is configured
+   by the one, the checks by the other, so they must agree), the test copy's root
+   and deploy folder are not inside production's declared root (or the reverse),
+   the port differs from production's and is not published by another
+   container, and the name differs from production's. It compares declared
+   values and lists container names and ports only; it does not inspect or touch
+   production. The env file is the one Compose actually reads, so a root, port or
+   address in it that differs from the private config (for example one that names
+   production's root) is refused before anything changes. Compose's own env
+   parser accepts more than `KEY=value` (`export KEY=...`, quotes, and a later
+   duplicate that wins), so instead of re-implementing it the file must be exactly
+   one plain `KEY=value` per line: no `export`, no quotes, no duplicate keys, no
+   interpolation. Setup and the stage script write that form themselves.
+2. **Lock.** One run at a time: an atomic lock folder on the server, owned by this
+   run's ID (the time plus the process ID, which also names every backup of the
+   run) and released on every way out. The switch records its server-side process
+   in the lock and checks before every step that the run still owns the lock and
+   has not been told to stop. Each such server-side script (the switch, and the
+   recording of the pass) runs in its own process group, recorded in the lock, so
+   that a rollback can wait for everything it started (the record is removed only once
+   the whole group is confirmed gone, never by the shell's own exit handling, which
+   bash runs on HUP or TERM while a child lives on); if a group cannot be made,
+   the step fails rather than running unfenced. A crashed run's lock is left for a person to remove,
+   and so is the lock of a rollback that could not confirm the test copy is at rest;
+   the message says where.
+3. **Release, verified here every time.** Uses `--release <dir>`, or downloads the
+   CI artifact by **run ID**, choosing the run by the rule in "Trusting a
+   downloaded release": workflow `fleet-runner-release.yml`, this repository,
+   branch `main`, success, and either a push run whose head SHA is the revision,
+   or (newest first) a rebuild run whose `release.json` names the revision. A
+   fork's look-alike artifact is never selected. `verify-release.sh check` runs
+   on this machine even when the server already holds a copy of that revision;
+   that copy must then be byte-identical to the verified `release.json`, else it
+   is refused and never trusted for its own checksum.
+4. **Copy and load.** The archive, its checksum, `release.json`, and that
+   revision's own `compose.yaml` and `load-release.sh` go to the server, where
+   `load-release.sh` re-hashes the archive against the checksum checked here,
+   loads it, and checks the image ID, platform and non-root user.
+5. **Switch.** Backs up the env file, `compose.yaml` and the state folder (names
+   carry the run ID), stops the test copy, writes the new revision, starts it
+   (never pulling an image), and checks that the running image is the checked
+   one. Compose prefers a variable in the calling shell to the env file, so every
+   `FLEET_*` and `COMPOSE_*` variable of the server shell is cleared first (a profile
+   that exports `FLEET_HOST_PORT` cannot move the test copy), and right before
+   `up` the resolved `docker compose config` must show the test copy's own project,
+   the four folders under its own root, its own address and its own port. The test copy is always stopped by its Compose project label rather than
+   through Compose, which would first have to interpolate an env file that may
+   hold no revision; a stop that fails, or leaves a container running, is a FAIL,
+   and neither the state backup nor the pass record happens until every container
+   of the project is confirmed stopped.
+6. **Smoke test** from this Mac with the test copy's own keys
+   (`scripts/stage-smoke.mjs`, using the built client of this checkout): the
+   signed status answers ready with exactly this revision as its build; a signed
+   job submit is accepted; a worker claims that job and finishes it.
+7. **Result.** On success the test copy is stopped (`--keep-running` leaves it
+   up), then `stage-state` is written in the deploy folder: one file, replaced by
+   one rename, holding `last_passed` and `staged_ok`. At the start of every run
+   `staged_ok` is cleared (keeping `last_passed`), so only a passing run leaves a
+   revision promotable, and there is no moment when the two disagree. **On any
+   failure, Ctrl-C, SIGTERM or lost connection after the switch began, an exit trap
+   rolls back.** Its first act is to tell anything still running on the server (its
+   connection may have dropped while it kept going) to stop, and to wait until the
+   whole process group has ended, so a half-finished switch, or a Compose child that
+   outlived its shell, can never start the untested revision after the rollback.
+   That wait never kills anything (a stale ID could belong to someone else); if the
+   group does not end in time the lock is kept and the message says so. Then the
+   state folder, env file and `compose.yaml` are put back, `stage-state` is reset to
+   the last revision that passed, that revision is started, checked to answer as
+   itself, and stopped; with none yet, the test copy returns to its empty state.
+   Rollback prints PASS only if every step worked. State copies (`state.pre-*`,
+   `state.failed-*`) are kept; prune them by hand.
+
+The test copy's containers are never restarted by the engine (`restart: "no"`),
+and no scheduled job starts them.
+
 ## Worker interruption and diagnostics
 
 A transient heartbeat failure is retried within the known lease budget; an
