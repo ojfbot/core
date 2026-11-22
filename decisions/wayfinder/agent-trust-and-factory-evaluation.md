@@ -220,6 +220,13 @@ filed under `decisions/research/` and linked from the tickets they inform.
   themselves. On the two decisions: during a HelpDesk outage new runs stop (#680 aligned to
   #667), and a DailyLogger merge that publishes counts as go-live and needs a phone tap,
   with the daily-article auto-merge as one standing exception (#681).
+- Enforcement challenge (2026-11-22). The challenge found that agents on the Macs can
+  deploy to the NAS with a root-equivalent login, so "enforced where a Mac cannot reach"
+  did not hold. The owner ruled to take root on the NAS away from the Macs. Agents keep a
+  narrow key that only stages and reads status; real deploys and promotes need the owner.
+  Removing that access is an owner-only NAS change, and until then the wording promises
+  only what holds today. The DailyLogger standing exception also covers the daily article
+  run during a HelpDesk outage. — #667 (revised after challenge)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
