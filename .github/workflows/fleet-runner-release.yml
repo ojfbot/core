@@ -18,16 +18,23 @@ on:
       - pnpm-workspace.yaml
       - tsconfig.base.json
       - .github/workflows/fleet-runner-release.yml
-  # Rebuild a release whose artifact has expired: run it on main from the Actions tab.
+  # Rebuild the release of one earlier main revision whose artifact has expired: run this workflow
+  # from main in the Actions tab and name the revision.
   workflow_dispatch:
+    inputs:
+      revision:
+        description: Commit to build (full or abbreviated hash; must be an ancestor of main)
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  # Never cancel a main run: each main revision's release must exist. Pull request runs supersede
-  # their own earlier runs.
-  group: fleet-runner-release-${{ github.ref }}
+  # GitHub keeps only one pending run per group, so a shared group would drop the middle one of
+  # three quick main pushes, and that revision would have no release. Every non-PR run therefore
+  # gets its own group and is never cancelled; pull request runs supersede their own earlier runs.
+  group: fleet-runner-release-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -37,23 +44,50 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A rebuild needs history to prove the revision belongs to main.
+          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 0 || 1 }}
+
+      - name: Choose the revision to build
+        id: rev
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          REQUESTED: ${{ inputs.revision }}
+        run: |
+          if [[ "$EVENT" == "workflow_dispatch" ]]; then
+            [[ "$REF" == "refs/heads/main" ]] || { echo "Run this workflow from main."; exit 1; }
+            [[ "$REQUESTED" =~ ^[0-9a-f]{7,40}$ ]] || { echo "The revision must be a hex commit hash."; exit 1; }
+            revision="$(git rev-parse --verify "${REQUESTED}^{commit}")"
+            git merge-base --is-ancestor "$revision" origin/main \
+              || { echo "That revision is not an ancestor of main."; exit 1; }
+          else
+            revision="$GITHUB_SHA"
+          fi
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          echo "short=$(git rev-parse --short=12 "$revision")" >> "$GITHUB_OUTPUT"
 
       - name: Two clean linux/amd64 builds from a git archive of the commit, compared
-        id: release
+        env:
+          REVISION: ${{ steps.rev.outputs.revision }}
         run: |
-          bash packages/fleet-runner/scripts/release-image.sh "$RUNNER_TEMP/release" "$GITHUB_SHA"
-          echo "short=$(git rev-parse --short=12 "$GITHUB_SHA")" >> "$GITHUB_OUTPUT"
+          bash packages/fleet-runner/scripts/release-image.sh "$RUNNER_TEMP/release" "$REVISION"
           cat "$RUNNER_TEMP/release/release.json"
 
-      - name: Verify the release the way the stage script will (checksum, load, image ID, non-root)
-        run: bash packages/fleet-runner/scripts/verify-release.sh load "$RUNNER_TEMP/release" "$GITHUB_SHA"
+      - name: Verify the release the way the stage script will (checksum, archive identity, load, non-root)
+        env:
+          REVISION: ${{ steps.rev.outputs.revision }}
+        run: bash packages/fleet-runner/scripts/verify-release.sh load "$RUNNER_TEMP/release" "$REVISION"
 
       - name: Summarize the release
+        env:
+          REVISION: ${{ steps.rev.outputs.revision }}
+          SHORT: ${{ steps.rev.outputs.short }}
         run: |
           {
-            echo "### FleetRunner release \`${{ steps.release.outputs.short }}\`"
+            echo "### FleetRunner release \`$SHORT\`"
             echo
-            echo "- Revision: \`$GITHUB_SHA\`"
+            echo "- Revision: \`$REVISION\`"
             echo "- Image ID: \`$(sed -n 's/^  "image_id": "\([^"]*\)".*/\1/p' "$RUNNER_TEMP/release/release.json")\`"
             echo "- Archive SHA-256: \`$(sed -n 's/^  "archive_sha256": "\([^"]*\)".*/\1/p' "$RUNNER_TEMP/release/release.json")\`"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -61,7 +95,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
         with:
-          name: fleet-runner-release-${{ steps.release.outputs.short }}
+          name: fleet-runner-release-${{ steps.rev.outputs.short }}
           path: |
             ${{ runner.temp }}/release/fleet-runner-image.tar
             ${{ runner.temp }}/release/fleet-runner-image.tar.sha256
