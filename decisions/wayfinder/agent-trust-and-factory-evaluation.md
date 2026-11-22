@@ -214,6 +214,12 @@ filed under `decisions/research/` and linked from the tickets they inform.
   a free probe needs a one-time owner approval. One new service: the GitHub token issuer
   (amends #681, so the App keys move to the NAS). — Where are agent permissions enforced?
   (#667, owner confirmed 2026-11-22)
+- Challenge round, 2026-11-22. All nine rulings challenged were rejected, with 58 findings.
+  A fresh triage sorted them: 2 owner decisions, 45 build details, 10 duplicates, 1 that
+  did not hold. The owner then chose "quiet revisions": sessions apply the details
+  themselves. On the two decisions: during a HelpDesk outage new runs stop (#680 aligned to
+  #667), and a DailyLogger merge that publishes counts as go-live and needs a phone tap,
+  with the daily-article auto-merge as one standing exception (#681).
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
