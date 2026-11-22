@@ -51,6 +51,13 @@ const reject = [
   ['1.2.3', /type may not be empty|subject may not be empty/],
   ['v1.2.3', /type may not be empty|subject may not be empty/],
   ['Revert "feat: add a thing"', /type may not be empty|subject may not be empty/],
+  // the review's examples: none of these may ride on a built-in or loose merge/revert/fixup pattern
+  ['Revert whatever I like', /type may not be empty|subject may not be empty/],
+  ['fixup! anything', /type may not be empty|subject may not be empty/],
+  ['Merged PR 5: whatever', /type may not be empty|subject may not be empty/],
+  ['Automatic merge stuff', /type may not be empty|subject may not be empty/],
+  ['feat add thing no colon\n\nMerge branch foo', /type may not be empty|subject may not be empty/],
+  ["feat add thing no colon\n\nMerge branch 'main' into feature/x", /type may not be empty|subject may not be empty/],
   ["Merge branch 'main'", /type may not be empty|subject may not be empty/],
   ['Merge abc1234 into def5678', /type may not be empty|subject may not be empty/],
   ["Merge remote-tracking branch 'origin/main'", /type may not be empty|subject may not be empty/],

@@ -6,6 +6,7 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parse } from 'yaml';
 import { COMMITLINT_VERSION, CONFIG_RELATIVE, configPath } from '../lint-commits.mjs';
 import { LOCAL_REUSABLE, checkPlan, loadWorkflows } from '../../lib/verify-ci.mjs';
 
@@ -85,5 +86,47 @@ describe('one CLI version', () => {
     for (const file of ['reusable-commitlint.yml', 'versioning.yml', 'ci.yml']) {
       expect(read(`.github/workflows/${file}`)).not.toMatch(/@commitlint\/cli@/);
     }
+  });
+});
+
+/** Every package the locked commitlint pulls in: `name@version` plus its integrity hash, sorted. */
+function closure(lockText, importer) {
+  const lock = parse(lockText);
+  const direct = lock.importers[importer].devDependencies['@commitlint/cli'];
+  expect(direct.specifier).toBe(COMMITLINT_VERSION);
+  const bare = (version) => String(version).replace(/\(.*$/, '');
+  const seen = new Map();
+  const walk = (name, version) => {
+    const key = `${name}@${version}`;
+    if (seen.has(key)) return;
+    const snapshot = lock.snapshots[key];
+    expect(snapshot, key).toBeDefined();
+    const entry = lock.packages[`${name}@${bare(version)}`];
+    seen.set(key, `${name}@${bare(version)} ${JSON.stringify(entry.resolution)}`);
+    // A peer dependency is supplied by whoever installs the package (the workspace's own typescript
+    // in the root lockfile, nothing in the tool package), so it is not part of commitlint's set.
+    const peers = new Set(Object.keys(entry.peerDependencies ?? {}));
+    for (const group of [snapshot.dependencies, snapshot.optionalDependencies]) {
+      for (const [dep, v] of Object.entries(group ?? {})) if (!peers.has(dep)) walk(dep, v);
+    }
+  };
+  walk('@commitlint/cli', direct.version);
+  return [...new Set(seen.values())].sort();
+}
+
+describe('one resolved commitlint, whole dependency set', () => {
+  it('is the same in the workspace lockfile (the hook, tests) and the tool package lockfile (CI, verify)', () => {
+    const workspace = closure(read('pnpm-lock.yaml'), 'packages/commitlint-config');
+    const standalone = closure(read('packages/commitlint-config/pnpm-lock.yaml'), '.');
+    expect(workspace.length).toBeGreaterThan(20);
+    expect(standalone).toEqual(workspace);
+    // and the root, which the hook runs, resolves to the same set
+    expect(closure(read('pnpm-lock.yaml'), '.')).toEqual(workspace);
+  });
+
+  it('CI installs it from that lockfile, frozen, with no scripts', () => {
+    const script = read('scripts/fleet-versioning/lint-commits.mjs');
+    expect(script).toMatch(/'install', '--frozen-lockfile', '--ignore-workspace', '--ignore-scripts'/);
+    expect(script).not.toMatch(/dlx/);
   });
 });

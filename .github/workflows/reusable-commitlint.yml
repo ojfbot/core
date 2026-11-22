@@ -1,17 +1,23 @@
 name: Reusable commitlint
 
 # adr:deterministic-fleet-versioning. Lints every commit in a pull request and the pull request
-# title against the fleet's shared rules (packages/commitlint-config).
+# title against the fleet's shared rules (packages/commitlint-config). On a push to the default
+# branch it lints every pushed commit (a backstop for direct pushes; the pull request check is the
+# gate, enforced by making it a required status check on the default branch).
 #
-# Call it from a pull_request workflow, pinned to a Core commit SHA:
+# Call it from a workflow triggered by pull_request (and push to the default branch), pinned to a
+# Core commit SHA:
 #   jobs:
 #     commitlint:
 #       uses: ojfbot/core/.github/workflows/reusable-commitlint.yml@<core-commit-sha>
+# The check run is named "<caller job id> / commitlint"; name the caller job `commitlint` so the
+# required check is "commitlint / commitlint".
 #
-# The rules and the pnpm version are read from Core at that same SHA (job.workflow_sha), so
-# the one pin controls everything and a change to Core cannot silently change a repo's checks.
-# Cost: no dependency install in the calling repo. It fetches commit history only (no file
-# contents beyond the head), two sparse files from Core, and one pnpm dlx of the commitlint CLI.
+# The rules, the commitlint version and its lockfile are read from Core at that same SHA
+# (job.workflow_sha), so the one pin controls everything and a change to Core cannot silently change
+# a repo's checks. commitlint is installed with `pnpm install --frozen-lockfile` from the lockfile in
+# packages/commitlint-config, so none of its dependencies is resolved fresh on a run. Cost: history
+# without file contents for the calling repo, two sparse paths from Core, one small frozen install.
 on:
   workflow_call:
 
@@ -20,26 +26,28 @@ permissions:
 
 jobs:
   commitlint:
-    name: commitlint (commits and PR title)
+    name: commitlint
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require a pull request and a resolvable workflow ref
+      - name: Require a pull request or push and a resolvable workflow ref
         env:
           EVENT: ${{ github.event_name }}
           WORKFLOW_REPO: ${{ job.workflow_repository }}
           WORKFLOW_SHA: ${{ job.workflow_sha }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          [[ "$EVENT" == "pull_request" ]] || { echo "::error::Call this workflow from a pull_request event, not $EVENT."; exit 1; }
+          [[ "$EVENT" == "pull_request" || "$EVENT" == "push" ]] || { echo "::error::Call this workflow from a pull_request or push event, not $EVENT."; exit 1; }
+          [[ "$EVENT" == "pull_request" || "$BEFORE" =~ ^[0-9a-f]{40}$ && ! "$BEFORE" =~ ^0+$ ]] || { echo "::error::This push has no previous commit to lint from."; exit 1; }
           [[ -n "$WORKFLOW_REPO" && "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || {
             echo "::error::Could not resolve this workflow's own repository and commit (job.workflow_repository / job.workflow_sha); refusing to guess which rules to apply."
             exit 1
           }
 
-      - name: Check out the pull request history (commits only)
+      - name: Check out the history to lint (commits only)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           filter: tree:0
           persist-credentials: false
@@ -61,10 +69,11 @@ jobs:
         with:
           package_json_file: .fleet-core/package.json
 
-      - name: Lint every commit in the pull request, then its title
+      - name: Lint every commit, then the pull request title
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-        # One script for CI and `pnpm verify`: same rules file, same pinned CLI.
+          PR_TITLE_SKIP_REASON: a push to the default branch has no pull request title
+        # One script for CI and `pnpm verify`: same rules file, same locked CLI.
         run: node .fleet-core/scripts/fleet-versioning/lint-commits.mjs

@@ -61,14 +61,21 @@ exceptions and no per-package opt-outs.
 4. **A tag never deploys.** Releasing is separate from shipping. A service's stage and promote steps
    take the tag and its exact commit, and going live still needs the owner's yes naming the
    revision.
-5. **The shared pieces live in Core and repos pin them by commit SHA.** Core holds the commitlint
+5. **Enforcement is by required status checks.** The pull request checks only stop a merge when they
+   are required on the default branch (branch protection or a ruleset), which every fleet repo, public
+   or private, sets up as part of adopting this: the required checks are `commitlint / commitlint`
+   and `versions / versions`. A direct push to the default branch gets the same checks on the pushed
+   range as a backstop, so a violation that gets past or around the gate fails loudly after the fact.
+   commitlint runs from a lockfile-installed CLI (`pnpm install --frozen-lockfile` in
+   `packages/commitlint-config`), so none of its dependencies is resolved fresh in CI.
+6. **The shared pieces live in Core and repos pin them by commit SHA.** Core holds the commitlint
    config (`packages/commitlint-config`), the reusable GitHub workflows
    (`reusable-commitlint.yml`, `reusable-release-please.yml`, `reusable-version-edit-check.yml`),
    the check script (`scripts/fleet-versioning/`) and the hook installer. A repo calls the workflows
    as `ojfbot/core/.github/workflows/<file>@<commit-sha>`; a reusable workflow reads the rules and
    scripts from Core at that same commit (`job.workflow_sha`), so one pin controls everything and a
    change to Core cannot alter any repo's checks until that repo moves its pin.
-6. **The scope rule is about shape, not a list.** A scope is optional and, when present, lowercase
+7. **The scope rule is about shape, not a list.** A scope is optional and, when present, lowercase
    kebab-case; any such name is accepted in any repo. It is not an enumerated list: a list per repo
    goes stale whenever a package is added, and release-please attributes a commit to a package by
    the files it changes, not by its scope.
@@ -87,15 +94,19 @@ How a repo adopts all of this is in `domain-knowledge/versioning-convention.md`.
 - Every contributor, human or agent, must write conventional commit messages; a wrong one is
   rejected locally before it exists. Squash-merge repos must also name the PR title correctly.
 - `git commit --fixup` and `git revert` messages are refused as written and must be reworded.
+- A repo that already has hooks (Husky, a custom `core.hooksPath`, executable `.git/hooks`) is not
+  switched off by the installer: it stops, and the repo wires commitlint into its own hooks (a one-line
+  `.husky/commit-msg` for Husky).
 - Two checks and one release PR per package add CI minutes. The jobs fetch commit history only and
   install one tool, to stay under a minute on a private repo.
 - release-please's own PRs and tags do not trigger other workflows when made with the default
   `GITHUB_TOKEN`. A repo that requires checks on release PRs must give it a token (documented in the
   reusable workflow).
 - A package already on a pre-release version (`0.2.5-bookcase.2`) starts the manifest at exactly that
-  string, and release-please keeps the suffix when it bumps (`0.2.6-bookcase.2`). Any consumer that
-  accepts only plain `x.y.z` must be dealt with before that package's first release PR is merged:
-  either a one-time `release-as` or retiring the suffix.
+  string, and release-please keeps the suffix when it bumps. The owner chose to drop it ("Drop the
+  tail: 0.3.0"), so `@core/fleet-runner` carries a one-time `release-as: 0.3.0`. That key forces every
+  release to the same number, so it must be removed after the release: the coverage check fails once
+  the tag `fleet-runner-v0.3.0` exists while `release-as` is still set.
 
 ### Neutral
 - The root `package.json` of a workspace is a package like any other and is versioned too; its

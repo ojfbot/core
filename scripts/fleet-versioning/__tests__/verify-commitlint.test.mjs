@@ -26,7 +26,7 @@ const commit = (message, files = {}) => {
 
 function copy(path) {
   mkdirSync(dirname(join(work, path)), { recursive: true });
-  cpSync(join(root, path), join(work, path), { recursive: true });
+  cpSync(join(root, path), join(work, path), { recursive: true, filter: (src) => !src.split('/').includes('node_modules') });
 }
 
 const verify = (job) => {
@@ -72,6 +72,8 @@ beforeAll(() => {
   }
   writeFileSync(join(work, '.gitignore'), 'node_modules\n');
   symlinkSync(join(root, 'node_modules'), join(work, 'node_modules'));
+  // reuse the already installed (locked) CLI; lint-commits.test.mjs proves the from-scratch install
+  symlinkSync(join(root, 'packages', 'commitlint-config', 'node_modules'), join(work, 'packages', 'commitlint-config', 'node_modules'));
   git('add', '-A');
   git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'chore: baseline', '--no-gpg-sign');
   git('remote', 'add', 'origin', origin);
@@ -105,6 +107,9 @@ describe('pnpm verify: versioning/commitlint', () => {
     ['oversized header', `feat: ${'x'.repeat(120)}`, /header-max-length/],
     ['fixup', 'fixup! feat: a conforming commit', /type-empty/],
     ['bare version number', '1.2.3', /type-empty/],
+    ['loose revert', 'Revert whatever I like', /type-empty/],
+    ['Azure-style merge', 'Merged PR 5: whatever', /type-empty/],
+    ['merge line in the body of a bad header', 'feat add thing no colon\n\nMerge branch foo', /type-empty/],
   ];
   it.each(bad)('FAILs a branch with a %s commit, for that reason', { timeout: T }, (_label, message, rule) => {
     git('checkout', '-q', '-B', 'topic', 'origin/main');

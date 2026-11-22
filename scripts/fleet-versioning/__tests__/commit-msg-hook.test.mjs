@@ -42,6 +42,11 @@ describe('.githooks/commit-msg', () => {
     "Merge branch 'main'\n",
     'Merge abc1234 into def5678\n',
     'Revert "feat: add a thing"\n',
+    'Revert whatever I like\n',
+    'fixup! anything\n',
+    'Merged PR 5: whatever\n',
+    'Automatic merge stuff\n',
+    'feat add thing no colon\n\nMerge branch foo\n',
   ])('refuses %j', (message) => {
     const r = hook(message);
     expect(r.status).not.toBe(0);

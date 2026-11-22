@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,7 @@ const lint = (base, head, extra = {}) => {
   const r = spawnSync('node', [script], {
     cwd: dir,
     encoding: 'utf8',
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, COMMITLINT_RUNNER: 'exec', BASE_SHA: base, HEAD_SHA: head, ...extra },
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, BASE_SHA: base, HEAD_SHA: head, ...extra },
   });
   return { status: r.status, out: `${r.stdout}${r.stderr}` };
 };
@@ -108,6 +108,11 @@ describe('merge, fixup and version-number commits are linted too', () => {
     ['a bare version number', '1.2.3'],
     ['a git revert message', 'Revert "feat: topic work"'],
     ['a merge in any other shape', "Merge branch 'main'"],
+    ['a loose revert', 'Revert whatever I like'],
+    ['a fixup of anything', 'fixup! anything'],
+    ['an Azure-style merge', 'Merged PR 5: whatever'],
+    ['an automatic merge', 'Automatic merge stuff'],
+    ['a merge line in the body of a bad header', 'feat add thing no colon\n\nMerge branch foo'],
   ])('FAILs %s', (_label, message) => {
     git('checkout', '-q', 'main');
     git('reset', '-q', '--hard', base);
@@ -127,5 +132,42 @@ describe('lint-commits failure summary', () => {
     const tail = r.out.trim().split('\n').slice(-4).join('\n');
     expect(tail).toMatch(/problems:/);
     expect(tail).toMatch(/commits: .*✖/);
+  });
+});
+
+describe('lint-commits installs the locked CLI by itself (the CI and verify path)', () => {
+  it('runs a frozen install from the tool package lockfile when no CLI is installed', { timeout: 240_000 }, () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'lint-fresh-'));
+    try {
+      // a Core checkout with no node_modules, as the reusable workflow sees it
+      mkdirSync(join(fresh, 'core', 'scripts', 'fleet-versioning'), { recursive: true });
+      cpSync(script, join(fresh, 'core', 'scripts', 'fleet-versioning', 'lint-commits.mjs'));
+      cpSync(join(root, 'packages', 'commitlint-config'), join(fresh, 'core', 'packages', 'commitlint-config'), {
+        recursive: true,
+        filter: (src) => !src.split('/').includes('node_modules'),
+      });
+      const repo = join(fresh, 'repo');
+      mkdirSync(repo);
+      const g = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
+      g('init', '-q', '-b', 'main');
+      writeFileSync(join(repo, 'a'), 'a');
+      g('add', '-A');
+      g('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'chore: base', '--no-gpg-sign');
+      const baseSha = g('rev-parse', 'HEAD');
+      writeFileSync(join(repo, 'b'), 'b');
+      g('add', '-A');
+      g('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'wip: bad type', '--no-gpg-sign');
+      const r = spawnSync('node', [join(fresh, 'core', 'scripts', 'fleet-versioning', 'lint-commits.mjs')], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, HOME: process.env.HOME, BASE_SHA: baseSha, HEAD_SHA: g('rev-parse', 'HEAD') },
+      });
+      expect(`${r.stdout}${r.stderr}`).toMatch(/type-enum/);
+      expect(r.status).toBe(1);
+      const installed = JSON.parse(readFileSync(join(fresh, 'core', 'packages', 'commitlint-config', 'node_modules', '@commitlint', 'cli', 'package.json'), 'utf8'));
+      expect(installed.version).toBe('21.2.4');
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 });

@@ -77,6 +77,12 @@ Each adoption is one PR, pinned to a Core commit SHA (`<core-sha>` below; never 
    `commitlint.config.mjs` containing `export { default } from '@core/commitlint-config';`. Run
    `pnpm install`: the `prepare` script sets `core.hooksPath` to the tracked `.githooks/`, which
    works in every worktree of the clone (the setting is shared, the hook files are tracked).
+   **Repos that already have hooks:** the installer never replaces them. A repo that uses Husky keeps
+   Husky in charge: skip `.githooks/`, add `.husky/commit-msg` containing
+   `pnpm exec commitlint --edit "$1"`, and the installer (still the `prepare` script) checks that line
+   is there and fails the install if not. A repo with another `core.hooksPath`, or executable hooks
+   in `.git/hooks`, gets an error naming the hook: fold the commitlint call into that hook (the one
+   line in `.githooks/commit-msg`) or move its hooks into `.githooks/`.
    Why tracked hooks and not Husky: Husky's generated directory is untracked, so a new worktree has
    no hook until installed there.
 2. **release-please files.** Copy Core's `release-please-config.json` shape: `release-type`
@@ -110,7 +116,12 @@ Each adoption is one PR, pinned to a Core commit SHA (`<core-sha>` below; never 
    ```
 
    Moving the pin to a newer Core commit is a deliberate PR in that repo.
-4. **Repo settings.** Allow GitHub Actions to create pull requests. If checks are required on the
+4. **Repo settings.** Make `commitlint / commitlint` and `versions / versions` **required status
+   checks** on the default branch (branch protection or a ruleset), public repo or private, with
+   a review required and CODEOWNERS on `.github/`. That is what actually blocks a merge; without
+   it the checks only report. (Name the caller jobs `commitlint` and `versions` and the check runs
+   are exactly those names.) The same workflows also run on pushes to the default branch as a
+   backstop: add `push: branches: [main]` to the caller. Allow GitHub Actions to create pull requests. If checks are required on the
    release PR, add a `RELEASE_PLEASE_TOKEN` secret (fine-grained, this repo only): PRs made with the
    default token do not start other workflows.
 5. **Check it.** `pnpm exec commitlint --from <default-branch> --to HEAD` locally, and
@@ -129,11 +140,22 @@ Such a person can edit the caller workflow in their own branch, can push commits
 branch under any author name (git author emails are not proof of identity), and, with the default
 actor `github-actions[bot]`, can open a pull request as that bot from a workflow of their own. What
 makes it hold anyway is repo configuration, which each adoption PR must state it relies on:
-branch protection or rulesets that require the `versions` and `commitlint` checks and a review,
+branch protection or a ruleset that makes `versions / versions` and `commitlint / commitlint`
+required status checks and requires a review (available on every plan the fleet uses, public and
+private),
 CODEOWNERS on `.github/` so a workflow change needs the owner, and no write access for untrusted
 accounts. Prefer a dedicated release-please GitHub App or bot account over the shared Actions bot
 (pass its login as `release-actors`), and never put a human's login in that list. The check also
 cannot tell that a version is the number release-please computed; reviewing the release PR does.
+
+## FleetRunner's first release (owner decision: "Drop the tail: 0.3.0")
+
+`@core/fleet-runner` is at `0.2.5-bookcase.2`, and release-please keeps a pre-release suffix when it
+bumps. Its config entry carries a one-time `release-as: 0.3.0`, so the first release is the plain
+`0.3.0`. **Remove `release-as` right after that release** (the PR that merges after the
+`fleet-runner-v0.3.0` tag exists): until then it would force every later release to 0.3.0, and the
+coverage check fails any pull request or push once that tag exists while the key is still set.
+The worker installer accepts SemVer pre-releases (since 8fc6e85), so nothing breaks either way.
 
 ## What the checks guarantee, and what they do not
 

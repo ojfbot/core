@@ -11,5 +11,8 @@
   "files": [
     "index.mjs"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@commitlint/cli": "21.2.4"
+  }
 }
