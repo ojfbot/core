@@ -160,6 +160,7 @@ fi
 # The switch is the one script that copies the state folder: remember this ssh so a test can kill
 # only the client side while the server side keeps running.
 if grep -q -e 'cp -a' "$in"; then echo $$ > "$FAKE_STATE/switch-ssh.pid"; fi
+if grep -q -e 'staged and smoke-tested' "$in"; then echo $$ > "$FAKE_STATE/record-ssh.pid"; fi
 sh -c "$cmd" < "$in"; rc=$?
 # Run it, then lose the connection before the acknowledgement arrives.
 if [ -n "$FAKE_SSH_FAIL_AFTER_MATCH" ] && { grep -q -e "$FAKE_SSH_FAIL_AFTER_MATCH" "$in" 2>/dev/null || printf '%s' "$cmd" | grep -q -e "$FAKE_SSH_FAIL_AFTER_MATCH"; }; then rm -f "$in"; exit 255; fi
@@ -171,7 +172,8 @@ rm -f "$in"; exit $rc
 const FAKE_DOCKER = `#!/bin/bash
 S="$FAKE_STATE"; mkdir -p "$S/images"
 echo "docker $*" >> "$S/docker.log"
-envget() { sed -n "s/^$1=//p" "$ENVFILE" | tail -n 1; }
+# Like Compose, a variable in the calling shell wins over the env file.
+envget() { n="$1"; if [ -n "\${!n}" ]; then printf '%s' "\${!n}"; else sed -n "s/^$n=//p" "$ENVFILE" | tail -n 1; fi; }
 case "$1" in
   compose)
     shift; project=""; ENVFILE=""
@@ -186,6 +188,34 @@ case "$1" in
     fi
     stop() { if [ -f "$pidf" ]; then kill "$(cat "$pidf")" 2>/dev/null; while kill -0 "$(cat "$pidf")" 2>/dev/null; do sleep 0.1; done; rm -f "$pidf"; fi; }
     case "$cmd" in
+      config)
+        root="$(envget FLEET_STAGE_ROOT)"; port="$(envget FLEET_HOST_PORT)"
+        [ -z "$FAKE_CONFIG_LIE" ] || port=1
+        cat <<OUT
+name: $project
+services:
+  fleet-runner:
+    volumes:
+      - type: bind
+        source: $root/state
+        target: /var/lib/fleet-runner/state
+      - type: bind
+        source: $root/output
+        target: /var/lib/fleet-runner/output
+      - type: bind
+        source: $root/public-keys
+        target: /run/fleet-runner/public-keys
+      - type: bind
+        source: $root/tls
+        target: /run/fleet-runner/tls
+    ports:
+      - mode: ingress
+        host_ip: $(envget FLEET_LAN_IP)
+        target: 8787
+        published: "$port"
+        protocol: tcp
+OUT
+        ;;
       stop) stop ;;
       up)
         rev="$(envget FLEET_REVISION)"; [ -n "$rev" ] || { echo "FLEET_REVISION unset" >&2; exit 1; }
@@ -193,8 +223,12 @@ case "$1" in
         sleep "\${FAKE_PRE_UP_SLEEP:-0}"
         build="$rev"
         case ",$FAKE_BAD_REV," in *",$rev,"*) build="0000000000000000000000000000000000000000" ;; esac
+        # A real container belongs to the engine, not to the caller's process group: give the fake
+        # one its own group (job control), so it does not keep a fenced script's group alive.
+        set -m
         FAKE_ROOT="$(envget FLEET_STAGE_ROOT)" FAKE_PORT="$(envget FLEET_HOST_PORT)" FAKE_BUILD="$build" \\
           nohup node "$FAKE_SERVER" >> "$S/server.log" 2>&1 &
+        set +m
         echo $! > "$pidf"; echo "$(envget FLEET_IMAGE)" > "$S/$project.image"
         sleep "\${FAKE_UP_SLEEP:-0}"
         ;;
@@ -281,6 +315,8 @@ function stageEnv(extra: Record<string, string> = {}): Record<string, string> {
     FAKE_SERVER: join(box.bin, "fake-server.mjs"),
     FAKE_PKG: pkg,
     FAKE_BAD_REV: "",
+    FAKE_MV_SLEEP: "",
+    FAKE_CONFIG_LIE: "",
     FAKE_UP_SLEEP: "0",
     FAKE_PRE_UP_SLEEP: "0",
     FAKE_SSH_FAIL_AFTER_MATCH: "",
@@ -298,6 +334,32 @@ const stage = (args: string[], env: Record<string, string> = {}) =>
   sh(box.repo, "bash", [join(scriptsIn(box), "fleet-stage.sh"), ...args], stageEnv(env));
 const setup = (args: string[] = [], env: Record<string, string> = {}) =>
   sh(box.repo, "bash", [join(scriptsIn(box), "fleet-stage-setup.sh"), ...args], stageEnv(env));
+// The pass record is one file, written by one rename: the last revision that passed, and the one
+// staged (promotable) now.
+const stateValue = (key: "last_passed" | "staged_ok"): string => {
+  try {
+    const text = readFileSync(join(box.nasDeploy, "stage-state"), "utf8");
+    return new RegExp(`^${key}=(.*)$`, "m").exec(text)?.[1] ?? "";
+  } catch {
+    return "";
+  }
+};
+const isStaged = (rev: string): boolean => stateValue("staged_ok") === rev;
+const upCount = (): number => {
+  try {
+    return (readFileSync(fakeState("docker.log"), "utf8").match(/ up -d /g) ?? []).length;
+  } catch {
+    return 0;
+  }
+};
+// Wait until a run that started after `before` is inside its `docker compose up` (the fake's
+// start-up delay), which is the window where killing a client or a shell matters.
+async function waitForUp(before: number): Promise<void> {
+  for (let i = 0; i < 200 && upCount() <= before; i += 1) {
+    await new Promise((ok) => setTimeout(ok, 50));
+  }
+  if (upCount() <= before) throw new Error("compose up never started");
+}
 const fakeState = (name: string) => join(box.root, "state-fake", name);
 
 beforeEach(async () => {
@@ -340,6 +402,15 @@ beforeEach(async () => {
   writeFileSync(join(bin, "gh"), FAKE_GH);
   writeFileSync(join(bin, "pnpm"), "#!/bin/bash\nexit 0\n");
   writeFileSync(join(bin, "fake-server.mjs"), FAKE_SERVER);
+  writeFileSync(
+    join(bin, "mv"),
+    `#!/bin/bash
+# FAKE_MV_SLEEP slows the rename that publishes stage-state, to open a window for a test.
+case "$*" in *stage-state.new*) [ -z "$FAKE_MV_SLEEP" ] || sleep "$FAKE_MV_SLEEP" ;; esac
+exec /bin/mv "$@"
+`,
+  );
+  chmodSync(join(bin, "mv"), 0o755);
   for (const f of ["ssh", "docker", "gh", "pnpm"]) chmodSync(join(bin, f), 0o755);
   // A private CA for the test copy's certificate.
   const o = sh(ca, "openssl", [
@@ -467,7 +538,7 @@ describe("fleet-stage.sh", () => {
     expect(r.out).toContain("PASS job completed and its output verified");
     expect(r.out).toContain("the test copy is stopped again");
     expect(r.status, r.out).toBe(0);
-    expect(existsSync(join(box.nasDeploy, "releases", a, "STAGED_OK"))).toBe(true);
+    expect(isStaged(a)).toBe(true);
     // Stopped: nothing is running between tests.
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
     const env = readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8");
@@ -485,8 +556,8 @@ describe("fleet-stage.sh", () => {
     expect(stage([a, "--release", release(a)]).status).toBe(0);
     const r = stage([b, "--release", release(b)]);
     expect(r.status, r.out).toBe(0);
-    expect(existsSync(join(box.nasDeploy, "releases", a, "STAGED_OK"))).toBe(false);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(true);
+    expect(isStaged(a)).toBe(false);
+    expect(isStaged(b)).toBe(true);
     expect(readdirSync(box.nasRoot).some((f) => f.startsWith("state.pre-"))).toBe(true);
     expect(readdirSync(box.nasDeploy).some((f) => f.startsWith("fleet-staging.env.pre-"))).toBe(
       true,
@@ -509,8 +580,8 @@ describe("fleet-stage.sh", () => {
     expect(env).toContain(`FLEET_REVISION=${a}`);
     expect(env).not.toContain(b);
     // No revision is left promotable, and nothing is left running.
-    expect(existsSync(join(box.nasDeploy, "releases", a, "STAGED_OK"))).toBe(false);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(isStaged(a)).toBe(false);
+    expect(isStaged(b)).toBe(false);
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
     expect(readdirSync(box.nasRoot).some((f) => f.startsWith("state.failed-"))).toBe(true);
   });
@@ -567,9 +638,9 @@ describe("fleet-stage.sh", () => {
     expect(r.status).toBe(1);
     expect(r.out).toContain("FAIL could not record the pass");
     expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(isStaged(b)).toBe(false);
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
-    expect(readFileSync(join(box.nasDeploy, "last-passed"), "utf8").trim()).toBe(a);
+    expect(stateValue("last_passed")).toBe(a);
     expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
       `FLEET_REVISION=${a}`,
     );
@@ -615,7 +686,7 @@ describe("fleet-stage.sh", () => {
     expect(out).toContain(`rolling back to ${a.slice(0, 7)}`);
     expect(out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(isStaged(b)).toBe(false);
     expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
       `FLEET_REVISION=${a}`,
     );
@@ -640,7 +711,7 @@ describe("fleet-stage.sh", () => {
     expect(env).toContain(`FLEET_REVISION=${a}`);
     expect(env).not.toContain(c);
     // A failed run does not move the record.
-    expect(readFileSync(join(box.nasDeploy, "last-passed"), "utf8").trim()).toBe(a);
+    expect(stateValue("last_passed")).toBe(a);
   });
 
   it("holds a lock for the whole run, names every backup by run ID, and refuses a second run (MEDIUM 3)", () => {
@@ -748,8 +819,8 @@ describe("fleet-stage.sh", () => {
     expect(r.status).toBe(1);
     expect(r.out).toContain("FAIL could not stop the test copy");
     expect(r.out).not.toContain("PASS " + a.slice(0, 7) + " is staged");
-    expect(existsSync(join(box.nasDeploy, "releases", a, "STAGED_OK"))).toBe(false);
-    expect(existsSync(join(box.nasDeploy, "last-passed"))).toBe(false);
+    expect(isStaged(a)).toBe(false);
+    expect(stateValue("last_passed")).toBe("");
   });
 
   it("does not back up the state while the previous service may still be writing (MEDIUM)", () => {
@@ -766,7 +837,7 @@ describe("fleet-stage.sh", () => {
     expect(readdirSync(box.nasRoot).filter((f) => f.startsWith("state.pre-"))).toEqual(
       backupsBefore,
     );
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(isStaged(b)).toBe(false);
     expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
       `FLEET_REVISION=${a}`,
     );
@@ -830,6 +901,7 @@ describe("fleet-stage.sh", () => {
     expect(stage([a, "--release", release(a)]).status).toBe(0);
     // The server side of the switch sleeps 4 s before it would start b.
     rmSync(fakeState("switch-ssh.pid"), { force: true });
+    const upBefore = upCount();
     const child = spawn(
       "bash",
       [join(scriptsIn(box), "fleet-stage.sh"), b, "--release", release(b)],
@@ -842,9 +914,8 @@ describe("fleet-stage.sh", () => {
     child.stdout.on("data", (d: Buffer) => (out += d.toString()));
     child.stderr.on("data", (d: Buffer) => (out += d.toString()));
     const closed = new Promise<number | null>((ok) => child.on("close", ok));
-    for (let i = 0; i < 100 && !existsSync(fakeState("switch-ssh.pid")); i += 1) {
-      await new Promise((ok) => setTimeout(ok, 100));
-    }
+    // Wait until Compose has really begun: that is the window where a lost client matters.
+    await waitForUp(upBefore);
     // Kill only the client's ssh, as Ctrl-C does; the server's script keeps running.
     process.kill(Number(readFileSync(fakeState("switch-ssh.pid"), "utf8")), "SIGKILL");
     const status = await closed;
@@ -857,7 +928,7 @@ describe("fleet-stage.sh", () => {
     expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
       `FLEET_REVISION=${a}`,
     );
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(isStaged(b)).toBe(false);
     expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
   }, 90_000);
 
@@ -866,6 +937,7 @@ describe("fleet-stage.sh", () => {
     const [a] = box.revs as [string];
     rmSync(fakeState("switch-ssh.pid"), { force: true });
     // The server side sleeps 8 s but the rollback will wait only 2.
+    const upBefore = upCount();
     const child = spawn(
       "bash",
       [join(scriptsIn(box), "fleet-stage.sh"), a, "--release", release(a)],
@@ -878,11 +950,11 @@ describe("fleet-stage.sh", () => {
     child.stdout.on("data", (d: Buffer) => (out += d.toString()));
     child.stderr.on("data", (d: Buffer) => (out += d.toString()));
     const closed = new Promise<number | null>((ok) => child.on("close", ok));
-    for (let i = 0; i < 100 && !existsSync(fakeState("switch-ssh.pid")); i += 1) {
-      await new Promise((ok) => setTimeout(ok, 100));
-    }
+    // Wait until Compose has really begun: that is the window where a lost client matters.
+    await waitForUp(upBefore);
     process.kill(Number(readFileSync(fakeState("switch-ssh.pid"), "utf8")), "SIGKILL");
     expect(await closed).not.toBe(0);
+    expect(out).toContain("process group");
     expect(out).toContain("is still running after 2 seconds; the lock is kept");
     expect(out).toContain("the stage lock is kept");
     expect(out).not.toContain("PASS the test copy is back");
@@ -893,7 +965,7 @@ describe("fleet-stage.sh", () => {
     // Let the orphaned server-side script finish before the sandbox is removed.
     for (
       let i = 0;
-      i < 150 && existsSync(join(box.nasDeploy, ".stage-lock", "switch.pid"));
+      i < 150 && existsSync(join(box.nasDeploy, ".stage-lock", "fenced.pid"));
       i += 1
     ) {
       await new Promise((ok) => setTimeout(ok, 100));
@@ -911,16 +983,128 @@ describe("fleet-stage.sh", () => {
     expect(r.status).toBe(1);
     expect(r.out).toContain("FAIL could not record the pass");
     expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
-    expect(readFileSync(join(box.nasDeploy, "last-passed"), "utf8").trim()).toBe(a);
+    expect(isStaged(b)).toBe(false);
+    expect(stateValue("last_passed")).toBe(a);
     expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
       `FLEET_REVISION=${a}`,
     );
     // Neither half of the half-written pass is left behind.
-    expect(existsSync(join(box.nasDeploy, "last-passed.new"))).toBe(false);
-    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK.new"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, "stage-state.new"))).toBe(false);
     // With nothing having passed before, the rollback leaves no last-passed at all.
   });
+
+  it("ignores FLEET_* and COMPOSE_* variables in the server shell: Compose would prefer them to the env file (MEDIUM)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const prodRoot = join(box.root, "nas/production-root");
+    mkdirSync(join(prodRoot, "state"), { recursive: true });
+    writeFileSync(join(prodRoot, "state", "fleet.sqlite"), "production data");
+    // A server profile that exports what deployment.md once told operators to set by hand.
+    const r = stage([a, "--release", release(a)], {
+      FLEET_HOST_PORT: "1",
+      FLEET_STAGE_ROOT: prodRoot,
+      FLEET_LAN_IP: "192.0.2.1",
+      FLEET_IMAGE: "someone-elses-image",
+      FLEET_REVISION: "0".repeat(40),
+      COMPOSE_PROJECT_NAME: "production",
+    });
+    expect(r.status, r.out).toBe(0);
+    // It ran on the test copy's own port and folders, and production's data was never opened.
+    expect(r.out).toContain(`PASS status ready, build ${a.slice(0, 7)}`);
+    expect(readFileSync(join(prodRoot, "state", "fleet.sqlite"), "utf8")).toBe("production data");
+    expect(readdirSync(join(prodRoot, "state"))).toEqual(["fleet.sqlite"]);
+  });
+
+  it("checks the resolved compose config right before it starts anything (MEDIUM)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    // The compose file would resolve to another port than the config says.
+    const r = stage([a, "--release", release(a)], { FAKE_CONFIG_LIE: "1", FLEET_READY_TRIES: "2" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      "FAIL the resolved compose config is not the test copy own folders, port and name",
+    );
+    // Nothing was started, and the rollback left it at rest.
+    expect(readFileSync(fakeState("docker.log"), "utf8")).not.toContain(" up ");
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(isStaged(a)).toBe(false);
+  });
+
+  it("waits out a child that survives the switch shell being killed, then rolls back (MEDIUM)", async () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const upBefore = upCount();
+    const child = spawn(
+      "bash",
+      [join(scriptsIn(box), "fleet-stage.sh"), b, "--release", release(b)],
+      {
+        cwd: box.repo,
+        // The compose child sleeps 4 s before it would start b.
+        env: { ...process.env, ...stageEnv({ FAKE_PRE_UP_SLEEP: "4" }) },
+      },
+    );
+    let out = "";
+    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    child.stderr.on("data", (d: Buffer) => (out += d.toString()));
+    const closed = new Promise<number | null>((ok) => child.on("close", ok));
+    const pidFile = join(box.nasDeploy, ".stage-lock", "fenced.pid");
+    await waitForUp(upBefore);
+    // A hangup takes down the connection, the server-side wrapper and the fenced shell, but not the
+    // Compose child that shell started: kill exactly those. Only the process group still names
+    // the survivor; the fenced shell's own process ID is gone.
+    const shellPid = Number(readFileSync(pidFile, "utf8"));
+    spawnSync("pkill", ["-9", "-f", `sh -s -- .*${box.nasDeploy}`]);
+    process.kill(shellPid, "SIGKILL");
+    expect(await closed).not.toBe(0);
+    await new Promise((ok) => setTimeout(ok, 6000));
+    expect(out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    // The child finished starting b before the rollback went on, and the rollback then stopped it.
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+    expect(isStaged(b)).toBe(false);
+    expect(stateValue("last_passed")).toBe(a);
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+  }, 90_000);
+
+  it("fences the recording of the pass: a client lost around it cannot publish a rolled-back revision (MEDIUM)", async () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    rmSync(fakeState("record-ssh.pid"), { force: true });
+    const child = spawn(
+      "bash",
+      [join(scriptsIn(box), "fleet-stage.sh"), b, "--release", release(b)],
+      {
+        cwd: box.repo,
+        // The rename that publishes the pass takes 3 s on the server.
+        env: { ...process.env, ...stageEnv({ FAKE_MV_SLEEP: "3" }) },
+      },
+    );
+    let out = "";
+    child.stdout.on("data", (d: Buffer) => (out += d.toString()));
+    child.stderr.on("data", (d: Buffer) => (out += d.toString()));
+    const closed = new Promise<number | null>((ok) => child.on("close", ok));
+    for (let i = 0; i < 300 && !existsSync(fakeState("record-ssh.pid")); i += 1) {
+      await new Promise((ok) => setTimeout(ok, 100));
+    }
+    expect(existsSync(fakeState("record-ssh.pid"))).toBe(true);
+    // The connection is lost while the record step is mid-rename on the server.
+    process.kill(Number(readFileSync(fakeState("record-ssh.pid"), "utf8")), "SIGKILL");
+    expect(await closed).not.toBe(0);
+    await new Promise((ok) => setTimeout(ok, 5000));
+    // Whatever order things ran in, the end state is the rolled-back one, never b promotable.
+    expect(out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    expect(isStaged(b)).toBe(false);
+    expect(stateValue("last_passed")).toBe(a);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+  }, 120_000);
 
   it("refuses a release that does not verify, before anything reaches the server", () => {
     prepare();

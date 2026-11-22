@@ -21,11 +21,18 @@
 # the new revision; check the running image; then from this Mac, with the test copy's own keys: the
 # signed status answers with exactly this revision, a signed job submit is accepted, and a worker
 # claims the job (stage-smoke.mjs). On success the test copy is stopped (it runs only while a test is
-# under way; --keep-running leaves it up) and releases/<revision>/STAGED_OK plus last-passed are
-# written together; every run first clears all earlier STAGED_OK files.
+# under way; --keep-running leaves it up) and stage-state is written: ONE file, replaced by ONE
+# rename, naming the last revision that passed and the one now staged (promotable). Every run first
+# clears the staged one, keeping the last-passed record.
+# The server-side steps that change things (the switch, and recording the pass) run in their own
+# process group, recorded in the lock folder, with the Compose variables of the server shell cleared
+# (Compose prefers them to the env file) and the RESOLVED compose config checked against the private
+# config right before anything starts.
 # On ANY failure, Ctrl-C, SIGTERM or lost connection after the switch began, an exit trap rolls back:
-# it puts back the state folder, env file and compose.yaml, starts the last revision that PASSED
-# (last-passed, not whatever the env file says), checks it answers as that revision, and stops it.
+# it first tells anything still running on the server to stop and waits for the whole process group
+# to end (a Compose child outlives the shell that started it), then puts back the state folder, env
+# file and compose.yaml, resets stage-state to the last revision that PASSED, starts that revision,
+# checks it answers as that revision, and stops it.
 # Rollback never reports PASS after a failed step. The test copy is stopped by its Compose project
 # label, not by Compose, so it works whatever the env file holds. Config and folders:
 # scripts/lib/fleet-stage-lib.sh.
@@ -102,8 +109,14 @@ true
 '
 nas "$LOCK" "$NAS_STAGE_DIR" "$runid" || die "could not take the stage lock"
 have_lock=yes
-# Only a run that passes below may leave a revision promotable: clear every earlier pass first.
-nas 'rm -f "$1"/releases/*/STAGED_OK' "$NAS_STAGE_DIR"
+# Only a run that passes below may leave a revision promotable: clear the staged pass first (the
+# record of the last revision that passed stays). Both live in one file, stage-state, so they are
+# always written together by one rename.
+STATE_FN='
+read_state() { sed -n "s/^$2=//p" "$1/stage-state" 2>/dev/null | tail -n 1; }
+write_state() { printf "last_passed=%s\nstaged_ok=%s\n" "$2" "$3" > "$1/stage-state.new" && mv "$1/stage-state.new" "$1/stage-state"; }
+'
+nas "$STATE_FN"'write_state "$1" "$(read_state "$1" last_passed)" ""' "$NAS_STAGE_DIR"
 
 # Node, as the test copy's own client: its keys and CA only. What must not leak in from the caller's
 # shell (a stray FLEET_* setting, another CA, another endpoint) is unset; the values this needs are
@@ -193,9 +206,9 @@ nas 'cd "$1/releases/$2" && sh load-release.sh fleet-runner-image.tar "$3" "$4" 
 say "building the smoke client"
 pnpm --filter @core/fleet-runner build >/dev/null || die "could not build the smoke client"
 
-# 3. The revision to put back is the last one that PASSED (recorded with STAGED_OK), not whatever
-# the env file happens to hold after a partial run. None yet: a rollback returns to the empty state.
-prev="$(nas 'cat "$1/last-passed" 2>/dev/null || true' "$NAS_STAGE_DIR")"
+# 3. The revision to put back is the last one that PASSED (stage-state), not whatever the env file
+# happens to hold after a partial run. None yet: a rollback returns to the empty state.
+prev="$(nas "$STATE_FN"'read_state "$1" last_passed' "$NAS_STAGE_DIR")"
 if [[ "$prev" =~ ^[0-9a-f]{40}$ ]]; then
   prev_label="${prev:0:7}"
   say "last revision that passed in the test copy: $prev_label"
@@ -216,18 +229,59 @@ stop_project() {
 '
 STOP="$STOP_FN"'stop_project "$1"'
 
+# Compose prefers a variable in the calling shell over the --env-file, so a server profile that
+# exports FLEET_HOST_PORT or FLEET_STAGE_ROOT would silently change what runs. None is inherited.
+CLEAN_ENV='
+for v in $(env | sed -n -E "s/^((FLEET|COMPOSE)_[A-Za-z0-9_]*)=.*/\1/p"); do unset "$v"; done
+'
+
+# A server-side script that must be fenced: it runs in its OWN process group, recorded in the lock
+# folder, so that a rollback can wait for everything it started (a Compose child outlives a shell
+# that is hung up). Convention: $1 is the deploy folder and $2 this run's ID; the body sees the rest.
+# Before each step it checks, with step, that the run still owns the lock and was not told to stop.
+# Fails closed when it cannot get a group of its own (setsid, else job control).
+fenced() {
+  cat <<'EOF_HEAD'
+dir="$1" runid="$2"
+lock="$dir/.stage-lock"
+[ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run does not own the stage lock"; exit 1; }
+cat > "$lock/body.sh" <<'BODY_EOF'
+dir="$1" runid="$2"
+shift 2
+lock="$dir/.stage-lock"
+pgid="$(ps -o pgid= -p $$ | tr -d ' ')"
+[ "$pgid" = "$$" ] || { echo "FAIL could not run in its own process group"; exit 1; }
+echo "$$" > "$lock/fenced.pid"
+trap 'rm -f "$lock/fenced.pid"' EXIT
+step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
+EOF_HEAD
+  printf '%s\n' "$1"
+  cat <<'EOF_TAIL'
+BODY_EOF
+if command -v setsid >/dev/null 2>&1; then
+  setsid sh "$lock/body.sh" "$@" &
+else
+  set -m
+  sh "$lock/body.sh" "$@" &
+fi
+child=$!
+rc=0
+wait "$child" || rc=$?
+i=0
+while kill -0 -- "-$child" 2>/dev/null; do
+  i=$((i + 1))
+  [ "$i" -lt 900 ] || break
+  sleep 1
+done
+exit "$rc"
+EOF_TAIL
+}
+
 # The env and compose backups come first, so a rollback always has them; the state copy is only
 # complete once it is renamed from .part. Every name carries this run's ID.
-SWITCH="$STOP_FN"'
-dir="$1" project="$2" rev="$3" runid="$4" root="$5" image_id="$6" manifest_digest="$7"
+SWITCH_BODY="$CLEAN_ENV$STOP_FN"'
+project="$1" rev="$2" root="$3" image_id="$4" manifest_digest="$5" port="$6" lan="$7"
 cd "$dir"
-# If the connection that started this drops, this script keeps running on the server. Record its
-# process, and check before every step that this run still owns the lock and was not told to stop:
-# the rollback sets "abort", then waits for this process to end before it touches anything.
-lock="$dir/.stage-lock"
-echo "$$" > "$lock/switch.pid"
-trap "rm -f \"$lock/switch.pid\"" EXIT
-step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
 step
 [ -d "$root/state" ] || { echo "FAIL no test copy state folder"; exit 1; }
 { cp -p fleet-staging.env "fleet-staging.env.pre-$runid.part" && mv "fleet-staging.env.pre-$runid.part" "fleet-staging.env.pre-$runid"; } ||
@@ -245,6 +299,16 @@ grep -v -e "^FLEET_REVISION=" -e "^FLEET_IMAGE=" "fleet-staging.env.pre-$runid" 
 printf "FLEET_REVISION=%s\nFLEET_IMAGE=fleet-runner:%s\n" "$rev" "$rev" >> fleet-staging.env.new
 { chmod 0600 fleet-staging.env.new && mv fleet-staging.env.new fleet-staging.env; } || exit 1
 c="docker compose -p $project --env-file fleet-staging.env -f compose.yaml"
+# What Compose will actually use, with nothing inherited from this shell, must be the test copy:
+# its own project, the four folders under its own root, its own address and port.
+cfg="$($c config 2>/dev/null)" || { echo "FAIL could not resolve the compose file"; exit 1; }
+ok=1
+printf "%s\n" "$cfg" | grep -qx "name: $project" || ok=0
+for d in state output public-keys tls; do printf "%s\n" "$cfg" | grep -qxF "        source: $root/$d" || ok=0; done
+[ "$(printf "%s\n" "$cfg" | grep -c "^ *source: ")" -eq 4 ] || ok=0
+printf "%s\n" "$cfg" | grep -qxF "        host_ip: $lan" || ok=0
+printf "%s\n" "$cfg" | grep -qxF "        published: \"$port\"" || ok=0
+[ "$ok" -eq 1 ] || { echo "FAIL the resolved compose config is not the test copy own folders, port and name"; exit 1; }
 step
 # Never pull: the only image this may run is the one just loaded from the checked archive.
 $c up -d --pull never >/dev/null 2>&1 || { echo "FAIL compose up"; exit 1; }
@@ -257,38 +321,43 @@ else
   echo "FAIL running image $running is not the checked release"; exit 1
 fi
 '
+SWITCH="$(fenced "$SWITCH_BODY")"
+
+# Recording the pass is fenced too, and is one rename of one file (last passed and staged together),
+# so a connection lost around it can never leave the two disagreeing.
+RECORD_BODY="$STATE_FN"'
+rev="$1"
+step
+write_state "$dir" "$rev" "$rev"
+echo "PASS recorded: $rev staged and smoke-tested"
+'
+RECORD="$(fenced "$RECORD_BODY")"
+
 # Works from any point SWITCH reached: what was saved is put back, what was not is left alone. Only
 # finished backups are used; a leftover .part is ignored. Files are changed only after both backups
-# finished, so a missing backup means its file was never changed. The env file is then set to the
-# last revision that passed (or none), and that revision is started. Exits non-zero if any step
-# failed; the caller then checks it and stops it.
-ROLLBACK="$STOP_FN"'
+# finished, so a missing backup means its file was never changed. First it FENCES: anything fenced
+# still running on the server (its connection may be long gone, and a Compose child outlives the
+# shell that started it) is told to stop, and the whole process group is waited out; never killed,
+# as a stale ID could belong to someone else, so if it does not end the lock is kept. Then the pass
+# record and env file are set to the last revision that passed (or none), and that revision is
+# started. Exits non-zero if any step failed; the caller then checks it and stops it.
+ROLLBACK="$CLEAN_ENV$STATE_FN$STOP_FN"'
 set +e
-dir="$1" project="$2" runid="$3" root="$4" prev="$5" rev="$6" wait="$7"
+dir="$1" project="$2" runid="$3" root="$4" prev="$5" wait="$6"
 bad=0
 cd "$dir" || exit 1
-# Fence: a switch that is still running on the server (its connection may be long gone) must end
-# before anything is put back, or it could start the untested revision after this has finished.
-# Never killed: a stale pid could belong to someone else; if it does not end, the lock is kept.
 lock="$dir/.stage-lock"
 [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run no longer owns the lock; nothing was changed"; exit 1; }
 : > "$lock/abort"
-pid="$(cat "$lock/switch.pid" 2>/dev/null)"
+pid="$(cat "$lock/fenced.pid" 2>/dev/null)"
+alive() { kill -0 -- "-$1" 2>/dev/null || kill -0 "$1" 2>/dev/null; }
 if [ -n "$pid" ]; then
   i=0
-  while kill -0 "$pid" 2>/dev/null; do
+  while alive "$pid"; do
     i=$((i + 1))
-    [ "$i" -le "$wait" ] || { echo "FAIL the switch (process $pid) is still running after $wait seconds; the lock is kept"; exit 1; }
+    [ "$i" -le "$wait" ] || { echo "FAIL the server-side step (process group $pid) is still running after $wait seconds; the lock is kept"; exit 1; }
     sleep 1
   done
-fi
-# The pass record is undone first, whatever happened to the acknowledgement of writing it: a revision
-# that was rolled back must not look promotable, and last-passed must name what is really running.
-rm -f "releases/$rev/STAGED_OK"
-if [ -n "$prev" ]; then
-  printf "%s\n" "$prev" > last-passed.new && mv last-passed.new last-passed || { echo "FAIL could not restore last-passed"; bad=1; }
-else
-  rm -f last-passed
 fi
 [ -f "fleet-staging.env.pre-$runid" ] && cp -p "fleet-staging.env.pre-$runid" fleet-staging.env
 [ -f "compose.yaml.pre-$runid" ] && cp -p "compose.yaml.pre-$runid" compose.yaml
@@ -306,6 +375,8 @@ if stop_project "$project"; then
 else
   echo "FAIL could not stop the test copy; its state folder was left alone"; bad=1
 fi
+# Whatever happened to the acknowledgement of recording the pass, it is undone in one rename.
+write_state "$dir" "$prev" "" || { echo "FAIL could not restore stage-state"; bad=1; }
 if [ "$bad" -eq 0 ]; then
   grep -v -e "^FLEET_REVISION=" -e "^FLEET_IMAGE=" fleet-staging.env > fleet-staging.env.new
   if [ -n "$prev" ]; then printf "FLEET_REVISION=%s\nFLEET_IMAGE=fleet-runner:%s\n" "$prev" "$prev" >> fleet-staging.env.new; fi
@@ -322,11 +393,12 @@ exit "$bad"
 do_rollback() {
   local ok=yes
   rolled_back=yes
-  nas "$ROLLBACK" "$NAS_STAGE_DIR" "$STAGE_PROJECT" "$runid" "$NAS_STAGE_ROOT" "$prev" "$rev" "${FLEET_FENCE_WAIT:-300}" || ok=no
+  nas "$ROLLBACK" "$NAS_STAGE_DIR" "$STAGE_PROJECT" "$runid" "$NAS_STAGE_ROOT" "$prev" "${FLEET_FENCE_WAIT:-300}" || ok=no
   if [ "$ok" = yes ] && [ -n "$prev" ]; then
     wait_ready "$prev" || ok=no
   fi
-  # Whatever happened, nothing of the test copy is left running (a failed stop is a FAIL).
+  # Whatever happened, nothing of the test copy is left running, whatever revision it is (a failed
+  # stop is a FAIL).
   if ! nas "$STOP" "$STAGE_PROJECT"; then
     say "FAIL could not confirm the test copy is stopped: look at it before staging again"
     return 1
@@ -341,7 +413,7 @@ do_rollback() {
 
 # The switch begins here: from now on the exit trap puts things back on any failure.
 switching=yes
-nas "$SWITCH" "$NAS_STAGE_DIR" "$STAGE_PROJECT" "$rev" "$runid" "$NAS_STAGE_ROOT" "$image_id" "$manifest_digest" || exit 1
+nas "$SWITCH" "$NAS_STAGE_DIR" "$runid" "$STAGE_PROJECT" "$rev" "$NAS_STAGE_ROOT" "$image_id" "$manifest_digest" "$STAGE_PORT" "$STAGE_LAN_IP" || exit 1
 
 # 4. Smoke tests from this Mac, as the test copy's own client.
 wait_ready "$rev" || exit 1
@@ -353,11 +425,7 @@ if [ "$keep_running" = no ]; then
   nas "$STOP" "$STAGE_PROJECT" || { say "FAIL could not stop the test copy"; exit 1; }
   say "the test copy is stopped again (it runs only while a test is under way)"
 fi
-# One server-side step writes both files. If the acknowledgement is lost after it ran, the exit trap
-# rolls back and its first act is to remove them again, so the two can never disagree.
-nas 'printf "%s\n" "$2" > "$1/last-passed.new" && printf "%s staged and smoke-tested\n" "$3" > "$1/releases/$2/STAGED_OK.new" &&
-  mv "$1/last-passed.new" "$1/last-passed" && mv "$1/releases/$2/STAGED_OK.new" "$1/releases/$2/STAGED_OK"' \
-  "$NAS_STAGE_DIR" "$rev" "$runid" || { say "FAIL could not record the pass"; exit 1; }
+nas "$RECORD" "$NAS_STAGE_DIR" "$runid" "$rev" || { say "FAIL could not record the pass"; exit 1; }
 passed=yes
 say "PASS $short is staged and smoke-tested in $STAGE_PROJECT (was $prev_label)"
 say "next: going live needs the owner's yes naming $short; promote is a separate step and is not run here"
