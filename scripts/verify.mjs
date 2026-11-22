@@ -11,7 +11,7 @@
 //                               job, step, service or action-input key it does not understand (such
 //                               as `shell:` or `needs:`) is reported by name, never skipped
 //
-// Jobs, steps, environment variables, service containers and step order are read from
+// Jobs, steps, environment variables and step order are read from
 // .github/workflows/*.yml, so they cannot drift. What a laptop cannot take from the workflow files
 // (the GitHub actions that install Node and pnpm) is stood in for below; what only GitHub can do
 // (secrets, the GitHub API, external actions) is reported SKIPPED with the reason, never passed.
@@ -49,6 +49,7 @@ import {
   buildNativeEnv,
   checkPlan,
   checkoutDestination,
+  describeHostMismatch,
   expectedLocalSkip,
   githubOnlyReason,
   loadWorkflows,
@@ -56,6 +57,7 @@ import {
   pathFilterMatches,
   redactText,
   requestedNode,
+  runnerFor,
   stepCondition,
   substitute,
 } from "./lib/verify-ci.mjs";
@@ -87,8 +89,8 @@ function usage(code, message) {
   process.exit(code);
 }
 
-/** Off Linux, jobs run in the runner container on a clean clone of HEAD; --quick and --native run on this machine. */
-const useRunner = () => process.platform !== "linux" && !options.native && !options.quick;
+/** Jobs run in the runner container on a clean clone of HEAD, on Linux hosts too (a host is not the job's runs-on image); --quick and --native run on this machine. */
+const useRunner = () => !options.native && !options.quick;
 
 const workflows = loadWorkflows(workflowDir);
 const inScope = workflows.filter((workflow) => workflow.pullRequest);
@@ -177,7 +179,7 @@ let currentChild = null;
 let interrupted = null;
 const startedContainers = new Set();
 let containersBefore = new Set();
-let imagesBefore = new Set();
+const ownedImageTags = new Set(); // tags this run saw absent before its release job started: the only ones it may remove
 
 const out = (text = "") => process.stdout.write(`${redact(text)}\n`);
 const appendLog = (file, text) => appendFileSync(file, redact(text));
@@ -201,6 +203,9 @@ const cleanPath = (process.env.PATH ?? "")
   .join(delimiter);
 const nativeHome = join(stateRoot, "home");
 const nativeTmp = join(stateRoot, "tmp");
+// Fresh every run: nothing a previous branch left in HOME or TMPDIR (a cache, a config file) carries over.
+remove(nativeHome);
+remove(nativeTmp);
 mkdirSync(nativeHome, { recursive: true });
 mkdirSync(nativeTmp, { recursive: true });
 
@@ -261,6 +266,8 @@ function dockerState() {
   const info = run("docker", ["info", "--format", "{{.ServerVersion}}|{{.OSType}}|{{.Architecture}}"], { timeout: 20_000 });
   if (info.error || info.status !== 0) return { ok: false };
   const [version, os, arch] = info.stdout.trim().split("|");
+  // Older Docker CLIs exit 0 with an empty server section when the daemon is unreachable.
+  if (!version) return { ok: false };
   return { ok: true, version, os, arch };
 }
 let docker = null;
@@ -269,7 +276,6 @@ if (dockerNeeded) {
   docker = dockerState();
   if (docker.ok) {
     containersBefore = new Set(run("docker", ["ps", "-aq"]).stdout.split("\n").filter(Boolean));
-    imagesBefore = new Set(run("docker", ["images", "--format", "{{.Repository}}:{{.Tag}}", "fleet-runner"]).stdout.split("\n").filter(Boolean));
   }
 }
 
@@ -293,7 +299,7 @@ function cleanup() {
     const doomed = run("docker", ["ps", "-aq", "--filter", `label=core.verify=${runId}`]).stdout.split("\n").filter(Boolean);
     if (existsSync(nativeBuildxConfig())) removeNativeBuilders();
     if (doomed.length > 0) run("docker", ["rm", "-f", "-v", ...doomed], { stdio: "ignore" });
-    if (head && !imagesBefore.has(`fleet-runner:${head}`)) run("docker", ["rmi", "-f", `fleet-runner:${head}`], { stdio: "ignore" });
+    for (const tag of ownedImageTags) run("docker", ["rmi", "-f", tag], { stdio: "ignore" });
   }
   for (const name of safeReaddir(stateRoot)) {
     if (name.startsWith("runner-temp-")) remove(join(stateRoot, name));
@@ -479,49 +485,6 @@ const actions = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// Service containers (`services:`); core's workflows have none today, so this is the path a new one takes
-
-function splitOptions(text) {
-  const parts = [];
-  for (const match of String(text ?? "").matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g)) parts.push(match[1] ?? match[2] ?? match[3]);
-  return parts;
-}
-
-async function startServices(job, ctx, jobLog) {
-  for (const [name, service] of Object.entries(job.services)) {
-    const container = `core-verify-${runId}-${job.id}-${name}`;
-    const argv = ["run", "-d", "--name", container, "--label", `core.verify=${runId}`];
-    for (const [key, value] of Object.entries(service.env ?? {})) argv.push("-e", `${key}=${substitute(String(value), ctx)}`);
-    // GitHub publishes on every interface; here only on loopback, so a throwaway password is not
-    // offered to the network.
-    for (const port of service.ports ?? []) argv.push("-p", `127.0.0.1:${port}`);
-    argv.push(...splitOptions(service.options), service.image);
-    appendLog(jobLog, `$ docker ${argv.join(" ")}\n`);
-    const result = run("docker", argv);
-    appendLog(jobLog, `${result.stdout}${result.stderr}`);
-    if (result.status !== 0) {
-      const portBusy = /port is already allocated|address already in use/i.test(result.stderr);
-      return {
-        fail: `could not start the ${name} service container (${service.image}): ${result.stderr.trim().split("\n").pop()}`,
-        hint: portBusy ? "Something on this machine is already using the port; stop it and re-run." : "Check that Docker has network access to pull the image.",
-      };
-    }
-    startedContainers.add(container);
-    const deadline = Date.now() + 120_000;
-    for (;;) {
-      const health = run("docker", ["inspect", "--format", "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}", container]).stdout.trim();
-      if (health === "healthy" || health === "none") break;
-      if (health === "unhealthy" || Date.now() > deadline || interrupted) {
-        appendLog(jobLog, run("docker", ["logs", "--tail", "40", container]).stdout);
-        return { fail: `the ${name} service container did not become healthy (${health})`, hint: "Read the log; try `docker ps -a` and remove stale containers." };
-      }
-      await new Promise((r) => setTimeout(r, 1_000));
-    }
-  }
-  return null;
-}
-
-// ---------------------------------------------------------------------------------------------
 // The Linux runner container (see scripts/verify-runner/Dockerfile)
 
 /** The Node a job's runner gets: its first setup-node step's version, else the default. */
@@ -530,13 +493,13 @@ function nodeFor(job) {
   return (step && requestedNode(step, repoRoot)) || DEFAULT_NODE;
 }
 
-function runnerImage(node, jobLog) {
+function runnerImage(node, ubuntu, jobLog) {
   const dir = join(repoRoot, "scripts", "verify-runner");
   const pnpm = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8")).packageManager.split("@")[1];
-  const tag = `core-verify-runner:${createHash("sha256").update(readFileSync(join(dir, "Dockerfile"))).update(`${node} ${pnpm}`).digest("hex").slice(0, 12)}`;
+  const tag = `core-verify-runner:${createHash("sha256").update(readFileSync(join(dir, "Dockerfile"))).update(`${node} ${pnpm} ${ubuntu}`).digest("hex").slice(0, 12)}`;
   if (run("docker", ["image", "inspect", tag]).status === 0) return { tag };
-  out(`    .. building the Linux runner image for Node ${node} (first time for this version only)`);
-  const built = run("docker", ["build", "--build-arg", `NODE_VERSION=${node}`, "--build-arg", `PNPM_VERSION=${pnpm}`, "--tag", tag, dir]);
+  out(`    .. building the Linux runner image for Ubuntu ${ubuntu} and Node ${node} (first time for this pair only)`);
+  const built = run("docker", ["build", "--build-arg", `UBUNTU_VERSION=${ubuntu}`, "--build-arg", `NODE_VERSION=${node}`, "--build-arg", `PNPM_VERSION=${pnpm}`, "--tag", tag, dir]);
   appendLog(jobLog, `${built.stdout}${built.stderr}`);
   if (built.status !== 0) return { fail: `could not build the runner image: ${built.stderr.trim().split("\n").pop()}`, hint: "Check Docker's network access and that the Node version exists as a node image, then re-run." };
   return { tag };
@@ -544,7 +507,7 @@ function runnerImage(node, jobLog) {
 
 /** Start the runner and put a clean clone of HEAD in it, like actions/checkout. */
 function startRunner(job, jobLog) {
-  const image = runnerImage(nodeFor(job), jobLog);
+  const image = runnerImage(nodeFor(job), runnerFor(job).ubuntu, jobLog);
   if (image.fail) return image;
   const name = `core-verify-${runId}-${job.id}-runner`;
   const base = `/home/runner/work/${runId}`;
@@ -601,6 +564,10 @@ function preflight(job) {
 
 /** Why GitHub, or this machine, would not run the job at all (a skip that is not a missing check), or null. */
 function notRunReason(job, ctx) {
+  const target = runnerFor(job);
+  if (target?.otherOs) {
+    return { kind: "other-os", detail: `needs ${target.otherOs}`, fix: `this job runs on ${target.otherOs}, and verify can only stand in for Linux`, summary: `needs ${target.otherOs}; verify only stands in for Linux, so it is not checked locally` };
+  }
   const only = githubOnlyReason(job, ctx);
   if (only) return { kind: "github-only", detail: `needs GitHub, ${only.short}`, fix: `cannot be checked here: ${only.full}`, summary: `needs GitHub, ${only.short}; not checked locally` };
   if (job.if !== undefined && !forced.has(job.key)) {
@@ -631,6 +598,30 @@ function notRunReason(job, ctx) {
   return null;
 }
 
+/** The host as describeHostMismatch needs it: platform, Linux release (from /etc/os-release) and python3. */
+function hostFacts() {
+  const facts = { platform: process.platform, osId: "", osVersion: "", python: "" };
+  if (process.platform === "linux") {
+    try {
+      const release = readFileSync("/etc/os-release", "utf8");
+      const field = (name) => new RegExp(`^${name}="?([^"\\n]*)"?$`, "m").exec(release)?.[1] ?? "";
+      facts.osId = field("ID");
+      facts.osVersion = field("VERSION_ID");
+    } catch {
+      // unknown release: reported as a mismatch
+    }
+  }
+  facts.python = run("python3", ["--version"]).stdout.trim().replace(/^Python /, "");
+  return facts;
+}
+
+/** When a job runs on this machine, say how it differs from the image its `runs-on` names (the OS and release, and Python). */
+function noteHostMismatch(job) {
+  const target = runnerFor(job);
+  const message = target?.ubuntu ? describeHostMismatch({ label: target.label, ubuntu: target.ubuntu }, hostFacts()) : null;
+  if (message) warn(`${job.key} ran natively: ${message}`);
+}
+
 async function runJob(job) {
   const result = { id: job.key, name: job.name, status: "PASS", kind: "", detail: "", fix: "", took: 0, steps: [] };
   const begin = Date.now();
@@ -646,6 +637,12 @@ async function runJob(job) {
     out("    !! Run it only on a branch whose changes you have read.");
     warn(`${job.key} ran with this machine's Docker engine (opt-in); read the branch's changes to its build scripts before trusting that run`);
   }
+  if (job.key === "fleet-runner-release/release-image" && head && docker?.ok) {
+    // The job loads fleet-runner:<HEAD> into the engine. Only a tag this run found absent before
+    // the job started is removed afterwards: a release build of another process is never touched.
+    const tag = `fleet-runner:${head}`;
+    if (run("docker", ["image", "inspect", tag]).status !== 0) ownedImageTags.add(tag);
+  }
   const jobLog = join(logDir, `${job.workflow.stem}-${job.id}.log`);
   writeFileSync(jobLog, "");
   let runner = null;
@@ -653,12 +650,14 @@ async function runJob(job) {
   let jobWorkspace = repoRoot;
   try {
     if (useRunner()) {
-      out("    .. starting the Linux runner container and cloning HEAD into it");
+      const target = runnerFor(job);
+      out(`    .. starting the Linux runner (Ubuntu ${target.ubuntu}, the image for runs-on: ${target.label}) and cloning HEAD into it`);
       runner = startRunner(job, jobLog);
       if (runner.fail) return { ...result, status: "FAIL", detail: runner.fail, fix: runner.hint, took: Date.now() - begin };
       runnerTemp = runner.temp;
       jobWorkspace = runner.ws;
     } else {
+      noteHostMismatch(job);
       remove(runnerTemp);
       mkdirSync(runnerTemp, { recursive: true });
       // A fresh checkout has no build output; neither does the job here.
@@ -683,9 +682,6 @@ async function runJob(job) {
     };
     const declared = { ...job.workflow.env, ...job.env };
     for (const [key, value] of Object.entries(declared)) jobEnv[key] = substitute(String(value), ctx);
-
-    const failed = await startServices(job, ctx, jobLog);
-    if (failed) return { ...result, status: "FAIL", detail: failed.fail, fix: failed.hint, took: Date.now() - begin };
 
     let succeeded = true;
     const incomplete = [];
@@ -826,9 +822,10 @@ function platformNotes() {
     notes.push(`Docker here is ${docker.arch}; the release image job builds linux/amd64 under emulation, so it runs slower than on GitHub`);
   }
   if (useRunner()) {
-    notes.push("jobs run in a Linux container (scripts/verify-runner, Ubuntu 24.04) on a clean clone of HEAD, like GitHub's fresh runner; your working tree and shell are not used");
-  } else if (process.platform !== "linux") {
-    notes.push("ran natively on macOS and on your working tree (--quick or --native), not in GitHub's Linux environment");
+    const images = [...new Set(selected.map((job) => runnerFor(job)).filter((t) => t?.ubuntu).map((t) => `Ubuntu ${t.ubuntu} for runs-on: ${t.label}`))];
+    notes.push(`jobs run in a Linux container built for their runs-on label (${images.join("; ") || "none selected"}) on a clean clone of HEAD, like GitHub's fresh runner; it has the tools core's jobs use, not GitHub's full runner image; your working tree and shell are not used`);
+  } else {
+    notes.push("ran natively on this machine and your working tree (--quick or --native), not in GitHub's Linux environment; see the WARNING lines for how this machine differs from each job's runs-on image");
   }
   notes.push(`jobs ran as a pull request would (github.event_name is ${EVENT.name}); pushes to main and workflow_dispatch runs are not simulated`);
   const others = outOfScope(workflows);
@@ -841,9 +838,17 @@ async function main() {
   platformNotes();
   for (const job of selected) {
     out(`\n== ${job.key}: ${job.name}`);
-    const result = await runJob(job);
+    let result;
+    try {
+      result = await runJob(job);
+    } catch (error) {
+      // One job's crash must not abort the others or hide the summary; the message is redacted like all output.
+      result = error instanceof GitHubOnly
+        ? { id: job.key, name: job.name, status: "SKIPPED", kind: "github-only", detail: "needs GitHub", fix: `cannot be checked here: ${error.message}`, summary: `needs GitHub, ${error.message.split(" (")[0]}; not checked locally`, took: 0 }
+        : { id: job.key, name: job.name, status: "FAIL", kind: "", detail: `verify itself failed on this job: ${error.message}`, fix: "This is a bug in scripts/verify.mjs or a workflow construct it does not handle; fix that first.", took: 0 };
+    }
     results.push(result);
-    out(`   ${result.status} ${job.key}${result.detail ? `: ${result.detail}` : ""}${result.fix ? `\n          ${result.status === "SKIPPED" ? "why" : "fix"}: ${result.fix}` : ""}`);
+    out(`   ${result.status === "PASS" && result.allowed?.length > 0 ? "PASS (allowed failure)" : result.status} ${job.key}${result.detail ? `: ${result.detail}` : ""}${result.fix ? `\n          ${result.status === "SKIPPED" ? "why" : "fix"}: ${result.fix}` : ""}`);
     if (interrupted) break;
   }
 }
@@ -855,9 +860,9 @@ const total = Date.now() - started;
 const failed = results.filter((r) => r.status === "FAIL");
 const incompleteJobs = results.filter((r) => r.status === "INCOMPLETE");
 // Cannot be checked here by design, or GitHub would not run them either: stated, but not a gap to close.
-const byDesign = results.filter((r) => r.status === "SKIPPED" && ["github-only", "not-triggered", "condition"].includes(r.kind));
+const byDesign = results.filter((r) => r.status === "SKIPPED" && ["github-only", "other-os", "not-triggered", "condition"].includes(r.kind));
 // Skipped only because this machine is not ready (Docker is off): a check that could run and did not.
-const missed = results.filter((r) => r.status === "SKIPPED" && !["github-only", "not-triggered", "condition"].includes(r.kind));
+const missed = results.filter((r) => r.status === "SKIPPED" && !["github-only", "other-os", "not-triggered", "condition"].includes(r.kind));
 const notRun = allJobs.filter((job) => !selected.includes(job));
 const width = Math.max(...results.map((r) => r.id.length), 8);
 out("");
@@ -889,8 +894,8 @@ if (incompleteJobs.length > 0 || missed.length > 0) {
   process.exit(2);
 }
 const partial = options.quick || options.jobs.length > 0;
-const only = byDesign.filter((r) => r.kind === "github-only").map((r) => r.id);
-const untriggered = byDesign.filter((r) => r.kind !== "github-only").map((r) => r.id);
+const only = byDesign.filter((r) => r.kind === "github-only" || r.kind === "other-os").map((r) => r.id);
+const untriggered = byDesign.filter((r) => r.kind !== "github-only" && r.kind !== "other-os").map((r) => r.id);
 const allowedJobs = results.filter((r) => r.status === "PASS" && r.allowed?.length > 0).map((r) => r.id);
 const designNote = [
   only.length > 0 ? `${only.length} job(s) need GitHub and were not checked here (${only.join(", ")})` : "",
