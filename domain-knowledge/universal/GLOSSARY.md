@@ -242,6 +242,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Reference layer** — The selfco vault as design-time knowledge store of understanding objects; written only via curated seams (/vault sync, session stubs, daily-logger). (adr:bonded-pair-division-of-labor)
 
+**Release manifest** — `.release-please-manifest.json`: each package's last released version, written by release-please and never by hand (CI refuses edits outside its PR). A new package starts at its current version. (`versioning-convention.md`; adr:deterministic-fleet-versioning)
+
+**Release PR** — The pull request release-please opens per package; merging it writes the changelog, bumps `version`, and creates the tag `<package>-vX.Y.Z`. A release never deploys: stage and promote stay separate, with the owner's yes naming the revision. (adr:deterministic-fleet-versioning)
+
 **Refinery** — Merge processor agent. Handles PRs, resolves conflicts. Gas Town role; built into Frame `witness`.
 
 **Roadmap** — The file-canonical delivery artifact under a northstar (one per northstar; `<app>/.claude/roadmap.md` beside the L1): ordered **phases** of **slices** that close a property gap. Registered in the `roadmaps:` list of the northstar registry; schema `decisions/northstar/roadmap-schema.md`; `roadmap-lint.mjs` shadow-only; `roadmap-compile.mjs` projects ready slices onto the dispatch queue. Files canonical, beads a projection. (adr:roadmap-under-northstar)

@@ -111,6 +111,7 @@ These are hard rules. `/validate` blocks on them.
 ## PR standards
 
 - PRs target `main`. Branch naming: `feat/`, `fix/`, `chore/`, `docs/`.
+- Commit messages and PR titles are Conventional Commits, linted by commitlint; versions are computed by release-please and never edited by hand. See `versioning-convention.md`.
 - Every PR description includes: what changed, why, how to test.
 - New routes require auth middleware — `/validate` blocks without it.
 - Deleted tests require explanation in the PR description.
