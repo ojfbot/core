@@ -567,13 +567,13 @@ function notRunReason(job, ctx) {
     } catch (error) {
       return { kind: "fail", detail: error.message, fix: "" };
     }
-    if (!runs) return { kind: "condition", detail: "its if: is false on a pull request", fix: `GitHub skips it too (${String(job.if).trim()})` };
+    if (!runs) return { kind: "condition", detail: "its if: is false on a pull request", fix: `GitHub skips it too (${String(job.if).trim()})`, summary: "its if: is false on a pull request, so GitHub skips it too" };
   }
   // GitHub starts a path-filtered workflow only when the pull request touches one of its paths.
   // `--quick` and `--job` run what was asked for whatever the filter says.
   const filtered = job.workflow.paths !== null || job.workflow.pathsIgnore !== null;
   if (filtered && changed && !forced.has(job.key) && !options.quick && !pathFilterMatches(job.workflow, changed)) {
-    return { kind: "not-triggered", detail: "path filter", fix: `this pull request changes none of the paths that start ${job.workflow.file}, so GitHub does not run it (\`--job ${job.key}\` runs it anyway)` };
+    return { kind: "not-triggered", detail: "path filter", fix: `this pull request changes none of the paths that start ${job.workflow.file}, so GitHub does not run it (\`--job ${job.key}\` runs it anyway)`, summary: "not triggered: this PR changes none of its paths, so GitHub does not run it either" };
   }
   return null;
 }
@@ -811,5 +811,13 @@ if (incompleteJobs.length > 0 || missed.length > 0) {
   process.exit(2);
 }
 const partial = options.quick || options.jobs.length > 0;
-const designNote = byDesign.length > 0 ? `; ${byDesign.length} job(s) are SKIPPED by design (${byDesign.map((r) => r.id).join(", ")}) and are only checked by GitHub or not triggered by this pull request` : "";
+const only = byDesign.filter((r) => r.kind === "github-only").map((r) => r.id);
+const untriggered = byDesign.filter((r) => r.kind !== "github-only").map((r) => r.id);
+const designNote = [
+  only.length > 0 ? `${only.length} job(s) need GitHub and were not checked here (${only.join(", ")})` : "",
+  untriggered.length > 0 ? `${untriggered.length} job(s) are not triggered by this pull request (${untriggered.join(", ")})` : "",
+]
+  .filter(Boolean)
+  .map((text) => `; ${text}`)
+  .join("");
 out(partial ? `verify: the selected jobs pass (this was not the full set)${designNote}` : `verify: every job that can run here passes${designNote}`);
