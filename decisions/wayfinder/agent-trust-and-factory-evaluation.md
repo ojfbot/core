@@ -82,9 +82,14 @@ filed under `decisions/research/` and linked from the tickets they inform.
   role is an address only. Claims carry one of seven statuses (claimed, observed,
   inferred, verified by a named procedure, disputed, superseded, unknown). "Coordinator"
   is avoided. — Which shared trust words do we adopt? (#663, owner re-confirmed
-  2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied. REOPENED 2026-11-22:
-  the Codex challenge rejected it on 6 findings; being revised; bugs core#677,
-  daily-logger#593, LocalHelp#124)
+  2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied. REVISED 2026-11-22
+  after the Codex challenge rejected it on 6 findings, owner re-confirmed. Session
+  identity is the name plus the registration a post was signed under. A grant must trace
+  to an owner yes given where only the owner controls, otherwise it is a claimed grant.
+  An approval is one decision with its own identity; single use is per decision.
+  Re-delegations reserve from the parent's budget. "Role" is always qualified and no
+  role carries authority. "Verified" names its check and covers only what it tested.
+  Bugs: core#677, daily-logger#593, LocalHelp#124)
 - Challenge rule. The opposite-vendor model, in a fresh context, refutes each design and
   sees raw records, not the designer's conclusions. Scripted attack scenarios run
   alongside it. Once per track a secret canary design checks the challenger. A design is
@@ -141,12 +146,14 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | open |
-| Which shared trust words do we adopt? (#663) | grilling | — | reopened (challenge rejected; revising) |
+| Which shared trust words do we adopt? (#663) | grilling | — | closed (revised; second challenge queued) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed |
 | Which in-flight work can be proven stopped? (#678) | grilling | — | open |
 | What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
+| What does a checkable re-delegation record contain? (#680) | grilling | — | open |
+| How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | open |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
 
