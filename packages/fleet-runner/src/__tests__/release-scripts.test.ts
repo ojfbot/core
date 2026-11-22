@@ -25,7 +25,10 @@ function sha(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function writeRelease(overrides: Record<string, unknown> = {}, archive = Buffer.from("not really an image")): void {
+function writeRelease(
+  overrides: Record<string, unknown> = {},
+  archive = Buffer.from("not really an image"),
+): void {
   const release = {
     format: "fleet-runner-release/1",
     revision: REVISION,
@@ -72,7 +75,11 @@ esac
 function run(args: string[], env: Record<string, string> = {}) {
   const result = spawnSync("/bin/bash", [verify, ...args], {
     encoding: "utf8",
-    env: { PATH: `${bin}:/usr/bin:/bin:/usr/local/bin`, FAKE_DOCKER_LOG: join(dir, "docker.log"), ...env },
+    env: {
+      PATH: `${bin}:/usr/bin:/bin:/usr/local/bin`,
+      FAKE_DOCKER_LOG: join(dir, "docker.log"),
+      ...env,
+    },
   });
   return { status: result.status, out: `${result.stdout}${result.stderr}` };
 }
@@ -166,7 +173,9 @@ describe("verify-release.sh load", () => {
     expect(r.out).toContain(`PASS image ID ${IMAGE_ID}`);
     expect(r.out).toContain("PASS linux/amd64 as user node");
     expect(r.out).toContain("PASS non-root (uid 1000)");
-    expect(readFileSync(join(dir, "docker.log"), "utf8")).toContain(`docker image load --input ${join(dir, ARCHIVE)}`);
+    expect(readFileSync(join(dir, "docker.log"), "utf8")).toContain(
+      `docker image load --input ${join(dir, ARCHIVE)}`,
+    );
   });
 
   it("accepts the manifest digest an engine with the containerd image store reports", () => {
@@ -183,7 +192,9 @@ describe("verify-release.sh load", () => {
 
   it("fails when the loaded image is the wrong platform or user", () => {
     writeRelease();
-    expect(run(["load", dir], { FAKE_PLATFORM: "linux/arm64" }).out).toContain("FAIL platform or user");
+    expect(run(["load", dir], { FAKE_PLATFORM: "linux/arm64" }).out).toContain(
+      "FAIL platform or user",
+    );
     expect(run(["load", dir], { FAKE_USER: "root" }).out).toContain("FAIL platform or user");
   });
 

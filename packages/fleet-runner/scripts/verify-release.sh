@@ -94,5 +94,5 @@ else
   fail "platform or user"
 fi
 # The configured user name could still map to root; ask the image which numeric user it runs as.
-uid="$(docker run --rm --network none --entrypoint node "$tag" -p 'process.getuid()')"
+uid="$(docker run --rm --platform linux/amd64 --network none --entrypoint node "$tag" -p 'process.getuid()')"
 if [[ "$uid" =~ ^[0-9]+$ && "$uid" != "0" ]]; then echo "PASS non-root (uid $uid)"; else fail "image runs as root"; fi

@@ -103,6 +103,42 @@ qualification cases. A manually stopped container stays stopped under
 `unless-stopped`. Keep the original coordinator authoritative until explicit
 cutover and rollback rehearsal.
 
+## CI release image
+
+Every push to `main` runs `.github/workflows/fleet-runner-release.yml`
+(ojfbot/core#647, slice 1). It builds the service image from a `git archive` of
+that commit, twice, without cache, for `linux/amd64`, with timestamps rewritten
+to the commit time. The two image IDs must be identical or the run fails. It
+then runs `scripts/verify-release.sh load` on the result: checksum, load, image
+ID, `linux/amd64`, and a numeric non-root user.
+
+The run publishes one artifact, `fleet-runner-release-<12-character revision>`,
+kept 7 days, holding three files:
+
+| File | Contents |
+|------|----------|
+| `fleet-runner-image.tar` | the image archive |
+| `fleet-runner-image.tar.sha256` | its SHA-256 |
+| `release.json` | full revision, image ID, manifest digest, archive hash, build inputs |
+
+Pull requests that touch the build inputs run the same build and verification
+but publish nothing. This repository is public, so runner minutes are free; the
+only stored output is one archive per `main` push. `workflow_dispatch` on `main`
+rebuilds a release whose artifact has expired.
+
+Check a downloaded release anywhere with only bash, sed, awk and a SHA-256 tool
+(plus Docker for `load`):
+
+```sh
+bash packages/fleet-runner/scripts/verify-release.sh check <release-dir> <revision>
+bash packages/fleet-runner/scripts/verify-release.sh load  <release-dir> <revision>
+```
+
+`<revision>` is a full commit or an unambiguous prefix; the check fails if
+`release.json` names another commit. To build the same release by hand, run
+`bash packages/fleet-runner/scripts/release-image.sh <new-directory> [commit]`
+on a machine with Docker Buildx.
+
 ## Worker interruption and diagnostics
 
 A transient heartbeat failure is retried within the known lease budget; an
