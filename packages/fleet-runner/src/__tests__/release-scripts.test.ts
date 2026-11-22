@@ -19,6 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // a fake `docker` on PATH, so no engine is needed.
 const scripts = resolve(dirname(fileURLToPath(import.meta.url)), "../../scripts");
 const verify = join(scripts, "verify-release.sh");
+const loader = join(scripts, "load-release.sh");
 const releaseImage = join(scripts, "release-image.sh");
 
 const REVISION = "0123456789abcdef0123456789abcdef01234567";
@@ -49,10 +50,34 @@ interface ArchiveShape {
   symlink?: boolean;
   // Rewrite the first member's type flag (for example to a pax extended header, `x`).
   typeflag?: string;
+  // Rename a member in its tar header, as a name that tar and Docker may clean differently.
+  rename?: [string, string];
+  indexRaw?: string;
 }
 
 // Plain ustar, as BuildKit writes it; COPYFILE_DISABLE stops macOS tar adding metadata members.
 const tarOptions = (cwd: string) => ({ cwd, env: { ...process.env, COPYFILE_DISABLE: "1" } });
+
+// Overwrite the name field of the member called `from` (tar headers are 512 bytes, name first).
+function renameMember(bytes: Buffer, from: string, to: string): void {
+  for (let pos = 0; pos + 512 <= bytes.length; ) {
+    const name = bytes.toString("latin1", pos, pos + 100).replace(/\0.*$/s, "");
+    const size = parseInt(
+      bytes
+        .toString("latin1", pos + 124, pos + 136)
+        .replace(/\0.*$/s, "")
+        .trim() || "0",
+      8,
+    );
+    if (name === from) {
+      bytes.fill(0, pos, pos + 100);
+      bytes.write(to, pos, "latin1");
+      return;
+    }
+    pos += 512 + Math.ceil(size / 512) * 512;
+  }
+  throw new Error(`no member ${from}`);
+}
 
 // A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
 function makeArchive(shape: ArchiveShape = {}): Buffer {
@@ -80,8 +105,24 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     }
     if (shape.indexDigest !== null) {
       const digest = shape.indexDigest ?? MANIFEST_DIGEST;
-      const index = { schemaVersion: 2, manifests: [{ mediaType: "m", digest, size: 1 }] };
-      writeFileSync(join(stage, "index.json"), JSON.stringify(index));
+      const index = {
+        schemaVersion: 2,
+        mediaType: "application/vnd.oci.image.index.v1+json",
+        manifests: [
+          {
+            mediaType: "application/vnd.oci.image.manifest.v1+json",
+            digest,
+            size: 1,
+            annotations: {
+              "io.containerd.image.name": `docker.io/library/${TAG}`,
+              "org.opencontainers.image.created": "2026-01-01T00:00:00Z",
+              "org.opencontainers.image.ref.name": REVISION,
+            },
+            platform: { architecture: "amd64", os: "linux" },
+          },
+        ],
+      };
+      writeFileSync(join(stage, "index.json"), shape.indexRaw ?? JSON.stringify(index));
       names.push("index.json");
     }
     const out = join(stage, "image.tar");
@@ -98,6 +139,7 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     }
     const bytes = readFileSync(out);
     if (shape.typeflag) bytes[156] = shape.typeflag.charCodeAt(0);
+    if (shape.rename) renameMember(bytes, shape.rename[0], shape.rename[1]);
     return bytes;
   } finally {
     rmSync(stage, { recursive: true, force: true });
@@ -256,7 +298,7 @@ describe("verify-release.sh check", () => {
 
   it("refuses an archive with no manifest.json or with two images", () => {
     writeRelease({}, { manifest: false });
-    expect(run(["check", dir]).out).toContain("FAIL archive has no single manifest.json");
+    expect(run(["check", dir]).out).toContain("FAIL archive has no manifest.json");
     writeRelease({}, { images: 2 });
     expect(run(["check", dir]).out).toContain("FAIL archive does not hold exactly one image");
   });
@@ -275,7 +317,7 @@ describe("verify-release.sh check", () => {
     writeRelease({}, { manifestRaw: forged });
     const r = run(["load", dir]);
     expect(r.status).toBe(1);
-    expect(r.out).toContain("FAIL archive image ID");
+    expect(r.out).toContain("FAIL the manifest entry does not have exactly the expected keys");
     expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
   });
 
@@ -283,7 +325,7 @@ describe("verify-release.sh check", () => {
     const forged = (good: string) =>
       `[{"Config" : "${good}", "RepoTags" : ["fleet-runner:latest"], "decoy":{"RepoTags":["${TAG}"]}}]`;
     writeRelease({}, { manifestRaw: forged });
-    expect(run(["check", dir]).out).toContain("FAIL archive tags are not exactly");
+    expect(run(["check", dir]).out).toContain("FAIL the manifest entry does not have exactly");
   });
 
   it("accepts a valid manifest however it is spaced", () => {
@@ -304,14 +346,14 @@ describe("verify-release.sh check", () => {
     writeRelease({}, { duplicateManifest: true });
     const r = run(["load", dir]);
     expect(r.status).toBe(1);
-    expect(r.out).toContain("FAIL archive has no single manifest.json");
+    expect(r.out).toContain("FAIL archive has a member that appears twice");
     expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
   });
 
   it("refuses a manifest.json that tar lists as ./manifest.json, and link members", () => {
     writeRelease({}, { dotSlashManifest: true });
     expect(run(["check", dir]).out).toContain(
-      "FAIL archive has a member that is not canonically named",
+      "FAIL archive has a member outside the allowed layout",
     );
     writeRelease({}, { symlink: true });
     expect(run(["check", dir]).out).toContain(
@@ -332,12 +374,99 @@ describe("verify-release.sh check", () => {
     writeRelease({ manifest_digest: null });
     const r = run(["check", dir]);
     expect(r.status).toBe(1);
-    expect(r.out).toContain("FAIL archive manifest digest is not the recorded one");
+    expect(r.out).toContain(
+      "FAIL archive has an index.json but the release records no manifest digest",
+    );
   });
 
   it("accepts a release with no index.json and no recorded manifest digest", () => {
     writeRelease({ manifest_digest: null }, { indexDigest: null });
     expect(run(["check", dir]).status).toBe(0);
+  });
+
+  it("refuses member names that tar or Docker would clean, and any name off the allowlist", () => {
+    for (const name of [
+      "./manifest.json",
+      "x/../manifest.json",
+      "/manifest.json",
+      "a//manifest.json",
+      "Manifest.json",
+    ]) {
+      writeRelease({}, { rename: ["manifest.json", name] });
+      const r = run(["check", dir]);
+      expect(r.status, name).toBe(1);
+      expect(r.out, name).toContain("FAIL archive has a member outside the allowed layout");
+    }
+    writeRelease({}, { rename: ["index.json", "extra.json"] });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL archive has a member outside the allowed layout",
+    );
+  });
+
+  it("refuses keys that only differ in case, because Docker matches field names case-insensitively", () => {
+    const cased = (good: string, other: string) =>
+      `[{"Config":"${good}","config":"${other}","RepoTags":["${TAG}"],"Layers":[]}]`;
+    writeRelease({}, { manifestRaw: cased });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL the manifest entry does not have exactly the expected keys",
+    );
+    const lower = (good: string) => `[{"Config":"${good}","repotags":["${TAG}"],"Layers":[]}]`;
+    writeRelease({}, { manifestRaw: lower });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL the manifest entry does not have exactly the expected keys",
+    );
+    writeRelease({}, { indexRaw: '{"schemaVersion":2,"mediaType":"x","Manifests":[]}' });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL index.json does not have exactly the expected keys",
+    );
+    writeRelease({ Tag: "fleet-runner:latest" });
+    expect(run(["check", dir]).out).toContain(
+      "FAIL release.json does not have exactly the expected keys",
+    );
+  });
+
+  it("refuses a duplicate key in any of the three JSON files", () => {
+    const dup = (good: string, other: string) =>
+      `[{"Config":"${other}","Config":"${good}","RepoTags":["${TAG}"],"Layers":[]}]`;
+    writeRelease({}, { manifestRaw: dup });
+    expect(run(["check", dir]).out).toContain('FAIL manifest.json repeats the key "Config"');
+    writeRelease(
+      {},
+      { indexRaw: '{"schemaVersion":2,"schemaVersion":2,"mediaType":"x","manifests":[]}' },
+    );
+    expect(run(["check", dir]).out).toContain('FAIL index.json repeats the key "schemaVersion"');
+    writeRelease();
+    const file = join(dir, "release.json");
+    writeFileSync(
+      file,
+      readFileSync(file, "utf8").replace('  "layers": 3,', '  "layers": 3,\n  "layers": 4,'),
+    );
+    expect(run(["check", dir]).out).toContain('FAIL release.json repeats the key "layers"');
+  });
+
+  it("binds the index annotations and platform that an engine names the loaded image from", () => {
+    const index = (name: string, platform: string) =>
+      JSON.stringify({
+        schemaVersion: 2,
+        mediaType: "m",
+        manifests: [
+          {
+            mediaType: "m",
+            digest: MANIFEST_DIGEST,
+            size: 1,
+            annotations: {
+              "io.containerd.image.name": name,
+              "org.opencontainers.image.created": "t",
+              "org.opencontainers.image.ref.name": REVISION,
+            },
+            platform: { architecture: platform, os: "linux" },
+          },
+        ],
+      });
+    writeRelease({}, { indexRaw: index("docker.io/library/fleet-runner:latest", "amd64") });
+    expect(run(["check", dir]).out).toContain("FAIL archive index names another image");
+    writeRelease({}, { indexRaw: index(`docker.io/library/${TAG}`, "arm64") });
+    expect(run(["check", dir]).out).toContain("FAIL archive index platform");
   });
 
   it("fails closed when node is not available to read the archive", () => {
@@ -430,6 +559,63 @@ describe("verify-release.sh load", () => {
     writeFileSync(join(dir, ARCHIVE), "tampered");
     expect(run(["load", dir]).status).toBe(1);
     expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+});
+
+describe("load-release.sh (the server half: POSIX sh, no node)", () => {
+  const sh = (args: string[], env: Record<string, string> = {}, path = `${bin}:/usr/bin:/bin`) =>
+    spawnSync("/bin/sh", [loader, ...args], {
+      encoding: "utf8",
+      env: { PATH: path, FAKE_DOCKER_LOG: join(dir, "docker.log"), ...env },
+    });
+  const args = () => {
+    writeRelease();
+    const archiveSha = readFileSync(join(dir, `${ARCHIVE}.sha256`), "utf8").split(/\s+/)[0] ?? "";
+    return [join(dir, ARCHIVE), archiveSha, IMAGE_ID, TAG, MANIFEST_DIGEST];
+  };
+
+  it("loads and checks an archive whose checksum is the checked one, with no node on the PATH", () => {
+    const bare = mkdtempSync(join(tmpdir(), "fleet-release-server-"));
+    try {
+      for (const tool of ["awk", "tr", "shasum", "sha256sum", "bash", "sh", "cat"]) {
+        const found = spawnSync("sh", ["-c", `command -v ${tool}`], {
+          encoding: "utf8",
+        }).stdout.trim();
+        if (found) symlinkSync(found, join(bare, tool));
+      }
+      symlinkSync(join(bin, "docker"), join(bare, "docker"));
+      const r = sh(args(), {}, bare);
+      expect(r.stdout).toContain("PASS archive checksum");
+      expect(r.stdout).toContain(`PASS image ID ${IMAGE_ID}`);
+      expect(r.stdout).toContain("PASS non-root (uid 1000)");
+      expect(r.status).toBe(0);
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+
+  it("refuses an archive that is not the checked bytes, before loading it", () => {
+    const a = args();
+    writeFileSync(join(dir, ARCHIVE), "swapped after the check");
+    const r = sh(a);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("FAIL archive checksum");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("fails when the loaded image is not the checked one, or runs as root", () => {
+    const a = args();
+    expect(sh(a, { FAKE_ID: `sha256:${"d".repeat(64)}` }).stdout).toContain("FAIL image ID");
+    expect(sh(a, { FAKE_PLATFORM: "linux/arm64" }).stdout).toContain("FAIL platform or user");
+    expect(sh(a, { FAKE_UID: "0" }).stdout).toContain("FAIL image runs as root");
+  });
+
+  it("rejects malformed arguments", () => {
+    const a = args();
+    expect(sh([a[0], "short", a[2], a[3]]).stdout).toContain("FAIL archive checksum argument");
+    expect(sh([a[0], a[1], "sha256:zz", a[3]]).stdout).toContain("FAIL image ID argument");
+    expect(sh([a[0], a[1], a[2], "other:tag"]).stdout).toContain("FAIL tag argument");
+    expect(sh([]).status).toBe(2);
   });
 });
 
