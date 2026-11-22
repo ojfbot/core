@@ -158,6 +158,11 @@ could read differently from the verifier is refused rather than reconciled.
   names the loaded image from, platform, digest) is the one the release
   records. A different archive cannot pass by sharing a tag the host already
   has.
+- **The OCI manifest:** an engine using the containerd image store imports from
+  `index.json` and ignores `manifest.json`, so the manifest blob the index
+  points at must hash to the recorded manifest digest, name the checked image
+  ID as its config, list the same layers as `manifest.json`, and obey the same
+  exact-key rule. An `oci-layout` is accepted only with an `index.json`.
 
 ### Where each half runs
 
