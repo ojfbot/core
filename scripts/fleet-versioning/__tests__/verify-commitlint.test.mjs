@@ -5,7 +5,7 @@
 // the pinned commitlint CLI, exactly as the CI job does).
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 let work;
 let origin;
+let shim;
 
 const sh = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 const git = (...args) => sh(work, ...args);
@@ -32,13 +33,19 @@ const verify = (job) => {
   const r = spawnSync('node', ['scripts/verify.mjs', '--native', '--job', job], {
     cwd: work,
     encoding: 'utf8',
-    env: { PATH: process.env.PATH, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR },
+    env: { PATH: `${shim}:${process.env.PATH}`, HOME: process.env.HOME, TMPDIR: process.env.TMPDIR },
     timeout: 180_000,
   });
   return { status: r.status, out: `${r.stdout}${r.stderr}` };
 };
 
 beforeAll(() => {
+  // verify drops PATH entries ending in node_modules/.bin (CI has none), and on a GitHub runner pnpm
+  // itself lives in one; a shim outside such a folder keeps `pnpm` reachable for the job.
+  const real = execFileSync('sh', ['-c', 'command -v pnpm'], { encoding: 'utf8' }).trim();
+  shim = mkdtempSync(join(tmpdir(), 'verify-commitlint-shim-'));
+  writeFileSync(join(shim, 'pnpm'), `#!/bin/sh\nexec "${real}" "$@"\n`);
+  chmodSync(join(shim, 'pnpm'), 0o755);
   work = mkdtempSync(join(tmpdir(), 'verify-commitlint-'));
   origin = mkdtempSync(join(tmpdir(), 'verify-commitlint-origin-'));
   sh(origin, 'init', '-q', '--bare', '-b', 'main');
@@ -74,6 +81,7 @@ beforeAll(() => {
 afterAll(() => {
   rmSync(work, { recursive: true, force: true });
   rmSync(origin, { recursive: true, force: true });
+  rmSync(shim, { recursive: true, force: true });
 });
 
 const T = 240_000;
@@ -91,17 +99,18 @@ describe('pnpm verify: versioning/commitlint', () => {
   });
 
   const bad = [
-    ['wrong type', 'wip: add a thing'],
-    ['missing colon', 'feat add a thing'],
-    ['bad scope', 'feat(Fleet Runner): add a thing'],
-    ['oversized header', `feat: ${'x'.repeat(120)}`],
+    ['wrong type', 'wip: add a thing', /type-enum/],
+    ['missing colon', 'feat add a thing', /type-empty/],
+    ['bad scope', 'feat(Fleet Runner): add a thing', /scope-case|fleet-scope-shape/],
+    ['oversized header', `feat: ${'x'.repeat(120)}`, /header-max-length/],
   ];
-  it.each(bad)('FAILs a branch with a %s commit', { timeout: T }, (_label, message) => {
+  it.each(bad)('FAILs a branch with a %s commit, for that reason', { timeout: T }, (_label, message, rule) => {
     git('checkout', '-q', '-B', 'topic', 'origin/main');
     commit('feat: a conforming commit');
     commit(message);
     const r = verify('versioning/commitlint');
     expect(r.out).toMatch(/FAIL\s+versioning\/commitlint/);
+    expect(r.out).toMatch(rule); // the lint ran and named the rule; not some other failure
     expect(r.status).not.toBe(0);
   });
 
@@ -130,6 +139,7 @@ describe('pnpm verify: versioning/versions', () => {
     commit('fix: bump by hand', { [path]: `${JSON.stringify(pkg, null, 2)}\n` });
     const r = verify('versioning/versions');
     expect(r.out).toMatch(/FAIL\s+versioning\/versions/);
+    expect(r.out).toMatch(/version changed 0\.1\.0 -> 9\.9\.9/);
     expect(r.status).not.toBe(0);
   });
 });

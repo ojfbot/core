@@ -39,7 +39,8 @@ export function runCommitlint({ args, input, runner, cwd }) {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
   });
-  return { ok: result.status === 0, output: `${result.stdout ?? ''}${result.stderr ?? ''}` };
+  const launch = result.error ? `could not run ${bin}: ${result.error.message}\n` : '';
+  return { ok: result.status === 0, output: `${launch}${result.stdout ?? ''}${result.stderr ?? ''}` };
 }
 
 export function main(env = process.env, cwd = process.cwd()) {
@@ -54,7 +55,7 @@ export function main(env = process.env, cwd = process.cwd()) {
   const problems = [];
   const collect = (output, label) => {
     for (const line of output.split('\n')) {
-      if (/^\s*(✖|×|x)\s/.test(line) || line.includes('✖')) problems.push(`${label}: ${line.trim()}`);
+      if (line.includes('✖') || line.startsWith('could not run')) problems.push(`${label}: ${line.trim()}`);
     }
   };
 
