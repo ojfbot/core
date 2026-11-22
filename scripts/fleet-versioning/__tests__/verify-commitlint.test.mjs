@@ -121,6 +121,14 @@ describe('pnpm verify: versioning/commitlint', () => {
     expect(r.status).not.toBe(0);
   });
 
+  it("PASSes GitHub's merge-button message with the PR title as the body", { timeout: T }, () => {
+    git('checkout', '-q', '-B', 'topic', 'origin/main');
+    commit('Merge pull request #70 from ojfbot/feat/agent-bead-bridge\n\nfeat: AgentBead bridge');
+    const r = verify('versioning/commitlint');
+    expect(r.out).toMatch(/PASS\s+versioning\/commitlint/);
+    expect(r.status).toBe(0);
+  });
+
   it("PASSes a branch that merged main in with GitHub's own merge header", { timeout: T }, () => {
     git('checkout', '-q', '-B', 'topic', 'origin/main');
     commit('feat: topic work');

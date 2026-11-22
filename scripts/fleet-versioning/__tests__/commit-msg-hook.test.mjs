@@ -27,6 +27,8 @@ describe('.githooks/commit-msg', () => {
     'fix: repair\n\nCo-Authored-By: Someone <someone@example.com>\n',
     "Merge branch 'main' into feature/add-thing\n\n# Conflicts:\n#\tpackage.json\n",
     'Merge pull request #7 from ojfbot/some-branch\n',
+    // GitHub's merge button, with the PR title as the body (a real commit of this repository, 60653a7)
+    'Merge pull request #70 from ojfbot/feat/agent-bead-bridge\n\nfeat: AgentBead bridge — session initializer + Gas Town A2/A3 CLI commands\n',
   ])('lets %j through', (message) => {
     expect(hook(message).status).toBe(0);
   });
@@ -47,6 +49,7 @@ describe('.githooks/commit-msg', () => {
     'Merged PR 5: whatever\n',
     'Automatic merge stuff\n',
     'feat add thing no colon\n\nMerge branch foo\n',
+    'Merge pull request #7 from o/b\n\nfeat: title\n\nand a second paragraph\n',
   ])('refuses %j', (message) => {
     const r = hook(message);
     expect(r.status).not.toBe(0);

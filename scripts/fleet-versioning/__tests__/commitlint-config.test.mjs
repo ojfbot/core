@@ -29,6 +29,13 @@ const accept = [
   "Merge branch 'main' into feature/add-thing",
   'Merge pull request #123 from ojfbot/claude/some-branch',
   "Merge branch 'main' into feature/add-thing\n\n# Conflicts:\n#\tfile.txt",
+  // GitHub's merge button writes the pull request title as the body; these are real commits from this
+  // repository's history (60653a7, 62b5c2d, 23b0aa6)
+  'Merge pull request #70 from ojfbot/feat/agent-bead-bridge\n\nfeat: AgentBead bridge — session initializer + Gas Town A2/A3 CLI commands',
+  'Merge pull request #68 from ojfbot/fix/chokidar-to-eventbus\n\nfix(bead-store): replace chokidar with eventBus in FilesystemBeadStore',
+  'Merge pull request #62 from ojfbot/feat/bead-prefix-map\n\nfeat: add seh/lean/gt bead prefixes',
+  // squash merges are just a conventional header with the commit titles as the body
+  'feat(fleet-runner): add a stage dry run (#123)\n\n* feat: first\n* fix: second',
 ];
 const reject = [
   ['fixed the bug', /type may not be empty|subject may not be empty/],
@@ -62,6 +69,8 @@ const reject = [
   ['Merge abc1234 into def5678', /type may not be empty|subject may not be empty/],
   ["Merge remote-tracking branch 'origin/main'", /type may not be empty|subject may not be empty/],
   ["Merge branch 'main' into feature/x\nand a hand-written extra line without a blank line", /type may not be empty|subject may not be empty/],
+  // a merge-commit body is one line, the PR title; more than that is hand-written text
+  ['Merge pull request #7 from o/b\n\nfeat: title\n\nand a second paragraph', /type may not be empty|subject may not be empty/],
 ];
 
 describe('shared commitlint config', () => {

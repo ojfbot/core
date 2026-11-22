@@ -102,6 +102,15 @@ describe('merge, fixup and version-number commits are linted too', () => {
     git('checkout', '-q', 'main');
   });
 
+  it("passes GitHub's merge-button message: header plus the pull request title as the body", () => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+    const head = commit('Merge pull request #70 from ojfbot/feat/agent-bead-bridge\n\nfeat: AgentBead bridge — session initializer');
+    const r = lint(base, head);
+    expect(r.out).toMatch(/: PASS/);
+    expect(r.status).toBe(0);
+  });
+
   it.each([
     ['a fixup commit', 'fixup! feat: topic work'],
     ['a squash commit', 'squash! feat: topic work'],
