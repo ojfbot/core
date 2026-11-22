@@ -12,7 +12,8 @@
     "lint:fix": "eslint 'packages/*/src/**/*.ts' --fix",
     "format": "prettier --write 'packages/*/src/**/*.ts'",
     "format:check": "prettier --check 'packages/*/src/**/*.ts'",
-    "typecheck": "tsc --noEmit -p tsconfig.base.json"
+    "typecheck": "tsc --noEmit -p tsconfig.base.json",
+    "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
@@ -21,7 +22,8 @@
     "prettier": "^3.3.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "yaml": "^2.9.1"
   },
   "dependencies": {
     "mysql2": "^3.22.0",
