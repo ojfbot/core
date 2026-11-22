@@ -14,10 +14,20 @@ commitlint and release-please.** A tag never deploys anything by itself.
 
 ### Commit types and what they release
 
-`fix` is a patch, `feat` a minor, `!` after the type (or a `BREAKING CHANGE:` footer) a major.
-Below 1.0 a breaking change bumps the minor and `feat` still bumps the minor. `perf`, `revert`,
-`docs`, `style`, `refactor`, `test`, `build`, `ci` and `chore` are allowed and never open a release
-by themselves. Anything else is rejected.
+`feat` is a minor; `fix`, `perf` and `revert` are a patch; `!` after the type (or a `BREAKING CHANGE:`
+footer) is a major. Below 1.0 a breaking change bumps the minor, and a package still at `0.0.0` (no
+release yet) gets its first release as `0.1.0`, never `1.0.0` (`initial-version`). `docs`, `style`,
+`refactor`, `test`, `build`, `ci` and `chore` are allowed and never open a release by themselves.
+Anything else is rejected. (`perf` and `revert` release because release-please releases them by
+default and a revert of a released change should ship; `scripts/fleet-versioning/__tests__/release-versions.test.mjs`
+shows the next version of every package for every type.)
+
+**Every commit is linted, with no built-in exceptions.** `fixup!`, `squash!`, `Revert "..."` and a
+bare `1.2.3` are rejected (squash fixups with an interactive rebase before committing; write a
+revert as `revert: <subject>`). Exactly two merge headers pass, because git and GitHub write them:
+`Merge branch '<branch>' into <branch>` (git merge, the "Update branch" button) and
+`Merge pull request #<n> from <owner>/<branch>`; the rest of such a message may only be blank or `#`
+comment lines. Any other merge header must be rewritten as a conventional commit.
 
 ```
 feat(fleet-runner): add a stage dry run
@@ -33,7 +43,13 @@ the commit that lands, so it must pass too.
 ## Rules a contributor follows
 
 - Never edit a `version` in a `package.json` or the `.release-please-manifest.json` by hand. CI
-  fails the pull request. Merge the release PR instead.
+  fails the pull request. Merge the release PR instead. CI recognises release-please's own PR by who
+  it is, not by its branch name: the PR is opened by the release-please actor (`github-actions[bot]`
+  unless the repo passes `release-actors`), every commit on it is authored by that actor, it changes
+  only version-only `package.json` edits, the manifest and `CHANGELOG.md` (plus any
+  `release-extra-files` the repo names), and every version goes up. A branch that merely has the
+  name gets no exemption. What this cannot prove is that a version is the number release-please
+  computed; the release PR is reviewed before it is merged.
 - Never skip the hook (`--no-verify`) and never weaken a commitlint rule to get a commit through.
   Fix the message.
 - A new package: add it to `release-please-config.json` (`packages`, with a unique `component`)

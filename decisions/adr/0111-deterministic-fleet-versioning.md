@@ -43,16 +43,20 @@ exceptions and no per-package opt-outs.
    `commit-msg` git hook, installed through the repo's own package manager (`pnpm install` runs a
    `prepare` script; no global tool), and a CI job that lints **every commit in the pull request
    and the pull request title** (the title is what a squash merge writes to the default branch).
-   Neither is ever skipped: no `--no-verify`, no "advisory" mode.
-2. **Versions and changelogs come from release-please in manifest mode.** `fix` is a patch, `feat`
-   a minor, `!` or a `BREAKING CHANGE` footer a major. Below 1.0 a breaking change bumps the
+   Neither is ever skipped: no `--no-verify`, no "advisory" mode. Every commit is linted: the
+   built-in ignores (`fixup!`, `squash!`, `Revert "..."`, bare version numbers, arbitrary merge
+   messages) are off, and only the two merge headers git and GitHub write are allowed.
+2. **Versions and changelogs come from release-please in manifest mode.** `feat` is a minor, `fix`,
+   `perf` and `revert` a patch, `!` or a `BREAKING CHANGE` footer a major. Below 1.0 a breaking change bumps the
    minor and a `feat` still bumps the minor (`bump-minor-pre-major: true`,
    `bump-patch-for-minor-pre-major: false`); the rule is set in each repo's release-please
    config and not decided per release. There is **one release PR per package**; merging it writes
    the changelog and creates the tag `<package>-vX.Y.Z`. A package that has never been released
-   starts at its current version.
+   starts at its current version, and one still at `0.0.0` releases first as `0.1.0` (`initial-version`),
+   not release-please's default of `1.0.0`.
 3. **No hand-edited versions.** A CI check refuses any change to a `package.json` `version` (and to
-   an existing manifest entry) outside release-please's own PR. The same check fails a repo that has
+   an existing manifest entry) outside release-please's own PR, which it recognises by who opened it,
+   who authored its commits and which files it changes, never by its branch name. The same check fails a repo that has
    a `package.json` release-please does not cover, so "every package" is enforced, not hoped for.
 4. **A tag never deploys.** Releasing is separate from shipping. A service's stage and promote steps
    take the tag and its exact commit, and going live still needs the owner's yes naming the
@@ -82,6 +86,7 @@ How a repo adopts all of this is in `domain-knowledge/versioning-convention.md`.
 ### Costs
 - Every contributor, human or agent, must write conventional commit messages; a wrong one is
   rejected locally before it exists. Squash-merge repos must also name the PR title correctly.
+- `git commit --fixup` and `git revert` messages are refused as written and must be reworded.
 - Two checks and one release PR per package add CI minutes. The jobs fetch commit history only and
   install one tool, to stay under a minute on a private repo.
 - release-please's own PRs and tags do not trigger other workflows when made with the default
@@ -96,7 +101,8 @@ How a repo adopts all of this is in `domain-knowledge/versioning-convention.md`.
 - The root `package.json` of a workspace is a package like any other and is versioned too; its
   release excludes the paths of the workspace packages so it does not duplicate their releases.
 - Commit types that do not release (`docs`, `chore`, `ci`, `test`, `build`, `style`, `refactor`)
-  never open a release PR by themselves.
+  never open a release PR by themselves. `perf` and `revert` do (a patch), as release-please does by
+  default; they were not configured away because a revert of released work should ship.
 
 ## Alternatives considered
 
