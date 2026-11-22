@@ -7,7 +7,7 @@
   "tag-separator": "-",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
-  "bootstrap-sha": "3f6fed10448fa9b2a61506f4d54af990a98fad6c",
+  "bootstrap-sha": "4975e971ac7b8c48f98a1bc800727e022b999389",
   "changelog-path": "CHANGELOG.md",
   "packages": {
     ".": {
