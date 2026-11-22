@@ -103,12 +103,16 @@ have_lock=yes
 # Only a run that passes below may leave a revision promotable: clear every earlier pass first.
 nas 'rm -f "$1"/releases/*/STAGED_OK' "$NAS_STAGE_DIR"
 
-# Node, as the test copy's own client: its keys and CA only, nothing inherited from this shell.
+# Node, as the test copy's own client: its keys and CA only. What must not leak in from the caller's
+# shell (a stray FLEET_* setting, another CA, another endpoint) is unset; the values this needs are
+# read FIRST, because the private config may well export STAGE_HOST or STAGE_KEYS_DIR.
 stage_node() {
+  local host="$STAGE_HOST" port="$STAGE_PORT" keys="$STAGE_KEYS_DIR"
   (
-    for v in $(env | grep -oE '^(FLEET_[A-Z_]*|STAGE_[A-Z_]*|NODE_EXTRA_CA_CERTS)=' | tr -d =); do unset "$v"; done
-    export STAGE_URL="https://$STAGE_HOST:$STAGE_PORT" STAGE_KEYS_DIR
-    export NODE_EXTRA_CA_CERTS="$STAGE_KEYS_DIR/ca.crt"
+    for v in $(env | grep -oE '^(FLEET_[A-Z_]*|NODE_EXTRA_CA_CERTS|NODE_OPTIONS)=' | tr -d =); do unset "$v"; done
+    unset STAGE_URL STAGE_KEYS_DIR
+    export STAGE_URL="https://$host:$port" STAGE_KEYS_DIR="$keys"
+    export NODE_EXTRA_CA_CERTS="$keys/ca.crt"
     node "$here/stage-smoke.mjs" "$@"
   )
 }

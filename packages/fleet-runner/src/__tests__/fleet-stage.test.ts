@@ -703,6 +703,88 @@ describe("fleet-stage.sh", () => {
     }
   });
 
+  it("refuses an env file that points the container at production's root while the config names the marked test root (HIGH)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const dir = release(a);
+    // Production's root exists, holds its own data, and is declared in the private config.
+    const prodRoot = join(box.root, "nas/production-root");
+    mkdirSync(join(prodRoot, "state"), { recursive: true });
+    writeFileSync(join(prodRoot, "state", "fleet.sqlite"), "production data");
+    writeFileSync(box.conf, `${readFileSync(box.conf, "utf8")}NAS_PROD_ROOT=${prodRoot}\n`, {
+      mode: 0o600,
+    });
+    // Compose would read the server env file, so this is what the container would actually open.
+    const envFile = join(box.nasDeploy, "fleet-staging.env");
+    writeFileSync(
+      envFile,
+      readFileSync(envFile, "utf8").replace(
+        /^FLEET_STAGE_ROOT=.*$/m,
+        `FLEET_STAGE_ROOT=${prodRoot}`,
+      ),
+    );
+    const r = stage([a, "--release", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FLEET_STAGE_ROOT differs from the private config");
+    expect(existsSync(join(box.nasDeploy, "releases", a))).toBe(false);
+    expect(readFileSync(join(prodRoot, "state", "fleet.sqlite"), "utf8")).toBe("production data");
+    expect(readFileSync(fakeState("docker.log"), "utf8")).not.toContain("compose");
+  });
+
+  it("does not report success when the final stop fails: nothing is promotable (MEDIUM)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const r = stage([a, "--release", release(a)], { FAKE_STOP_FAILS: "1" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL could not stop the test copy");
+    expect(r.out).not.toContain("PASS " + a.slice(0, 7) + " is staged");
+    expect(existsSync(join(box.nasDeploy, "releases", a, "STAGED_OK"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, "last-passed"))).toBe(false);
+  });
+
+  it("does not back up the state while the previous service may still be writing (MEDIUM)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    // a is left running, as --keep-running does; the stop before b's backup fails.
+    expect(stage([a, "--release", release(a), "--keep-running"]).status).toBe(0);
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(true);
+    const backupsBefore = readdirSync(box.nasRoot).filter((f) => f.startsWith("state.pre-"));
+    const r = stage([b, "--release", release(b)], { FAKE_STOP_FAILS: "1" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL could not stop the test copy");
+    // No new backup was taken: the copy of the state is only made once nothing is running.
+    expect(readdirSync(box.nasRoot).filter((f) => f.startsWith("state.pre-"))).toEqual(
+      backupsBefore,
+    );
+    expect(existsSync(join(box.nasDeploy, "releases", b, "STAGED_OK"))).toBe(false);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+  });
+
+  it("works when the private config exports its STAGE_* settings, in the smoke test and in a rollback (MEDIUM)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    writeFileSync(
+      box.conf,
+      readFileSync(box.conf, "utf8")
+        .split("\n")
+        .map((l) => (/^(STAGE_|NAS_|PROD_)[A-Z_]*=/.test(l) ? `export ${l}` : l))
+        .join("\n"),
+      { mode: 0o600 },
+    );
+    expect(readFileSync(box.conf, "utf8")).toContain("export STAGE_HOST=");
+    expect(readFileSync(box.conf, "utf8")).toContain("export STAGE_KEYS_DIR=");
+    const first = stage([a, "--release", release(a)]);
+    expect(first.status, first.out).toBe(0);
+    expect(first.out).not.toContain("unbound variable");
+    // The readiness wait inside a rollback needs the same variables.
+    const r = stage([b, "--release", release(b)], { FAKE_BAD_REV: b, FLEET_READY_TRIES: "3" });
+    expect(r.status).toBe(1);
+    expect(r.out).not.toContain("unbound variable");
+    expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+  });
+
   it("refuses a release that does not verify, before anything reaches the server", () => {
     prepare();
     const [a, b] = box.revs as [string, string];

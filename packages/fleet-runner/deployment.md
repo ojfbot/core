@@ -268,7 +268,9 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
    the port differs from production's and is not published by another
    container, and the name differs from production's. It compares declared
    values and lists container names and ports only; it does not inspect or touch
-   production.
+   production. The env file is the one Compose actually reads, so a root, port or
+   address in it that differs from the private config (for example one that names
+   production's root) is refused before anything changes.
 2. **Lock.** One run at a time: an atomic lock folder on the server, owned by this
    run's ID (the time plus the process ID, which also names every backup of the
    run) and released on every way out. A crashed run's lock is left for a person
@@ -291,7 +293,9 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
    (never pulling an image), and checks that the running image is the checked
    one. The test copy is always stopped by its Compose project label rather than
    through Compose, which would first have to interpolate an env file that may
-   hold no revision; a stop that fails, or leaves a container running, is a FAIL.
+   hold no revision; a stop that fails, or leaves a container running, is a FAIL,
+   and neither the state backup nor the pass record happens until every container
+   of the project is confirmed stopped.
 6. **Smoke test** from this Mac with the test copy's own keys
    (`scripts/stage-smoke.mjs`, using the built client of this checkout): the
    signed status answers ready with exactly this revision as its build; a signed
