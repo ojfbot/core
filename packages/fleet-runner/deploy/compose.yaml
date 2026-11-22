@@ -1,0 +1,37 @@
+# FleetRunner TEST COPY (ojfbot/core#647, slice 2). One service: the release image of one revision,
+# on its own port, folders and database, separate from production. It is started by
+# scripts/fleet-stage.sh for a test and stopped again afterwards (restart: "no"), so it only runs
+# while a test is under way. Every machine-specific value comes from the private env file next to
+# this one on the host (see deployment.md); nothing here names a host, address or folder.
+#
+#   docker compose -p <project> --env-file fleet-staging.env -f compose.yaml up -d
+name: ${FLEET_COMPOSE_PROJECT:?set FLEET_COMPOSE_PROJECT}
+
+services:
+  fleet-runner:
+    # The image is loaded from the checked release archive and named by its full revision.
+    image: ${FLEET_IMAGE:?set FLEET_IMAGE}
+    platform: linux/amd64
+    # Never restarted by the engine: the stage script starts it for a test and stops it after.
+    restart: "no"
+    # The account that owns the test folders; the image's own user is 1000.
+    user: "${FLEET_UID:-1000}:${FLEET_GID:-1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    # The LAN address and port are required: omitting them would publish on every interface.
+    ports: ["${FLEET_LAN_IP:?set FLEET_LAN_IP}:${FLEET_HOST_PORT:?set FLEET_HOST_PORT}:8787"]
+    environment:
+      FLEET_BUILD_REF: ${FLEET_REVISION:?set FLEET_REVISION}
+      FLEET_WORKERS: ${FLEET_WORKERS:-stage-worker}
+      # No observer identity in the test copy; the owner reads its status.
+      FLEET_OBSERVERS: ""
+      FLEET_TLS_CERT: /run/fleet-runner/tls/server.crt
+      FLEET_TLS_KEY: /run/fleet-runner/tls/server.key
+    volumes:
+      - ${FLEET_STAGE_ROOT:?set FLEET_STAGE_ROOT}/state:/var/lib/fleet-runner/state
+      - ${FLEET_STAGE_ROOT}/output:/var/lib/fleet-runner/output
+      - ${FLEET_STAGE_ROOT}/public-keys:/run/fleet-runner/public-keys:ro
+      - ${FLEET_STAGE_ROOT}/tls:/run/fleet-runner/tls:ro
