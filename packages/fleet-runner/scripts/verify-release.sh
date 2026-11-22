@@ -7,7 +7,7 @@
 #
 # The release directory holds fleet-runner-image.tar, fleet-runner-image.tar.sha256 and
 # release.json from release-image.sh. [revision] is a full commit or any unambiguous prefix of
-# one; when given, release.json must name that commit. Needs bash, sed, awk, tar, node and a
+# one; when given, release.json must name that commit. Needs bash, sed, awk, node and a
 # SHA-256 tool (plus Docker for `load`). Prints PASS or FAIL lines and digests, nothing else.
 # Bash 3 compatible (macOS /bin/bash).
 set -euo pipefail
@@ -86,31 +86,53 @@ fi
 # without it the check fails rather than being skipped.
 command -v node >/dev/null 2>&1 || fail "node is required to read the archive"
 node --input-type=module - "$dir/$archive" "$dir/release.json" "$tag" "$image_id" "$manifest_digest" <<'NODE' || exit 1
-import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { fstatSync, openSync, readFileSync, readSync } from "node:fs";
 const [archive, releaseFile, tag, imageId, manifestDigest] = process.argv.slice(2);
 const fail = (why) => {
   console.log(`FAIL ${why}`);
   process.exit(1);
 };
-const run = (args) => execFileSync("tar", args, { maxBuffer: 1 << 28 });
-let names;
-try {
-  names = run(["-tf", archive]).toString("utf8").split("\n").filter(Boolean);
-} catch {
-  fail("archive is not a readable tar");
+// Read the tar headers here instead of asking `tar` to list them, so the names and types checked
+// are the ones whose bytes are read, from one parse. Only plain ustar is accepted: regular files
+// and directories, canonical names, no pax or GNU extension records, no links, no name prefix.
+// (BuildKit's docker export is exactly that.)
+const MAX_MEMBER = 1 << 24;
+const fd = openSync(archive, "r");
+const total = fstatSync(fd).size;
+const members = [];
+const header = Buffer.alloc(512);
+const text = (from, length) => header.toString("latin1", from, from + length).replace(/\0.*$/s, "");
+for (let pos = 0; ; ) {
+  if (pos + 512 > total) fail("archive is truncated");
+  readSync(fd, header, 0, 512, pos);
+  if (header.every((byte) => byte === 0)) break;
+  if (text(257, 6) !== "ustar") fail("archive is not plain ustar");
+  const name = text(0, 100);
+  const kind = header[156] === 0 ? "0" : String.fromCharCode(header[156]);
+  const octal = text(124, 12).trim();
+  if (!/^[0-7]+$/.test(octal)) fail("archive member size");
+  const size = parseInt(octal, 8);
+  if (text(345, 155) !== "") fail("archive member has a name prefix");
+  if (kind !== "0" && kind !== "5") fail("archive has a member that is not a plain file or directory");
+  const canonical =
+    /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*\/?$/.test(name) && !name.split("/").some((part) => part === "." || part === "..");
+  if (!canonical || (kind === "0") === name.endsWith("/")) fail("archive has a member that is not canonically named");
+  const dataStart = pos + 512;
+  const next = dataStart + Math.ceil(size / 512) * 512;
+  if (next > total) fail("archive is truncated");
+  members.push({ name, kind, dataStart, size });
+  pos = next;
 }
-// Docker and tar can disagree about a name like ./manifest.json, a doubled slash or a ..
-// segment, so accept only canonical names, and only plain files and directories (no links).
-const types = run(["-tvf", archive]).toString("utf8").split("\n").filter(Boolean).map((l) => l[0]);
-if (types.length !== names.length) fail("archive listing is inconsistent");
-names.forEach((n, i) => {
-  const canonical = /^[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*\/?$/.test(n) && !n.split("/").some((part) => part === "." || part === "..");
-  if (!canonical || (types[i] !== "-" && types[i] !== "d")) fail("archive has a member that is not a plain, canonically named file");
-});
-const count = (name) => names.filter((n) => n === name).length;
-const read = (name) => (count(name) === 1 ? run(["-xOf", archive, name]) : null);
+const count = (name) => members.filter((m) => m.name === name && m.kind === "0").length;
+const read = (name) => {
+  if (count(name) !== 1) return null;
+  const member = members.find((m) => m.name === name && m.kind === "0");
+  if (member.size > MAX_MEMBER) fail("archive member is too large to check");
+  const buf = Buffer.alloc(member.size);
+  readSync(fd, buf, 0, member.size, member.dataStart);
+  return buf;
+};
 const parse = (buf, what) => {
   try {
     return JSON.parse(buf.toString("utf8"));
