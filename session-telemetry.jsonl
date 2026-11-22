@@ -11,3 +11,12 @@
 {"ts":"2026-11-21T05:05:27Z","event":"session:start","session_id":"899f88e5-4a63-409d-98a8-06088f2ec7fd","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-11-21T19:20:18Z","event":"session:start","session_id":"d11426b5-91f6-4547-8cc7-426a5811cb28","source":"startup","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
 {"ts":"2026-11-21T19:31:21Z","event":"session:start","session_id":"d11426b5-91f6-4547-8cc7-426a5811cb28","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-11-22T03:37:28Z","event":"session:start","session_id":"e6285288-ca2d-4c97-96c9-1fded33a667b","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T03:50:44Z","event":"session:start","session_id":"e6285288-ca2d-4c97-96c9-1fded33a667b","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T03:59:48Z","event":"session:start","session_id":"7af900fa-b0b3-43de-aa07-5c5da6f2db10","source":"startup","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T05:25:39Z","event":"session:start","session_id":"c31dc17d-2374-4db1-8af5-78c6fd9ffbba","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T05:34:28Z","event":"session:start","session_id":"9ea31f08-9c56-4c04-9805-d4c5c260f338","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T05:47:39Z","event":"session:start","session_id":"d11426b5-91f6-4547-8cc7-426a5811cb28","source":"resume","model":"","repo":"ojfbot","branch":"","cwd":"/Users/yuri/ojfbot"}
+{"ts":"2026-11-22T05:48:12Z","event":"session:start","session_id":"7af900fa-b0b3-43de-aa07-5c5da6f2db10","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T05:48:15Z","event":"session:start","session_id":"e6285288-ca2d-4c97-96c9-1fded33a667b","source":"resume","model":"","repo":"yuri","branch":"","cwd":"/Users/yuri"}
+{"ts":"2026-11-22T05:49:30Z","event":"session:start","session_id":"7af900fa-b0b3-43de-aa07-5c5da6f2db10","source":"compact","model":"claude-sonnet-5-5","repo":"yuri","branch":"","cwd":"/Users/yuri"}
