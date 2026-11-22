@@ -568,31 +568,26 @@ describe("verify-release.sh check", () => {
 
   it("fails closed when node is not available to read the archive", () => {
     writeRelease();
+    // A PATH of symlinks to exactly the tools the script uses before it reaches node, and no node,
+    // wherever node happens to live on this machine (perl: macOS shasum is a perl script).
     const bare = mkdtempSync(join(tmpdir(), "fleet-release-bare-"));
     try {
-      for (const tool of [
-        "tar",
-        "sed",
-        "awk",
-        "grep",
-        "head",
-        "tr",
-        "wc",
-        "cat",
-        "shasum",
-        "sha256sum",
-      ]) {
+      for (const tool of ["sed", "head", "awk", "sha256sum", "shasum", "perl"]) {
         const found = spawnSync("sh", ["-c", `command -v ${tool}`], {
           encoding: "utf8",
         }).stdout.trim();
         if (found) symlinkSync(found, join(bare, tool));
       }
+      const probe = spawnSync("sh", ["-c", "command -v node"], { env: { PATH: bare } });
+      expect(probe.status, "node must not be reachable from the bare PATH").not.toBe(0);
       const result = spawnSync("/bin/bash", [verify, "check", dir], {
         encoding: "utf8",
         env: { PATH: bare },
       });
+      const output = `${result.stdout}${result.stderr}`;
+      expect(output).toContain("PASS archive checksum");
+      expect(output).toContain("FAIL node is required");
       expect(result.status).toBe(1);
-      expect(`${result.stdout}${result.stderr}`).toContain("FAIL node is required");
     } finally {
       rmSync(bare, { recursive: true, force: true });
     }
