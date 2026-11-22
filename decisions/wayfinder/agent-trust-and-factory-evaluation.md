@@ -82,7 +82,9 @@ filed under `decisions/research/` and linked from the tickets they inform.
   role is an address only. Claims carry one of seven statuses (claimed, observed,
   inferred, verified by a named procedure, disputed, superseded, unknown). "Coordinator"
   is avoided. — Which shared trust words do we adopt? (#663, owner re-confirmed
-  2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied)
+  2026-11-22; CONTEXT.md diffs proposed in the ticket, not yet applied. REOPENED 2026-11-22:
+  the Codex challenge rejected it on 6 findings; being revised; bugs core#677,
+  daily-logger#593, LocalHelp#124)
 - Challenge rule. The opposite-vendor model, in a fresh context, refutes each design and
   sees raw records, not the designer's conclusions. Scripted attack scenarios run
   alongside it. Once per track a secret canary design checks the challenger. A design is
@@ -129,7 +131,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | open |
-| Which shared trust words do we adopt? (#663) | grilling | — | closed |
+| Which shared trust words do we adopt? (#663) | grilling | — | reopened (challenge rejected; revising) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | open |
