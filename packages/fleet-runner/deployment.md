@@ -148,7 +148,8 @@ could read differently from the verifier is refused rather than reconciled.
   only the names a BuildKit docker export holds (`manifest.json`, `index.json`,
   `oci-layout`, `blobs/`, `blobs/sha256/`, `blobs/sha256/<hex>`). Each name
   appears once; `./x`, `x/../y`, `/x`, `a//b`, links, and pax or GNU extension
-  records are all refused.
+  records are all refused. A directory must have size 0 (a sized one could hide
+  members from the parse), and nothing but zeros may follow the end marker.
 - **JSON:** read by a strict parser that rejects duplicate keys, and every
   object (`manifest.json` entry, `index.json`, its manifest entry, its
   annotations and platform, `release.json`) must have *exactly* the expected
