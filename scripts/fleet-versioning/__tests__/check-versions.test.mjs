@@ -381,6 +381,7 @@ describe('release-as is one-shot', () => {
     git('tag', 'a-v0.3.0');
     const problems = checkCoverage({ cwd: dir, configPath: CONFIG, manifestPath: MANIFEST });
     expect(problems.join('\n')).toMatch(/"release-as" 0\.3\.0 is still set for "packages\/a" but a-v0\.3\.0 is already released/);
+    expect(problems.join('\n')).toMatch(/ACTION FOR WHOEVER SEES THIS .* delete the "release-as": "0\.3\.0" line from the "packages\/a" entry/);
   });
 });
 

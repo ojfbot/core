@@ -67,13 +67,27 @@ const expected = {
   'feat!': { core: '0.2.0', 'commitlint-config': '0.2.0', 'fleet-runner': '0.3.0', 'native-dispatch': '0.5.0', 'read-model-contract': '0.2.0', workflows: '0.2.0', 'launcher-tests': '0.1.0' },
 };
 
+// FleetRunner's expected next versions only hold while its one-shot release-as is in the config.
+// After the 0.3.0 release the key is removed (AGENTS.md, "Standing follow-ups"); its releases are then
+// computed like any other package's, so they are left out of the table instead of failing it.
+const forcedFleetRunner = config.packages['packages/fleet-runner']['release-as'] !== undefined;
+const table = (type) => {
+  const row = { ...expected[type] };
+  if (!forcedFleetRunner) delete row['fleet-runner'];
+  return row;
+};
+const withoutFleetRunnerWhenReleased = (next) => {
+  if (!forcedFleetRunner) delete next['fleet-runner'];
+  return next;
+};
+
 describe('release-please dry run over every package', () => {
   it('covers every package in the config', () => {
     expect(Object.keys(expected.fix).sort()).toEqual(Object.values(config.packages).map((p) => p.component).sort());
   });
 
   it.each(Object.keys(expected))('a %s commit in each package gives these next versions', async (type) => {
-    expect(await dryRun(subject(type))).toEqual(expected[type]);
+    expect(withoutFleetRunnerWhenReleased(await dryRun(subject(type)))).toEqual(table(type));
   });
 
   it.each(['docs', 'chore', 'ci', 'test', 'build', 'style', 'refactor'])('a %s commit releases nothing', async (type) => {
@@ -81,9 +95,15 @@ describe('release-please dry run over every package', () => {
   });
 
   it("FleetRunner's first release is the plain 0.3.0 (owner decision: drop the bookcase tail), forced once", async () => {
+    const forced = Object.entries(config.packages).filter(([, p]) => p['release-as'] !== undefined);
+    if (!forcedFleetRunner) {
+      // already released and cleaned up: the manifest holds a plain version of 0.3.0 or later
+      expect(forced).toEqual([]);
+      expect(manifest['packages/fleet-runner']).toMatch(/^0\.(?:[3-9]|\d{2,})\.\d+$|^[1-9]\d*\.\d+\.\d+$/);
+      return;
+    }
     expect(manifest['packages/fleet-runner']).toBe('0.2.5-bookcase.2');
     expect(config.packages['packages/fleet-runner']['release-as']).toBe('0.3.0');
-    const forced = Object.entries(config.packages).filter(([, p]) => p['release-as'] !== undefined);
     expect(forced.map(([dir]) => dir)).toEqual(['packages/fleet-runner']);
     for (const type of ['fix', 'feat', 'feat!']) {
       expect((await dryRun(subject(type)))['fleet-runner']).toBe('0.3.0');

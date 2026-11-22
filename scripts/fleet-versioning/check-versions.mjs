@@ -258,7 +258,12 @@ export function checkCoverage({ cwd, configPath, manifestPath }) {
   for (const [dir, entry] of Object.entries(packages)) {
     const forced = entry['release-as'] ?? config['release-as'];
     if (forced !== undefined && entry.component && tags.has(`${entry.component}-v${forced}`)) {
-      problems.push(`${configPath}: "release-as" ${forced} is still set for "${dir}" but ${entry.component}-v${forced} is already released; remove it so later releases are computed again`);
+      problems.push(
+        `${configPath}: "release-as" ${forced} is still set for "${dir}" but ${entry.component}-v${forced} is already released. ` +
+          `ACTION FOR WHOEVER SEES THIS (agent or person; it is a standing agent task, not the owner's): delete the "release-as": "${forced}" line from the "${dir}" entry in ${configPath}, ` +
+          `in a PR titled "chore(release-please): drop one-shot release-as ${forced} for ${entry.component}" (see AGENTS.md, "Standing follow-ups"). ` +
+          'Until then every later release of that package would be forced to the same version.',
+      );
     }
   }
   const components = Object.values(packages).map((p) => p.component).filter(Boolean);

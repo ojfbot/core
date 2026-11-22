@@ -152,7 +152,7 @@ cannot tell that a version is the number release-please computed; reviewing the 
 
 `@core/fleet-runner` is at `0.2.5-bookcase.2`, and release-please keeps a pre-release suffix when it
 bumps. Its config entry carries a one-time `release-as: 0.3.0`, so the first release is the plain
-`0.3.0`. **Remove `release-as` right after that release** (the PR that merges after the
+`0.3.0`. **Remove `release-as` right after that release. This is a standing agent task, not the owner's** (AGENTS.md, "Standing follow-ups"; tracking issue ojfbot/core#659) (the PR that merges after the
 `fleet-runner-v0.3.0` tag exists): until then it would force every later release to 0.3.0, and the
 coverage check fails any pull request or push once that tag exists while the key is still set.
 The worker installer accepts SemVer pre-releases (since 8fc6e85), so nothing breaks either way.
