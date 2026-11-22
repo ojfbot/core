@@ -154,10 +154,10 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What do our own model tests measure? (#669) | grilling | — | closed |
+| What do our own model tests measure? (#669) | grilling | — | reopened (challenge rejected; revising) |
 | How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | closed |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
-| Which factory measures do we track? (#672) | grilling | — | closed |
+| Which factory measures do we track? (#672) | grilling | — | reopened (challenge rejected; revising) |
 | What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | open |
 
 ### Closing
