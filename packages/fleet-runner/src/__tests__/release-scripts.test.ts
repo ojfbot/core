@@ -44,6 +44,9 @@ interface ArchiveShape {
   // Replace the manifest text; receives the blob names of the recorded image and an unrelated one.
   manifestRaw?: (good: string, other: string) => string;
   duplicateManifest?: boolean;
+  // An extra member that tar and Docker may name differently, or a link.
+  dotSlashManifest?: boolean;
+  symlink?: boolean;
 }
 
 // A small tar shaped like the BuildKit docker export: manifest.json, index.json and config blobs.
@@ -79,6 +82,11 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     const out = join(stage, "image.tar");
     const tar = spawnSync("tar", ["-cf", out, ...names], { cwd: stage });
     if (tar.status !== 0) throw new Error("tar failed");
+    if (shape.dotSlashManifest) spawnSync("tar", ["-rf", out, "./manifest.json"], { cwd: stage });
+    if (shape.symlink) {
+      symlinkSync("manifest.json", join(stage, "link"));
+      spawnSync("tar", ["-rf", out, "link"], { cwd: stage });
+    }
     if (shape.duplicateManifest) {
       spawnSync("tar", ["-rf", out, "manifest.json"], { cwd: stage });
     }
@@ -290,6 +298,25 @@ describe("verify-release.sh check", () => {
     expect(r.status).toBe(1);
     expect(r.out).toContain("FAIL archive has no single manifest.json");
     expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("refuses a manifest.json that tar lists as ./manifest.json, and link members", () => {
+    writeRelease({}, { dotSlashManifest: true });
+    expect(run(["check", dir]).out).toContain("FAIL archive has a member that is not a plain");
+    writeRelease({}, { symlink: true });
+    expect(run(["check", dir]).out).toContain("FAIL archive has a member that is not a plain");
+  });
+
+  it("always reads an index.json that is present, and needs the release to record its digest", () => {
+    writeRelease({ manifest_digest: null });
+    const r = run(["check", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive manifest digest is not the recorded one");
+  });
+
+  it("accepts a release with no index.json and no recorded manifest digest", () => {
+    writeRelease({ manifest_digest: null }, { indexDigest: null });
+    expect(run(["check", dir]).status).toBe(0);
   });
 
   it("fails closed when node is not available to read the archive", () => {
