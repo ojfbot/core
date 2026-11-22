@@ -38,6 +38,16 @@ this map; those belong to the build slices after handoff.
 - Core is public. Tickets state questions only. Detailed threat-model findings and anything
   naming the home network stay in private notes.
 
+### Owner addendum: conductor tiers, 2026-11-22
+
+The owner ruled, before further HelpDesk and conductor work, that a conductor is a type
+with tiers. There may be a conductor for a whole machine, one for a whole project and one
+for a specific repo. A conductor can be assigned baskets of tasks and reports to its own
+parent conductor. This must be built into the fleet's graph and node shapes now. Tracked as
+"How do conductor tiers nest, and what does each tier own?" (#682). Rulings that name "the
+conductor" (#663, #666) will be re-checked against it. #679, #680 and #668 hold any part
+that depends on it.
+
 ### Boundaries with other maps
 
 - fleet-runner map (#307): owns FleetRunner authority and promotion through "What
@@ -130,6 +140,13 @@ filed under `decisions/research/` and linked from the tickets they inform.
   the owner as one BLOCKER. The Mac is the read boundary. Threat detail is kept in a
   private note. — What must each step of a HelpDesk session's life prove? (#666, owner
   confirmed in the conductor chat 2026-11-22)
+- Permission patterns shortlist (research, nothing chosen): attenuating capability tokens,
+  a policy engine inside each service, a checkpoint outside the agent (gateway or
+  reference monitor), OAuth 2.1 with MCP authorization and token exchange, and client-side
+  rules on the Mac. Ruled out for now: SPIFFE/SPIRE, RBAC roles, a standalone just-in-time
+  broker. No stateless pattern enforces a budget shared across children; a service must
+  hold the counter. Findings: `decisions/research/permission-patterns-665.md`. — Which
+  established permission patterns are worth evaluating? (#665)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -148,12 +165,13 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | What do the original sources actually say? (#662) | research | — | open |
 | Which shared trust words do we adopt? (#663) | grilling | — | closed (revised; second challenge queued) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
-| Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | open |
+| Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | closed |
 | What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed |
 | Which in-flight work can be proven stopped? (#678) | grilling | — | open |
 | What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
 | What does a checkable re-delegation record contain? (#680) | grilling | — | open |
 | How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | open |
+| How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | open (first; #679, #680, #668 hold dependent parts) |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
 | How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
 
