@@ -127,12 +127,16 @@ const MAX_MEMBER = 1 << 24;
 const fd = openSync(archive, "r");
 const total = fstatSync(fd).size;
 const members = new Map();
+let endOfMembers = 0;
 const header = Buffer.alloc(512);
 const text = (from, length) => header.toString("latin1", from, from + length).replace(/\0.*$/s, "");
 for (let pos = 0; ; ) {
   if (pos + 512 > total) fail("archive is truncated");
   readSync(fd, header, 0, 512, pos);
-  if (header.every((byte) => byte === 0)) break;
+  if (header.every((byte) => byte === 0)) {
+    endOfMembers = pos;
+    break;
+  }
   if (text(257, 6) !== "ustar") fail("archive is not plain ustar");
   const name = text(0, 100);
   const kind = header[156] === 0 ? "0" : String.fromCharCode(header[156]);
@@ -141,6 +145,9 @@ for (let pos = 0; ; ) {
   const size = parseInt(octal, 8);
   if (text(345, 155) !== "") fail("archive member has a name prefix");
   if (kind !== "0" && kind !== "5") fail("archive has a member that is not a plain file or directory");
+  // A directory has no payload. One that claims a size would hide the bytes after it from this
+  // parse while a tar or Docker reader that does not skip them could read a second manifest.json.
+  if (kind === "5" && size !== 0) fail("archive directory member has a nonzero size");
   const allowed = kind === "5" ? DIRECTORIES.has(name) : FILES.some((pattern) => pattern.test(name));
   if (!allowed) fail("archive has a member outside the allowed layout");
   if (members.has(name)) fail("archive has a member that appears twice");
@@ -149,6 +156,15 @@ for (let pos = 0; ; ) {
   if (next > total) fail("archive is truncated");
   members.set(name, { kind, dataStart, size });
   pos = next;
+}
+// After the end-of-archive block there must be nothing but zeros: a reader that continues past it
+// (or rejects it, as Go's does) must not see something this parse never examined.
+{
+  const chunk = Buffer.alloc(1 << 16);
+  for (let at = endOfMembers; at < total; at += chunk.length) {
+    const got = readSync(fd, chunk, 0, Math.min(chunk.length, total - at), at);
+    if (got <= 0 || !chunk.subarray(0, got).every((byte) => byte === 0)) fail("archive has data after its end marker");
+  }
 }
 const read = (name) => {
   const member = members.get(name);

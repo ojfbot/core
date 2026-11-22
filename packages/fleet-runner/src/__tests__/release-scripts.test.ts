@@ -63,6 +63,10 @@ interface ArchiveShape {
   // Rename a member in its tar header, as a name that tar and Docker may clean differently.
   rename?: [string, string];
   indexRaw?: string;
+  // Give the blobs/ directory header a nonzero size field, so its "payload" swallows the next members.
+  directorySize?: string;
+  // Non-zero bytes after the end-of-archive marker.
+  trailing?: boolean;
   // The OCI manifest the index points at: its text, the bytes actually stored under its name, or none.
   ociRaw?: string;
   ociBlobBytes?: string;
@@ -172,6 +176,12 @@ function makeArchive(shape: ArchiveShape = {}): Buffer {
     const bytes = readFileSync(out);
     if (shape.typeflag) bytes[156] = shape.typeflag.charCodeAt(0);
     if (shape.rename) renameMember(bytes, shape.rename[0], shape.rename[1]);
+    if (shape.directorySize) {
+      // The first header is blobs/: write the octal size at offset 124, NUL-terminated.
+      bytes.fill(0, 124, 136);
+      bytes.write(`${shape.directorySize}\0`, 124, "latin1");
+    }
+    if (shape.trailing) return Buffer.concat([bytes, Buffer.alloc(512, 1)]);
     return bytes;
   } finally {
     rmSync(stage, { recursive: true, force: true });
@@ -564,6 +574,21 @@ describe("verify-release.sh check", () => {
     expect(run(["check", dir]).out).toContain(
       "FAIL oci-layout does not have exactly the expected keys",
     );
+  });
+
+  it("refuses a directory member with a nonzero size, which would hide the members after it", () => {
+    writeRelease({}, { directorySize: "00000001000" });
+    const r = run(["check", dir]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL archive directory member has a nonzero size");
+    expect(() => readFileSync(join(dir, "docker.log"))).toThrow();
+  });
+
+  it("refuses any data after the end-of-archive marker", () => {
+    writeRelease({}, { trailing: true });
+    expect(run(["check", dir]).out).toContain("FAIL archive has data after its end marker");
+    writeRelease();
+    expect(run(["check", dir]).status).toBe(0);
   });
 
   it("fails closed when node is not available to read the archive", () => {
