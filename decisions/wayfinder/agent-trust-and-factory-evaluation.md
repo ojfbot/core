@@ -75,7 +75,14 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Decisions so far
 
-_None yet._
+- Private tests cover coding slices, PR review, coordination with honest status reports,
+  and triage. Tasks come only from real fleet work, plus harder variants written from a
+  real seed. The scored set stays private. Scoring is pass/fail against checks written
+  before any run, 3 tries per task, with cost and time reported separately. Tasks, checks
+  and budget are fixed and each run is labelled with model, harness and prompt version.
+  There is a frozen long-term set plus numbered harder sets, the owner promotes tasks, and
+  the sets are reviewed quarterly. — What do our own model tests measure? (#669, owner
+  re-confirmed 2026-11-22)
 
 ## Tickets
 
@@ -95,7 +102,7 @@ _None yet._
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
-| What do our own model tests measure? (#669) | grilling | — | open |
+| What do our own model tests measure? (#669) | grilling | — | closed |
 | How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | open |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
 | Which factory measures do we track? (#672) | grilling | — | open |
