@@ -172,6 +172,32 @@ filed under `decisions/research/` and linked from the tickets they inform.
   stages, score splits and insider types are our interpretation, as are Linear's
   "chapters" and "perspectives" ("sections" is Linear's word). — What do the original
   sources actually say? (#662)
+- Conductor tiers. Conductors live in one tree of seats. Each seat's scope (Macs, repos,
+  actions, basket) fits inside its parent's, and labels are open. The owner names the
+  long-lived seats in one passkey charter. Those may name one level of child seats, signed
+  by the parent holder, with standbys listed by that holder. Seat levels and work hops are
+  counted separately. A basket is a work-register record, and a task sits in at most one.
+  The register is the report: BLOCKERs go up seat by seat, and the parent seat referees
+  clashes. — How do conductor tiers nest, and what does each tier own? (#682, owner
+  confirmed 2026-11-22)
+- Re-delegation. Child-seat records and work grants are HelpDesk records signed by the
+  parent's holder. Each names its parent by fingerprint, its scope, expiry, set-aside runs
+  and hops left. Any work grant may pass on while hops remain; the checker recounts. The
+  budget counts runs only. A child seat lasts at most 14 days and a work grant at most 3.
+  Ending a record ends everything below it. — What does a checkable re-delegation record
+  contain? (#680, owner confirmed 2026-11-22)
+- Owner record. The owner's passkey signs signing keys (the first added at the NAS), the
+  charter of top seats, one-time approvals (24 hours, spent once) and revocations (lost or
+  stolen). Each Mac re-checks every record itself. There is one 90-day check-up, and a
+  second key kept at home. — What does a passkey-signed owner record contain? (#679, owner
+  confirmed 2026-11-22)
+- Evidence chain. Each service keeps its own journal. Links name the record they came from
+  by ID and digest, and a read-only linker rebuilds chains. The service that acted writes
+  "observed", and an agent's account is "claimed". A chain is as strong as its weakest
+  link. Hook logs hold identifiers only, are copied to a private NAS store and kept
+  forever; adding that store to the backup is a separate reviewed change. Journals are
+  hash-chained and witness each other hourly. — How is the evidence chain recorded across
+  services? (#668, owner confirmed 2026-11-22)
 - Private tests cover coding slices, PR review, coordination with honest status reports,
   and triage. Tasks come only from real fleet work, plus harder variants written from a
   real seed. The scored set stays private. Scoring is pass/fail against checks written
@@ -188,25 +214,26 @@ filed under `decisions/research/` and linked from the tickets they inform.
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do the original sources actually say? (#662) | research | — | closed |
-| Which shared trust words do we adopt? (#663) | grilling | — | reopened (second challenge rejected; owner chose a full third revision) |
+| Which shared trust words do we adopt? (#663) | grilling | — | closed (revised twice; stop rule applies) |
 | Who is the independent challenger, and what evidence persuades them? (#664) | grilling | — | closed |
 | Which established permission patterns are worth evaluating? (#665) | research | Which shared trust words do we adopt? | closed |
-| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed (challenge rejected; revision waits on #682) |
+| What must each step of a HelpDesk session's life prove? (#666) | grilling | Which shared trust words do we adopt? | closed (revised; second challenge queued) |
 | Which in-flight work can be proven stopped? (#678) | grilling | — | closed (challenge queued) |
-| What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | open |
-| What does a checkable re-delegation record contain? (#680) | grilling | — | open |
+| What does a passkey-signed owner record contain, and how is it checked? (#679) | grilling | — | closed (challenge queued) |
+| What does a checkable re-delegation record contain? (#680) | grilling | — | closed (challenge queued) |
 | How are owner actions told apart from agent actions on GitHub? (#681) | grilling | — | closed (challenge queued) |
 | Should an owner-only GitHub account own the repos through an organization? (#684) | grilling | — | open (later) |
-| How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | open (first; #679, #680, #668 hold dependent parts) |
+| How do unregistered and native sessions join the evidence chain? (#685) | grilling | — | open |
+| Can a session's key be protected from other programs on the same Mac? (#686) | research | — | open |
+| How do conductor tiers nest, and what does each tier own? (#682) | grilling | — | closed (challenge queued) |
 | Where are agent permissions enforced: in each service or a tool gateway? (#667) | grilling | Which established permission patterns are worth evaluating?; What must each step of a HelpDesk session's life prove? | open |
-| How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | open |
-
+| How is the evidence chain recorded across services? (#668) | grilling | Which shared trust words do we adopt?; What must each step of a HelpDesk session's life prove? | closed (challenge queued) |
 ### Tests track
 
 | Ticket (title, refer-by-name) | Type | Blocked by | Status |
 |-------------------------------|------|------------|--------|
 | What do our own model tests measure? (#669) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
-| How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | reopened (challenge rejected; revising) |
+| How are model, pipeline and rule-following scores kept apart? (#670) | grilling | What do our own model tests measure?; Which shared trust words do we adopt? | closed (revised; second challenge queued) |
 | How do we keep AI graders honest? (#671) | research | What do our own model tests measure? | open |
 | Which factory measures do we track? (#672) | grilling | — | closed (accepted after 2 challenges; findings are build checks) |
 | What does a guided, chaptered PR review contain? (#673) | grilling | How are model, pipeline and rule-following scores kept apart? | closed (challenge queued) |
@@ -221,12 +248,14 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 - Exactly-once remote effects (offered for out of scope on 2026-11-22; the owner kept it open).
 - Separate macOS users per agent, so keys stop sharing one Mac-wide wall (from #666).
-- What happens if the owner loses their phone, the only passkey (from #666).
+- How a wake brief declares its audience (from the #666 revision).
 - Local versus cloud model routing by capability, latency, privacy and cost.
 - Whether fixed rule engines should replace repeatedly generated reasoning anywhere.
 - Whether a "swap the model" trial is needed before the scores can be ruled.
 - What sensitive data can leave through model and tool calls (egress), beyond the privacy
   checks already tracked in LocalHelp.
+
+Settled from this list: what happens if the owner loses their phone, by a second signing key kept at home (#679).
 
 ## Out of scope
 
