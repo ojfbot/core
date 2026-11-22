@@ -246,6 +246,9 @@ dir="$1" runid="$2"
 lock="$dir/.stage-lock"
 [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run does not own the stage lock"; exit 1; }
 cat > "$lock/body.sh" <<'BODY_EOF'
+# The body fails on any error: the wrapper has -eu, but a script run as its own process does not
+# inherit it, and an unchecked write must never be followed by a PASS.
+set -eu
 dir="$1" runid="$2"
 shift 2
 lock="$dir/.stage-lock"
@@ -268,7 +271,7 @@ child=$!
 rc=0
 wait "$child" || rc=$?
 i=0
-while kill -0 -- "-$child" 2>/dev/null; do
+while kill -0 "-$child" 2>/dev/null; do
   i=$((i + 1))
   [ "$i" -lt 900 ] || break
   sleep 1
@@ -281,7 +284,7 @@ EOF_TAIL
 # complete once it is renamed from .part. Every name carries this run's ID.
 SWITCH_BODY="$CLEAN_ENV$STOP_FN"'
 project="$1" rev="$2" root="$3" image_id="$4" manifest_digest="$5" port="$6" lan="$7"
-cd "$dir"
+cd "$dir" || exit 1
 step
 [ -d "$root/state" ] || { echo "FAIL no test copy state folder"; exit 1; }
 { cp -p fleet-staging.env "fleet-staging.env.pre-$runid.part" && mv "fleet-staging.env.pre-$runid.part" "fleet-staging.env.pre-$runid"; } ||
@@ -292,7 +295,7 @@ step
 stop_project "$project" || { echo "FAIL could not stop the test copy"; exit 1; }
 step
 cp -a "$root/state" "$root/state.pre-$runid.part" || { echo "FAIL copying the test copy state folder"; exit 1; }
-mv "$root/state.pre-$runid.part" "$root/state.pre-$runid"
+mv "$root/state.pre-$runid.part" "$root/state.pre-$runid" || { echo "FAIL could not finish the state copy"; exit 1; }
 step
 { cp "releases/$rev/compose.yaml" compose.yaml.new && mv compose.yaml.new compose.yaml; } || exit 1
 grep -v -e "^FLEET_REVISION=" -e "^FLEET_IMAGE=" "fleet-staging.env.pre-$runid" > fleet-staging.env.new || true
@@ -308,6 +311,7 @@ for d in state output public-keys tls; do printf "%s\n" "$cfg" | grep -qxF "    
 [ "$(printf "%s\n" "$cfg" | grep -c "^ *source: ")" -eq 4 ] || ok=0
 printf "%s\n" "$cfg" | grep -qxF "        host_ip: $lan" || ok=0
 printf "%s\n" "$cfg" | grep -qxF "        published: \"$port\"" || ok=0
+[ "$(printf "%s\n" "$cfg" | grep -c "published:")" -eq 1 ] || ok=0
 [ "$ok" -eq 1 ] || { echo "FAIL the resolved compose config is not the test copy own folders, port and name"; exit 1; }
 step
 # Never pull: the only image this may run is the one just loaded from the checked archive.
@@ -328,7 +332,7 @@ SWITCH="$(fenced "$SWITCH_BODY")"
 RECORD_BODY="$STATE_FN"'
 rev="$1"
 step
-write_state "$dir" "$rev" "$rev"
+write_state "$dir" "$rev" "$rev" || { echo "FAIL could not write stage-state"; exit 1; }
 echo "PASS recorded: $rev staged and smoke-tested"
 '
 RECORD="$(fenced "$RECORD_BODY")"
@@ -350,7 +354,7 @@ lock="$dir/.stage-lock"
 [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run no longer owns the lock; nothing was changed"; exit 1; }
 : > "$lock/abort"
 pid="$(cat "$lock/fenced.pid" 2>/dev/null)"
-alive() { kill -0 -- "-$1" 2>/dev/null || kill -0 "$1" 2>/dev/null; }
+alive() { kill -0 "-$1" 2>/dev/null || kill -0 "$1" 2>/dev/null; }
 if [ -n "$pid" ]; then
   i=0
   while alive "$pid"; do

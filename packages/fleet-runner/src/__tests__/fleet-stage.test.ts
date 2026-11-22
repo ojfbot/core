@@ -161,6 +161,7 @@ fi
 # only the client side while the server side keeps running.
 if grep -q -e 'cp -a' "$in"; then echo $$ > "$FAKE_STATE/switch-ssh.pid"; fi
 if grep -q -e 'staged and smoke-tested' "$in"; then echo $$ > "$FAKE_STATE/record-ssh.pid"; fi
+sh -c 'readlink -f "$(command -v sh)" 2>/dev/null || command -v sh' > "$FAKE_STATE/remote-sh"
 sh -c "$cmd" < "$in"; rc=$?
 # Run it, then lose the connection before the acknowledgement arrives.
 if [ -n "$FAKE_SSH_FAIL_AFTER_MATCH" ] && { grep -q -e "$FAKE_SSH_FAIL_AFTER_MATCH" "$in" 2>/dev/null || printf '%s' "$cmd" | grep -q -e "$FAKE_SSH_FAIL_AFTER_MATCH"; }; then rm -f "$in"; exit 255; fi
@@ -215,6 +216,9 @@ services:
         published: "$port"
         protocol: tcp
 OUT
+        if [ -n "$FAKE_CONFIG_EXTRA_PORT" ]; then
+          printf '      - mode: ingress\n        host_ip: 0.0.0.0\n        target: 22\n        published: "2222"\n'
+        fi
         ;;
       stop) stop ;;
       up)
@@ -316,7 +320,9 @@ function stageEnv(extra: Record<string, string> = {}): Record<string, string> {
     FAKE_PKG: pkg,
     FAKE_BAD_REV: "",
     FAKE_MV_SLEEP: "",
+    FAKE_MV_FAIL_RECORD: "",
     FAKE_CONFIG_LIE: "",
+    FAKE_CONFIG_EXTRA_PORT: "",
     FAKE_UP_SLEEP: "0",
     FAKE_PRE_UP_SLEEP: "0",
     FAKE_SSH_FAIL_AFTER_MATCH: "",
@@ -402,11 +408,27 @@ beforeEach(async () => {
   writeFileSync(join(bin, "gh"), FAKE_GH);
   writeFileSync(join(bin, "pnpm"), "#!/bin/bash\nexit 0\n");
   writeFileSync(join(bin, "fake-server.mjs"), FAKE_SERVER);
+  // The server-side `sh` is dash when there is one (a Linux runner's /bin/sh is dash; the server's
+  // is bash): dash is the stricter shell, and rejects, for one, `kill -0 -- -pgid`.
+  if (existsSync("/bin/dash")) symlinkSync("/bin/dash", join(bin, "sh"));
+  if (spawnSync("sh", ["-c", "command -v setsid"]).status !== 0) {
+    writeFileSync(
+      join(bin, "setsid"),
+      `#!/bin/bash\nexec perl -MPOSIX -e 'POSIX::setsid(); exec { $ARGV[0] } @ARGV' -- "$@"\n`,
+    );
+    chmodSync(join(bin, "setsid"), 0o755);
+  }
   writeFileSync(
     join(bin, "mv"),
     `#!/bin/bash
 # FAKE_MV_SLEEP slows the rename that publishes stage-state, to open a window for a test.
-case "$*" in *stage-state.new*) [ -z "$FAKE_MV_SLEEP" ] || sleep "$FAKE_MV_SLEEP" ;; esac
+case "$*" in *stage-state.new*)
+  [ -z "$FAKE_MV_SLEEP" ] || sleep "$FAKE_MV_SLEEP"
+  # Only the write that names a staged revision fails; clearing and rolling back still work.
+  if [ -n "$FAKE_MV_FAIL_RECORD" ]; then
+    for a in "$@"; do case "$a" in *stage-state.new) grep -q '^staged_ok=[0-9a-f]' "$a" && { echo "mv: disk error" >&2; exit 1; } ;; esac; done
+  fi ;;
+esac
 exec /bin/mv "$@"
 `,
   );
@@ -1105,6 +1127,50 @@ describe("fleet-stage.sh", () => {
     expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
     expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
   }, 120_000);
+
+  it("runs the server-side scripts under dash when there is one, so a dash-only syntax error cannot come back (MEDIUM)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    if (existsSync("/bin/dash")) {
+      expect(readFileSync(fakeState("remote-sh"), "utf8")).toContain("dash");
+    }
+  });
+
+  it("fails and rolls back when writing stage-state fails: no PASS after an unchecked write (MEDIUM)", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    // The disk refuses the write that would mark b as staged. The body runs with -e, so the failed
+    // write ends it, and nothing reports a pass.
+    const r = stage([b, "--release", release(b)], { FAKE_MV_FAIL_RECORD: "1" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain("FAIL could not record the pass");
+    expect(r.out).not.toContain(`PASS ${b.slice(0, 7)} is staged`);
+    expect(r.out).not.toContain("PASS recorded");
+    expect(r.out).toContain(`PASS the test copy is back on ${a.slice(0, 7)} and stopped`);
+    expect(isStaged(b)).toBe(false);
+    expect(stateValue("last_passed")).toBe(a);
+    expect(readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8")).toContain(
+      `FLEET_REVISION=${a}`,
+    );
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+  });
+
+  it("refuses a resolved config that publishes any extra port (low)", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    const r = stage([a, "--release", release(a)], {
+      FAKE_CONFIG_EXTRA_PORT: "1",
+      FLEET_READY_TRIES: "2",
+    });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      "FAIL the resolved compose config is not the test copy own folders, port and name",
+    );
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+  });
 
   it("refuses a release that does not verify, before anything reaches the server", () => {
     prepare();
