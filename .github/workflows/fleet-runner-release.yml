@@ -45,8 +45,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # A rebuild needs history to prove the revision belongs to main.
-          fetch-depth: ${{ github.event_name == 'workflow_dispatch' && 0 || 1 }}
+          # A rebuild needs history to prove the revision belongs to main. Keep this a plain 0:
+          # in an expression `cond && 0 || 1` is always 1, because 0 is falsy.
+          fetch-depth: 0
 
       - name: Choose the revision to build
         id: rev

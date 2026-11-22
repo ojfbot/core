@@ -7,8 +7,8 @@
 #
 # The release directory holds fleet-runner-image.tar, fleet-runner-image.tar.sha256 and
 # release.json from release-image.sh. [revision] is a full commit or any unambiguous prefix of
-# one; when given, release.json must name that commit. Needs only bash, sed, awk and a SHA-256
-# tool (plus Docker for `load`). Prints PASS or FAIL lines and digests, nothing else.
+# one; when given, release.json must name that commit. Needs bash, sed, awk, tar, node and a
+# SHA-256 tool (plus Docker for `load`). Prints PASS or FAIL lines and digests, nothing else.
 # Bash 3 compatible (macOS /bin/bash).
 set -euo pipefail
 
@@ -78,27 +78,78 @@ else
 fi
 
 # A checksum only proves the files agree with each other. Before anything is loaded, read what the
-# archive itself says it is: its one image's config blob must hash to image_id, its only tag must be
-# the release tag, and (when recorded) its index must name manifest_digest. A different archive
-# cannot pass by sharing a tag the host already has.
-member() {
-  tar -xOf "$dir/$archive" "$1" 2>/dev/null || true
+# archive itself says it is, with a real JSON parser (a regex can be fooled by spaced keys or decoy
+# fields in a nested object, and Docker would load the real ones): exactly one image, whose actual
+# top-level Config hashes to image_id, whose RepoTags are exactly [release tag], and (when recorded)
+# whose index names manifest_digest. Members that appear twice are refused. A different archive
+# cannot pass by sharing a tag the host already has. Needs node (Node 24 is a fleet prerequisite);
+# without it the check fails rather than being skipped.
+command -v node >/dev/null 2>&1 || fail "node is required to read the archive"
+node --input-type=module - "$dir/$archive" "$dir/release.json" "$tag" "$image_id" "$manifest_digest" <<'NODE' || exit 1
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+const [archive, releaseFile, tag, imageId, manifestDigest] = process.argv.slice(2);
+const fail = (why) => {
+  console.log(`FAIL ${why}`);
+  process.exit(1);
+};
+const run = (args) => execFileSync("tar", args, { maxBuffer: 1 << 28 });
+let names;
+try {
+  names = run(["-tf", archive]).toString("utf8").split("\n").filter(Boolean);
+} catch {
+  fail("archive is not a readable tar");
 }
-manifest_json="$(member manifest.json)"
-[[ -n "$manifest_json" ]] || fail "archive has no manifest.json"
-configs="$(printf '%s' "$manifest_json" | grep -o '"Config":"[^"]*"' || true)"
-[[ -n "$configs" && "$(printf '%s\n' "$configs" | wc -l | tr -d ' ')" == "1" ]] || fail "archive does not hold exactly one image"
-config_name="$(printf '%s' "$configs" | sed 's/^"Config":"\(.*\)"$/\1/')"
-[[ "$config_name" =~ ^(blobs/sha256/)?[0-9a-f]{64}(\.json)?$ ]] || fail "archive config name"
-actual_id="sha256:$(member "$config_name" | { sha256sum 2>/dev/null || shasum -a 256; } | awk '{print $1}')"
-[[ "$actual_id" == "$image_id" ]] || fail "archive image ID is $actual_id, not the recorded one"
-archive_tags="$(printf '%s' "$manifest_json" | sed -n 's/.*"RepoTags":\[\([^]]*\)\].*/\1/p')"
-[[ "$archive_tags" == "\"$tag\"" ]] || fail "archive tags are not exactly $tag"
-if [[ -n "$manifest_digest" ]]; then
-  index_digest="$(member index.json | sed -n 's/.*"manifests":\[{[^}]*"digest":"\(sha256:[0-9a-f]*\)".*/\1/p' | head -n 1)"
-  [[ "$index_digest" == "$manifest_digest" ]] || fail "archive manifest digest is not the recorded one"
-fi
-echo "PASS archive holds $tag with image ID $image_id"
+const count = (name) => names.filter((n) => n.replace(/^(\.\/)+/, "") === name).length;
+const read = (name) => {
+  if (count(name) !== 1 || !names.includes(name)) return null;
+  return run(["-xOf", archive, name]);
+};
+const parse = (buf, what) => {
+  try {
+    return JSON.parse(buf.toString("utf8"));
+  } catch {
+    return fail(`${what} is not valid JSON`);
+  }
+};
+const isObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+// release.json, read as JSON, must say what the shell read from it (no duplicate or decoy keys).
+const release = parse(readFileSync(releaseFile), "release.json");
+if (!isObject(release) || release.tag !== tag || release.image_id !== imageId || (release.manifest_digest ?? "") !== manifestDigest) {
+  fail("release.json differs between its text and its JSON");
+}
+
+const manifestBytes = read("manifest.json");
+if (manifestBytes === null) fail("archive has no single manifest.json");
+const manifest = parse(manifestBytes, "manifest.json");
+if (!Array.isArray(manifest) || manifest.length !== 1 || !isObject(manifest[0])) {
+  fail("archive does not hold exactly one image");
+}
+const entry = manifest[0];
+if (typeof entry.Config !== "string" || !/^(blobs\/sha256\/)?[0-9a-f]{64}(\.json)?$/.test(entry.Config)) {
+  fail("archive config name");
+}
+const config = read(entry.Config);
+if (config === null) fail("archive has no single config blob");
+const actualId = `sha256:${createHash("sha256").update(config).digest("hex")}`;
+if (actualId !== imageId) fail(`archive image ID is ${actualId}, not the recorded one`);
+if (!Array.isArray(entry.RepoTags) || entry.RepoTags.length !== 1 || entry.RepoTags[0] !== tag) {
+  fail(`archive tags are not exactly ${tag}`);
+}
+if (manifestDigest !== "") {
+  const indexBytes = read("index.json");
+  if (indexBytes === null) fail("archive has no single index.json");
+  const index = parse(indexBytes, "index.json");
+  if (!isObject(index) || !Array.isArray(index.manifests) || index.manifests.length !== 1 || index.manifests[0]?.digest !== manifestDigest) {
+    fail("archive manifest digest is not the recorded one");
+  }
+} else if (count("index.json") > 1) {
+  fail("archive has more than one index.json");
+}
+console.log(`PASS archive holds ${tag} with image ID ${imageId}`);
+NODE
 
 [[ "$mode" == "load" ]] || exit 0
 

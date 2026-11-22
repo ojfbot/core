@@ -8,6 +8,7 @@ The count is a **discovery rate, never a defect rate**: more entries is better.
 
 ## Deviations
 
+- 2026-11-21 (FleetRunner release pipeline, #647 slice 1 review): the plan was a verifier needing only a shell, mirroring HelpDesk's `sed`-based one. Review showed regex parsing of the archive's `manifest.json` can be fooled by spaced keys and nested decoys while Docker loads the real fields. `verify-release.sh` now parses structurally with `node` (a fleet prerequisite) and fails closed when node is missing.
 - 2026-11-21 (FleetRunner release pipeline, #647 slice 1): the plan was a CI image published on every `main` push. HelpDesk's identical job hit the Actions artifact quota on 2026-11-19, and core `main` takes many commits that never touch FleetRunner. Kept the literal plan (every push, no path filter on `push`) with 7-day retention, a 30-minute cap and a `workflow_dispatch` rebuild, because a path filter would leave most revisions without a releasable artifact for the stage script. If storage becomes a problem, the cheaper design is a path filter plus a stage script that maps a revision to the newest release with an identical build-input tree; that is a conductor/owner decision, not made here.
 - 2026-11-21 (same slice): root `pnpm typecheck` and `pnpm lint` already fail on `main` in files this slice does not touch (missing `graphql`/`@anthropic-ai/sdk` in this worktree's install, two `consistent-type-imports` errors in the ledger-proof files), and `pnpm format:check` flags 72 existing files. Left them alone and checked only the new files.
 
