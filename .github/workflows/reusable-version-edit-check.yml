@@ -1,0 +1,69 @@
+name: Reusable version-edit check
+
+# adr:deterministic-fleet-versioning. Fails a pull request that hand-edits a package.json
+# "version" or an existing release-please manifest entry, and fails a repo where some package.json
+# is not covered by release-please. Only release-please's own release PR may change versions.
+#
+#   jobs:
+#     versions:
+#       uses: ojfbot/core/.github/workflows/reusable-version-edit-check.yml@<core-commit-sha>
+#
+# Needs only git and node, both on the runner. The script comes from Core at this workflow's SHA.
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        type: string
+        default: .release-please-manifest.json
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: versions (no hand edits, every package covered)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require a pull request and a resolvable workflow ref
+        env:
+          EVENT: ${{ github.event_name }}
+          WORKFLOW_REPO: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          [[ "$EVENT" == "pull_request" ]] || { echo "::error::Call this workflow from a pull_request event, not $EVENT."; exit 1; }
+          [[ -n "$WORKFLOW_REPO" && "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Could not resolve this workflow's own repository and commit (job.workflow_repository / job.workflow_sha); refusing to guess which checks to apply."
+            exit 1
+          }
+
+      - name: Check out the pull request history (commits and the files it touches)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Check out the checker at this workflow's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .fleet-core
+          sparse-checkout: scripts/fleet-versioning
+          persist-credentials: false
+
+      - name: Check versions
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          RELEASE_PLEASE_CONFIG: ${{ inputs.config-file }}
+          RELEASE_PLEASE_MANIFEST: ${{ inputs.manifest-file }}
+        run: node .fleet-core/scripts/fleet-versioning/check-versions.mjs all

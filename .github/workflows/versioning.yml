@@ -1,0 +1,21 @@
+name: Versioning
+
+# Core adopts its own convention (adr:deterministic-fleet-versioning). Other repos call the same
+# reusable workflows pinned to a Core commit SHA; Core calls them by local path so a change to the
+# workflows is tested by the pull request that makes it.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: versioning-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  commitlint:
+    uses: ./.github/workflows/reusable-commitlint.yml
+  versions:
+    uses: ./.github/workflows/reusable-version-edit-check.yml

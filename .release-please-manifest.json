@@ -1,0 +1,9 @@
+{
+  ".": "0.1.0",
+  "packages/commitlint-config": "0.1.0",
+  "packages/fleet-runner": "0.2.5-bookcase.2",
+  "packages/native-dispatch": "0.4.5",
+  "packages/read-model-contract": "0.1.0",
+  "packages/workflows": "0.1.0",
+  "scripts/launcher/tests": "0.0.0"
+}

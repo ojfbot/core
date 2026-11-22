@@ -1,0 +1,39 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "node",
+  "separate-pull-requests": true,
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "-",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "bootstrap-sha": "3f6fed10448fa9b2a61506f4d54af990a98fad6c",
+  "changelog-path": "CHANGELOG.md",
+  "packages": {
+    ".": {
+      "component": "core",
+      "exclude-paths": [
+        "packages",
+        "scripts/launcher/tests"
+      ]
+    },
+    "packages/commitlint-config": {
+      "component": "commitlint-config"
+    },
+    "packages/fleet-runner": {
+      "component": "fleet-runner"
+    },
+    "packages/native-dispatch": {
+      "component": "native-dispatch"
+    },
+    "packages/read-model-contract": {
+      "component": "read-model-contract"
+    },
+    "packages/workflows": {
+      "component": "workflows"
+    },
+    "scripts/launcher/tests": {
+      "component": "launcher-tests"
+    }
+  }
+}

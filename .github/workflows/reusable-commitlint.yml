@@ -1,0 +1,74 @@
+name: Reusable commitlint
+
+# adr:deterministic-fleet-versioning. Lints every commit in a pull request and the pull request
+# title against the fleet's shared rules (packages/commitlint-config).
+#
+# Call it from a pull_request workflow, pinned to a Core commit SHA:
+#   jobs:
+#     commitlint:
+#       uses: ojfbot/core/.github/workflows/reusable-commitlint.yml@<core-commit-sha>
+#
+# The rules and the pnpm version are read from Core at that same SHA (job.workflow_sha), so
+# the one pin controls everything and a change to Core cannot silently change a repo's checks.
+# Cost: no dependency install in the calling repo. It fetches commit history only (no file
+# contents beyond the head), two sparse files from Core, and one pnpm dlx of the commitlint CLI.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    name: commitlint (commits and PR title)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require a pull request and a resolvable workflow ref
+        env:
+          EVENT: ${{ github.event_name }}
+          WORKFLOW_REPO: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+        run: |
+          [[ "$EVENT" == "pull_request" ]] || { echo "::error::Call this workflow from a pull_request event, not $EVENT."; exit 1; }
+          [[ -n "$WORKFLOW_REPO" && "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Could not resolve this workflow's own repository and commit (job.workflow_repository / job.workflow_sha); refusing to guess which rules to apply."
+            exit 1
+          }
+
+      - name: Check out the pull request history (commits only)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          filter: tree:0
+          persist-credentials: false
+
+      - name: Check out the shared rules at this workflow's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .fleet-core
+          sparse-checkout: |
+            package.json
+            packages/commitlint-config
+          persist-credentials: false
+
+      - name: Install pnpm (the version Core pins)
+        uses: pnpm/action-setup@9bbca1e9dc2902adb87e8780fe5c98796985a62d # v6.1.1
+        with:
+          package_json_file: .fleet-core/package.json
+
+      - name: Lint the pull request title
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          printf '%s\n' "$PR_TITLE" | pnpm dlx @commitlint/cli@21.2.4 --config .fleet-core/packages/commitlint-config/index.mjs
+
+      - name: Lint every commit in the pull request
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          pnpm dlx @commitlint/cli@21.2.4 --config .fleet-core/packages/commitlint-config/index.mjs --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
