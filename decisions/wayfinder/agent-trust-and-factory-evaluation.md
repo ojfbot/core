@@ -293,7 +293,7 @@ filed under `decisions/research/` and linked from the tickets they inform.
 
 ## Handed off (2026-11-22)
 
-The map is handed off to the build. #674's ordered slices are split into 111 slices in six layers, each one build session and one reviewable PR:
+The map is handed off to the build. #674's ordered slices are split into 114 slices in six layers, each one build session and one reviewable PR:
 - fleet roadmap `decisions/northstar/roadmap-l2-ojfbot.md`, phases PH8–PH13;
 - epics:
   - Phase 0: owner setup and the authority service: ojfbot/core#688
