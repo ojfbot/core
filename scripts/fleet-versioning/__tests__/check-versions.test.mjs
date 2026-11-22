@@ -99,6 +99,13 @@ describe('checkCoverage', () => {
   });
 });
 
+function mergeBranch(branch, message, who) {
+  execFileSync('git', ['merge', '--no-ff', '-q', '-m', message, branch, '--no-gpg-sign'], {
+    cwd: dir,
+    env: { ...process.env, GIT_AUTHOR_NAME: who.name, GIT_AUTHOR_EMAIL: who.email, GIT_COMMITTER_NAME: who.name, GIT_COMMITTER_EMAIL: who.email },
+  });
+}
+
 describe('checkEdits', () => {
   const run = (base, head, extra = {}) =>
     checkEdits({ cwd: dir, configPath: CONFIG, manifestPath: MANIFEST, baseSha: base, headSha: head, ...extra });
@@ -319,6 +326,43 @@ describe('a push to the default branch (no pull request)', () => {
     put('packages/a/package.json', pkg('a', '0.3.0'));
     put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
     expect(runPush(base, commit('chore(main): release a 0.3.0', BOT, HUMAN))).toEqual([]);
+  });
+
+  it('accepts a release PR merged with a merge commit by a maintainer', () => {
+    const base = baseRepo();
+    git('checkout', '-q', '-b', 'release-please--branches--main--components--a');
+    put('packages/a/package.json', pkg('a', '0.3.0'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
+    commit('chore(main): release a 0.3.0', BOT);
+    git('checkout', '-q', 'main');
+    mergeBranch('release-please--branches--main--components--a', 'Merge pull request #9 from o/release-please--branches--main--components--a', HUMAN);
+    expect(runPush(base, git('rev-parse', 'HEAD'))).toEqual([]);
+  });
+
+  it('refuses a human merge commit of an ordinary branch that edits a version', () => {
+    const base = baseRepo();
+    git('checkout', '-q', '-b', 'topic');
+    put('packages/a/package.json', pkg('a', '0.2.1'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.2.1' });
+    commit('fix: bump by hand', HUMAN);
+    git('checkout', '-q', 'main');
+    mergeBranch('topic', 'Merge pull request #9 from o/topic', HUMAN);
+    const text = runPush(base, git('rev-parse', 'HEAD')).join('\n');
+    expect(text).toMatch(/authored by t@example\.com/);
+    expect(text).toMatch(/version changed 0\.2\.0 -> 0\.2\.1/);
+  });
+
+  it('refuses a human who edits a release PR and merges it as a release merge', () => {
+    const base = baseRepo();
+    git('checkout', '-q', '-b', 'release-please--branches--main--components--a');
+    put('packages/a/package.json', pkg('a', '0.3.0'));
+    put(MANIFEST, { '.': '1.0.0', 'packages/a': '0.3.0' });
+    commit('chore(main): release a 0.3.0', BOT);
+    put('packages/a/CHANGELOG.md', 'edited by hand\n');
+    commit('docs: tweak', HUMAN);
+    git('checkout', '-q', 'main');
+    mergeBranch('release-please--branches--main--components--a', 'Merge pull request #9 from o/release-please--branches--main--components--a', HUMAN);
+    expect(runPush(base, git('rev-parse', 'HEAD')).join('\n')).toMatch(/is authored by t@example\.com/);
   });
 
   it('refuses a push of human commits that bump a version', () => {

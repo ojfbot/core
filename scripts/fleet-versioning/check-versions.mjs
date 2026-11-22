@@ -27,6 +27,8 @@ import { posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const RELEASE_BRANCH = /^release-please--branches--[A-Za-z0-9._/-]+$/;
+/** GitHub's merge-button subject for a pull request from a release-please branch. */
+const RELEASE_MERGE_SUBJECT = /^Merge pull request #\d+ from [A-Za-z0-9._-]+\/release-please--branches--[A-Za-z0-9._/-]+$/;
 
 function git(cwd, args, opts = {}) {
   return execFileSync('git', args, {
@@ -157,11 +159,15 @@ export function releasePrProblems({ cwd, base, headSha, changed, headRef, headRe
     else dir = [...dirs][0];
   }
 
-  const log = git(cwd, ['log', '--format=%H%x1f%ae%x1f%ce', `${base}..${headSha}`]).split('\n').filter(Boolean);
+  const log = git(cwd, ['log', '--format=%H%x1f%ae%x1f%ce%x1f%P%x1f%s', `${base}..${headSha}`]).split('\n').filter(Boolean);
   if (log.length === 0) why.push('it has no commits');
   for (const line of log) {
-    const [sha, authorEmail, committerEmail] = line.split('\x1f');
-    if (!allowed.has(noreplyLogin(authorEmail))) why.push(`commit ${sha.slice(0, 7)} is authored by ${authorEmail}, not a release-please actor`);
+    const [sha, authorEmail, committerEmail, parents, subject] = line.split('\x1f');
+    // On a push, a maintainer who merged the release PR with a merge commit is the author of that
+    // one commit. It is exempt only when it is a merge of a release-please branch; every commit it
+    // brings in (the release PR's own) is still checked, and the file set below covers the rest.
+    const isReleaseMerge = push && parents.trim().split(/\s+/).length > 1 && RELEASE_MERGE_SUBJECT.test(subject);
+    if (!isReleaseMerge && !allowed.has(noreplyLogin(authorEmail))) why.push(`commit ${sha.slice(0, 7)} is authored by ${authorEmail}, not a release-please actor`);
     // On a push the committer is whoever merged: a rebase merge rewrites it to the person who clicked
     // the button, while the author stays release-please. Only a pull request branch constrains it.
     const committer = noreplyLogin(committerEmail);
