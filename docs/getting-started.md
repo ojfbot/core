@@ -35,6 +35,17 @@ See [docs/commands.md](commands.md) for the full command reference.
 
 This symlinks `.claude/skills/` and `domain-knowledge/` into the target repo. The target repo gets the full command stack without copying files.
 
+## Check your PR before it leaves draft
+
+```bash
+git commit ...              # verify tests HEAD in a clean Linux container
+pnpm verify                 # every pull_request CI job; paste the summary into the PR
+pnpm verify --quick         # build + unit tests only, on your working tree, while iterating
+```
+
+Docker Desktop must be running. Mark the PR ready only when the full run passes. See the README,
+"Run the CI checks locally", for flags, what is SKIPPED by design and how it reads the workflows.
+
 ## Run the TypeScript CLI
 
 ```bash

@@ -121,8 +121,62 @@ git checkout -b feat/my-change
 git add <files>
 git commit -m "feat: description of change"
 git push -u origin feat/my-change
-gh pr create
+gh pr create --draft
 ```
+
+### Run the CI checks locally
+
+Run the full `pnpm verify` before marking a PR ready, and paste its summary into the PR. Failures
+then show up on your machine instead of as GitHub alerts after the PR is open
+([#650](https://github.com/ojfbot/core/issues/650)).
+
+```bash
+pnpm verify                 # every job of every workflow that runs on pull_request: PASS / FAIL / SKIPPED / INCOMPLETE per job, then a summary
+pnpm verify --quick         # the build and unit tests only (ci/build-test), on your working tree: for iterating
+pnpm verify --job ci        # one workflow, or one job such as ci/build-test (repeatable); --list shows the names
+pnpm verify --native        # run on this Mac and your working tree instead of in the Linux runner
+pnpm verify --verbose       # also stream every step's output
+pnpm verify --check         # check that the workflow files and verify still agree; runs nothing
+```
+
+`scripts/verify.mjs` reads the jobs, steps, environment variables and service containers from
+`.github/workflows/*.yml`, so they cannot drift. A workflow key or action it does not understand
+(for example `needs:`, `strategy:` or `shell:`) is reported by name, never skipped, and
+`scripts/lib/__tests__/verify-ci.test.mjs` fails when a job has no verify entry.
+
+- **Needs** Docker Desktop running (SKIPPED with the fix if not). Off Linux, every job runs in an
+  Ubuntu 24.04 container (`scripts/verify-runner/`, built once per Node version) on a clean clone of
+  `HEAD`, as GitHub runs on a fresh runner: **commit first**, since uncommitted files are not tested.
+  `--quick` and `--native` run on your Mac and working tree.
+- **Event.** Jobs run as a pull request would (`github.event_name` is `pull_request`). A workflow
+  with `on.pull_request.paths` runs only when your branch changes one of its paths, as on GitHub,
+  and `--job` runs it anyway. Workflows with no `pull_request` trigger (`claude.yml`,
+  `claude-code-review.yml`) are not part of verify and are named in its notes.
+- **Output.** Each job prints its steps, then `PASS`, `FAIL`, `SKIPPED` or `INCOMPLETE` with the
+  reason and the fix. `INCOMPLETE` means a step was skipped by its own `if:` and nothing explains why
+  GitHub would skip it too. The closing summary (one line per job, `HEAD`, wall-clock time, warnings)
+  is what you paste into the PR. The exit code is non-zero on any FAIL, any INCOMPLETE, and any job
+  skipped only because this machine was not ready (Docker off).
+- **GitHub-only jobs.** A job that needs a secret, the GitHub API or an external action with no local
+  stand-in is `SKIPPED` with the reason, never passed: today `claude-skill-audit/skill-audit` (posts a
+  PR comment) and `security-scan/security` (a reusable workflow from another repository). They are
+  checked by GitHub only.
+- **The release image job** (`fleet-runner-release/release-image`) builds the FleetRunner image
+  twice for `linux/amd64` with no cache, so it is slow under emulation on Apple silicon. It runs
+  with the full `pnpm verify` when your branch changes the paths that start it (`packages/fleet-runner/**`,
+  root `package.json`, lockfile and so on), as on GitHub; `pnpm verify --job fleet-runner-release`
+  runs it alone.
+- **Cleanup.** Containers, the runner and its scratch folders are removed when it ends, including on
+  failure and Ctrl-C. Only the runner image, the pnpm download cache (a Docker volume) and pulled images
+  stay. Logs are under `$TMPDIR/core-verify/`; `--verbose` streams them.
+- **Flaky tests.** If `pnpm test` or `proof:local:test` fails on a FleetRunner test that passes on a
+  re-run, that is the known flakiness tracked in [#649](https://github.com/ojfbot/core/issues/649);
+  say so in the PR rather than weakening the check.
+
+Differences from GitHub that remain: the runner is a container on Docker Desktop's Linux VM, not a
+GitHub-hosted VM; on Apple silicon the `linux/amd64` release image runs under emulation; the runner
+shares the machine's Docker engine; `concurrency:`, `permissions:` and the artifact upload are not
+simulated; pushes to `main` and `workflow_dispatch` runs are not simulated (a pull request is).
 
 ## License
 

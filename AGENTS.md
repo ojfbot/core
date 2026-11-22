@@ -4,6 +4,10 @@ Read [CLAUDE.md](CLAUDE.md) for repository boundaries and working rules; they ap
 to Codex and other coding agents too. Before architectural decisions or code,
 read [the product context](domain-knowledge/frame-os-context.md). Use pnpm only.
 
+Run the full `pnpm verify` before marking a PR ready and paste its summary into the PR: it
+runs every pull-request CI job locally in a Linux container, so failures show up before the PR
+leaves draft (see the README, "Run the CI checks locally"). Never weaken a check to pass it.
+
 Read [shared agent defaults](domain-knowledge/agent-defaults.md) for
 alignment, inherited charter authority and continuation duties. For cross-session
 work, also read the canonical

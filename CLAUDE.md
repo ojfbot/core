@@ -10,6 +10,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **Use pnpm, never npm.** Every install/run/test/exec invocation in this repo and across the ojfbot ecosystem uses pnpm — in CI workflows, scripts, READMEs, ADRs, commit messages, and any one-off bash. Add new sub-packages to `pnpm-workspace.yaml` and invoke them via `pnpm --filter <name> <script>`; do not shell out to `npm install` in a subdirectory. Use `pnpm dlx` instead of `npx`. CI uses `pnpm install --frozen-lockfile`. The presence of `pnpm-workspace.yaml` or `pnpm-lock.yaml` is the decisive signal. If a tool genuinely requires npm, surface it explicitly and ask before shipping the change.
 
+> **Run `pnpm verify` before marking a PR ready; paste its summary in the PR.** `pnpm verify` runs every job of every workflow that runs on `pull_request` on this Mac, in a Linux container that matches GitHub's Ubuntu runner, so a failure shows up before the PR leaves draft instead of as a GitHub alert. Mark a PR ready only when the full run has no FAIL, INCOMPLETE or machine-not-ready SKIPPED (jobs that only GitHub can run are SKIPPED with the reason and stay that way). Paste the closing summary (one line per job, the wall-clock time and any differences from GitHub) into the PR description. `pnpm verify --quick` is for iterating and does not replace the full run. Never weaken or skip a check to make it pass; report a real failure, and name known flakes (core#649) instead of hiding them. Commit first: the Linux runner tests `HEAD`. See README, "Run the CI checks locally" (ojfbot/core#650).
+
 > **User-scope baseline.** Grill posture, vertical-slice discipline, and ubiquitous-language sourcing (look for `CONTEXT.md` / `GLOSSARY.md`) are documented at user scope in `~/.claude/CLAUDE.md`, which applies to every Claude session on this Mac (including non-ojfbot work). The 4 Pocock skills (`/grill-with-docs`, `/tdd`, `/deepen`, `/triage`) are symlinked into `~/.claude/skills/`. Run `scripts/install-agents.sh --user-scope` to set up or repair the skill/instruction layer. Telemetry hooks are a separate opt-in: add `--telemetry-dir=/absolute/private/path` to select their ledger destination. Without that option, existing hook settings are preserved rather than disabled; legacy hooks can still use their old destinations. A telemetry destination inside `~/selfco` or the configured `SELFCO_VAULT` requires `--with-selfco`. Compound/custom hook commands are preserved with an explicit manual-migration warning. Add `--with-selfco` to also install the `/vault` skill at user scope, scaffold the `~/selfco` knowledge vault, register new repos as vault entities at spawn (ADR-0088), and add the opt-in `vault-session.sh` SessionEnd hook (see ADR-0085). See ADR-0055.
 
 ## Ecosystem
@@ -81,6 +83,8 @@ pnpm lint:fix                   # ESLint with auto-fix
 pnpm format                     # Prettier format all TS files
 pnpm format:check               # Prettier check (CI-friendly)
 pnpm typecheck                  # tsc --noEmit
+pnpm verify                     # every pull_request CI job locally (Linux container); run before marking a PR ready
+pnpm verify --quick             # build + unit tests only, on your working tree
 
 pnpm --filter @core/workflows build   # build one package
 pnpm vitest run packages/workflows/src/__tests__/parseCommand.test.ts
