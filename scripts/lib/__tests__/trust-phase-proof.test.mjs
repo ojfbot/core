@@ -44,8 +44,14 @@ const roadmap = {
   ],
 };
 
-const mergedPr = (repo, number = 900) => ({ number, merged: true, repository: { nameWithOwner: repo } });
-const closedIssue = (body, closers = []) => ({ state: 'CLOSED', stateReason: 'COMPLETED', body, closedByPullRequestsReferences: { nodes: closers } });
+const mergedPr = (repo, number = 900) => ({ __typename: 'PullRequest', number, merged: true, repository: { nameWithOwner: repo } });
+// closers: the closer of each close event, oldest first (null = closed by hand).
+const closedIssue = (body, closers = [null]) => ({
+  state: 'CLOSED',
+  stateReason: 'COMPLETED',
+  body,
+  timelineItems: { nodes: closers.map((closer) => ({ closer })) },
+});
 
 function goodRecords() {
   const issues = new Map([
@@ -102,17 +108,61 @@ describe('deviationsVerdict', () => {
   });
   it('reads only its own section, not a later one', () => {
     expect(deviationsVerdict(`${head}${TEMPLATE}- ${PLACEHOLDER}\n\n### Later notes\n\n- None.\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}\n### Later notes\n\n- an unrelated bullet\n`).ok).toBe(false);
+  });
+  it('keeps nested headings inside the section', () => {
+    expect(deviationsVerdict(`${head}${TEMPLATE}- None.\n\n#### Details\n\n- ${PLACEHOLDER}\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}#### Discovery\n\n- 2026-12-01: found Y; went Y.\n`).ok).toBe(true);
+  });
+  it('ignores headings and text inside code fences and comments', () => {
+    const fencedExample = '```markdown\n### Deviations and discoveries\nNone.\n```\n\n';
+    expect(deviationsVerdict(`${head}${fencedExample}${TEMPLATE}- ${PLACEHOLDER}\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}- 2026-12-01: ran this:\n\n\`\`\`bash\n# a shell comment\n\`\`\`\n\n- ${PLACEHOLDER}\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}\`\`\`\n- looks like an entry\nNone.\n\`\`\`\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}<!--\n- hidden entry\n-->\n`).ok).toBe(false);
+  });
+  it('fails on two real sections', () => {
+    expect(deviationsVerdict(`${head}${TEMPLATE}- None.\n\n${TEMPLATE}- None.\n`).reason).toMatch(/2 "Deviations/);
+  });
+  it('catches the placeholder in other spellings', () => {
+    for (const p of ['_(None yet)_', '*(none yet)*', '(none yet)', '__( none yet )__']) {
+      expect(deviationsVerdict(`${head}${TEMPLATE}- 2026-12-01: an entry\n- ${p}\n`).ok).toBe(false);
+    }
+  });
+  it('accepts numbered entries', () => {
+    expect(deviationsVerdict(`${head}${TEMPLATE}1. 2026-12-01: found Y; went Y.\n`).ok).toBe(true);
+  });
+  it('handles CRLF bodies', () => {
+    expect(deviationsVerdict(bodyPlaceholder.replace(/\n/g, '\r\n')).ok).toBe(false);
+    expect(deviationsVerdict(bodyNone.replace(/\n/g, '\r\n')).ok).toBe(true);
   });
 });
 
 describe('sliceProblems', () => {
   const prSlice = { kind: 'pr', repo: 'ojfbot/LocalHelp', number: 126 };
   const ownerSlice = { kind: 'owner', repo: 'ojfbot/LocalHelp', number: 127 };
-  it('a PR slice needs a merged closing PR in its own repo', () => {
+  it('a PR slice needs its last close to come from a merged PR in its own repo', () => {
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp')]))).toEqual([]);
-    expect(sliceProblems(prSlice, closedIssue(bodyNone))).toEqual(['no merged pull request in ojfbot/LocalHelp closes it']);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/localhelp')]))).toEqual([]);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone))[0]).toMatch(/not by a merged pull request in ojfbot\/LocalHelp/);
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [{ ...mergedPr('ojfbot/LocalHelp'), merged: false }]))).toHaveLength(1);
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/core')]))).toHaveLength(1);
+  });
+  it('a linked merged PR followed by a hand close is not proof', () => {
+    // e.g. merged into a stacked branch, never to main, then the issue closed by hand
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp'), null]))).toHaveLength(1);
+  });
+  it('a close by a commit counts only when the commit belongs to a merged PR in the repo', () => {
+    const commit = (prs) => ({ __typename: 'Commit', oid: 'abc', associatedPullRequests: { nodes: prs } });
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [commit([mergedPr('ojfbot/LocalHelp')])]))).toEqual([]);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [commit([])]))).toHaveLength(1);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [commit([{ ...mergedPr('ojfbot/LocalHelp'), merged: false }])]))).toHaveLength(1);
+  });
+  it('any close reason but completed fails', () => {
+    for (const reason of ['NOT_PLANNED', 'DUPLICATE', 'REOPENED', null]) {
+      const p = sliceProblems(prSlice, { ...closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp')]), stateReason: reason });
+      expect(p.join()).toMatch(/not completed/);
+    }
   });
   it('an owner step needs "closed as completed"; "not planned" fails', () => {
     expect(sliceProblems(ownerSlice, closedIssue(bodyNone))).toEqual([]);
@@ -135,7 +185,7 @@ describe('evaluatePhase', () => {
     issues.set(issueKey('ojfbot/core', 690), closedIssue(bodyPlaceholder));
     const r = evaluatePhase({ phase: 'PH8', roadmap, issues, labelled });
     expect(r.ok).toBe(false);
-    expect(r.problems.join('\n')).toMatch(/CH-1 .*no merged pull request/);
+    expect(r.problems.join('\n')).toMatch(/CH-1 .*not by a merged pull request/);
     expect(r.problems.join('\n')).toMatch(/CH-1 .*placeholder/);
   });
   it('fails on a phase with no slices (no false green)', () => {
@@ -161,6 +211,7 @@ describe('evaluatePhase', () => {
     const odd = { slices: [...roadmap.slices, { id: 'S9', phase: 'PH8', title: 'X-1 — odd', deliverable: 'Something shipped.' }] };
     expect(evaluatePhase({ phase: 'PH8', roadmap: odd, ...goodRecords() }).problems.join('\n')).toMatch(/S9 X-1: deliverable names no proof/);
     expect(evaluatePhase({ phase: 'PH99', roadmap, ...goodRecords() }).ok).toBe(false);
+    expect(evaluatePhase({ phase: '__proto__', roadmap, ...goodRecords() }).ok).toBe(false);
   });
 });
 
@@ -225,5 +276,7 @@ if (a[0] === 'issue' && a[1] === 'list') {
   it('exits 2 on a usage error', () => {
     expect(spawnSync(process.execPath, [CLI], { encoding: 'utf8' }).status).toBe(2);
     expect(spawnSync(process.execPath, [CLI, '--phase', 'PH99'], { encoding: 'utf8' }).status).toBe(2);
+    expect(spawnSync(process.execPath, [CLI, '--phase', 'constructor'], { encoding: 'utf8' }).status).toBe(2);
+    expect(spawnSync(process.execPath, [CLI, '--phase', 'PH8', '--roadmap'], { encoding: 'utf8' }).status).toBe(2);
   });
 });

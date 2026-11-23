@@ -3,8 +3,10 @@
 //
 // A layer retro may close only when every other slice of its phase is closed AND left its proof:
 //
-//   - a slice whose roadmap deliverable is "A reviewed PR closing <repo>#N" needs a merged pull
-//     request in that same repo that GitHub records as closing the issue;
+//   - a slice whose roadmap deliverable is "A reviewed PR closing <repo>#N" needs the issue's
+//     last close event to name, as its closer, a merged pull request in that same repo (or a
+//     commit that belongs to one). A merged PR that is only linked, or a hand close after it,
+//     is not proof: GitHub closes an issue from a PR only when the PR lands on the default branch;
 //   - an owner step ("Owner step recorded on <repo>#N") needs the issue closed as completed —
 //     "not planned" fails. A script cannot yet tell the owner's close from an agent's (that waits
 //     on the per-Mac GitHub Apps, ojfbot/core#681), so the retro reads owner steps by hand;
@@ -29,11 +31,15 @@ export const LAYER_LABELS = Object.freeze({
 export const SLICE_REPOS = Object.freeze(['ojfbot/core', 'ojfbot/LocalHelp', 'ojfbot/daily-logger']);
 
 export const PLACEHOLDER = '_(none yet)_';
-const DEVIATIONS_HEADING = /^#{2,4}\s+Deviations and discoveries\s*$/;
-const ANY_HEADING = /^#{1,4}\s+\S/;
+// The placeholder in any emphasis or case an editor round-trip might leave ("*(None yet)*").
+const PLACEHOLDER_RE = /[_*]{0,2}\(\s*none yet\s*\)[_*]{0,2}/i;
+const DEVIATIONS_TITLE = /^Deviations and discoveries$/i;
+const HEADING = /^ {0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})/;
 // The three rule bullets every slice issue was filed with; they are template, not entries.
-const TEMPLATE_BULLET = /^[-*]\s+A discovery that\b/;
-const NONE_LINE = /^(?:[-*]\s+)?None\.?$/i;
+const TEMPLATE_BULLET = /^(?:[-*+]|\d+[.)])\s+A discovery that\b/;
+const ENTRY = /^(?:[-*+]|\d+[.)])\s+\S/;
+const NONE_LINE = /^(?:(?:[-*+]|\d+[.)])\s+)?None\.?$/i;
 
 const DELIVERABLE_FORMS = [
   { kind: 'pr', re: /^A reviewed PR closing (ojfbot\/[A-Za-z0-9._-]+)#(\d+)\b/ },
@@ -77,33 +83,92 @@ export function phaseSlices(roadmap, phase) {
   return { slices, retros, unparsed };
 }
 
-/** The text of the issue body's "Deviations and discoveries" section, or null if absent. */
+/**
+ * Split a Markdown body into lines tagged with whether they are prose (outside code fences and
+ * HTML comments) and, for prose headings, their level and text.
+ */
+function markdownLines(body) {
+  const out = [];
+  let fence = null;
+  let comment = false;
+  for (const line of String(body ?? '').split(/\r?\n/)) {
+    if (fence) {
+      const m = FENCE.exec(line);
+      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && line.trim() === m[1].replace(/\s+$/, '').trim()) fence = null;
+      out.push({ line, prose: false });
+      continue;
+    }
+    if (comment) {
+      if (line.includes('-->')) comment = false;
+      out.push({ line, prose: false });
+      continue;
+    }
+    const f = FENCE.exec(line);
+    if (f) {
+      fence = f[1];
+      out.push({ line, prose: false });
+      continue;
+    }
+    if (/^\s*<!--/.test(line) && !line.includes('-->')) {
+      comment = true;
+      out.push({ line, prose: false });
+      continue;
+    }
+    const h = HEADING.exec(line);
+    out.push(h ? { line, prose: true, level: h[1].length, title: h[2] } : { line, prose: true });
+  }
+  return out;
+}
+
+/**
+ * The "Deviations and discoveries" section: its lines (tagged as in markdownLines), from its
+ * heading to the next real heading of the same or a higher rank. Headings inside code fences or
+ * comments do not count. Returns { lines } or { error } when the section is absent or repeated.
+ */
 export function deviationsSection(body) {
-  const lines = String(body ?? '').split(/\r?\n/);
-  const start = lines.findIndex((l) => DEVIATIONS_HEADING.test(l.trim()));
-  if (start < 0) return null;
-  const rest = lines.slice(start + 1);
-  const end = rest.findIndex((l) => ANY_HEADING.test(l.trim()));
-  return (end < 0 ? rest : rest.slice(0, end)).join('\n');
+  const lines = markdownLines(body);
+  const starts = lines.flatMap((l, i) => (l.level && DEVIATIONS_TITLE.test(l.title) ? [i] : []));
+  if (starts.length === 0) return { error: 'no "Deviations and discoveries" section' };
+  if (starts.length > 1) return { error: `${starts.length} "Deviations and discoveries" sections — keep exactly one` };
+  const level = lines[starts[0]].level;
+  const rest = lines.slice(starts[0] + 1);
+  const end = rest.findIndex((l) => l.level && l.level <= level);
+  return { lines: end < 0 ? rest : rest.slice(0, end) };
 }
 
 /** Has the builder replaced the placeholder with entries or a plain "None."? */
 export function deviationsVerdict(body) {
   const section = deviationsSection(body);
-  if (section == null) return { ok: false, reason: 'no "Deviations and discoveries" section' };
-  if (section.includes(PLACEHOLDER)) {
+  if (section.error) return { ok: false, reason: section.error };
+  // Any copy of the placeholder in the section fails, even inside a code block.
+  if (section.lines.some((l) => PLACEHOLDER_RE.test(l.line))) {
     return {
       ok: false,
       reason: `"Deviations and discoveries" still holds the "${PLACEHOLDER}" placeholder — replace it with the slice's entries, or a plain "None." line`,
     };
   }
-  const lines = section.split('\n').map((l) => l.trim());
-  const entries = lines.filter((l) => /^[-*]\s+\S/.test(l) && !TEMPLATE_BULLET.test(l));
-  if (entries.length > 0 || lines.some((l) => NONE_LINE.test(l))) return { ok: true };
+  // Only prose counts as an entry or a "None." line, never text inside a code block or comment.
+  const prose = section.lines.filter((l) => l.prose && !l.level).map((l) => l.line.trim());
+  const entries = prose.filter((l) => ENTRY.test(l) && !TEMPLATE_BULLET.test(l));
+  if (entries.length > 0 || prose.some((l) => NONE_LINE.test(l))) return { ok: true };
   return {
     ok: false,
-    reason: '"Deviations and discoveries" has no entries and no "None." line',
+    reason: '"Deviations and discoveries" has no entries (list items) and no "None." line',
   };
+}
+
+/**
+ * Did the issue's last close event come from a merged PR in `repo`? The closer is the PR itself,
+ * or a commit whose associated PRs include a merged one in `repo`.
+ */
+export function closedByMergedPr(issue, repo) {
+  const events = issue?.timelineItems?.nodes ?? [];
+  const closer = events.length ? events[events.length - 1]?.closer : null;
+  if (!closer) return false;
+  const ok = (pr) => pr?.merged === true && sameRepo(pr.repository?.nameWithOwner, repo);
+  if (closer.__typename === 'PullRequest') return ok(closer);
+  if (closer.__typename === 'Commit') return (closer.associatedPullRequests?.nodes ?? []).some(ok);
+  return false;
 }
 
 /** Problems with one slice's issue record (empty list = the slice left its proof). */
@@ -115,10 +180,8 @@ export function sliceProblems(slice, issue) {
   } else if (issue.stateReason !== 'COMPLETED') {
     problems.push(`closed as ${String(issue.stateReason ?? 'unknown').toLowerCase().replace(/_/g, ' ')}, not completed`);
   }
-  if (slice.kind === 'pr') {
-    const closers = issue.closedByPullRequestsReferences?.nodes ?? [];
-    const merged = closers.filter((pr) => pr?.merged === true && sameRepo(pr.repository?.nameWithOwner, slice.repo));
-    if (merged.length === 0) problems.push(`no merged pull request in ${slice.repo} closes it`);
+  if (slice.kind === 'pr' && issue.state === 'CLOSED' && !closedByMergedPr(issue, slice.repo)) {
+    problems.push(`its last close was not by a merged pull request in ${slice.repo} (a linked PR or a hand close is not proof)`);
   }
   const dev = deviationsVerdict(issue.body);
   if (!dev.ok) problems.push(dev.reason);
@@ -138,7 +201,7 @@ export function sliceProblems(slice, issue) {
 export function evaluatePhase({ phase, roadmap, issues, labelled }) {
   const problems = [];
   const layer = LAYER_LABELS[phase];
-  if (!layer) return { ok: false, problems: [`unknown phase ${phase}: expected one of ${Object.keys(LAYER_LABELS).join(', ')}`], results: [] };
+  if (!Object.hasOwn(LAYER_LABELS, phase)) return { ok: false, problems: [`unknown phase ${phase}: expected one of ${Object.keys(LAYER_LABELS).join(', ')}`], results: [] };
 
   const { slices, retros, unparsed } = phaseSlices(roadmap, phase);
   if (retros.length !== 1) problems.push(`${phase} has ${retros.length} RETRO rows in the roadmap, expected exactly 1`);
