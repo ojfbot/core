@@ -1,0 +1,229 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { cpSync, mkdtempSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const script = join(root, 'scripts', 'fleet-versioning', 'lint-commits.mjs');
+let dir;
+const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+const commit = (message) => {
+  writeFileSync(join(dir, `f${Math.random()}.txt`), message);
+  git('add', '-A');
+  git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', message, '--no-gpg-sign');
+  return git('rev-parse', 'HEAD');
+};
+const lint = (base, head, extra = {}) => {
+  const r = spawnSync('node', [script], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH, HOME: process.env.HOME, BASE_SHA: base, HEAD_SHA: head, ...extra },
+  });
+  return { status: r.status, out: `${r.stdout}${r.stderr}` };
+};
+
+let base;
+beforeAll(() => {
+  dir = mkdtempSync(join(tmpdir(), 'lint-commits-'));
+  git('init', '-q', '-b', 'main');
+  writeFileSync(join(dir, 'package.json'), '{"name":"t","private":true}\n');
+  symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
+  writeFileSync(join(dir, '.gitignore'), 'node_modules\n');
+  base = commit('chore: baseline');
+});
+afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+const good = ['feat: add a thing', 'fix(fleet-runner): handle empty lease', 'feat(api)!: drop v1', 'docs: describe it'];
+const bad = [
+  ['wrong type', 'wip: add a thing'],
+  ['missing colon', 'feat add a thing'],
+  ['bad scope', 'feat(Fleet Runner): add a thing'],
+  ['oversized header', `feat: ${'x'.repeat(120)}`],
+];
+
+describe('lint-commits (the script CI and pnpm verify both run)', () => {
+  it.each(good)('PASSes a branch whose commit is %j', (message) => {
+    const head = commit(message);
+    const r = lint(base, head);
+    expect(r.status).toBe(0);
+    expect(r.out).toMatch(/commits [0-9a-f]{7}\.\.[0-9a-f]{7}: PASS/);
+  });
+
+  it.each(bad)('FAILs a branch with a %s commit', (_label, message) => {
+    const head = commit(message);
+    const r = lint(base, head);
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/: FAIL/);
+  });
+
+  it('FAILs on a bad title and PASSes on a good one, even when every commit is good', () => {
+    git('reset', '-q', '--hard', base);
+    const head = commit('feat: fine');
+    expect(lint(base, head, { PR_TITLE: 'feat: fine title' }).status).toBe(0);
+    const badTitle = lint(base, head, { PR_TITLE: 'Fine title with no type' });
+    expect(badTitle.status).toBe(1);
+    expect(badTitle.out).toMatch(/pull request title .*: FAIL/);
+    // verify passes titles base64 so any text is safe
+    const b64 = Buffer.from('fix: ok ${{ not an expression }}').toString('base64');
+    expect(lint(base, head, { PR_TITLE_B64: b64 }).status).toBe(0);
+  });
+
+  it('reports the title SKIPPED with its reason when none is known, and still lints the commits', () => {
+    git('reset', '-q', '--hard', base);
+    const head = commit('feat: fine');
+    const r = lint(base, head, { PR_TITLE_SKIP_REASON: 'gh found no pull request' });
+    expect(r.status).toBe(0);
+    expect(r.out).toMatch(/pull request title: SKIPPED \(gh found no pull request\)/);
+    const badHead = commit('nonsense');
+    expect(lint(base, badHead, { PR_TITLE_SKIP_REASON: 'x' }).status).toBe(1);
+  });
+
+  it('refuses to run without a range', () => {
+    expect(lint('', '').status).toBe(2);
+  });
+});
+
+describe('merge, fixup and version-number commits are linted too', () => {
+  it("passes GitHub's own \"Merge branch 'main' into <branch>\" and a conventional commit around it", () => {
+    git('reset', '-q', '--hard', base);
+    git('checkout', '-q', '-b', 'topic');
+    commit('feat: topic work');
+    git('checkout', '-q', 'main');
+    const tip = commit('chore: main moved on');
+    git('checkout', '-q', 'topic');
+    git('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'merge', '-q', '--no-ff', 'main', '--no-gpg-sign');
+    const head = git('rev-parse', 'HEAD');
+    expect(git('log', '-1', '--format=%s')).toBe("Merge branch 'main' into topic");
+    const r = lint(tip, head);
+    expect(r.out).toMatch(/: PASS/);
+    expect(r.status).toBe(0);
+    git('checkout', '-q', 'main');
+  });
+
+  it("passes GitHub's merge-button message: header plus the pull request title as the body", () => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+    const head = commit('Merge pull request #70 from ojfbot/feat/agent-bead-bridge\n\nfeat: AgentBead bridge — session initializer');
+    const r = lint(base, head);
+    expect(r.out).toMatch(/: PASS/);
+    expect(r.status).toBe(0);
+  });
+
+  it.each([
+    ['a fixup commit', 'fixup! feat: topic work'],
+    ['a squash commit', 'squash! feat: topic work'],
+    ['a bare version number', '1.2.3'],
+    ['a git revert message', 'Revert "feat: topic work"'],
+    ['a merge in any other shape', "Merge branch 'main'"],
+    ['a loose revert', 'Revert whatever I like'],
+    ['a fixup of anything', 'fixup! anything'],
+    ['an Azure-style merge', 'Merged PR 5: whatever'],
+    ['an automatic merge', 'Automatic merge stuff'],
+    ['a merge line in the body of a bad header', 'feat add thing no colon\n\nMerge branch foo'],
+  ])('FAILs %s', (_label, message) => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+    const head = commit(message);
+    const r = lint(base, head);
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/type-empty|subject-empty/);
+  });
+});
+
+describe('lint-commits failure summary', () => {
+  it('ends with the problems, so a tail of the log shows why', () => {
+    git('reset', '-q', '--hard', base);
+    const head = commit('feat add a thing without a colon');
+    const r = lint(base, head);
+    expect(r.status).toBe(1);
+    const tail = r.out.trim().split('\n').slice(-4).join('\n');
+    expect(tail).toMatch(/problems:/);
+    expect(tail).toMatch(/commits: .*✖/);
+  });
+});
+
+describe('lint-commits installs the locked CLI by itself (the CI and verify path)', () => {
+  it('runs a frozen install from the tool package lockfile when no CLI is installed', { timeout: 240_000 }, () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'lint-fresh-'));
+    try {
+      // a Core checkout with no node_modules, as the reusable workflow sees it
+      mkdirSync(join(fresh, 'core', 'scripts', 'fleet-versioning'), { recursive: true });
+      cpSync(script, join(fresh, 'core', 'scripts', 'fleet-versioning', 'lint-commits.mjs'));
+      cpSync(join(root, 'packages', 'commitlint-config'), join(fresh, 'core', 'packages', 'commitlint-config'), {
+        recursive: true,
+        filter: (src) => !src.split('/').includes('node_modules'),
+      });
+      const repo = join(fresh, 'repo');
+      mkdirSync(repo);
+      const g = (...args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' }).trim();
+      g('init', '-q', '-b', 'main');
+      writeFileSync(join(repo, 'a'), 'a');
+      g('add', '-A');
+      g('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'chore: base', '--no-gpg-sign');
+      const baseSha = g('rev-parse', 'HEAD');
+      writeFileSync(join(repo, 'b'), 'b');
+      g('add', '-A');
+      g('-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-q', '-m', 'wip: bad type', '--no-gpg-sign');
+      const r = spawnSync('node', [join(fresh, 'core', 'scripts', 'fleet-versioning', 'lint-commits.mjs')], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { PATH: process.env.PATH, HOME: process.env.HOME, BASE_SHA: baseSha, HEAD_SHA: g('rev-parse', 'HEAD') },
+      });
+      expect(`${r.stdout}${r.stderr}`).toMatch(/type-enum/);
+      expect(r.status).toBe(1);
+      const installed = JSON.parse(readFileSync(join(fresh, 'core', 'packages', 'commitlint-config', 'node_modules', '@commitlint', 'cli', 'package.json'), 'utf8'));
+      expect(installed.version).toBe('21.2.4');
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('every GitHub merge method lands commits that pass the push check', () => {
+  const reset = () => {
+    git('checkout', '-q', 'main');
+    git('reset', '-q', '--hard', base);
+  };
+
+  it('PR title length leaves room for the squash suffix GitHub appends', () => {
+    reset();
+    const head = commit('feat: fine');
+    const fits = `feat: ${'x'.repeat(84)}`; // 90 characters, 100 with " (#999999)"
+    const tooLong = `feat: ${'x'.repeat(85)}`; // 91 characters, 101 with the suffix
+    expect(fits).toHaveLength(90);
+    expect(lint(base, head, { PR_TITLE: fits }).status).toBe(0);
+    const r = lint(base, head, { PR_TITLE: tooLong });
+    expect(r.status).toBe(1);
+    expect(r.out).toMatch(/header-max-length/);
+  });
+
+  it('a squash-merged commit (title + " (#N)", bullets, co-author footer) passes', () => {
+    reset();
+    const squashed = `feat(fleet-runner): ${'x'.repeat(60)} (#1234)\n\n* feat: first change\n* fix: second change\n\nCo-authored-by: Someone <someone@example.com>`;
+    const head = commit(squashed);
+    expect(lint(base, head).status).toBe(0);
+  });
+
+  it('a merge-commit merge (branch commits plus the merge-button message) passes', () => {
+    reset();
+    git('checkout', '-q', '-b', 'topic2');
+    commit('feat: first topic commit');
+    commit('fix: second topic commit');
+    git('checkout', '-q', 'main');
+    execFileSync('git', ['merge', '--no-ff', '-q', '-m', 'Merge pull request #5 from o/topic2\n\nfeat: the pull request title', 'topic2', '--no-gpg-sign'], {
+      cwd: dir,
+      env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.com', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.com' },
+    });
+    expect(lint(base, git('rev-parse', 'HEAD')).status).toBe(0);
+    git('branch', '-q', '-D', 'topic2');
+  });
+
+  it('a rebase-merged branch passes as plain conventional commits', () => {
+    reset();
+    commit('feat: rebased one');
+    const head = commit('fix: rebased two');
+    expect(lint(base, head).status).toBe(0);
+  });
+});

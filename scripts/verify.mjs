@@ -53,6 +53,8 @@ import {
   expectedLocalSkip,
   githubOnlyReason,
   loadWorkflows,
+  isLocalReusable,
+  resolveLocalReusable,
   outOfScope,
   pathFilterMatches,
   redactText,
@@ -258,6 +260,25 @@ function pullRequestFiles() {
   return [...new Set([...committed, ...uncommitted].filter(Boolean))];
 }
 const changed = options.quick || options.jobs.length > 0 ? null : pullRequestFiles();
+
+// Facts the locally run reusable workflows need (adr:deterministic-fleet-versioning): the commits
+// since origin/main, the branch, and the pull request title when `gh` knows one. A job-level
+// `uses:` of one of this repository's reusable workflows is replaced by the steps verify maps it
+// to (LOCAL_REUSABLE), in place, so it runs like any other job and is never SKIPPED as GitHub-only.
+function reusableFacts() {
+  const base = git("merge-base", "HEAD", "origin/main");
+  const branch = git("rev-parse", "--abbrev-ref", "HEAD");
+  const found = run("gh", ["pr", "view", "--json", "title", "--jq", ".title"], { timeout: 20_000 });
+  const title = found.status === 0 && found.stdout.trim() !== "" ? found.stdout.trim() : null;
+  const titleSkip = title !== null ? null : found.error ? "the gh CLI is not available here" : "gh found no pull request for this branch";
+  if (title === null) warn(`pull request title: SKIPPED (${titleSkip}); the commits are still linted, the title is checked on GitHub`);
+  return { base, head, branch, title, titleSkip };
+}
+const needsFacts = (job) => job.uses && isLocalReusable(job.uses);
+if (selected.some(needsFacts)) {
+  const facts = reusableFacts();
+  for (const job of allJobs) if (needsFacts(job)) Object.assign(job, resolveLocalReusable(job, workflows, facts));
+}
 
 // ---------------------------------------------------------------------------------------------
 // Docker: preflight, labels, cleanup

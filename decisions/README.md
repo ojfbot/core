@@ -59,6 +59,7 @@ Grouped by `domain` (the six bounded contexts + `meta`). Identity is the `slug`;
 | 0100 | [Absorb Pocock v1.1 lifecycle semantics into the existing mode surfaces](adr/0100-pocock-lifecycle-absorption.md) | tooling | Accepted |
 | 0101 (rev A) | [/wayfinder — file-canonical decision maps upstream of the roadmap spine](adr/0101-wayfinder-decision-maps.md) | tooling | Accepted |
 | 0110 | [Work register layer: topics, slices and tasks, owned by one service and referenced everywhere else](adr/0110-work-register-layer.md) | architecture | Accepted |
+| 0111 | [Fleet versions are computed by deterministic tools, never chosen](adr/0111-deterministic-fleet-versioning.md) | convention | Accepted |
 
 ### Gas Town Governance (`gas-town-governance`)
 | Serial | Title | Type | Status |
@@ -272,6 +273,7 @@ Drafts carry `serial: draft`; a number is assigned at `/adr accept` and never be
 - 0108 (rev A) — [Fleet-runner lives in core with an independent deployment](adr/0108-fleet-runner-in-core.md) · Accepted
 - 0109 — [Hold the affected item while publication is uncertain](adr/0109-fleet-runner-publication-hold.md) · Accepted
 - 0110 — [Work register layer: topics, slices and tasks, owned by one service and referenced everywhere else](adr/0110-work-register-layer.md) · Accepted
+- 0111 — [Fleet versions are computed by deterministic tools, never chosen](adr/0111-deterministic-fleet-versioning.md) · Accepted
 
 </details>
 

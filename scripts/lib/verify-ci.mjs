@@ -41,6 +41,75 @@ export const GITHUB_ONLY = {
 };
 
 /**
+ * Reusable workflows of this repository that verify runs locally by a direct mapping, never
+ * SKIPPED (adr:deterministic-fleet-versioning). A job-level `uses:` of one of them is replaced, at
+ * load, by the steps below; the called workflow's own `run:` commands must contain `command`, so
+ * the mapping cannot silently drift from what GitHub runs (checkPlan, and a test). `.fleet-core/`
+ * in the workflow is the checkout of Core at the pinned SHA: locally that is this repository.
+ *
+ * `facts` come from the host: { base, head, branch, title, titleSkip } (base is the merge base
+ * with origin/main, title the pull request's title from `gh`, or null with titleSkip saying why).
+ */
+export const LOCAL_REUSABLE = {
+  "./.github/workflows/reusable-commitlint.yml": {
+    command: "node scripts/fleet-versioning/lint-commits.mjs",
+    steps: (facts) => [
+      {
+        name: "Lint every commit since origin/main, then the pull request title",
+        run: facts.base ? "node scripts/fleet-versioning/lint-commits.mjs" : noBase(),
+        env: {
+          BASE_SHA: facts.base ?? "",
+          HEAD_SHA: facts.head ?? "",
+          ...(facts.title === null || facts.title === undefined
+            ? { PR_TITLE_SKIP_REASON: facts.titleSkip ?? "no pull request title is known" }
+            : { PR_TITLE_B64: Buffer.from(facts.title, "utf8").toString("base64") }),
+        },
+      },
+    ],
+  },
+  "./.github/workflows/reusable-version-edit-check.yml": {
+    command: "node scripts/fleet-versioning/check-versions.mjs all",
+    steps: (facts) => [
+      {
+        name: "Check versions (no hand edits, every package covered)",
+        run: facts.base ? "node scripts/fleet-versioning/check-versions.mjs all" : noBase(),
+        env: {
+          BASE_SHA: facts.base ?? "",
+          HEAD_SHA: facts.head ?? "",
+          HEAD_REF: facts.branch ?? "",
+          HEAD_REPO: "local/local",
+          BASE_REPO: "local/local",
+        },
+      },
+    ],
+  },
+};
+
+/** Whether `uses` names a reusable workflow verify runs locally. */
+export const isLocalReusable = (uses) => usesName(uses) in LOCAL_REUSABLE;
+
+const noBase = () =>
+  'echo "verify cannot find origin/main, so it cannot tell which commits are the pull request\'s. Run git fetch origin main and retry." >&2; exit 1';
+
+/**
+ * The job a job-level `uses:` stands for locally, or the job unchanged. `called` is the loaded
+ * workflow it calls (for `runs-on` and the timeout).
+ */
+export function resolveLocalReusable(job, workflows, facts) {
+  const mapped = job.uses && LOCAL_REUSABLE[usesName(job.uses)];
+  if (!mapped) return job;
+  const called = workflows.find((workflow) => `./.github/workflows/${workflow.file}` === usesName(job.uses))?.jobs[0];
+  return {
+    ...job,
+    uses: null,
+    runsOn: called?.runsOn ?? "ubuntu-24.04",
+    timeoutMinutes: called?.timeoutMinutes,
+    steps: mapped.steps(facts).map((step, index) => ({ ...step, index, rawKeys: Object.keys(step) })),
+    rawKeys: job.rawKeys,
+  };
+}
+
+/**
  * Contexts that only GitHub can fill in. A job whose commands or environment mention one is SKIPPED
  * with that reason, never run with the value left empty.
  */
@@ -67,6 +136,8 @@ export const JOB_NEEDS = {
   "fleet-reconcile/reconcile": [],
   "claude-skill-audit/skill-audit": [],
   "security-scan/security": [],
+  "versioning/commitlint": [],
+  "versioning/versions": [],
   "fleet-runner-release/release-image": ["docker", "buildx", "git-head"],
 };
 
@@ -502,15 +573,25 @@ export function checkPlan(workflows) {
     problems.push(...unsupportedKeys(workflow.rawKeys, "workflow", workflow.file));
     problems.push(...unsupportedKeys(workflow.pullRequestKeys, "pullRequest", `${workflow.file}: on.pull_request`));
     for (const job of workflow.jobs) {
-      problems.push(...checkJob(workflow, job));
+      problems.push(...checkJob(workflow, job, workflows));
     }
   }
   return problems;
 }
 
-function checkJob(workflow, job) {
+function checkJob(workflow, job, workflows) {
   const problems = [];
   problems.push(...unsupportedKeys(job.rawKeys, "job", job.key));
+  if (job.uses && LOCAL_REUSABLE[usesName(job.uses)]) {
+    const file = usesName(job.uses).replace("./.github/workflows/", "");
+    const called = workflows.find((w) => w.file === file);
+    const text = (called?.jobs ?? []).flatMap((j) => j.steps.map((st) => String(st.run ?? ""))).join("\n").replaceAll(".fleet-core/", "");
+    if (!called) problems.push(`${job.key}: calls "${job.uses}", which is not in .github/workflows`);
+    else if (!text.includes(LOCAL_REUSABLE[usesName(job.uses)].command)) {
+      problems.push(`${job.key}: ${file} no longer runs "${LOCAL_REUSABLE[usesName(job.uses)].command}", which verify runs in its place; update LOCAL_REUSABLE in scripts/lib/verify-ci.mjs`);
+    }
+    return problems;
+  }
   if (job.uses) {
     if (!GITHUB_ONLY[usesName(job.uses)]) {
       problems.push(`${job.key}: calls "${job.uses}", a reusable workflow verify does not know; add it to GITHUB_ONLY with the reason it cannot run here`);

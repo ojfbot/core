@@ -1,0 +1,16 @@
+name: Release Please
+
+# One release PR per package, tags <package>-vX.Y.Z. Merging a release PR tags and writes the
+# changelog; it never deploys (adr:deterministic-fleet-versioning).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    uses: ./.github/workflows/reusable-release-please.yml
+    secrets: inherit

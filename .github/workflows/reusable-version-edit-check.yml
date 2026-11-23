@@ -1,0 +1,95 @@
+name: Reusable version-edit check
+
+# adr:deterministic-fleet-versioning. Fails a pull request that hand-edits a package.json
+# "version" or an existing release-please manifest entry, and fails a repo where some package.json
+# is not covered by release-please. Only release-please's own release PR may change versions, and it
+# is recognised by its author, its commits' authors and the files it changes, never by branch name.
+#
+#   jobs:
+#     versions:
+#       uses: ojfbot/core/.github/workflows/reusable-version-edit-check.yml@<core-commit-sha>
+# The check run is named "<caller job id> / versions"; name the caller job `versions` so the required
+# check is "versions / versions". It runs on pull_request and, as a backstop for direct pushes, on push
+# to the default branch.
+#
+# Needs only git and node, both on the runner. The script comes from Core at this workflow's SHA.
+on:
+  workflow_call:
+    inputs:
+      config-file:
+        type: string
+        default: release-please-config.json
+      manifest-file:
+        type: string
+        default: .release-please-manifest.json
+      release-actors:
+        description: >-
+          Comma-separated logins that open release-please's pull requests. The default is the
+          Actions bot, which opens them when no RELEASE_PLEASE_TOKEN is set. A repo that gives
+          release-please a token must name that token's account here, and should use a dedicated
+          bot or app account: whoever holds the login is trusted to change versions.
+        type: string
+        default: github-actions[bot]
+      release-extra-files:
+        description: >-
+          Comma-separated paths (`*` allowed) release-please also writes in this repo, such as
+          pyproject.toml; a release PR touching any other file is refused.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  versions:
+    name: versions
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require a pull request and a resolvable workflow ref
+        env:
+          EVENT: ${{ github.event_name }}
+          WORKFLOW_REPO: ${{ job.workflow_repository }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          [[ "$EVENT" == "pull_request" || "$EVENT" == "push" ]] || { echo "::error::Call this workflow from a pull_request or push event, not $EVENT."; exit 1; }
+          [[ "$EVENT" == "pull_request" || "$BEFORE" =~ ^[0-9a-f]{40}$ && ! "$BEFORE" =~ ^0+$ ]] || { echo "::error::This push has no previous commit to compare with."; exit 1; }
+          [[ -n "$WORKFLOW_REPO" && "$WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::Could not resolve this workflow's own repository and commit (job.workflow_repository / job.workflow_sha); refusing to guess which checks to apply."
+            exit 1
+          }
+
+      # A full fetch, with every blob: a partial clone cannot read old file contents in a private
+      # repo without credentials, and the checker must never mistake an unreadable file for an absent
+      # one (it also fails on any git error, so this is belt and braces).
+      - name: Check out the full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check out the checker at this workflow's commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: .fleet-core
+          sparse-checkout: scripts/fleet-versioning
+          persist-credentials: false
+
+      - name: Check versions
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          RELEASE_ACTORS: ${{ inputs.release-actors }}
+          RELEASE_EXTRA_FILES: ${{ inputs.release-extra-files }}
+          RELEASE_PLEASE_CONFIG: ${{ inputs.config-file }}
+          RELEASE_PLEASE_MANIFEST: ${{ inputs.manifest-file }}
+        run: node .fleet-core/scripts/fleet-versioning/check-versions.mjs all
