@@ -20,7 +20,7 @@ const DEFAULT_ROADMAP = path.resolve(HERE, '..', 'decisions/northstar/roadmap-l2
 
 const ISSUE_QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){
   number state stateReason body
-  timelineItems(itemTypes:[CLOSED_EVENT], last:1){nodes{... on ClosedEvent{closer{
+  timelineItems(itemTypes:[CLOSED_EVENT], first:100){pageInfo{hasNextPage} nodes{... on ClosedEvent{closer{
     __typename
     ... on PullRequest{number merged repository{nameWithOwner}}
     ... on Commit{oid associatedPullRequests(first:20){nodes{number merged repository{nameWithOwner}}}}
@@ -76,7 +76,9 @@ function fetchIssue(repo, number) {
   const [owner, name] = repo.split('/');
   const res = JSON.parse(gh(['api', 'graphql', '-f', `query=${ISSUE_QUERY}`, '-f', `owner=${owner}`, '-f', `name=${name}`, '-F', `number=${number}`]));
   if (res.errors?.length) throw new Error(`${repo}#${number}: ${res.errors.map((e) => e.message).join('; ')}`);
-  return res.data?.repository?.issue ?? null;
+  const issue = res.data?.repository?.issue ?? null;
+  if (issue?.timelineItems?.pageInfo?.hasNextPage) throw new Error(`${repo}#${number}: more than 100 close events; refusing to judge a partial history`);
+  return issue;
 }
 
 function main() {

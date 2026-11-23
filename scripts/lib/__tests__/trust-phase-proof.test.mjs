@@ -121,6 +121,23 @@ describe('deviationsVerdict', () => {
     expect(deviationsVerdict(`${head}${TEMPLATE}\`\`\`\n- looks like an entry\nNone.\n\`\`\`\n`).ok).toBe(false);
     expect(deviationsVerdict(`${head}${TEMPLATE}<!--\n- hidden entry\n-->\n`).ok).toBe(false);
   });
+  it('a "None." inside an inline HTML comment does not count (was a false pass)', () => {
+    expect(deviationsVerdict(`${head}${TEMPLATE}Template note <!--\nNone.\n-->\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}<!-- None. -->\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}- <!-- hidden --> \n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}<!-- a note --> None.\n`).ok).toBe(true);
+  });
+  it('a "None." or entry in an indented code block does not count (was a false pass)', () => {
+    expect(deviationsVerdict(`${head}${TEMPLATE}    None.\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}\t- an entry\n`).ok).toBe(false);
+  });
+  it('a one-line ```span``` is inline code, not an unclosed fence (was a false fail)', () => {
+    expect(deviationsVerdict(`\`\`\`example\`\`\`\n\n${head}${TEMPLATE}- None.\n`).ok).toBe(true);
+    expect(deviationsVerdict(`${head}${TEMPLATE}\`\`\`inline\`\`\` - 2026-12-01: an entry\n- None.\n`).ok).toBe(true);
+    // a real fence still hides what is inside it
+    expect(deviationsVerdict(`${head}${TEMPLATE}\`\`\`js\nNone.\n\`\`\`\n`).ok).toBe(false);
+    expect(deviationsVerdict(`${head}${TEMPLATE}~~~\nNone.\n~~~\n`).ok).toBe(false);
+  });
   it('fails on two real sections', () => {
     expect(deviationsVerdict(`${head}${TEMPLATE}- None.\n\n${TEMPLATE}- None.\n`).reason).toMatch(/2 "Deviations/);
   });
@@ -144,13 +161,19 @@ describe('sliceProblems', () => {
   it('a PR slice needs its last close to come from a merged PR in its own repo', () => {
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp')]))).toEqual([]);
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/localhelp')]))).toEqual([]);
-    expect(sliceProblems(prSlice, closedIssue(bodyNone))[0]).toMatch(/not by a merged pull request in ojfbot\/LocalHelp/);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone))[0]).toMatch(/no merged pull request in ojfbot\/LocalHelp ever closed it/);
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [{ ...mergedPr('ojfbot/LocalHelp'), merged: false }]))).toHaveLength(1);
     expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/core')]))).toHaveLength(1);
   });
-  it('a linked merged PR followed by a hand close is not proof', () => {
-    // e.g. merged into a stacked branch, never to main, then the issue closed by hand
-    expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp'), null]))).toHaveLength(1);
+  it('a hand close with no PR close in its history is not proof', () => {
+    // A merged PR that is only linked (e.g. merged into a stacked branch) never appears as a
+    // closer, so the history is hand closes only.
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [null]))).toHaveLength(1);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [null, null]))).toHaveLength(1);
+  });
+  it('a reopen and hand close after a real PR close keeps the PR proof (was a false fail)', () => {
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [mergedPr('ojfbot/LocalHelp'), null]))).toEqual([]);
+    expect(sliceProblems(prSlice, closedIssue(bodyNone, [null, mergedPr('ojfbot/LocalHelp'), null]))).toEqual([]);
   });
   it('a close by a commit counts only when the commit belongs to a merged PR in the repo', () => {
     const commit = (prs) => ({ __typename: 'Commit', oid: 'abc', associatedPullRequests: { nodes: prs } });
@@ -185,7 +208,7 @@ describe('evaluatePhase', () => {
     issues.set(issueKey('ojfbot/core', 690), closedIssue(bodyPlaceholder));
     const r = evaluatePhase({ phase: 'PH8', roadmap, issues, labelled });
     expect(r.ok).toBe(false);
-    expect(r.problems.join('\n')).toMatch(/CH-1 .*not by a merged pull request/);
+    expect(r.problems.join('\n')).toMatch(/CH-1 .*no merged pull request in ojfbot\/core ever closed it/);
     expect(r.problems.join('\n')).toMatch(/CH-1 .*placeholder/);
   });
   it('fails on a phase with no slices (no false green)', () => {
@@ -264,6 +287,13 @@ if (a[0] === 'issue' && a[1] === 'list') {
     const r = run(rec);
     expect(r.status).toBe(1);
     expect(r.stderr).toMatch(/S2 OW-0 .*placeholder/);
+  });
+  it('exits 1 when a slice\'s only "None." is hidden in an HTML comment', () => {
+    const rec = goodRecords();
+    rec.issues.set(issueKey('ojfbot/LocalHelp', 127), closedIssue(`${head}${TEMPLATE}Template note <!--\nNone.\n-->\n`));
+    const r = run(rec);
+    expect(r.status).toBe(1);
+    expect(r.stderr).toMatch(/S2 OW-0 .*no entries/);
   });
   it('exits 1 when GitHub cannot be read', () => {
     const r = spawnSync(process.execPath, [CLI, '--phase', 'PH8', '--roadmap', path.join(dir, 'roadmap.md')], {
