@@ -20,7 +20,11 @@ const DEFAULT_ROADMAP = path.resolve(HERE, '..', 'decisions/northstar/roadmap-l2
 
 const ISSUE_QUERY = `query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){issue(number:$number){
   number state stateReason body
-  closedByPullRequestsReferences(first:50, includeClosedPrs:true){nodes{number merged repository{nameWithOwner}}}
+  timelineItems(itemTypes:[CLOSED_EVENT], last:1){nodes{... on ClosedEvent{closer{
+    __typename
+    ... on PullRequest{number merged repository{nameWithOwner}}
+    ... on Commit{oid associatedPullRequests(first:20){nodes{number merged repository{nameWithOwner}}}}
+  }}}}
 }}}`;
 
 function usage(msg) {
@@ -33,13 +37,17 @@ function parseArgs(argv) {
   const out = { roadmap: DEFAULT_ROADMAP };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
-    if (a === '--phase') out.phase = argv[++i];
-    else if (a === '--roadmap') out.roadmap = path.resolve(argv[++i] ?? '');
+    if (a === '--phase' || a === '--roadmap') {
+      const v = argv[++i];
+      if (!v || v.startsWith('--')) usage(`${a} needs a value`);
+      if (a === '--phase') out.phase = v;
+      else out.roadmap = path.resolve(v);
+    }
     else if (a === '-h' || a === '--help') usage();
     else usage(`unknown argument ${a}`);
   }
   if (!out.phase) usage('--phase is required');
-  if (!LAYER_LABELS[out.phase]) usage(`unknown phase ${out.phase}`);
+  if (!Object.hasOwn(LAYER_LABELS, out.phase)) usage(`unknown phase ${out.phase}`);
   return out;
 }
 
@@ -97,8 +105,9 @@ function main() {
   }
   console.error(`check-trust-phase-proof: FAIL — ${phase} (${layer}): ${result.problems.length} problem(s):`);
   for (const p of result.problems) console.error(`  - ${p}`);
-  console.error('When closing a slice: merge its PR with a closing keyword, close owner steps as completed, and replace');
-  console.error('the "_(none yet)_" line under "Deviations and discoveries" with the slice\'s entries or a plain "None." line.');
+  console.error('When closing a slice: let its merged PR close the issue (a closing keyword, merged to the default');
+  console.error('branch), close an owner step as completed, and replace the "_(none yet)_" line under');
+  console.error('"Deviations and discoveries" with the slice\'s entries or a plain "None." line.');
   process.exit(1);
 }
 
