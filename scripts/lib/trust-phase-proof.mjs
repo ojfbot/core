@@ -3,10 +3,11 @@
 //
 // A layer retro may close only when every other slice of its phase is closed AND left its proof:
 //
-//   - a slice whose roadmap deliverable is "A reviewed PR closing <repo>#N" needs the issue's
-//     last close event to name, as its closer, a merged pull request in that same repo (or a
-//     commit that belongs to one). A merged PR that is only linked, or a hand close after it,
-//     is not proof: GitHub closes an issue from a PR only when the PR lands on the default branch;
+//   - a slice whose roadmap deliverable is "A reviewed PR closing <repo>#N" needs one of the
+//     issue's close events to name, as its closer, a merged pull request in that same repo (or a
+//     commit that belongs to one), and the issue closed as completed now. A merged PR that is
+//     only linked is not proof: GitHub closes an issue from a PR only when the PR lands on the
+//     default branch. A reopen and hand close after a real PR close does not erase it;
 //   - an owner step ("Owner step recorded on <repo>#N") needs the issue closed as completed —
 //     "not planned" fails. A script cannot yet tell the owner's close from an agent's (that waits
 //     on the per-Mac GitHub Apps, ojfbot/core#681), so the retro reads owner steps by hand;
@@ -35,7 +36,11 @@ export const PLACEHOLDER = '_(none yet)_';
 const PLACEHOLDER_RE = /[_*]{0,2}\(\s*none yet\s*\)[_*]{0,2}/i;
 const DEVIATIONS_TITLE = /^Deviations and discoveries$/i;
 const HEADING = /^ {0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
-const FENCE = /^ {0,3}(`{3,}|~{3,})/;
+// A fence opener: three or more backticks (whose info string has no backtick, so a one-line
+// ```span``` is inline code) or three or more tildes, indented at most three spaces.
+const FENCE_OPEN = /^ {0,3}(?:(`{3,})[^`]*|(~{3,}).*)$/;
+// Four spaces or a tab: an indented code block (or list continuation); never counts as proof.
+const INDENTED = /^(?: {4,}|\t)/;
 // The three rule bullets every slice issue was filed with; they are template, not entries.
 const TEMPLATE_BULLET = /^(?:[-*+]|\d+[.)])\s+A discovery that\b/;
 const ENTRY = /^(?:[-*+]|\d+[.)])\s+\S/;
@@ -84,38 +89,56 @@ export function phaseSlices(roadmap, phase) {
 }
 
 /**
- * Split a Markdown body into lines tagged with whether they are prose (outside code fences and
- * HTML comments) and, for prose headings, their level and text.
+ * Split a Markdown body into lines. Each keeps its raw `line` and its `text` with HTML comments
+ * removed (including comments that open mid-line or span lines). `prose` is false inside code
+ * fences, for indented code, and for lines that are empty once comments are gone. Prose headings
+ * also carry their level and title.
  */
 function markdownLines(body) {
   const out = [];
-  let fence = null;
-  let comment = false;
+  let fence = null; // { char, length } while inside a fenced code block
+  let inComment = false;
   for (const line of String(body ?? '').split(/\r?\n/)) {
     if (fence) {
-      const m = FENCE.exec(line);
-      if (m && m[1][0] === fence[0] && m[1].length >= fence.length && line.trim() === m[1].replace(/\s+$/, '').trim()) fence = null;
-      out.push({ line, prose: false });
+      const close = new RegExp(`^ {0,3}${fence.char === '`' ? '`' : '~'}{${fence.length},}\\s*$`);
+      if (close.test(line)) fence = null;
+      out.push({ line, text: '', prose: false });
       continue;
     }
-    if (comment) {
-      if (line.includes('-->')) comment = false;
-      out.push({ line, prose: false });
+    if (!inComment) {
+      const f = FENCE_OPEN.exec(line);
+      if (f) {
+        const run = f[1] ?? f[2];
+        fence = { char: run[0], length: run.length };
+        out.push({ line, text: '', prose: false });
+        continue;
+      }
+    }
+    let text = '';
+    let rest = line;
+    while (rest.length) {
+      if (inComment) {
+        const end = rest.indexOf('-->');
+        if (end < 0) break;
+        rest = rest.slice(end + 3);
+        inComment = false;
+      } else {
+        const start = rest.indexOf('<!--');
+        if (start < 0) {
+          text += rest;
+          break;
+        }
+        text += rest.slice(0, start);
+        rest = rest.slice(start + 4);
+        inComment = true;
+      }
+    }
+    if (!text.trim() || INDENTED.test(text)) {
+      out.push({ line, text, prose: false });
       continue;
     }
-    const f = FENCE.exec(line);
-    if (f) {
-      fence = f[1];
-      out.push({ line, prose: false });
-      continue;
-    }
-    if (/^\s*<!--/.test(line) && !line.includes('-->')) {
-      comment = true;
-      out.push({ line, prose: false });
-      continue;
-    }
-    const h = HEADING.exec(line);
-    out.push(h ? { line, prose: true, level: h[1].length, title: h[2] } : { line, prose: true });
+    const h = HEADING.exec(text);
+    out.push(h ? { line, text, prose: true, level: h[1].length, title: h[2] } : { line, text, prose: true });
   }
   return out;
 }
@@ -147,8 +170,9 @@ export function deviationsVerdict(body) {
       reason: `"Deviations and discoveries" still holds the "${PLACEHOLDER}" placeholder — replace it with the slice's entries, or a plain "None." line`,
     };
   }
-  // Only prose counts as an entry or a "None." line, never text inside a code block or comment.
-  const prose = section.lines.filter((l) => l.prose && !l.level).map((l) => l.line.trim());
+  // Only prose counts as an entry or a "None." line: never text in a code block, indented code
+  // or an HTML comment.
+  const prose = section.lines.filter((l) => l.prose && !l.level).map((l) => l.text.trim());
   const entries = prose.filter((l) => ENTRY.test(l) && !TEMPLATE_BULLET.test(l));
   if (entries.length > 0 || prose.some((l) => NONE_LINE.test(l))) return { ok: true };
   return {
@@ -158,17 +182,17 @@ export function deviationsVerdict(body) {
 }
 
 /**
- * Did the issue's last close event come from a merged PR in `repo`? The closer is the PR itself,
- * or a commit whose associated PRs include a merged one in `repo`.
+ * Did any of the issue's close events come from a merged PR in `repo`? A closer is the PR itself,
+ * or a commit whose associated PRs include a merged one in `repo`. A later reopen and hand close
+ * does not erase a real PR close; a PR that was only linked never appears as a closer.
  */
 export function closedByMergedPr(issue, repo) {
-  const events = issue?.timelineItems?.nodes ?? [];
-  const closer = events.length ? events[events.length - 1]?.closer : null;
-  if (!closer) return false;
   const ok = (pr) => pr?.merged === true && sameRepo(pr.repository?.nameWithOwner, repo);
-  if (closer.__typename === 'PullRequest') return ok(closer);
-  if (closer.__typename === 'Commit') return (closer.associatedPullRequests?.nodes ?? []).some(ok);
-  return false;
+  return (issue?.timelineItems?.nodes ?? []).some(({ closer } = {}) => {
+    if (closer?.__typename === 'PullRequest') return ok(closer);
+    if (closer?.__typename === 'Commit') return (closer.associatedPullRequests?.nodes ?? []).some(ok);
+    return false;
+  });
 }
 
 /** Problems with one slice's issue record (empty list = the slice left its proof). */
@@ -181,7 +205,7 @@ export function sliceProblems(slice, issue) {
     problems.push(`closed as ${String(issue.stateReason ?? 'unknown').toLowerCase().replace(/_/g, ' ')}, not completed`);
   }
   if (slice.kind === 'pr' && issue.state === 'CLOSED' && !closedByMergedPr(issue, slice.repo)) {
-    problems.push(`its last close was not by a merged pull request in ${slice.repo} (a linked PR or a hand close is not proof)`);
+    problems.push(`no merged pull request in ${slice.repo} ever closed it (a linked PR or a hand close is not proof)`);
   }
   const dev = deviationsVerdict(issue.body);
   if (!dev.ok) problems.push(dev.reason);
