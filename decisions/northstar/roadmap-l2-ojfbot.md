@@ -920,7 +920,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#694 (trust build slice RETRO-0)."
     entrance: "Every other phase 0 slice closed."
     success: "The conductor (or a fresh session) re-reads the discoveries issue and every phase 0 slice's “Deviations and discoveries” section; re-checks each phase 1 entrance condition and the unknowns it touches; re-plans any phase 1 slice whose assumptions moved; and sends any change to a ruled decision to the owner through the conductor. The retro is recorded as a comment on the phase 0 epic."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:0-phase0 --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH8"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1224,7 +1224,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#699 (trust build slice RETRO-1)."
     entrance: "Every other phase 1 slice closed and running watch-only on staging for at least one week."
     success: "As RETRO-0, plus: the watch-only counts for each enforcer (would-refuse, wrong refusals, unknowns) are summarised with their thresholds for going live. A wrong refusal or an unexplained unknown keeps that enforcer in watch-only. The review packet (OR-PACK) scope is confirmed."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:1-enforcement --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH9"
     autonomy: gate-0
     claimable_by: human_only
     kind: m
@@ -1350,7 +1350,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#701 (trust build slice RETRO-2)."
     entrance: "P1-GL-LH and P1-GL-FR done."
     success: "As RETRO-0, for phase 2. Includes a check that #668's sequencing rule still holds (the ask-first gate switches on only with signed approvals, which exist since AU-1)."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:2-outside-review --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:2-outside-review --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH10"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -1766,7 +1766,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#705 (trust build slice RETRO-3)."
     entrance: "Every other phase 2 slice closed."
     success: "As RETRO-0, for phase 3. Confirms P2-GL switched the ask-first gate and merge proof to enforcing, or records why they stay watch-only."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:3-evidence --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH11"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -2118,7 +2118,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#709 (trust build slice RETRO-4)."
     entrance: "Every other phase 3 slice closed."
     success: "As RETRO-0. Also: list every guarantee in #674's table with its final mark, and every open unknown with where it now lives."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:4-seats-stops --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH12"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -2435,7 +2435,7 @@ slices:
     deliverable: "A reviewed PR closing ojfbot/core#720 (trust build slice RETRO-5)."
     entrance: "Every other tests-lane slice closed."
     success: "As RETRO-0. Also: confirm no AI-judge flag gates anything (#671: none gates yet), and list which measures are claimed."
-    check: "[ $(gh issue list -R ojfbot/LocalHelp --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/core --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ] && [ $(gh issue list -R ojfbot/daily-logger --label layer:5-tests-lane --label trust-slice --state open --limit 200 --search '-label:trust-retro' --json number -q length) -eq 0 ]"
+    check: "node scripts/check-trust-phase-proof.mjs --phase PH13"
     autonomy: gate-0
     claimable_by: human_only
     kind: s
@@ -2702,7 +2702,7 @@ Discoveries and plan gaps: ojfbot/core#687. Sanity-check brief: kept privately b
 
 - A discovery that **changes a ruled decision** (#662–#682, #674) goes to the owner **through the conductor**.
 - A discovery that **only changes a slice** gets a re-plan of that slice, not of the whole map.
-- Each layer ends with a **layer retro** slice (`RETRO-0` to `RETRO-5`) that re-checks the next layer's assumptions before it starts.
+- Each layer ends with a **layer retro** slice (`RETRO-0` to `RETRO-5`) that re-checks the next layer's assumptions before it starts. Every retro runs one shared check, `node scripts/check-trust-phase-proof.mjs --phase <PH>`. It passes only when every other slice of the phase is closed with its proof: a merged pull request in the named repo that closes the issue, or, for an owner step, the issue closed as completed ("not planned" fails). It also needs each slice's "Deviations and discoveries" section to replace the filed `_(none yet)_` line with entries or a plain "None." line. A phase with no slices, or a lookup that finds none, fails. Until the per-Mac GitHub Apps exist (#681), a script can't tell the owner's close from an agent's, so the retro confirms owner steps by reading them. How each slice handled its review findings is also a human read in the retro.
 
 Owner-only issues: `OW-0` ojfbot/LocalHelp#127, `OW-SVC` ojfbot/LocalHelp#199, `OW-BK-AU` ojfbot/LocalHelp#141, `OW-K1` ojfbot/LocalHelp#131, `OW-FID` ojfbot/LocalHelp#134, `OW-ACK` ojfbot/LocalHelp#135, `OW-1a` ojfbot/LocalHelp#137, `OW-1b` ojfbot/LocalHelp#138, `OW-2` ojfbot/LocalHelp#139, `OW-6` ojfbot/LocalHelp#140, `OW-8a` ojfbot/LocalHelp#157, `OW-8` ojfbot/LocalHelp#159, `OW-7` ojfbot/LocalHelp#156, `OW-BK-DA` ojfbot/LocalHelp#163, `OW-CK` ojfbot/LocalHelp#202, `OW-4` ojfbot/LocalHelp#174, `OW-5a` ojfbot/LocalHelp#175, `OW-3` ojfbot/LocalHelp#184, `OW-K2` ojfbot/LocalHelp#189, `OW-5b` ojfbot/LocalHelp#206.
 

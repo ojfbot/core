@@ -764,3 +764,9 @@ Slicing core#674 into roadmap slices and issues (discoveries issue ojfbot/core#6
 - 2026-11-22 (slicing): The first Codex review found two missing slices (the data layer's fingerprint sender, DA-W, and the switch of the ask-first gate and merge proof to enforcing, P2-GL) and owner steps described as agent success (AU-1b, AU-8, DLG-4). Went: added the slices and reworded the success lines.
 - 2026-11-22 (slicing): The first Claude review found that the planned checks could not fail when tests were missing, plus missing owner steps (NAS service accounts, the checker's GitHub credential) and missing go-live steps. Went: checks run a test file named for the slice; added OW-SVC, OW-CK, P0-GL and P3-GL; split DLG-3; phase 1 stays off in production until its go-live slice.
 - 2026-11-22 (slicing): The roadmap schema takes one `depends_on`. Went: it names each slice's first blocker; native GitHub links hold the full graph.
+
+## Deviations — layer retro proof check (2026-11-22)
+
+Codex's leftover on ojfbot/core#687: the RETRO-0 to RETRO-5 commands only counted open slices.
+
+- 2026-11-22: The task assumed each slice leaves a machine-checkable evidence and disposition record. Only "a merged PR closes the issue" is one; owner steps and review-finding handling have no defined record form. Asked the conductor, who ruled: owner steps count as "closed as completed" ("not planned" fails), the disposition record is the "Deviations and discoveries" section with its `_(none yet)_` placeholder replaced by entries or "None.", and owner steps and review findings stay a human read in the retro until the per-Mac GitHub Apps exist (#681). No new record type.
