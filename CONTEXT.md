@@ -62,12 +62,32 @@ A packaged instruction set under `.claude/skills/<name>/`, catalog-registered, i
 `/<name>`. Git-canonical here; user-scope skills are symlinked to `~/.claude/skills/`.
 _Avoid_: command, plugin (a plugin is a distribution channel, rejected — ADR-0083)
 
+**Claim**:
+A model-written sentence saying what a source says or what is true in the world ("X shipped").
+Opinions, recommendations and questions are not claims. Every claim is either quoted or a
+**Hypothesis**.
+→ deeper: `decisions/adr/0111-claim-source-quote.md` (adr:claim-source-quote)
+
+**Quote**:
+The exact words a **Claim** rests on, copied from its source and never paraphrased, with the
+source named and the location given (line range, page, timestamp or row). Where the source text
+is in hand, code cuts and re-checks it; elsewhere it is marked "not re-checked".
+_Avoid_: citation (a link alone is not a quote)
+→ deeper: `decisions/adr/0111-claim-source-quote.md` (adr:claim-source-quote)
+
+**Hypothesis**:
+A **Claim** missing its source, **Quote** or location. It is labelled, not blocked, but it can
+never be the only support for a check, an ADR, a slice's entrance condition or an action.
+_Avoid_: guess, assumption (use the one word so the shared tag stays searchable)
+→ deeper: `decisions/adr/0111-claim-source-quote.md` (adr:claim-source-quote)
+
 ## Relationships
 
 - A **Northstar** is moved by **Slices**; a roadmap orders them; **Control gates** sit between them
 - A **Wayfinder map** precedes a roadmap; its **decision tickets** resolve into specs and slices
 - A **Bead** carries context *between* the sessions that build slices
 - An `/adopt-stack` pass produces **Absorb/Wrap/Reject** verdicts; absorbed opinions become or amend **Skills**
+- A **Claim** with a **Quote** is quoted; without one it is a **Hypothesis**, which cannot alone support a **Control gate** criterion
 
 ## Flagged ambiguities
 
