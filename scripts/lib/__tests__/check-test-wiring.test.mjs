@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { isTestFile, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
+import { evidenceProblems, isTestFile, PREREQUISITES, RUNNERS, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
 
 describe("check-test-wiring", () => {
   it("recognises JS, TS and Python test file names", () => {
@@ -20,5 +21,34 @@ describe("check-test-wiring", () => {
       "a/**/*.test.ts",
       "b/*.test.mjs",
     ]);
+  });
+
+  it("recognises spec files and _test.mjs files", () => {
+    expect(isTestFile("a/x.spec.ts")).toBe(true);
+    expect(isTestFile("a/x_test.mjs")).toBe(true);
+    expect(unwired(["packages/fleet-runner/scripts/g6-new.test.mjs"], [])).toEqual([]);
+    expect(unwired(["packages/fleet-runner/scripts/other.spec.mjs"], [])).toEqual([
+      "packages/fleet-runner/scripts/other.spec.mjs",
+    ]);
+  });
+
+  it("accepts new files that match a runner glob, which the runner then runs", () => {
+    for (const f of [
+      "packages/fleet-runner/scripts/g6-new.test.mjs",
+      ".claude/skills/bead/scripts/test_new.py",
+      "scripts/launcher/tests/new.test.mjs",
+      "scripts/__tests__/test_other.py",
+    ]) {
+      expect(unwired([f], [])).toEqual([]);
+    }
+  });
+
+  it("fails when a runner no longer contains the text that makes it run every match", () => {
+    const real = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8");
+    expect(evidenceProblems(real)).toEqual([]);
+    for (const { file, text } of [...RUNNERS, ...PREREQUISITES]) {
+      const broken = (f) => (f === file ? real(f).replaceAll(text, "") : real(f));
+      expect(evidenceProblems(broken).length, `${file}: ${text}`).toBeGreaterThan(0);
+    }
   });
 });

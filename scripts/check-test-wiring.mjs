@@ -15,13 +15,29 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 // Test files run by a CI step other than `pnpm test`. Globs use path.matchesGlob syntax.
+// Each runner must run EVERYTHING its glob matches, so a new file runs without anyone editing
+// CI. `evidence` names the file and text that prove it; the check fails if that text is gone.
 export const RUNNERS = [
-  { glob: 'scripts/__tests__/test_*.py', step: 'User-scope installer and hook isolation regression' },
-  { glob: 'scripts/launcher/tests/*.test.mjs', step: 'Launcher registrations test' },
-  { glob: 'packages/fleet-runner/scripts/g6-*.test.mjs', step: 'FleetRunner G6 script tests' },
-  { glob: 'scripts/fleet-runner/__tests__/g0-contract.test.mjs', step: 'FleetRunner G0 contract test' },
-  { glob: '.claude/skills/bead/scripts/test_*.py', step: 'Skill script tests (bead, vault)' },
-  { glob: '.claude/skills/vault/scripts/test_*.py', step: 'Skill script tests (bead, vault)' },
+  { glob: 'scripts/__tests__/test_*.py', file: '.github/workflows/ci.yml',
+    text: "unittest discover -s scripts/__tests__ -p 'test_*.py'" },
+  { glob: 'scripts/launcher/tests/*.test.mjs', file: 'scripts/launcher/tests/package.json',
+    text: 'for f in *.test.mjs;' },
+  { glob: 'packages/fleet-runner/scripts/g6-*.test.mjs', file: 'packages/fleet-runner/package.json',
+    text: 'scripts/g6-*.test.mjs' },
+  { glob: 'scripts/fleet-runner/__tests__/**/*.test.mjs', file: 'vitest.g0.config.ts',
+    text: 'scripts/fleet-runner/__tests__/**/*.test.mjs' },
+  { glob: '.claude/skills/bead/scripts/test_*.py', file: '.github/workflows/ci.yml',
+    text: "unittest discover -s .claude/skills/bead/scripts -p 'test_*.py'" },
+  { glob: '.claude/skills/vault/scripts/test_*.py', file: '.github/workflows/ci.yml',
+    text: "unittest discover -s .claude/skills/vault/scripts -p 'test_*.py'" },
+];
+
+// Other things a wired test depends on. Same evidence rule.
+export const PREREQUISITES = [
+  { file: '.github/workflows/ci.yml', text: 'g6:test' },
+  { file: '.github/workflows/ci.yml', text: 'vitest.g0.config.ts' },
+  { file: '.github/workflows/ci.yml', text: 'python3-yaml' },
+  { file: 'scripts/verify-runner/Dockerfile', text: 'python3-yaml' },
 ];
 
 // Test files that CI deliberately does not run, with the reason.
@@ -34,7 +50,8 @@ export const EXCLUDED = [
 
 export function isTestFile(file) {
   const base = path.posix.basename(file);
-  return /\.test\.[^/]+$/.test(base) || /^test_.*\.py$/.test(base) || /_test\.py$/.test(base);
+  return /\.(test|spec)\.[^/]+$/.test(base) || /_test\.(mjs|cjs|js|ts)$/.test(base)
+    || /^test_.*\.py$/.test(base) || /_test\.py$/.test(base);
 }
 
 export function vitestIncludes(configText) {
@@ -48,6 +65,17 @@ export function unwired(files, includes) {
   return files.filter(isTestFile).filter((f) => !globs.some((g) => path.posix.matchesGlob(f, g)));
 }
 
+/** Evidence checks: every runner and prerequisite still contains the text that makes it run all matches. */
+export function evidenceProblems(read) {
+  const problems = [];
+  for (const { file, text, glob } of [...RUNNERS, ...PREREQUISITES]) {
+    let body = '';
+    try { body = read(file); } catch { /* missing file is a problem below */ }
+    if (!body.includes(text)) problems.push(`${file} no longer contains \`${text}\`${glob ? ` (runs ${glob})` : ''}`);
+  }
+  return problems;
+}
+
 function main() {
   const files = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
   const includes = vitestIncludes(readFileSync(path.join(ROOT, 'vitest.config.ts'), 'utf8'));
@@ -56,6 +84,11 @@ function main() {
     process.stderr.write(`${missing.length} test file(s) are not run by any CI step:\n`);
     missing.forEach((f) => process.stderr.write(`  ${f}\n`));
     process.stderr.write('Add them to vitest.config.ts include, or to RUNNERS/EXCLUDED in scripts/check-test-wiring.mjs.\n');
+    return 1;
+  }
+  const broken = evidenceProblems((f) => readFileSync(path.join(ROOT, f), 'utf8'));
+  if (broken.length) {
+    broken.forEach((b) => process.stderr.write(`${b}\n`));
     return 1;
   }
   const n = files.filter(isTestFile).length;

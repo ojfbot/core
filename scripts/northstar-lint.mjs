@@ -15,8 +15,8 @@
  *            ladder-completeness (L1/L2 must declare a parent, L3 must not).
  *   WARN   — rollup drift (parent % vs mean of its children); stale % (no movement in N days).
  *
- * Skipped entries (repo checkout absent) are counted in every report. `--max-skipped N` with
- * `--check` fails when more than N entries were skipped, so coverage cannot silently shrink.
+ * Skipped entries (repo checkout absent) are counted in every report. `--max-skipped N` fails
+ * (with or without `--check`) when more than N entries were skipped, so coverage cannot silently shrink.
  *
  * Usage: node northstar-lint.mjs [--core PATH] [--format=summary] [--check] [--stale-days N]
  *                                [--max-skipped N]
@@ -35,7 +35,11 @@ function parseFlags(argv) {
     if (a === '--check') f.check = true;
     else if (a === '--format=summary') f.format = 'summary';
     else if (a === '--core') f.core = argv[++i];
-    else if (a === '--max-skipped') f.maxSkipped = parseInt(argv[++i], 10);
+    else if (a === '--max-skipped') {
+      const v = argv[++i];
+      if (!/^\d+$/.test(v ?? '')) throw new Error(`--max-skipped needs a whole number, got '${v ?? ''}'`);
+      f.maxSkipped = Number(v);
+    }
     else if (a === '--stale-days') f.staleDays = parseInt(argv[++i], 10) || 30;
   }
   return f;
@@ -157,8 +161,7 @@ export function lint(core, staleDays) {
 }
 
 function exitCode(flags, r) {
-  if (!flags.check) return 0;
-  if (r.errors.length) return 1;
+  if (flags.check && r.errors.length) return 1;
   if (Number.isInteger(flags.maxSkipped) && r.counts.unreachable > flags.maxSkipped) {
     process.stderr.write(`northstar-lint: ${r.counts.unreachable} entries skipped, more than the allowed ${flags.maxSkipped}\n`);
     return 1;
@@ -167,7 +170,8 @@ function exitCode(flags, r) {
 }
 
 function main() {
-  const flags = parseFlags(process.argv.slice(2));
+  let flags;
+  try { flags = parseFlags(process.argv.slice(2)); } catch (e) { process.stderr.write(`northstar-lint: ${e.message}\n`); return 2; }
   const r = lint(flags.core, flags.staleDays);
 
   if (flags.format === 'summary') {

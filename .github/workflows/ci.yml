@@ -23,7 +23,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: User-scope installer and hook isolation regression
-        run: python3 scripts/__tests__/test_user_scope_install.py -v
+        run: python3 -m unittest discover -s scripts/__tests__ -p 'test_*.py' -v
 
       - name: Build
         run: pnpm build
@@ -40,20 +40,20 @@ jobs:
       - name: FleetRunner G6 script tests
         run: pnpm --filter @core/fleet-runner g6:test
 
-      # The G0 contract test reads the approved BookcaseDiscovery baseline commit, so it needs
-      # that public repo with full history. It is cloned outside the Core checkout.
+      # The G0 contract test reads two approved baseline commits that are on no default branch
+      # (Core and BookcaseDiscovery), so the script fetches each by exact SHA, retries once, and
+      # fails with a clear message if one is gone. The Core checkout is full-history for it.
       - name: FleetRunner G0 contract test
         run: |
-          client="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/BookcaseDiscovery"
-          git clone https://github.com/ojfbot/BookcaseDiscovery "$client"
+          client="$(bash scripts/fleet-runner/fetch-g0-baselines.sh "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/BookcaseDiscovery")"
           FLEET_RUNNER_CLIENT_REPO="$client" pnpm exec vitest run --config vitest.g0.config.ts
 
       - name: Skill script tests (bead, vault)
         run: |
-          # PyYAML (python3-yaml) ships with the ubuntu runner image.
-          python3 .claude/skills/bead/scripts/test_normalize.py -v
-          python3 .claude/skills/vault/scripts/test_lint_gate.py -v
-          python3 .claude/skills/vault/scripts/test_lint_stale.py -v
+          # PyYAML is installed here, not assumed from the runner image (pip is blocked on system Python).
+          sudo apt-get install -y --no-install-recommends python3-yaml
+          python3 -m unittest discover -s .claude/skills/bead/scripts -p 'test_*.py' -v
+          python3 -m unittest discover -s .claude/skills/vault/scripts -p 'test_*.py' -v
 
       - name: Every test file is wired into CI
         run: node scripts/check-test-wiring.mjs

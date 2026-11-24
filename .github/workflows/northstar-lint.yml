@@ -23,12 +23,13 @@ jobs:
       # Dep-free .mjs scripts — no pnpm install needed.
       - name: roadmap-lint (blocking on ERRORs)
         run: node scripts/roadmap-lint.mjs --check
-      - name: northstar-lint (blocking on ERRORs)
-        run: node scripts/northstar-lint.mjs --check
-      # Entries whose repo is not checked out here are skipped, not checked. Show how many in the
-      # job summary. No --max-skipped limit is set yet: the count seen in CI has not been measured
-      # across runs, and a wrong limit would turn unrelated PRs red. Once it is stable, add
-      # `--max-skipped N` to the step above so coverage cannot shrink unnoticed (core#724).
+      # CI checks out only Core, so registered entries whose repo is not on disk are skipped, not
+      # checked. The skipped count is fixed by the registry and this checkout (23 of 26), so the
+      # limit is exactly that number: a new registered entry that CI cannot see, or a lost entry
+      # that used to be reachable, turns this red. Lower it when more repos are checked out; raise
+      # it only as a deliberate decision when a northstar is registered (core#724).
+      - name: northstar-lint (blocking on ERRORs and on skipped growth)
+        run: node scripts/northstar-lint.mjs --check --max-skipped 23
       - name: northstar-lint coverage (job summary)
         if: always()
         run: |

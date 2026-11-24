@@ -19,7 +19,7 @@ ARG PNPM_VERSION
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      bash build-essential ca-certificates coreutils curl git jq openssl python3 python3-pip python3-venv rsync sqlite3 sudo tar unzip util-linux xz-utils zip \
+      bash build-essential ca-certificates coreutils curl git jq openssl python3 python3-pip python3-venv python3-yaml rsync sqlite3 sudo tar unzip util-linux xz-utils zip \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=node /usr/local/bin/node /usr/local/bin/node
 COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
@@ -30,6 +30,7 @@ RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
 COPY --from=docker-cli /usr/local/bin/docker /usr/local/bin/docker
 COPY --from=docker-cli /usr/local/libexec/docker/cli-plugins /usr/local/libexec/docker/cli-plugins
 # sqlite3 is on GitHub's ubuntu image; the Codex-automation tests call its command line.
+# python3-yaml (PyYAML) is installed explicitly: the bead skill's test imports it.
 # python3 is the release's own (3.12 on 24.04), as on GitHub's image of the same release.
 # The runner user, with passwordless sudo like the GitHub runner's.
 RUN userdel -r ubuntu 2>/dev/null; useradd --create-home --uid 1001 --shell /bin/bash runner \

@@ -99,7 +99,11 @@ describe("fleet-runner G0 contract verifier", () => {
       format: "fleet-runner-g0-contract-evidence/2",
       scope: "G0 source and contract consistency only; this is not a G1+ execution verdict",
       actualTools: { node: "24.22.2", pnpm: "9.15.4", typescript: "5.9.3", vitest: "2.1.9" },
-      coreBaseline: { commit: "973dcfdfc43129353b0ec37fc1a27fcbe97a2f85", sqliteSchema: 2 },
+      coreBaseline: {
+        commit: "973dcfdfc43129353b0ec37fc1a27fcbe97a2f85",
+        fleetVersion: "0.1.0",
+        sqliteSchema: 2,
+      },
       clientBaseline: { commit: "ff321c6963aa77d10990d71bbf7a7607e887f910" },
       candidate: { sqliteSchema: 5 },
       requiredCaseMappingsChecked: 20,
@@ -159,6 +163,19 @@ describe("fleet-runner G0 contract verifier", () => {
     const result = runFixture(fixture);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("Core baseline must remain the approved source pin");
+  });
+
+  it("accepts a later candidate package version: the 0.1.0 pin is about the approved baseline", () => {
+    const fixture = makeCoreFixture();
+    const pkgPath = path.join(fixture, "packages/fleet-runner/package.json");
+    writeFileSync(
+      pkgPath,
+      readFileSync(pkgPath, "utf8").replace(/"version": "[^"]+"/, '"version": "9.9.9"'),
+    );
+    commitFixtureFile(fixture, "packages/fleet-runner/package.json", "candidate version moves on");
+    const result = runFixture(fixture);
+    expect(result.stderr).not.toContain("0.1.0");
+    expect(JSON.parse(result.stdout || "{}").candidate?.fleetVersion).toBe("9.9.9");
   });
 
   it("rejects a committed case-to-gate remapping", () => {
