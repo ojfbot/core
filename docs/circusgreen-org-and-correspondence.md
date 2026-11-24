@@ -9,7 +9,7 @@ two jobs and keeps them apart:
 - **Sections 1 to 6 restate what the owner has already ruled.** The rulings are in
   [`decisions/wayfinder/agent-trust-and-factory-evaluation.md`](../decisions/wayfinder/agent-trust-and-factory-evaluation.md)
   (22 November 2026). This page adds no authority to them. Where the two disagree, the map wins.
-- **Section 7 lists what the owner said on 24 November 2026** that is not yet in the map.
+- **Section 7 lists what the owner said on 24 November 2026** (A1 to A9) that is not yet in the map.
   Those are amendments waiting to be entered, challenged and ruled the usual way.
 
 "Ruled" does not mean "built". Section 8 says what this page could and could not confirm
@@ -195,6 +195,7 @@ design. "Fit" is this page's reading, not a ruling.
 | **A6** | Seats come in kinds: a chief of staff as the owner's single point of contact, conductors, a small pool of specialists for side threads, and pooled workers. | **New.** #682 leaves seat labels open, so kinds can be added without changing the tree. |
 | **A7** | ClassicSpaceVenue is a place the owner talks to agents, not only a place to watch them. | **Changes a recorded boundary.** It is recorded as view-only. If it becomes a place to talk, it needs the same sign-in as MorningCockpit. Approvals stay passkey-signed whichever screen is used (#679), so the venue needs no approval power of its own. |
 | **A8** | Long-lived seats run as deployed services on Yojimbo and the NAS. Yuri is a laptop, sometimes offline, and opts in for short-lived instances. | **New, fits.** The standby and 12-hour lapse rules (#666) already cover a holder going offline. |
+| **A9** | A fuel layer assigns prioritised work to whatever capacity is free. Hosted quota is capped at 95% so the owner keeps a margin. Work that does not need the owner (quality, tech debt) is held for the end of a quota window, not front-loaded. Local models and hosted models are separate fuels with separate queues. | **New.** Extends the open budgets question in the fleet-runner map (#675) and the cost measure in #672. See "The fuel layer" below. |
 
 One recommendation made on 24 November is **withdrawn**: "whoever starts a helper session
 is its conductor". Under #682 a conductor holds a named seat with a signed record. A session
@@ -262,6 +263,65 @@ flowchart LR
   YOJ -.->|standby for| YURI
 ```
 
+### The fuel layer
+
+Stated by the owner in the same chat on 24 November. Not yet in the map.
+
+"Fuel" is capacity to run agents. There are two unlike kinds, and they are never pooled:
+
+| Fuel | What it is | Limit | State today |
+|---|---|---|---|
+| **Hosted, Anthropic** | Subscription quota for Claude, per account and per quota window | 95% cap | A 95% alert is live. A usage reader is merged and not switched on. |
+| **Hosted, OpenAI** | Subscription quota for Codex, per account and per window | 95% cap | Not confirmed whether remaining quota can be read. |
+| **Local** | What Yojimbo and Yuri can run themselves with open models, given whether each is online and free | The machine | Tried a few times, not proven. No repeatable eval harness exists. |
+
+The owner's rules:
+
+1. **Cap hosted fuel at 95%.** The last 5% is the owner's own margin.
+2. **Do not burn quota for its own sake.** Early in a window, fuel goes to prioritised roadmap work.
+3. **Hold owner-free work for the end of a window.** As a reset approaches, unspent fuel goes to a standing, prioritised list of quality and tech-debt work that does not end at the owner's desk.
+4. **Keep separate queues per fuel.** A task says which fuel it can run on. Local work is not free: checking it costs hosted fuel, and that cost is counted.
+5. **Local fuel earns work through evals.** Until a kind of task has a repeatable test that a local model passes, it is not assigned to local fuel.
+
+**Caption:** Three gauges feed one matcher. The matcher takes the highest-priority ready task that fits a free slot of the right fuel. Near the end of a quota window it switches to the owner-free list, and it stops assigning hosted work at 95%. Every run is written to a ledger with what it cost and whether it became an accepted change. Everything here is proposed; nothing is built except the 95% alert.
+
+```mermaid
+---
+title: "The fuel layer (owner statements 2026-11-24, not ruled in the map)"
+---
+flowchart LR
+  subgraph GAUGES["Fuel gauges"]
+    AN["Anthropic quota<br/>cap 95%"]
+    OA["OpenAI quota<br/>cap 95%"]
+    LO["Local: Yojimbo, Yuri<br/>online and free?"]
+  end
+  subgraph QUEUES["Ready work"]
+    RQ["Roadmap queue<br/>prioritised slices"]
+    DQ["Owner-free queue<br/>quality and tech debt"]
+    LQ["Local queue<br/>only task kinds with a passing eval"]
+  end
+  M(["Matching<br/>rules, no model"])
+  SL["Free slots<br/>seats and workers"]
+  LG["Ledger<br/>fuel spent, accepted or not"]
+
+  AN --> M
+  OA --> M
+  LO --> M
+  RQ --> M
+  DQ -->|end of window| M
+  LQ --> M
+  M --> SL
+  SL --> LG
+  LG -.->|local work is checked with hosted fuel| AN
+```
+
+What the layer is for, beyond scheduling: the owner will consider buying more local hardware
+(a larger Mac Studio or NVIDIA Sparks) only if, within one to two months, the ledger shows a
+stable queue that keeps the present two Macs working on tasks a local model demonstrably
+does well. Busy hardware alone is not the evidence. The evidence is a list of task kinds
+with passing evals, a queue of them deeper than the two Macs can clear, and an owner review
+backlog that is not growing.
+
 ## 8. Ruled, proposed and built
 
 This page was written from the documents. It did not inspect the running services.
@@ -276,6 +336,8 @@ This page was written from the documents. It did not inspect the running service
 | Sending only through a conductor (A1) | No | No. Followed by convention in Claude sessions on Yuri since 24 November. |
 | Chief of staff, specialist pool, seat kinds (A6) | No | No. |
 | Orchestration with its own model context (A5) | No | No. |
+| Fuel layer: gauges, queues per fuel, matcher, ledger (A9) | No | No, except the 95% quota alert, which is live. |
+| Repeatable eval harness for local models | Tests lane, PH13 | Not confirmed. The owner reports it is not repeatable yet. |
 
 ## 9. Open questions
 
@@ -287,10 +349,11 @@ This page was written from the documents. It did not inspect the running service
    mechanical service on a workflow engine (as in Yegge's Counting House), or both under
    different names? How does it relate to FleetRunner?
 5. **A6:** what stops the chief of staff from doing work itself?
-6. **Fuel:** which service shows how much token supply each seat has before work is assigned?
-7. **Build order:** if seats are the foundation for the organisation in section 7, should
+6. **Fuel:** can remaining OpenAI quota be read at all? Which service holds the gauges and the ledger: FleetRunner's work register, or something new?
+7. **Fuel:** tech-debt work still ends in pull requests, and agents merge only after the owner's yes (#681). What makes "owner-free" work truly owner-free: one batched yes, or a class of change that needs none?
+8. **Build order:** if seats are the foundation for the organisation in section 7, should
    "seats and stops" stay the last trust phase?
-8. **Reach:** the 24 November statements are known only to Claude sessions on Yuri. Codex on
+9. **Reach:** the 24 November statements are known only to Claude sessions on Yuri. Codex on
    both Macs and Claude on Yojimbo learn them only when they are entered in the map and the
    shared instructions.
 
