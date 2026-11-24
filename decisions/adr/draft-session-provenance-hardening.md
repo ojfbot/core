@@ -14,7 +14,7 @@ baseline:
 traces:
   supersedes:
   amends:
-  relates-to: [framebead-work-primitive, dolt-bead-store, session-beads-meta-coordination, control-gated-slices]
+  relates-to: [framebead-work-primitive, dolt-bead-store, session-beads-meta-coordination, control-gated-slices, claim-source-quote]
   parent:
   part-of-series:
 

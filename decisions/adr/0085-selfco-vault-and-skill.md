@@ -9,6 +9,8 @@ Status: Accepted
 OKR: 2026-Q2 / O-Knowledge / KR-cross-project-recall
 Commands affected: /vault (new), /daily-logger (distinction clarified), /bead (composition)
 Repos affected: core (skill, hook, install-agents, catalog, domain-knowledge), all sibling repos (skill symlink, selfco-vault.md), new repo ~/selfco
+traces:
+  relates-to: [claim-source-quote]
 
 ---
 

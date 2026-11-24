@@ -9,6 +9,8 @@ Status: Accepted
 OKR: 2026-Q2 / O-skills / KR-coverage
 Commands affected: new `/gated-slice` skill; complements `/plan-feature`, `/orchestrate`, `/claude-md-rollout`
 Repos affected: core (source); the pattern applies fleet-wide
+traces:
+  relates-to: [claim-source-quote]
 
 ---
 
