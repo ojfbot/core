@@ -83,7 +83,7 @@ cleanup() {
   if [ "$have_lock" = yes ] && [ "$keep_lock" = yes ]; then
     say "the stage lock is kept because the test copy may not be at rest: look at it, then remove the lock folder"
   elif [ "$have_lock" = yes ]; then
-    nas "$UNLOCK" "$NAS_STAGE_DIR" "$runid" || say "FAIL could not release the run lock on the server"
+    nas "$UNLOCK" "$NAS_STAGE_DIR" "$runid" .stage-lock || say "FAIL could not release the run lock on the server"
   fi
   rm -rf "$tmp"
   exit "$rc"
@@ -92,45 +92,16 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-# One run at a time: mkdir is atomic. A crashed run's lock is left for a person to remove.
-LOCK='
-dir="$1" id="$2"
-if mkdir "$dir/.stage-lock" 2>/dev/null; then
-  echo "$id" > "$dir/.stage-lock/owner"
-else
-  echo "FAIL another stage run holds the lock ($(cat "$dir/.stage-lock/owner" 2>/dev/null)); if none is running, remove $dir/.stage-lock"
-  exit 1
-fi
-'
-UNLOCK='
-dir="$1" id="$2"
-[ "$(cat "$dir/.stage-lock/owner" 2>/dev/null)" = "$id" ] && rm -rf "$dir/.stage-lock"
-true
-'
-nas "$LOCK" "$NAS_STAGE_DIR" "$runid" || die "could not take the stage lock"
+nas "$LOCK" "$NAS_STAGE_DIR" "$runid" .stage-lock stage || die "could not take the stage lock"
 have_lock=yes
 # Only a run that passes below may leave a revision promotable: clear the staged pass first (the
 # record of the last revision that passed stays). Both live in one file, stage-state, so they are
 # always written together by one rename.
-STATE_FN='
-read_state() { sed -n "s/^$2=//p" "$1/stage-state" 2>/dev/null | tail -n 1; }
-write_state() { printf "last_passed=%s\nstaged_ok=%s\n" "$2" "$3" > "$1/stage-state.new" && mv "$1/stage-state.new" "$1/stage-state"; }
-'
+# (STATE_FN, read_state and write_state of stage-state, is in the lib: the promote reads it.)
 nas "$STATE_FN"'write_state "$1" "$(read_state "$1" last_passed)" ""' "$NAS_STAGE_DIR"
 
-# Node, as the test copy's own client: its keys and CA only. What must not leak in from the caller's
-# shell (a stray FLEET_* setting, another CA, another endpoint) is unset; the values this needs are
-# read FIRST, because the private config may well export STAGE_HOST or STAGE_KEYS_DIR.
-stage_node() {
-  local host="$STAGE_HOST" port="$STAGE_PORT" keys="$STAGE_KEYS_DIR"
-  (
-    for v in $(env | grep -oE '^(FLEET_[A-Z_]*|NODE_EXTRA_CA_CERTS|NODE_OPTIONS)=' | tr -d =); do unset "$v"; done
-    unset STAGE_URL STAGE_KEYS_DIR
-    export STAGE_URL="https://$host:$port" STAGE_KEYS_DIR="$keys"
-    export NODE_EXTRA_CA_CERTS="$keys/ca.crt"
-    node "$here/stage-smoke.mjs" "$@"
-  )
-}
+# Node, as the test copy's own client: its keys and CA only (client_node, in the lib).
+stage_node() { client_node "$STAGE_HOST" "$STAGE_PORT" "$STAGE_KEYS_DIR" owner "$here/stage-smoke.mjs" "$@"; }
 
 # Wait for the signed status to answer ready on exactly <revision>: up to FLEET_READY_TRIES tries
 # (default 30), FLEET_READY_SLEEP seconds apart (default 3).
@@ -217,71 +188,8 @@ else
   say "no revision has passed in the test copy yet"
 fi
 
-# Stop every container of the Compose project by its label. Compose itself would first interpolate
-# the whole file, which fails when the env file lacks a revision; the label does not care.
-STOP_FN='
-stop_project() {
-  ids="$(docker ps -q --filter "label=com.docker.compose.project=$1")" || return 1
-  if [ -n "$ids" ]; then docker stop -t 30 $ids >/dev/null || return 1; fi
-  left="$(docker ps -q --filter "label=com.docker.compose.project=$1")" || return 1
-  [ -z "$left" ]
-}
-'
-STOP="$STOP_FN"'stop_project "$1"'
-
-# Compose prefers a variable in the calling shell over the --env-file, so a server profile that
-# exports FLEET_HOST_PORT or FLEET_STAGE_ROOT would silently change what runs. None is inherited.
-CLEAN_ENV='
-for v in $(env | sed -n -E "s/^((FLEET|COMPOSE)_[A-Za-z0-9_]*)=.*/\1/p"); do unset "$v"; done
-'
-
-# A server-side script that must be fenced: it runs in its OWN process group, recorded in the lock
-# folder, so that a rollback can wait for everything it started (a Compose child outlives a shell
-# that is hung up). Convention: $1 is the deploy folder and $2 this run's ID; the body sees the rest.
-# Before each step it checks, with step, that the run still owns the lock and was not told to stop.
-# Fails closed when it cannot get a group of its own (setsid, else job control).
-fenced() {
-  cat <<'EOF_HEAD'
-dir="$1" runid="$2"
-lock="$dir/.stage-lock"
-[ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run does not own the stage lock"; exit 1; }
-cat > "$lock/body.sh" <<'BODY_EOF'
-# The body fails on any error: the wrapper has -eu, but a script run as its own process does not
-# inherit it, and an unchecked write must never be followed by a PASS.
-set -eu
-dir="$1" runid="$2"
-shift 2
-lock="$dir/.stage-lock"
-pgid="$(ps -o pgid= -p $$ | tr -d ' ')"
-[ "$pgid" = "$$" ] || { echo "FAIL could not run in its own process group"; exit 1; }
-# The group record is NOT removed from here: bash runs an EXIT trap when HUP or TERM ends the shell
-# while a child it started keeps running, and that would erase the only thing a rollback can wait
-# on. It is removed only once the whole group is confirmed gone (by the wrapper, or the rollback).
-echo "$$" > "$lock/fenced.pid"
-step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
-EOF_HEAD
-  printf '%s\n' "$1"
-  cat <<'EOF_TAIL'
-BODY_EOF
-if command -v setsid >/dev/null 2>&1; then
-  setsid sh "$lock/body.sh" "$@" &
-else
-  set -m
-  sh "$lock/body.sh" "$@" &
-fi
-child=$!
-rc=0
-wait "$child" || rc=$?
-i=0
-while kill -0 "-$child" 2>/dev/null; do
-  i=$((i + 1))
-  [ "$i" -lt 900 ] || break
-  sleep 1
-done
-kill -0 "-$child" 2>/dev/null || rm -f "$lock/fenced.pid"
-exit "$rc"
-EOF_TAIL
-}
+# Stop the test copy by its Compose project label, with the Compose variables of the server shell
+# cleared, and fence the server-side steps: STOP_FN, STOP, CLEAN_ENV and fenced are in the lib.
 
 # The env and compose backups come first, so a rollback always has them; the state copy is only
 # complete once it is renamed from .part. Every name carries this run's ID.
@@ -328,7 +236,7 @@ else
   echo "FAIL running image $running is not the checked release"; exit 1
 fi
 '
-SWITCH="$(fenced "$SWITCH_BODY")"
+SWITCH="$(fenced .stage-lock "$SWITCH_BODY")"
 
 # Recording the pass is fenced too, and is one rename of one file (last passed and staged together),
 # so a connection lost around it can never leave the two disagreeing.
@@ -338,7 +246,7 @@ step
 write_state "$dir" "$rev" "$rev" || { echo "FAIL could not write stage-state"; exit 1; }
 echo "PASS recorded: $rev staged and smoke-tested"
 '
-RECORD="$(fenced "$RECORD_BODY")"
+RECORD="$(fenced .stage-lock "$RECORD_BODY")"
 
 # Works from any point SWITCH reached: what was saved is put back, what was not is left alone. Only
 # finished backups are used; a leftover .part is ignored. Files are changed only after both backups
@@ -348,25 +256,12 @@ RECORD="$(fenced "$RECORD_BODY")"
 # as a stale ID could belong to someone else, so if it does not end the lock is kept. Then the pass
 # record and env file are set to the last revision that passed (or none), and that revision is
 # started. Exits non-zero if any step failed; the caller then checks it and stops it.
-ROLLBACK="$CLEAN_ENV$STATE_FN$STOP_FN"'
+ROLLBACK="$CLEAN_ENV$STATE_FN$STOP_FN$FENCE_WAIT_FN"'
 set +e
 dir="$1" project="$2" runid="$3" root="$4" prev="$5" wait="$6"
 bad=0
 cd "$dir" || exit 1
-lock="$dir/.stage-lock"
-[ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run no longer owns the lock; nothing was changed"; exit 1; }
-: > "$lock/abort"
-pid="$(cat "$lock/fenced.pid" 2>/dev/null)"
-alive() { kill -0 "-$1" 2>/dev/null || kill -0 "$1" 2>/dev/null; }
-if [ -n "$pid" ]; then
-  i=0
-  while alive "$pid"; do
-    i=$((i + 1))
-    [ "$i" -le "$wait" ] || { echo "FAIL the server-side step (process group $pid) is still running after $wait seconds; the lock is kept"; exit 1; }
-    sleep 1
-  done
-  rm -f "$lock/fenced.pid"
-fi
+fence_wait "$dir/.stage-lock" "$runid" "$wait" || exit 1
 [ -f "fleet-staging.env.pre-$runid" ] && cp -p "fleet-staging.env.pre-$runid" fleet-staging.env
 [ -f "compose.yaml.pre-$runid" ] && cp -p "compose.yaml.pre-$runid" compose.yaml
 if stop_project "$project"; then

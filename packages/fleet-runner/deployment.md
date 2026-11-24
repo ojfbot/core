@@ -223,7 +223,7 @@ and 3) takes a release from CI, proves it works, and leaves it ready for a
 promote. It has its own Compose project, folders, port, database, TLS
 certificate and signing keys, separate from production, and it runs only while a
 test is under way. Staging needs no approval; going live always needs the
-owner's own yes naming the revision, and no script here promotes anything.
+owner's own yes naming the revision (see "Promoting to production").
 
 Nothing machine-specific is in this repository. The scripts read a private
 config file outside Git (default `~/.fleet-runner-stage/stage.conf`, mode 0600;
@@ -336,6 +336,88 @@ scripts/fleet-stage.sh <revision> [--release <dir>] [--keep-running]
 
 The test copy's containers are never restarted by the engine (`restart: "no"`),
 and no scheduled job starts them.
+
+## Promoting to production
+
+```sh
+scripts/fleet-promote.sh <revision> --owner-approved '<the owner's yes, naming the revision>'
+```
+
+Going live always needs the owner's own yes, and only for a revision the stage
+script passed (ojfbot/core#647, slice 4). The private config gains production's
+deploy folder, service root, the Compose project, and a private folder on this
+Mac holding a **read-only** identity's token (default `observer`) and
+production's CA certificate; the full list is at the top of
+`scripts/lib/fleet-stage-lib.sh`. The promote never signs as production's owner
+and refuses a config that asks it to.
+
+1. **Refusals, before anything changes.** No approval (exit 3); an approval of
+   more than one line, or one that does not name the revision (7 characters or
+   more of it); a revision `stage-state` does not name as passed and promotable
+   (`staged_ok`); an approval already used. Each yes covers one promotion: its
+   SHA-256 (of the words in lower case with spacing collapsed) goes into
+   `promote.log` in production's deploy folder once production is about to change,
+   and an approval already there is refused. A refusal does not spend it.
+   Production's folders must not be the test copy's or inside them, its deploy
+   folder must be its own (a marker the first promote writes), and an env file
+   there must agree with the private config.
+2. **Checks while production still runs.** The promote lock (the same atomic
+   lock folder as the stage script's); the staged image checked again on the
+   server with `load-release.sh`; which form production is in (exactly one of:
+   the hand-started container named `PROD_CONTAINER`, or the Compose project from
+   an earlier promote; both or neither running is refused); its signed status
+   build, its TLS certificate (SHA-256 fingerprint) and its enrolled public keys
+   (by hash; `PROD_KEY_IDS` may name the exact set). A production that does not
+   answer a signed status now is not replaced, because the undo could not prove it
+   brought it back.
+3. **The Compose file, checked before production is touched.**
+   `deploy/compose.production.yaml` comes from the promoted revision, or from
+   the promoting checkout when the revision predates it. It is the test copy's
+   file plus what production needs: `restart: unless-stopped`, the `inputs`
+   folder, and production's own worker and observer identities, carried over
+   unchanged. The next env file is written beside the live one, Compose resolves
+   the two (`docker compose config --format json`), and `scripts/compose-check.mjs`
+   checks the result on the Mac against an exact allowlist: the hardening
+   (`read_only`, `cap_drop: [ALL]`, `no-new-privileges`), a non-root user that
+   owns the state folder, the five mounts under production's root (key and TLS
+   folders read-only), the one published address and port, the image of this
+   revision, and nothing else: `privileged`, `cap_add`, devices, another network,
+   a sidecar, an extra mount, port or environment variable is refused, by key
+   name only.
+4. **The switch**, fenced on the server like the stage script's (its own process
+   group, recorded in the lock, checking before each step that the run was not
+   aborted): back up the env and compose files; stop the previous production;
+   copy its state folder to `state.pre-<run>` (by a throwaway container of the
+   checked image, since the folder belongs to the service account) and verify
+   that snapshot by opening it read-only and running SQLite's
+   `PRAGMA integrity_check`; put the prepared files in place; require the config
+   Compose now resolves to be byte-identical to the one checked; start the new
+   revision without pulling; check the running image.
+5. **Health check:** the signed status answers ready with exactly this revision;
+   the TLS certificate is the same; the new container sees the same public keys
+   by hash; the job count is not lower than the snapshot's.
+6. **Undo, on its own.** On any failure, Ctrl-C, SIGTERM, SIGHUP or lost
+   connection after the switch began, the exit trap waits for anything fenced
+   still running on the server, stops the new revision, puts the snapshot back as
+   the state folder (the failed one is kept as `state.failed-<run>`: a newer
+   revision may already have migrated it, and the previous one would refuse a
+   newer schema), restores the files, starts the previous production (for the
+   first promote, that very container, checked by its ID and image), checks it
+   answers as the previous build, and writes
+   `promote-records/undo-<run>.txt`. Ctrl-C does not cut the undo short. It
+   never prints PASS for a promote that did not pass.
+7. **Success** writes `promote-records/promote-<run>.txt` and prints the exact
+   manual undo. A manual undo later loses every job accepted since the promote
+   (they stay in the set-aside state folder).
+
+The first promote replaces production's hand-started container. It is refused
+unless that container is exactly what the Compose file reproduces: one published
+port, the five service folders under the declared root (key and TLS folders
+read-only), no privileges, devices or other network, and no setting that would
+not carry over (only setting names and same/differs are printed, never a
+value). That container is stopped, never removed, so the undo can start it
+again; remove it by hand only once the owner has accepted the new production.
+A promote is not release acceptance (G8).
 
 ## Worker interruption and diagnostics
 
