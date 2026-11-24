@@ -1,0 +1,28 @@
+---
+title: Proposed four-binding topology and shared contracts
+---
+flowchart TB
+  accTitle: Both harnesses and controlled runners on both Macs
+  accDescr: Both Macs support multiple Codex and Claude Code sessions through local controlled runners. Both runners require the same Core contract and HelpDesk correspondence. Binding and isolation mechanisms remain unresolved.
+  P["Core #307 contract<br/>Identity, grants and evidence"]
+  H["HelpDesk journal and relay<br/>Transport exists"]
+  subgraph Y["Yuri"]
+    direction TB
+    RY(["Controlled local runner<br/>Bindings and per-call checks"])
+    CY["Codex sessions x N"]
+    AY["Claude Code sessions x N"]
+    RY <-->|"handles native binding"| CY
+    RY <-->|"handles native binding"| AY
+  end
+  subgraph J["Yojimbo"]
+    direction TB
+    RJ(["Controlled local runner<br/>Bindings and per-call checks"])
+    CJ["Codex sessions x N"]
+    AJ["Claude Code sessions x N"]
+    RJ <-->|"handles native binding"| CJ
+    RJ <-->|"handles native binding"| AJ
+  end
+  P -->|"governs"| RY
+  P -->|"governs"| RJ
+  H <-->|"handles correspondence"| RY
+  H <-->|"handles correspondence"| RJ
