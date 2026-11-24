@@ -32,13 +32,13 @@ jobs:
         run: pnpm test
 
       - name: FleetRunner isolated proof helpers
-        run: pnpm --filter @core/fleet-runner proof:local:test
+        run: pnpm --filter @core/fleet-runner --fail-if-no-match proof:local:test
 
       - name: Launcher registrations test (ADR-0058)
-        run: pnpm --filter @core/launcher-tests test
+        run: pnpm --filter @core/launcher-tests --fail-if-no-match test
 
       - name: FleetRunner G6 script tests
-        run: pnpm --filter @core/fleet-runner g6:test
+        run: pnpm --filter @core/fleet-runner --fail-if-no-match g6:test
 
       # The G0 contract test reads two approved baseline commits that are on no default branch
       # (Core and BookcaseDiscovery), so the script fetches each by exact SHA, retries once, and
@@ -51,6 +51,7 @@ jobs:
       - name: Skill script tests (bead, vault)
         run: |
           # PyYAML is installed here, not assumed from the runner image (pip is blocked on system Python).
+          sudo apt-get update
           sudo apt-get install -y --no-install-recommends python3-yaml
           python3 -m unittest discover -s .claude/skills/bead/scripts -p 'test_*.py' -v
           python3 -m unittest discover -s .claude/skills/vault/scripts -p 'test_*.py' -v

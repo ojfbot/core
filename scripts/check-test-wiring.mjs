@@ -34,7 +34,11 @@ export const RUNNERS = [
 
 // Other things a wired test depends on. Same evidence rule.
 export const PREREQUISITES = [
-  { file: '.github/workflows/ci.yml', text: 'g6:test' },
+  { file: '.github/workflows/ci.yml', text: 'pnpm --filter @core/fleet-runner --fail-if-no-match g6:test' },
+  { file: '.github/workflows/ci.yml', text: 'pnpm --filter @core/fleet-runner --fail-if-no-match proof:local:test' },
+  { file: '.github/workflows/ci.yml', text: 'pnpm --filter @core/launcher-tests --fail-if-no-match test' },
+  { file: '.github/workflows/ci.yml', text: 'run: pnpm test\n' },
+  { file: '.github/workflows/ci.yml', text: 'sudo apt-get update' },
   { file: '.github/workflows/ci.yml', text: 'vitest.g0.config.ts' },
   { file: '.github/workflows/ci.yml', text: 'python3-yaml' },
   { file: 'scripts/verify-runner/Dockerfile', text: 'python3-yaml' },
@@ -76,6 +80,34 @@ export function evidenceProblems(read) {
   return problems;
 }
 
+/**
+ * Every `pnpm --filter` line in CI must carry --fail-if-no-match: a renamed package otherwise
+ * prints "No projects matched" and exits 0, running nothing.
+ */
+export function filterProblems(ciText) {
+  return ciText.split('\n')
+    .filter((l) => /pnpm\s+(--filter|-F)\b/.test(l) && !l.includes('--fail-if-no-match'))
+    .map((l) => `ci.yml runs \`${l.trim()}\` without --fail-if-no-match`);
+}
+
+/**
+ * Python tests are run by `unittest discover`, which skips a file whose name is not an importable
+ * module name and finds nothing in a file with no unittest.TestCase subclass.
+ */
+export function pythonProblems(files, read) {
+  const problems = [];
+  for (const f of files) {
+    const base = path.posix.basename(f);
+    if (!/^test_.*\.py$/.test(base) && !/_test\.py$/.test(base)) continue;
+    if (!/^[A-Za-z_][A-Za-z0-9_]*\.py$/.test(base)) {
+      problems.push(`${f}: not a valid Python module name, so unittest discover skips it`);
+    } else if (!/^class\s+\w+\s*\([^)]*\bTestCase\b[^)]*\)\s*:/m.test(read(f))) {
+      problems.push(`${f}: defines no unittest.TestCase subclass, so unittest discover runs nothing from it`);
+    }
+  }
+  return problems;
+}
+
 function main() {
   const files = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
   const includes = vitestIncludes(readFileSync(path.join(ROOT, 'vitest.config.ts'), 'utf8'));
@@ -89,6 +121,14 @@ function main() {
   const broken = evidenceProblems((f) => readFileSync(path.join(ROOT, f), 'utf8'));
   if (broken.length) {
     broken.forEach((b) => process.stderr.write(`${b}\n`));
+    return 1;
+  }
+  const bad = [
+    ...filterProblems(readFileSync(path.join(ROOT, '.github/workflows/ci.yml'), 'utf8')),
+    ...pythonProblems(files, (f) => readFileSync(path.join(ROOT, f), 'utf8')),
+  ];
+  if (bad.length) {
+    bad.forEach((b) => process.stderr.write(`${b}\n`));
     return 1;
   }
   const n = files.filter(isTestFile).length;
