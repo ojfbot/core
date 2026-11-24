@@ -31,7 +31,7 @@
     "build": "tsc -p tsconfig.json",
     "bundle": "pnpm exec node scripts/bundle.mjs",
     "proof:local:test": "pnpm exec node --test scripts/ledger-proof-local-*.node.mjs",
-    "g6:test": "pnpm exec node --test scripts/g6-interruption-check.test.mjs scripts/g6-trial-checkpoint.test.mjs",
+    "g6:test": "pnpm exec node --test \"scripts/g6-*.test.mjs\"",
     "proof:packaging": "bash scripts/proof-packaging.sh"
   },
   "bin": {

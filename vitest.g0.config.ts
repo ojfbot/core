@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 // checkout), so it is not in the root `pnpm test` include list. CI runs it with this config.
 export default defineConfig({
   test: {
-    include: ["scripts/fleet-runner/__tests__/g0-contract.test.mjs"],
+    include: ["scripts/fleet-runner/__tests__/**/*.test.mjs"],
     environment: "node",
   },
 });

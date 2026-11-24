@@ -269,7 +269,14 @@ function verifyContract({ root, clientRepo }) {
     "packages/fleet-runner/package.json",
   );
   assert.equal(fleet.name, "@core/fleet-runner");
-  assert.equal(fleet.version, "0.2.5-bookcase.2");
+  // The contract's "Core package 0.1.0" is a claim about the approved baseline commit, not
+  // about the candidate, which moves on (core#724). Read it from the baseline.
+  const baselineFleet = readJson(
+    show(root, CORE_BASELINE, "packages/fleet-runner/package.json"),
+    `${CORE_BASELINE}:packages/fleet-runner/package.json`,
+  );
+  assert.equal(baselineFleet.name, "@core/fleet-runner");
+  assert.equal(baselineFleet.version, "0.1.0", "approved Core baseline must be @core/fleet-runner 0.1.0");
   assert.equal(fleet.license, "AGPL-3.0-only");
 
   const baselineSchema = schemaVersion(
@@ -312,6 +319,7 @@ function verifyContract({ root, clientRepo }) {
     coreBaseline: {
       commit: CORE_BASELINE,
       packageManager: baselineCorePackage.packageManager,
+      fleetVersion: baselineFleet.version,
       sqliteSchema: baselineSchema,
     },
     clientBaseline: {
