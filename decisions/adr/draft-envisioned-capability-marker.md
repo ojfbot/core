@@ -14,7 +14,7 @@ baseline:
 traces:
   supersedes:
   amends:
-  relates-to: [pocock-skill-conventions-and-new-skills, control-gated-slices, selfco-vault-and-skill]
+  relates-to: [pocock-skill-conventions-and-new-skills, control-gated-slices, selfco-vault-and-skill, claim-source-quote]
   parent:
   part-of-series:
 
