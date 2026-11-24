@@ -269,7 +269,7 @@ function verifyContract({ root, clientRepo }) {
     "packages/fleet-runner/package.json",
   );
   assert.equal(fleet.name, "@core/fleet-runner");
-  assert.equal(fleet.version, "0.1.0");
+  assert.equal(fleet.version, "0.2.5-bookcase.2");
   assert.equal(fleet.license, "AGPL-3.0-only");
 
   const baselineSchema = schemaVersion(
