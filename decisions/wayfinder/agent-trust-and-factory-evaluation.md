@@ -73,7 +73,9 @@ page with diagrams is `docs/circusgreen-org-and-correspondence.md`.
   open under #682.
 - A7. ClassicSpaceVenue is a place the owner talks to agents, not only a place to watch
   them ("Talk there too"). This changes its recorded watch-only boundary. It uses the same
-  sign-in as MorningCockpit (owner, 2026-11-24: "Yes, same sign-in"). Approvals stay
+  sign-in as MorningCockpit, with the two screens kept behind separate security
+  boundaries (owner, 2026-11-24: "same sign but make sure we maintain separate appropriate
+  secure hygiene boundaries"). What each boundary is has not been designed. Approvals stay
   passkey-signed records whichever screen is used (#679); that last point is a reading of
   #679, not a separate owner ruling.
 - A8. Long-lived seats run as deployed services on Yojimbo and the NAS. Yuri, a laptop
