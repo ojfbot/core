@@ -193,7 +193,7 @@ design. "Fit" is this page's reading, not a ruling.
 | **A4** | Agents follow the written rule first, and HelpDesk records messages that break it without blocking. Blocking comes later, once the record shows the rule works. | **Fits the build order** (watch-only before enforcing). Note #667: a rule that only agents follow is a declaration, not enforcement. |
 | **A5** | Orchestration is separate from HelpDesk and from conductors. It holds the whole picture: what work exists, what kind of session suits it, how sessions relate. It starts as a record; a model with its own dedicated context comes after. | **Partly ruled already.** The record exists in the design as the work register and the seat tree. The model with its own context is new. Where it lives relative to FleetRunner is open. |
 | **A6** | Seats come in kinds: a chief of staff as the owner's single point of contact, conductors, a small pool of specialists for side threads, and pooled workers. | **New.** #682 leaves seat labels open, so kinds can be added without changing the tree. |
-| **A7** | ClassicSpaceVenue is a place the owner talks to agents, not only a place to watch them. | **Changes a recorded boundary.** It is recorded as view-only. If it becomes a place to talk, it needs the same sign-in as MorningCockpit. Approvals stay passkey-signed whichever screen is used (#679), so the venue needs no approval power of its own. |
+| **A7** | ClassicSpaceVenue is a place the owner talks to agents, not only watches them. It uses the same sign-in as MorningCockpit. | **Changes a recorded boundary.** It was recorded as view-only. The owner ruled both points on 24 November ("Talk there too", "Yes, same sign-in"). Approvals stay passkey-signed whichever screen is used (#679), so the venue needs no approval power of its own. |
 | **A8** | Long-lived seats run as deployed services on Yojimbo and the NAS. Yuri is a laptop, sometimes offline, and opts in for short-lived instances. | **New, fits.** The standby and 12-hour lapse rules (#666) already cover a holder going offline. |
 | **A9** | A fuel layer assigns prioritised work to whatever capacity is free. Hosted quota is capped at 95% so the owner keeps a margin. Work that does not need the owner (quality, tech debt) is held for the end of a quota window, not front-loaded. Local models and hosted models are separate fuels with separate queues. | **New.** The first concrete input to the open budgets question in the fleet-runner map (#675); it extends that question and must not become a second budget model. It also bears on the cost measure in #672. See "The fuel layer" below. |
 
@@ -341,19 +341,18 @@ This page was written from the documents. It did not inspect the running service
 
 ## 9. Open questions
 
-1. **A7:** what sign-in does ClassicSpaceVenue need once the owner talks to agents there?
-2. **A1:** a session the owner starts that holds no seat: which conductor does it send through?
-3. **A1:** is the rule worth its cost? Steve Yegge's Wheelhouse runs about 50 agents with
+1. **A1:** a session the owner starts that holds no seat: which conductor does it send through?
+2. **A1:** is the rule worth its cost? Steve Yegge's Wheelhouse runs about 50 agents with
    agent-to-agent mail and broadcast, and governs who may act, not who may talk.
-4. **A5:** is the orchestrator an agent seat (as Wheelhouse's executive team is), a
+3. **A5:** is the orchestrator an agent seat (as Wheelhouse's executive team is), a
    mechanical service on a workflow engine (as in Yegge's Counting House), or both under
    different names? How does it relate to FleetRunner?
-5. **A6:** what stops the chief of staff from doing work itself?
-6. **Fuel:** can remaining OpenAI quota be read at all? Which service holds the gauges and the ledger: FleetRunner's work register, or something new?
-7. **Fuel:** tech-debt work still ends in pull requests, and agents merge only after the owner's yes (#681). What makes "owner-free" work truly owner-free: one batched yes, or a class of change that needs none?
-8. **Build order:** if seats are the foundation for the organisation in section 7, should
+4. **A6:** what stops the chief of staff from doing work itself?
+5. **Fuel:** can remaining OpenAI quota be read at all? Which service holds the gauges and the ledger: FleetRunner's work register, or something new?
+6. **Fuel:** tech-debt work still ends in pull requests, and agents merge only after the owner's yes (#681). What makes "owner-free" work truly owner-free: one batched yes, or a class of change that needs none?
+7. **Build order:** if seats are the foundation for the organisation in section 7, should
    "seats and stops" stay the last trust phase?
-9. **Reach:** the 24 November statements are known only to Claude sessions on Yuri. Codex on
+8. **Reach:** the 24 November statements are known only to Claude sessions on Yuri. Codex on
    both Macs and Claude on Yojimbo learn them only when they are entered in the map and the
    shared instructions.
 
