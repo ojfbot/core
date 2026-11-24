@@ -48,6 +48,47 @@ parent conductor. This must be built into the fleet's graph and node shapes now.
 conductor" (#663, #666) will be re-checked against it. #679, #680 and #668 hold any part
 that depends on it.
 
+### Owner addendum: correspondence, seat kinds and fuel, 2026-11-24
+
+The owner stated the following in a Claude Code chat on Yuri on 2026-11-24. They are
+recorded here as owner statements. None has been ticketed or challenged yet, so the
+challenge rule (#664) still applies to each before it guards anything. The plain-language
+page with diagrams is `docs/circusgreen-org-and-correspondence.md`.
+
+- A1. All correspondence between sessions goes through a conductor, never session to
+  session directly. This includes anything from Yuri to Yojimbo.
+- A2. There can be several conductors, with child conductors, and a conductor does not
+  have to route ordinary messages through its parent: conductors may write to each other
+  directly. Blockers are unchanged and still go up seat by seat (#682). The owner ruled the
+  scope on 2026-11-24: "Only ordinary messages".
+- A3. The rule restricts sending only. Any session may read shared threads, and the owner
+  may talk to any session directly.
+- A4. Agents follow the written rule first. HelpDesk records messages that break it
+  without blocking them. Blocking comes later, once the record shows the rule works.
+- A5. Orchestration is separate from HelpDesk and from conductors. It holds the whole
+  picture (what work exists, what kind of session suits it, how sessions relate). It starts
+  as a record; a model with its own dedicated context comes after. HelpDesk stays a relay.
+- A6. Seat kinds: a chief of staff as the owner's single point of contact, conductors, a
+  small pool of specialists for side threads, and pooled workers. Seat labels are already
+  open under #682.
+- A7. ClassicSpaceVenue is a place the owner talks to agents, not only a place to watch
+  them ("Talk there too"). This changes its recorded watch-only boundary. Not yet settled:
+  what sign-in it needs. Approvals stay passkey-signed records whichever screen is used (#679).
+- A8. Long-lived seats run as deployed services on Yojimbo and the NAS. Yuri, a laptop
+  that is sometimes offline, opts in for short-lived instances. Build work happens on Yuri
+  whenever possible; anything on the NAS is asked of the owner first.
+- A9. A fuel layer assigns prioritised work to free capacity. Hosted quota (Anthropic,
+  OpenAI) is capped at 95%, leaving the owner a margin. Quota is not burned for its own
+  sake: owner-free quality and tech-debt work is held for the end of a quota window, from a
+  standing prioritised list. Hosted and local fuel are separate fuels with separate queues.
+  Local fuel earns work only through repeatable evals, and the hosted cost of checking it is
+  counted. The first step is a read-only gauge on the Fleet Build Board (LocalHelp#210).
+  This is the first concrete input to "What budgets does the work register reserve
+  against?" (#675); it must extend that question, not start a second budget model.
+
+Withdrawn the same day: "whoever starts a helper session is its conductor". Under #682 a
+conductor holds a named seat. A helper session reports to the session that started it.
+
 ### Boundaries with other maps
 
 - fleet-runner map (#307): owns FleetRunner authority and promotion through "What
