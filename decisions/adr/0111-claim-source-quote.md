@@ -1,9 +1,10 @@
-# ADR: Model-written claims name the source, quote it and say where; unquoted claims are hypotheses
+# ADR-0111: Model-written claims name the source, quote it and say where; unquoted claims are hypotheses
 slug: claim-source-quote
-serial: draft
+serial: 0111
 rev:
 Date: 2026-11-24
-Status: Proposed
+Status: Accepted
+Date accepted: 2026-11-24
 domain: observation
 type: policy
 OKR: (none assigned)
@@ -219,6 +220,10 @@ rests on, and where those words are. A claim without a quote is a hypothesis.** 
 cannot be the only support for a check, an ADR, a slice's entrance condition (a **Control gate**
 criterion) or an action.
 
+The owner answered the five open questions on 2026-11-24, choosing the recommended option each
+time. The answers are recorded under "Owner decisions" below, and the rest of this section is
+written to match them.
+
 ### The claim record
 
 | Field | What it holds | Examples |
@@ -232,144 +237,147 @@ A claim is a sentence that says what a source says or what is true in the world:
 under this rule, but a recommendation that rests on a claim inherits that claim's status.
 [hypothesis: drawing this line in practice will need examples per producer.]
 
-The rule and its three fields come from #725. The definition of a claim just above is this
-ADR's proposal. Everything below in this section is **proposed** too, and depends on the owner's
-answers to the open questions at the end of this section.
+### Missing quotes are labelled; blocking happens only where a claim is relied on (question 1, B)
 
-### Who writes the quote (proposed; depends on question 3)
+An unquoted claim does not stop a record being published. It is labelled a hypothesis. A block
+applies only at the points where something acts on the claim: a check, an ADR, a slice's
+entrance condition or an action that would rest on it alone.
 
-If the owner chooses code re-checking (question 3, option A): where the source text is in hand
-when the model writes, copy DailyLogger's design. The model points at a source and a line range,
-and code cuts the quote. Where the source is not in hand (a web page read earlier, audio), the
-model records the quote and location itself, and the record says the quote was not re-checked
-by code.
+### Who writes the quote (question 3, A)
 
-If the owner chooses recorded quotes only (option B): the model writes every quote and location
-itself, and a reviewer spot-checks a sample.
+Where the source text is in hand when the model writes, copy DailyLogger's design. The model
+points at a source and a line range, code cuts the quote, and code re-checks it against the
+source before the claim is used. Where the source is not in hand (a web page read earlier,
+audio), the model records the quote and location itself, and the record marks the quote
+"not re-checked".
 
-### Two states, not many (proposed; depends on question 5)
+### Two states: quoted and hypothesis (question 5, A)
 
-If the owner chooses one shared set of words (question 5, option A), a claim is either
-**quoted** (all three fields present) or a **hypothesis** (any field missing). Richer tag sets
-already in use stay, and map onto the two:
+A claim is either **quoted** (all three fields present) or a **hypothesis** (any field missing).
+Richer tag sets already in use stay, and map onto the two:
 
 | Existing tag | Maps to |
 | --- | --- |
 | #662 "source-stated", "close paraphrase" with a quote | quoted |
 | #662 "our interpretation", "not found" | hypothesis |
-| #665 / #671 `[S]`, `[V]`, `[R]` with quote and location | quoted |
-| #665 / #671 `[S]`, `[V]`, `[R]` with a URL only; `[I]` | hypothesis |
+| #671 `[S]`, `[V]`, `[R]`, or #665 `[S url]`, with quote and location | quoted |
+| #671 `[S]`, `[V]`, `[R]`, or #665 `[S url]`, with a URL only; `[I]` in either | hypothesis |
 | `/resume` VERIFIED, GROUND-TRUTH | quoted, when the record holds the words |
 | `/resume` UNVERIFIED, CONFLICT, GAP | hypothesis |
 
 A vendor's AI summary (PLAUD's, for example) is model-written. Its claims are hypotheses until
-they are tied to quoted transcript lines.
+they are tied to quoted transcript lines. The words **Claim**, **Quote** and **Hypothesis** are
+added to `CONTEXT.md`.
 
-### Producers covered (order depends on question 2)
+### How hypotheses are shown (question 4, C)
 
-The rule covers every producer in the Context section:
+- In internal records (research notes, beads, triager reports, vault pages), a plain
+  `hypothesis` tag sits on the claim itself.
+- In the public daily article, the prose stays clean and the unquoted claims are listed in one
+  short closing block.
 
-- DailyLogger council and claim check;
-- Morning Cockpit Briefing beads;
-- trace triager reports;
-- core research notes and the wayfinder research template;
-- vault ingest and capture;
-- the lower-risk producers, each by a slice or by a recorded decision to accept the risk.
+### Producers covered, and the order of slices (question 2, A)
 
-The list above follows #725's risk ranking. The order of the slices is the owner's choice
-(question 2). Each producer adopts the rule in its own slice. This ADR changes no producer.
+The rule covers every producer in the Context section. Slices go in this order:
 
-### Open for the owner
+1. DailyLogger council: give the personas and the synthesis the context the drafter saw, and
+   have the shadow check list unquoted "shipped" and "blocked" claims.
+2. The wayfinder research template, with a check over `decisions/research/`.
+3. The remaining producers, each by a slice or by a recorded decision to accept the risk:
+   - Morning Cockpit Briefing beads;
+   - trace triager reports;
+   - vault ingest and capture (the current hold on chat intake stays);
+   - the lower-risk producers.
 
-These choices change how the rule lands. Each one lists its options, the trade-offs and a
-recommendation. The recommendation is not a decision.
+Each producer adopts the rule in its own slice. This ADR changes no producer.
 
-**1. Does a missing quote block publication, or only label the claim a hypothesis?**
+### Existing records
+
+Existing notes and beads are not rewritten in bulk. A record is labelled under this rule when
+it is next touched. Until then, a claim in it without a quote reads as a hypothesis.
+
+### Owner decisions (2026-11-24)
+
+The owner chose the recommended option on all five questions. The chosen option is marked
+**(chosen)** in each table.
+
+**1. Does a missing quote block publication, or only label the claim a hypothesis?** Chosen: B.
 
 | Option | Gains | Costs |
 | --- | --- | --- |
 | A. Label only, everywhere | Nothing stops. Matches the article check's shadow mode ("flagged, never blocked", `verify-claims.ts:7`). | An unquoted claim can still back an action unless something else stops it. |
-| B. Label, and block only where something acts on the claim (a check, an ADR, an entrance condition, an action) | Publishing still flows. The rule's second sentence gets enforced where it matters. DailyLogger's action review already refuses such dispositions: a disposition "needs exact quotes from authoritative sources" (`review-actions.ts:1344`). | A check has to know when a record is being used as support. |
+| **B. Label, and block only where something acts on the claim (a check, an ADR, an entrance condition, an action) (chosen)** | Publishing still flows. The rule's second sentence gets enforced where it matters. DailyLogger's action review already refuses such dispositions: a disposition "needs exact quotes from authoritative sources" (`review-actions.ts:1344`). | A check has to know when a record is being used as support. |
 | C. Block publication of any record with an unquoted claim | Strongest. | Daily article and research notes stall on every unquoted sentence. Encourages padding with weak quotes. |
 
-Recommendation: B.
-
-**2. Which producer is the first slice?**
+**2. Which producer is the first slice?** Chosen: A, then B.
 
 | Option | Gains | Costs |
 | --- | --- | --- |
-| A. DailyLogger council: give the personas and the synthesis the context the drafter saw; have the shadow check list unquoted "shipped" and "blocked" claims | Riskiest gap; published every day; the quote code to copy is in the same repo. | Larger slice; more tokens per article. |
-| B. Wayfinder research template, with a check over `decisions/research/` | Smallest; core only; settles the shared words (question 5); three notes already come close, so the check can be tested on real files. | Lower risk than the article, so less damage prevented first. |
-| C. Morning Cockpit Briefing beads | Stops unquoted text entering beads that `/bead orient` reads. | Local 7B model; quoting may cost reliability. Owner approval already sits in front of each write. |
+| **A. DailyLogger council: give the personas and the synthesis the context the drafter saw; have the shadow check list unquoted "shipped" and "blocked" claims (chosen, first)** | Riskiest gap. It publishes daily: daily-logger main has a `blog: <date>` commit for each day from 2026-11-17 to 2026-11-24 (`git log --grep '^blog: '` at 56a13eb). The quote code to copy is in the same repo. | Larger slice; more tokens per article. |
+| **B. Wayfinder research template, with a check over `decisions/research/` (chosen, second)** | Smallest; core only; uses the shared words from question 5; three notes already come close, so the check can be tested on real files. | Lower risk than the article, so less damage prevented first. |
+| C. Morning Cockpit Briefing beads | Stops unquoted text entering beads that `/bead orient` reads. | The Briefing runs a local model: "To keep a 7B model reliable" (`briefing-generate.ts:25`); quoting may cost reliability. Owner approval already sits in front of each write. |
 
-Recommendation: A first, then B.
-
-**3. Must code re-check each quote against the source?**
+**3. Must code re-check each quote against the source?** Chosen: A.
 
 | Option | Gains | Costs |
 | --- | --- | --- |
-| A. Yes where the source text is in hand; elsewhere record the quote and mark it "not re-checked" | Rules out invented quotes wherever it can. Copies proven code. | Each producer must keep its sources at write time. |
-| B. No; a recorded quote and location is enough, spot-checked by a reviewer | Cheapest. | A wrong quote looks exactly like a right one. DailyLogger moved away from model-written quotes ("Never invent or paraphrase a quote", `review-actions.ts:644`). [hypothesis: how often models misquote here is not measured.] |
+| **A. Yes where the source text is in hand; elsewhere record the quote and mark it "not re-checked" (chosen)** | Rules out invented quotes wherever it can. Copies proven code. | Each producer must keep its sources at write time. |
+| B. No; a recorded quote and location is enough, spot-checked by a reviewer | Cheapest. | A wrong quote looks exactly like a right one. DailyLogger's design forbids model-written quotes ("Never invent or paraphrase a quote", `review-actions.ts:644`). [hypothesis: how often models misquote here is not measured.] |
 
-Recommendation: A.
-
-**4. How are hypotheses shown to readers?**
+**4. How are hypotheses shown to readers?** Chosen: C.
 
 | Option | Gains | Costs |
 | --- | --- | --- |
 | A. A plain `hypothesis` tag on the claim itself | Exact; easy to check by text search. | Heavy in reader-facing prose. |
 | B. One closing block listing unquoted claims | Keeps prose readable. | The reader must match the list back to sentences. |
-| C. A and B by audience: tags in internal records (research notes, beads, triager reports, vault pages), a closing block in the public daily article | Each audience gets the form it reads best. | Two forms to maintain. |
+| **C. A and B by audience: tags in internal records (research notes, beads, triager reports, vault pages), a closing block in the public daily article (chosen)** | Each audience gets the form it reads best. | Two forms to maintain. |
 
-Recommendation: C.
-
-**5. Does the fleet adopt one shared set of words for the two states?**
+**5. Does the fleet adopt one shared set of words for the two states?** Chosen: A.
 
 | Option | Gains | Costs |
 | --- | --- | --- |
-| A. Yes: "quoted" and "hypothesis", with existing tags mapped onto them (table above) | One check works across producers; existing notes and `/resume` keep their tags. | A mapping table to maintain. |
+| **A. Yes: "quoted" and "hypothesis", with existing tags mapped onto them (chosen)** | One check works across producers; existing notes and `/resume` keep their tags. | A mapping table to maintain. |
 | B. No; each producer keeps its own tags | No change for anyone. | The three-vocabulary drift in `decisions/research/` continues; a fleet check needs one rule per vocabulary. |
 
-Recommendation: A. If accepted, Claim, Quote and Hypothesis go into `CONTEXT.md`.
+### Done when
 
-### Done when (proposed; depends on questions 1 and 2)
-
-- If the owner chooses blocking (question 1, B or C): the producers chosen in question 2 each
-  have a check that fails on an unquoted factual claim at the points that option names.
-- If the owner chooses label only (question 1, A): those producers each have a check that labels
-  every unquoted factual claim a hypothesis, and reports the count.
+- The DailyLogger article pipeline, then the wayfinder research template, each have a check that
+  labels every unquoted factual claim a hypothesis and reports the count.
+- In each, the check fails where an unquoted claim is relied on: when it would be the only
+  support for a check, an ADR, a slice's entrance condition or an action.
 - Each other gap has a slice or a recorded decision to accept the risk.
 
 #725's own "Done when" asks for "a check that fails on an unquoted factual claim" in the research
-template and the article pipeline. That wording assumes blocking; it stands only if the owner
-chooses B or C.
+template and the article pipeline. Under the owner's answer to question 1 (B), that block applies
+only where a claim is relied on, not to publication.
 
 ## Consequences
 
 ### Gains
 
 - A reader can tell, sentence by sentence, what came from a source and what the model added.
-- A check, ADR, entrance condition or action can no longer rest on a claim nobody can trace.
-- If code cuts the quotes (question 3, A), one failure becomes impossible: a model quoting words
-  the source never had.
-- If the fleet shares one set of words (question 5, A), one test works across producers ("is
-  there a quote?"), instead of one per repo.
+- A check, ADR, entrance condition or action that would rest on an unquoted claim alone is
+  stopped at that point. A published record can still carry hypotheses, labelled as such.
+- Where code cuts the quotes, one failure becomes impossible: a model quoting words the source
+  never had.
+- One test works across producers ("is there a quote?"), instead of one per repo.
 
 ### Costs
 
-- Producers need more context. For the council to quote, it would have to be given the sources
-  the drafter saw, which raises token use per article. [hypothesis: the size of that increase is not measured.]
+- Producers need more context. For the council to quote, it has to be given the sources the
+  drafter saw, which raises token use per article. [hypothesis: the size of that increase is not
+  measured.]
 - Some prose gets heavier. A claim carries a link and a quote, or is marked.
 - Prose claim checking is harder than token checking. A check can confirm a quote exists in a
   source; it cannot confirm the quote supports the sentence. That still needs a reviewer.
 - Sources that are not text in hand (audio, video, paywalled pages) cannot be re-checked by code.
+  Their quotes stay marked "not re-checked".
+- A mapping table from the older tag sets has to be kept up to date.
 
 ### Neutral
 
-- Existing notes and beads are not rewritten. The rule applies to new records. Old ones read as
-  hypotheses where they lack quotes.
-- If question 5 is answered A, three proposed words would join `CONTEXT.md` on acceptance: **Claim**, **Quote** (with
-  its location) and **Hypothesis**. They are not added before acceptance.
+- Existing records are labelled as they are touched, not rewritten in bulk.
+- `CONTEXT.md` gains **Claim**, **Quote** and **Hypothesis**.
 
 ## Alternatives considered
 
@@ -379,8 +387,7 @@ chooses B or C.
 | Ban model synthesis in sourced records | Loses the useful part. Analysis is allowed. It only has to be marked as a hypothesis. |
 | A confidence score per claim instead of a quote | A score is another model output with no source. A quote can be checked; a score cannot. |
 
-Who writes the quote, and whether producers share one set of words, are not listed here. They
-are open (questions 3 and 5), not rejected.
+The options the owner did not choose are recorded with their trade-offs under "Owner decisions".
 
 ## Provenance
 
@@ -388,6 +395,8 @@ are open (questions 3 and 5), not rejected.
 | --- | --- |
 | Zero-point | Outside review comment on #662 (via the #687 discovery comment, 2026-11-23) |
 | Proposal | ojfbot/core#725 |
+| Owner decisions | 2026-11-24, all five questions, recommended option chosen each time (relayed by the conductor) |
+| Accepted | 2026-11-24, serial 0111 |
 | Evidence read at | core f10c9cdd4903a269654b70845945e4d6e32de5f6; daily-logger 56a13eb0c1ceeb6c60f2219e9b426f355785be80; morning-cockpit deb780a5bf7d8f8386ef6c64dae9f95a45524bbe; selfco-box dc02fbf (private) |
 | Design copied | daily-logger `src/review-actions.ts` + `src/action-evidence-view.ts` (line-range citations, code-cut quotes) |
 | Implementation start | _pending_ |
