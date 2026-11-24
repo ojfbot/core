@@ -9,6 +9,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The G0 contract test resolves an approved Core baseline commit.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
@@ -33,6 +36,27 @@ jobs:
 
       - name: Launcher registrations test (ADR-0058)
         run: pnpm --filter @core/launcher-tests test
+
+      - name: FleetRunner G6 script tests
+        run: pnpm --filter @core/fleet-runner g6:test
+
+      # The G0 contract test reads the approved BookcaseDiscovery baseline commit, so it needs
+      # that public repo with full history. It is cloned outside the Core checkout.
+      - name: FleetRunner G0 contract test
+        run: |
+          client="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/BookcaseDiscovery"
+          git clone https://github.com/ojfbot/BookcaseDiscovery "$client"
+          FLEET_RUNNER_CLIENT_REPO="$client" pnpm exec vitest run --config vitest.g0.config.ts
+
+      - name: Skill script tests (bead, vault)
+        run: |
+          # PyYAML (python3-yaml) ships with the ubuntu runner image.
+          python3 .claude/skills/bead/scripts/test_normalize.py -v
+          python3 .claude/skills/vault/scripts/test_lint_gate.py -v
+          python3 .claude/skills/vault/scripts/test_lint_stale.py -v
+
+      - name: Every test file is wired into CI
+        run: node scripts/check-test-wiring.mjs
 
   check-provenance:
     name: Check ADR Provenance (ADR-0065)

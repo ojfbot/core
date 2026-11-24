@@ -25,3 +25,17 @@ jobs:
         run: node scripts/roadmap-lint.mjs --check
       - name: northstar-lint (blocking on ERRORs)
         run: node scripts/northstar-lint.mjs --check
+      # Entries whose repo is not checked out here are skipped, not checked. Show how many in the
+      # job summary. No --max-skipped limit is set yet: the count seen in CI has not been measured
+      # across runs, and a wrong limit would turn unrelated PRs red. Once it is stable, add
+      # `--max-skipped N` to the step above so coverage cannot shrink unnoticed (core#724).
+      - name: northstar-lint coverage (job summary)
+        if: always()
+        run: |
+          {
+            echo '### northstar-lint coverage'
+            echo '```'
+            node scripts/northstar-lint.mjs --format=summary
+            node scripts/northstar-lint.mjs | grep '^Checked '
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

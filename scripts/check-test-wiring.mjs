@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+/**
+ * check-test-wiring.mjs — fail when a test file is not run by any CI step (core#724).
+ *
+ * Every tracked `*.test.*` and `test_*.py` file must match either the root vitest include
+ * globs (read from vitest.config.ts, i.e. `pnpm test`) or one of the RUNNERS below, each of
+ * which names the CI step that runs it. A file that is deliberately not run in CI goes in
+ * EXCLUDED with a reason. Adding a test file that nothing runs makes this check fail.
+ */
+import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+// Test files run by a CI step other than `pnpm test`. Globs use path.matchesGlob syntax.
+export const RUNNERS = [
+  { glob: 'scripts/__tests__/test_*.py', step: 'User-scope installer and hook isolation regression' },
+  { glob: 'scripts/launcher/tests/*.test.mjs', step: 'Launcher registrations test' },
+  { glob: 'packages/fleet-runner/scripts/g6-*.test.mjs', step: 'FleetRunner G6 script tests' },
+  { glob: 'scripts/fleet-runner/__tests__/g0-contract.test.mjs', step: 'FleetRunner G0 contract test' },
+  { glob: '.claude/skills/bead/scripts/test_*.py', step: 'Skill script tests (bead, vault)' },
+  { glob: '.claude/skills/vault/scripts/test_*.py', step: 'Skill script tests (bead, vault)' },
+];
+
+// Test files that CI deliberately does not run, with the reason.
+export const EXCLUDED = [
+  {
+    glob: 'packages/fleet-runner/scripts/g6-interruption-campaign.test.ts',
+    reason: 'a manual interruption campaign driven by g6-interruption-run.mjs with its own vitest config',
+  },
+];
+
+export function isTestFile(file) {
+  const base = path.posix.basename(file);
+  return /\.test\.[^/]+$/.test(base) || /^test_.*\.py$/.test(base) || /_test\.py$/.test(base);
+}
+
+export function vitestIncludes(configText) {
+  const block = /include:\s*\[([\s\S]*?)\]/.exec(configText);
+  if (!block) throw new Error('could not find test.include in vitest.config.ts');
+  return [...block[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
+}
+
+export function unwired(files, includes) {
+  const globs = [...includes, ...RUNNERS.map((r) => r.glob), ...EXCLUDED.map((e) => e.glob)];
+  return files.filter(isTestFile).filter((f) => !globs.some((g) => path.posix.matchesGlob(f, g)));
+}
+
+function main() {
+  const files = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const includes = vitestIncludes(readFileSync(path.join(ROOT, 'vitest.config.ts'), 'utf8'));
+  const missing = unwired(files, includes);
+  if (missing.length) {
+    process.stderr.write(`${missing.length} test file(s) are not run by any CI step:\n`);
+    missing.forEach((f) => process.stderr.write(`  ${f}\n`));
+    process.stderr.write('Add them to vitest.config.ts include, or to RUNNERS/EXCLUDED in scripts/check-test-wiring.mjs.\n');
+    return 1;
+  }
+  const n = files.filter(isTestFile).length;
+  process.stdout.write(`check-test-wiring: all ${n} test files are wired into CI\n`);
+  return 0;
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  process.exitCode = main();
+}

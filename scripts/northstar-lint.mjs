@@ -15,7 +15,11 @@
  *            ladder-completeness (L1/L2 must declare a parent, L3 must not).
  *   WARN   — rollup drift (parent % vs mean of its children); stale % (no movement in N days).
  *
+ * Skipped entries (repo checkout absent) are counted in every report. `--max-skipped N` with
+ * `--check` fails when more than N entries were skipped, so coverage cannot silently shrink.
+ *
  * Usage: node northstar-lint.mjs [--core PATH] [--format=summary] [--check] [--stale-days N]
+ *                                [--max-skipped N]
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -25,12 +29,13 @@ import { loadAll, buildPropertyIndex } from './lib/northstar-fm.mjs';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 
 function parseFlags(argv) {
-  const f = { core: path.resolve(HERE, '..'), format: 'report', check: false, staleDays: 30 };
+  const f = { core: path.resolve(HERE, '..'), format: 'report', check: false, staleDays: 30, maxSkipped: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--check') f.check = true;
     else if (a === '--format=summary') f.format = 'summary';
     else if (a === '--core') f.core = argv[++i];
+    else if (a === '--max-skipped') f.maxSkipped = parseInt(argv[++i], 10);
     else if (a === '--stale-days') f.staleDays = parseInt(argv[++i], 10) || 30;
   }
   return f;
@@ -151,6 +156,16 @@ export function lint(core, staleDays) {
     counts: { northstars: present.length, registered: entries.length, unreachable: unreachableSlugs.size } };
 }
 
+function exitCode(flags, r) {
+  if (!flags.check) return 0;
+  if (r.errors.length) return 1;
+  if (Number.isInteger(flags.maxSkipped) && r.counts.unreachable > flags.maxSkipped) {
+    process.stderr.write(`northstar-lint: ${r.counts.unreachable} entries skipped, more than the allowed ${flags.maxSkipped}\n`);
+    return 1;
+  }
+  return 0;
+}
+
 function main() {
   const flags = parseFlags(process.argv.slice(2));
   const r = lint(flags.core, flags.staleDays);
@@ -159,18 +174,19 @@ function main() {
     const staleStr = r.hasStatus ? `${r.staleCount}` : 'n/a';
     const vantage = r.counts.unreachable ? ` · ${r.counts.unreachable} unreachable` : '';
     process.stdout.write(`northstar: ${r.errors.length} errors · ${r.warns.length} warnings · drift ${r.driftCount} · stale ${staleStr} (${r.counts.northstars}/${r.counts.registered} files${vantage})\n`);
-    return flags.check && r.errors.length ? 1 : 0;
+    return exitCode(flags, r);
   }
 
   const L = [`# northstar-lint — ${flags.core}`, ''];
   L.push(`${r.counts.northstars}/${r.counts.registered} registered northstars present · ${r.errors.length} errors · ${r.warns.length} warnings`);
+  L.push(`Checked ${r.counts.northstars} of ${r.counts.registered} entries; skipped ${r.counts.unreachable} (repo not on disk).`);
   L.push('');
   if (r.errors.length) { L.push('## Errors'); r.errors.forEach((e) => L.push(`- ✗ ${e}`)); L.push(''); }
   if (r.warns.length) { L.push('## Warnings (shadow)'); r.warns.forEach((w) => L.push(`- ! ${w}`)); L.push(''); }
   if (!r.hasStatus) L.push('_no status.jsonl yet — staleness unchecked (created on first recorded movement)._');
   if (!r.errors.length && !r.warns.length) L.push('✓ clean.');
   process.stdout.write(L.join('\n') + '\n');
-  return flags.check && r.errors.length ? 1 : 0;
+  return exitCode(flags, r);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
