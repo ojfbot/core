@@ -37,8 +37,9 @@ function parseFlags(argv) {
     else if (a === '--core') f.core = argv[++i];
     else if (a === '--max-skipped') {
       const v = argv[++i];
-      if (!/^\d+$/.test(v ?? '')) throw new Error(`--max-skipped needs a whole number, got '${v ?? ''}'`);
-      f.maxSkipped = Number(v);
+      const n = /^\d+$/.test(v ?? '') ? Number(v) : NaN;
+      if (!Number.isSafeInteger(n)) throw new Error(`--max-skipped needs a whole number, got '${String(v ?? '').slice(0, 40)}'`);
+      f.maxSkipped = n;
     }
     else if (a === '--stale-days') f.staleDays = parseInt(argv[++i], 10) || 30;
   }

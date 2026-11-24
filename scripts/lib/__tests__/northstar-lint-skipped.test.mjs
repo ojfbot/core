@@ -63,7 +63,7 @@ describe("northstar-lint skipped entries", () => {
   });
 
   it("rejects a missing or non-numeric --max-skipped instead of turning the limit off", () => {
-    for (const args of [["--max-skipped"], ["--max-skipped", "many"], ["--max-skipped", "--check"]]) {
+    for (const args of [["--max-skipped"], ["--max-skipped", "many"], ["--max-skipped", "9".repeat(400)], ["--max-skipped", "9007199254740993"], ["--max-skipped", "--check"]]) {
       const r = run(...args);
       expect(r.status, args.join(" ")).toBe(2);
       expect(r.stderr).toContain("--max-skipped needs a whole number");

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { evidenceProblems, isTestFile, PREREQUISITES, RUNNERS, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
+import { evidenceProblems, filterProblems, pythonProblems, isTestFile, PREREQUISITES, RUNNERS, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
 
 describe("check-test-wiring", () => {
   it("recognises JS, TS and Python test file names", () => {
@@ -50,5 +50,36 @@ describe("check-test-wiring", () => {
       const broken = (f) => (f === file ? real(f).replaceAll(text, "") : real(f));
       expect(evidenceProblems(broken).length, `${file}: ${text}`).toBeGreaterThan(0);
     }
+  });
+
+  it("fails when the launcher step or the root pnpm test step is deleted", () => {
+    const real = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8");
+    const ci = real(".github/workflows/ci.yml");
+    expect(evidenceProblems(real)).toEqual([]);
+    for (const drop of ["pnpm --filter @core/launcher-tests --fail-if-no-match test", "run: pnpm test\n"]) {
+      const broken = (f) => (f === ".github/workflows/ci.yml" ? ci.replace(drop, "") : real(f));
+      expect(evidenceProblems(broken).length, drop).toBeGreaterThan(0);
+    }
+  });
+
+  it("requires --fail-if-no-match on every pnpm --filter CI step", () => {
+    const ci = readFileSync(new URL("../../../.github/workflows/ci.yml", import.meta.url), "utf8");
+    expect(filterProblems(ci)).toEqual([]);
+    expect(filterProblems("run: pnpm --filter @core/old test")).toHaveLength(1);
+    expect(filterProblems("run: pnpm -F @core/old test")).toHaveLength(1);
+  });
+
+  it("names Python test files that discovery would skip or that run nothing", () => {
+    const body = { "a/test_ok.py": "class T(unittest.TestCase):\n  pass\n", "a/test_x-y.py": "class T(unittest.TestCase):\n  pass\n", "a/test_fn.py": "def test_x():\n  assert True\n" };
+    const read = (f) => body[f];
+    const problems = pythonProblems(Object.keys(body), read);
+    expect(problems).toHaveLength(2);
+    expect(problems.join("\n")).toContain("a/test_x-y.py");
+    expect(problems.join("\n")).toContain("a/test_fn.py");
+  });
+
+  it("passes on the real Python test files", () => {
+    const files = [".claude/skills/bead/scripts/test_normalize.py", ".claude/skills/vault/scripts/test_lint_gate.py", ".claude/skills/vault/scripts/test_lint_stale.py", "scripts/__tests__/test_user_scope_install.py"];
+    expect(pythonProblems(files, (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8"))).toEqual([]);
   });
 });
