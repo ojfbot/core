@@ -136,8 +136,10 @@ How the three risks are handled, proposed and not yet challenged:
   exchange with a state value so that only it can complete it, and refuses a reused or
   unknown code loudly.
 - Reachability. The issuer's page is reachable only on the home network or over the VPN.
-  If the owner's browser cannot reach it, nothing is created; the owner connects the VPN
-  and retries within GitHub's one-hour window.
+  If the owner's browser cannot reach it, no key is delivered; the owner connects the VPN
+  and retries within GitHub's one-hour window. GitHub's documentation does not say whether
+  an App that was approved but never exchanged still exists, so the owner deletes any such
+  App and starts again.
 - Rotation. An existing App gets a new key only by a download in GitHub's web UI. The
   owner asked on 2026-11-24 whether that download could be done on a Mac with every agent
   paused, if the pause could be enforced, and ruled "otherwise, fresh app". It cannot be
