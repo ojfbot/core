@@ -30,15 +30,18 @@
 set -euo pipefail
 
 # say and die can never fail: a closed or broken stdout (the terminal gone, a reader that quit)
-# must not turn a message into an error that skips a rollback. With FLEET_LOG set, every line is
-# also appended to that durable local log.
+# must not turn a message into an error that skips a rollback. They print from a subshell: bash 3.2
+# keeps the text of a failed printf in its output buffer and emits it inside the NEXT command
+# substitution (into a computed number, or a remote command line), so a failed write must die with
+# a throwaway process. With FLEET_LOG set, every line is also appended to that durable local log.
 say() {
-  printf '%s\n' "$*" 2>/dev/null || true
-  if [ -n "${FLEET_LOG:-}" ]; then printf '%s\n' "$*" >>"$FLEET_LOG" 2>/dev/null || true; fi
+  (printf '%s\n' "$*" 2>/dev/null) || true
+  if [ -n "${FLEET_LOG:-}" ]; then (printf '%s\n' "$*" >>"$FLEET_LOG" 2>/dev/null) || true; fi
 }
 die() {
-  printf 'FAIL %s\n' "$*" >&2 || true
-  if [ -n "${FLEET_LOG:-}" ]; then printf 'FAIL %s\n' "$*" >>"$FLEET_LOG" 2>/dev/null || true; fi
+  # Left to right: the message goes to stderr, and only printf's own complaint goes to /dev/null.
+  (printf 'FAIL %s\n' "$*" >&2 2>/dev/null) || true
+  if [ -n "${FLEET_LOG:-}" ]; then (printf 'FAIL %s\n' "$*" >>"$FLEET_LOG" 2>/dev/null) || true; fi
   exit 1
 }
 
@@ -101,15 +104,18 @@ load_prod_conf() {
 nas() {
   local script="$1"
   shift
-  local quoted=() a
-  for a in "$@"; do quoted+=("$(printf '%q' "$a")"); done
+  # Quoted with printf -v, never through a command substitution, so no stray output of this shell can
+  # end up in the remote command line.
+  local quoted=() a q
+  for a in "$@"; do printf -v q '%q' "$a"; quoted+=("$q"); done
   # The script travels on ssh's stdin. Wrapping it in { ...; } </dev/null makes sh read the whole
   # script before running any of it, and gives every command an empty stdin, so a command that
   # reads stdin (docker, a helper script) cannot swallow the rest of the script. (HelpDesk's first
   # promote failed safely on exactly that.)
+  # The promote keeps its terminal on descriptors 7 and 8; ssh does not need them.
   # shellcheck disable=SC2029
   ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
-    "$NAS_SSH" "sh -s -- ${quoted[*]-}" <<<"set -eu
+    "$NAS_SSH" "sh -s -- ${quoted[*]-}" 7>&- 8>&- <<<"set -eu
 {
 $script
 } </dev/null"
@@ -118,12 +124,13 @@ $script
 # Copy local files into an existing folder on the server: nas_put <remote folder> <file>...
 # Over the SSH shell, not scp: the server's SFTP view of the file system can differ from its shell's.
 nas_put() {
-  local dest="$1" f
+  local dest="$1" f q
   shift
   for f in "$@"; do
+    printf -v q '%q' "$dest/${f##*/}"
     # shellcheck disable=SC2029
     ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
-      "$NAS_SSH" "umask 077 && cat > $(printf '%q' "$dest/$(basename "$f")")" <"$f" || return 1
+      "$NAS_SSH" "umask 077 && cat > $q" <"$f" 7>&- 8>&- || return 1
   done
 }
 
@@ -244,6 +251,11 @@ LOCK='
 dir="$1" id="$2" name="$3" what="$4"
 if mkdir "$dir/$name" 2>/dev/null; then
   echo "$id" > "$dir/$name/owner"
+elif [ -f "$dir/$name/v.deadline_utc" ]; then
+  # A promote lock with a dead-man: removing it would disarm the dead-man, so never advise that.
+  o="$(cat "$dir/$name/owner" 2>/dev/null)"
+  echo "FAIL another $what run holds the lock ($o). Its server-side dead-man may be armed until $(cat "$dir/$name/v.deadline_utc"): wait until then for promote-records/undo-$o.txt (or promote-$o.txt) and read it before touching production; do not remove the lock while the dead-man may run"
+  exit 1
 else
   echo "FAIL another $what run holds the lock ($(cat "$dir/$name/owner" 2>/dev/null)); if none is running, remove $dir/$name"
   exit 1
@@ -365,12 +377,14 @@ fence_wait() {
 # [args]. What must not leak in from the caller's shell (a stray FLEET_* setting, another CA,
 # another endpoint) is unset; the values are taken as arguments FIRST, because the private config
 # may well export STAGE_HOST or STAGE_KEYS_DIR. The keys folder holds <identity>.token and ca.crt.
+# CLIENT_TIMEOUT_MS, when set, becomes the script's STAGE_TIMEOUT_MS (the bound of each call).
 client_node() {
-  local host="$1" port="$2" keys="$3" sid="$4" script="$5"
+  local host="$1" port="$2" keys="$3" sid="$4" script="$5" tmo="${CLIENT_TIMEOUT_MS:-}"
   shift 5
   (
     for v in $(env | grep -oE '^(FLEET_[A-Z_]*|NODE_EXTRA_CA_CERTS|NODE_OPTIONS|STAGE_[A-Z_]*)=' | tr -d =); do unset "$v"; done
     export STAGE_URL="https://$host:$port" STAGE_KEYS_DIR="$keys" STAGE_STATUS_ID="$sid"
+    if [ -n "$tmo" ]; then export STAGE_TIMEOUT_MS="$tmo"; fi
     export NODE_EXTRA_CA_CERTS="$keys/ca.crt"
     node "$script" "$@"
   )
@@ -492,3 +506,28 @@ run_logged() {
   rm -f "$fifo"
   return "$rc"
 }
+
+# Server side: run one step with a bound, bounded <seconds> <what> <container name or -> <command...>.
+# Past the bound the step is killed (the named helper container too, since killing a docker client
+# leaves its container running) and it fails with status 124.
+BOUND_FN='
+bounded() {
+  b_s="$1" b_what="$2" b_name="$3"
+  shift 3
+  "$@" &
+  b_p=$!
+  b_i=0
+  while kill -0 "$b_p" 2>/dev/null; do
+    b_i=$((b_i + 1))
+    if [ "$b_i" -gt "$b_s" ]; then
+      [ "$b_name" = - ] || docker kill "$b_name" >/dev/null 2>&1 || true
+      kill "$b_p" 2>/dev/null || true
+      wait "$b_p" 2>/dev/null || true
+      echo "FAIL $b_what took longer than $b_s seconds"
+      return 124
+    fi
+    sleep 1
+  done
+  wait "$b_p"
+}
+'

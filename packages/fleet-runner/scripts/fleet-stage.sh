@@ -65,6 +65,8 @@ repo="$(git -C "$here" rev-parse --show-toplevel)"
 cd "$repo"
 rev="$(full_revision "$rev_arg")"
 short="${rev:0:7}"
+# A receipt from an earlier run of this revision says nothing about this one: only a pass now writes it.
+rm -f "$(receipt_file "$rev")"
 # One ID per run, names every backup and the lock, so nothing from another run is ever reused.
 runid="$(date -u +%Y%m%dT%H%M%SZ)-$$"
 say "== stage $short into $STAGE_PROJECT ($runid)"

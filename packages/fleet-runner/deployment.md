@@ -356,11 +356,13 @@ beside the private config (`logs/promote-<run>.log`).
 1. **Refusals, before anything changes** (production's deploy folder is not even
    created):
    - no approval (exit 3), or one of more than one line;
-   - an approval in which any hex string of 7 or more characters (bounded by
-     non-hex, any case) does not resolve, unambiguously, to exactly this revision,
-     or in which there is none: a longer string that only starts with the
-     revision, a window inside one, another commit, or an ambiguous short ID is
-     refused;
+   - a revision argument that is not the start of the commit ID it resolves to
+     (a branch or tag named like a short ID);
+   - an approval that does not hold the start (7 to 40 hex characters, bounded
+     by non-hex, any case) of exactly this revision's commit ID. Hex runs are
+     matched against commit IDs only, never branch or tag names. A hex-looking
+     word that is the start of no commit (a date, "deadbeef") is ignored; one
+     that is the start of another commit, or of more than one, refuses;
    - a checkout that is not clean or not at `origin/main` (`--rehearsal` lifts
      this for a throwaway production only, and is refused unless its deploy folder
      carries a rehearsal marker);
@@ -393,31 +395,45 @@ beside the private config (`logs/promote-<run>.log`).
    lists (compared by SHA-256, never printed), and no `$`. Anything else
    (`privileged`, `cap_add`, devices, another network, a sidecar, an extra mount,
    port or variable) is refused by key name.
-4. **The dead-man.** Before production is touched, a process is started on the
-   server in a session of its own (it outlives the connection, with its own log
-   in the lock). Unless this Mac commits a pass within `FLEET_DEADMAN_SECS`
-   (default 600), it claims the undo and runs it, then writes the undo record and
-   a `promote.log` line and keeps the lock for a person. The Mac and the dead-man
-   claim the decision with one atomic `mkdir` under the lock, so exactly one of
-   them undoes, and a pass can only be committed if the dead-man has not claimed
-   the undo.
+4. **The dead-man.** Before production is touched, the exact manual undo is
+   saved as `promote-records/manual-undo-<run>.txt`, and a process is started on
+   the server in a session of its own (it outlives the connection, with its own
+   log in the lock). Unless this Mac commits a pass before the deadline
+   (`FLEET_DEADMAN_SECS`, see "The watchdog window" below), it claims the undo
+   and runs it, then writes the undo record and a `promote.log` line (each write
+   checked) and keeps the lock for a person. **The decision:** everything it
+   needs is written at arming, before production is stopped: one file per side
+   (`claim.mac`, `claim.deadman`, `claim.pass`, `claim.manual`, each holding its
+   own name). Claiming is one hard link of that file to `decided`, which no other
+   side can then take and which needs no new data, so a full disk cannot leave
+   half a decision. A decision exists only when `decided` is a file holding one of
+   the four names; anything else (no file, a folder someone made, a failed link)
+   is no decision, and the dead-man stays responsible and undoes. If its lock is
+   removed by hand the dead-man can no longer act, and says so in `promote.log`:
+   **never remove a promote lock while its dead-man may run** (the refusal of a
+   second run gives the time it may run until).
 5. **The switch**, fenced on the server like the stage script's (own process
    group, output to a file in the lock, so a dropped channel cannot kill it):
    back up the files; mark `stopping`; stop the previous production; copy its
    state folder to `state.pre-<run>.part` (by a throwaway container of the checked
    image, by ID), open that copy read-only and run `PRAGMA integrity_check`, and
-   only then name it `state.pre-<run>`; install the frozen config, check its
-   hash again, mark `started`, and start it with
-   `docker compose --env-file /dev/null -f compose.resolved.json up`, so nothing
-   is re-read or interpolated.
+   only then name it `state.pre-<run>`; read the frozen config **once** into the
+   shell, check the hash of those bytes, mark `started`, and give the same bytes
+   to `docker compose --env-file /dev/null -f - up` on stdin: no file is opened
+   again between the check and the start, and nothing is interpolated (a copy is
+   kept as `compose.resolved.json` for later undos and records). Every step is
+   bounded; one that overruns is killed (with its helper container) and fails.
 6. **Health check:** the signed status answers ready with exactly this revision;
    the TLS certificate is the same; the new container sees the same keys by hash
    (exactly `PROD_KEY_IDS`); the job count is not lower than the snapshot's.
 7. **Undo**, on any failure, Ctrl-C, SIGTERM, SIGHUP, closed terminal or lost
    connection after the switch began: this Mac claims the undo and starts it on
    the server in a session of its own, retrying with backoff for
-   `FLEET_UNDO_RETRY_SECS` (default 180), or waits for the dead-man's. The undo
-   fences, stops the new revision, restores the files, swaps the verified snapshot
+   `FLEET_UNDO_RETRY_SECS` (by default long enough for the undo's fence wait and
+   health check), or waits for the dead-man's. The undo waits for the fenced
+   switch to end, up to the switch's bounds plus the margin, and undoes anyway
+   past that (each step is bounded and checks for the abort first); it stops the
+   new revision, restores the files, swaps the verified snapshot
    back **only if** the new revision was started (otherwise the live state is left
    alone), starts the previous production (for the first promote, that very
    container, checked by ID and image; else the previous frozen config), and waits
@@ -425,9 +441,10 @@ beside the private config (`logs/promote-<run>.log`).
    previous build and writes `promote-records/undo-<run>-mac.txt`; a record that
    cannot be written is a failure. Ctrl-C cannot cut the undo short. It never
    prints PASS for a promote that did not pass.
-8. **Success:** the record is written first (a failure undoes the switch), then
-   the pass is committed (which publishes the record, logs it and disarms the
-   dead-man), and only then PASS and the exact manual undo. A manual undo later
+8. **Success:** the record is written first, then the commit publishes it and
+   writes the `promote.log` line (both prerequisites: a failure leaves nothing
+   committed, and the switch is undone), then claims the pass, which makes it
+   durable and disarms the dead-man; only then PASS and the exact manual undo. A manual undo later
    loses every job accepted since the promote (they stay in the set-aside state
    folder).
 
@@ -439,6 +456,52 @@ that would not carry over (only setting names and same/differs are printed,
 never a value). That container is stopped, never removed, so the undo can start
 it again; remove it by hand only once the owner has accepted the new production.
 A promote is not release acceptance (G8).
+
+### The watchdog window
+
+Every phase after the dead-man is armed has a bound (seconds; environment
+variable, default), and the promote refuses to start unless the deadline is
+longer than their sum plus a margin:
+
+| Phase | Bound |
+|---|---|
+| stopping the previous production | `FLEET_STOP_SECS` 45 |
+| copying the state folder, and naming the verified copy | `FLEET_SNAPSHOT_COPY_SECS` 300, twice |
+| the snapshot's read-only integrity check | `FLEET_INTEGRITY_SECS` 120 |
+| starting the new revision | `FLEET_START_SECS` 120 |
+| health: `FLEET_READY_TRIES` 30 x (`FLEET_STATUS_TIMEOUT_SECS` 30 + `FLEET_READY_SLEEP` 3) | 990 |
+| reading the TLS certificate | `FLEET_TLS_SECS` 30 |
+| the key and job checks in the new container | `FLEET_VERIFY_SECS` 30, twice |
+| writing the success record and committing | `FLEET_RECORD_SECS` 60 (an allowance: these two ssh calls are bounded by ssh's keep-alive, not by a timer) |
+| margin | `FLEET_DEADMAN_MARGIN_SECS` 300 |
+
+With the defaults the bounded phases add up to 2,025 seconds (1,725 plus the
+300-second margin), so the default deadline (`DEADMAN_DEFAULT_SECS` in
+`fleet-promote.sh`) is **2,100 seconds, 35 minutes**: the longest production can
+stay down if this Mac dies mid-promote. A shorter `FLEET_DEADMAN_SECS` is
+refused unless the bounds are lowered with it.
+
+### If the server reboots mid-promote
+
+The dead-man does **not** survive a reboot of the server, and there is no
+boot-time recovery. A reboot can leave production in one of two states:
+
+1. **The previous production is stopped** (the reboot came after the stop and
+   before the new revision started). A container stopped by hand stays stopped
+   after a reboot, even with `restart: unless-stopped`. Production is down.
+2. **The new, unchecked revision is running** (it started, and with
+   `restart: unless-stopped` the engine starts it again after the reboot) with no
+   pass committed: no `promote-<run>.txt` in `promote-records/`.
+
+In both, follow `promote-records/manual-undo-<run>.txt`, saved when the
+dead-man was armed: claim the decision first (step 0, so a dead-man that is
+somehow still there stands down), then put the snapshot back and start the
+previous production. To tell the two apart: a `started` file in the lock folder
+means the new revision was started (state 2: do every step). Without it (state 1)
+the live state folder was never changed: **skip step 2** (do not swap the state
+folder), stop nothing new, set the new files aside and start the previous
+production. Check the signed status answers as the previous build before
+removing the lock.
 
 ## Worker interruption and diagnostics
 

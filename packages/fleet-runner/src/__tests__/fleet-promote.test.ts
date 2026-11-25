@@ -71,11 +71,20 @@ in="$(mktemp)"; cat > "$in"
 if [ -n "$FAKE_SSH_FAIL_MATCH" ] && { grep -q -e "$FAKE_SSH_FAIL_MATCH" "$in" || printf '%s' "$cmd" | grep -q -e "$FAKE_SSH_FAIL_MATCH"; }; then
   rm -f "$in"; echo "ssh: connection lost" >&2; exit 255
 fi
+# FAKE_SSH_DELAY_MATCH: a slow (but live) connection for the matching call.
+if [ -n "$FAKE_SSH_DELAY_MATCH" ] && { grep -q -e "$FAKE_SSH_DELAY_MATCH" "$in" || printf '%s' "$cmd" | grep -q -e "$FAKE_SSH_DELAY_MATCH"; }; then sleep "$FAKE_SSH_DELAY"; fi
 # The frozen compose config is changed after it was checked, right before the switch uses it.
 if [ -n "$FAKE_TAMPER_FROZEN" ] && grep -q -e "stopped the previous production" "$in"; then
   f="$FAKE_PROD_DEPLOY/.promote-lock/resolved.json"; [ -f "$f" ] && printf ' ' >> "$f"
 fi
+# FAKE_COMMIT_RO: the records folder or promote.log cannot be written while the commit runs.
+ro=""
+if [ -n "$FAKE_COMMIT_RO" ] && grep -q -e "superseded-by-" "$in"; then
+  case "$FAKE_COMMIT_RO" in records) ro="$FAKE_PROD_DEPLOY/promote-records" ;; log) ro="$FAKE_PROD_DEPLOY/promote.log" ;; esac
+  chmod a-w "$ro"
+fi
 sh -c "$cmd" < "$in"; rc=$?
+[ -z "$ro" ] || chmod u+w "$ro"
 rm -f "$in"; exit $rc
 `;
 
@@ -109,7 +118,17 @@ case "$1" in
         esac ;;
     esac ;;
   run) exec node "$FAKE_BIN/fake-run.mjs" "$@" ;;
-  compose) shift; exec node "$FAKE_BIN/fake-compose.mjs" "$@" ;;
+  compose)
+    shift
+    # FAKE_TAMPER_AT_UP: both copies of the frozen config are changed after the check, before Compose
+    # reads its config; Compose is given the config on stdin, so the change must not reach it.
+    if [ -n "$FAKE_TAMPER_AT_UP" ] && printf '%s\n' "$@" | grep -qx up; then
+      for f in "$FAKE_PROD_DEPLOY/compose.resolved.json" "$FAKE_PROD_DEPLOY/.promote-lock/resolved.json"; do
+        [ ! -f "$f" ] || sed -i.bak 's/"read_only": true/"read_only": false, "privileged": true/' "$f"
+      done
+    fi
+    exec node "$FAKE_BIN/fake-compose.mjs" "$@" ;;
+  kill) exit 0 ;;
   ps)
     project="$(printf '%s\\n' "$@" | sed -n 's/^label=com.docker.compose.project=//p')"
     if [ -n "$project" ] && alive compose; then echo "$FAKE_NEW_CID"; fi ;;
@@ -148,7 +167,7 @@ case "$1" in
       "$FAKE_NEW_CID")
         case "$fmt" in
           *Health*) echo healthy ;;
-          *Config.Env*) node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); for (const [k,v] of Object.entries(c.services["fleet-runner"].environment)) console.log(k+"="+v)' "$(cat "$S/compose.cfg")" ;;
+          *Config.Env*) node -e 'const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")); for (const [k,v] of Object.entries(c.services["fleet-runner"].environment)) console.log(k+"="+v)' "$S/compose.started.json" ;;
           *'.Image'*) cat "$S/compose.image" ;;
           *State.Running*) alive compose && echo true || echo false ;;
         esac ;;
@@ -168,7 +187,7 @@ let entry = "", image = "", i = 0;
 for (; i < args.length; i += 1) {
   const a = args[i];
   if (a === "--rm") continue;
-  if (["--network", "--user", "--platform"].includes(a)) { i += 1; continue; }
+  if (["--network", "--user", "--platform", "--name"].includes(a)) { i += 1; continue; }
   if (a === "--entrypoint") { entry = args[++i]; continue; }
   if (a === "-v") { const [h, c] = args[++i].split(":"); mounts.push([c, h]); continue; }
   image = a; i += 1; break;
@@ -179,6 +198,7 @@ const map = (text) => { for (const [c, h] of mounts) text = text.split(c + "/").
 if (entry === "node" && rest[0] === "-p") { console.log("1000"); process.exit(0); }
 appendFileSync(process.env.FAKE_STATE + "/helper-images.log", image + "\\n");
 let r;
+if (process.env.FAKE_SLOW_COPY && entry === "sh" && rest[1].includes("cp -a")) spawnSync("sleep", [process.env.FAKE_SLOW_COPY]);
 if (entry === "sh" && rest[0] === "-c") r = spawnSync("sh", ["-c", map(rest[1])], { stdio: "inherit" });
 else if (entry === "node" && rest[0] === "-e") r = spawnSync("node", ["-e", rest[1], ...rest.slice(2).map(map)], { stdio: "inherit" });
 else { console.error("fake docker run: unknown command"); process.exit(1); }
@@ -228,8 +248,10 @@ if (cmd === "config") {
   }
   console.log(JSON.stringify(sorted(out), null, 2));
 } else if (cmd === "up") {
+  const bytes = readFileSync(file === "-" ? 0 : file, "utf8");
   if (alive()) process.exit(0);
-  const cfg = JSON.parse(readFileSync(file, "utf8"));
+  const cfg = JSON.parse(bytes);
+  writeFileSync(S + "/compose.started.json", bytes);
   const s = cfg.services["fleet-runner"];
   const root = s.volumes.find((v) => v.target === "/var/lib/fleet-runner/state").source.replace(/\\/state$/, "");
   const tls = process.env.FAKE_OTHER_CERT ? process.env.FAKE_OTHER_CERT_DIR : root + "/tls";
@@ -241,7 +263,7 @@ if (cmd === "config") {
   });
   child.unref();
   writeFileSync(S + "/compose.pid", String(child.pid));
-  writeFileSync(S + "/compose.cfg", file.startsWith("/") ? file : process.cwd() + "/" + file);
+  writeFileSync(S + "/compose.cfg", file);
   writeFileSync(S + "/compose.image", readFileSync(S + "/images/" + s.image, "utf8").trim());
 } else if (cmd === "ps") {
   if (alive()) console.log(process.env.FAKE_NEW_CID);
@@ -317,7 +339,24 @@ function env(extra: Record<string, string> = {}): Record<string, string> {
     FLEET_UNDO_HEALTH_WAIT: "5",
     FLEET_FENCE_WAIT: "30",
     FLEET_DEADMAN_SECS: "600",
+    // Small synthetic phase bounds, so short dead-man deadlines pass the window check.
+    FLEET_STOP_SECS: "5",
+    FLEET_SNAPSHOT_COPY_SECS: "10",
+    FLEET_INTEGRITY_SECS: "10",
+    FLEET_START_SECS: "10",
+    FLEET_STATUS_TIMEOUT_SECS: "2",
+    FLEET_TLS_SECS: "5",
+    FLEET_VERIFY_SECS: "5",
+    FLEET_RECORD_SECS: "5",
+    FLEET_DEADMAN_MARGIN_SECS: "1",
     FLEET_PROMOTE_FAULT: "",
+    FAKE_SSH_DELAY_MATCH: "",
+    FAKE_SSH_DELAY: "0",
+    FAKE_COMMIT_RO: "",
+    FAKE_TAMPER_AT_UP: "",
+    FAKE_SLOW_COPY: "",
+    FAKE_LN_FAIL: "",
+    FAKE_DEADMAN_RACE: "",
     FAKE_SSH_FAIL_MATCH: "",
     FAKE_TAMPER_FROZEN: "",
     FAKE_CORRUPT_SNAPSHOT: "",
@@ -564,6 +603,19 @@ beforeEach(async () => {
     );
     chmodSync(join(bin, "stat"), 0o755);
   }
+  // FAKE_LN_FAIL: the decision link fails as on a full disk (not "already exists").
+  writeFileSync(
+    join(bin, "ln"),
+    `#!/bin/bash\nif [ -n "$FAKE_LN_FAIL" ]; then case "\${@: -1}" in */decided) echo "ln: No space left on device" >&2; exit 1 ;; esac; fi\nexec /bin/ln "$@"\n`,
+  );
+  // FAKE_DEADMAN_RACE: right after the commit publishes its record, the dead-man claims the undo
+  // and starts it (as if its deadline passed between the commit's first check and its claim).
+  writeFileSync(
+    join(bin, "mv"),
+    `#!/bin/bash\n/bin/mv "$@" || exit $?\nif [ -n "$FAKE_DEADMAN_RACE" ]; then case "\${@: -1}" in */promote-records/promote-*.txt) l="$FAKE_PROD_DEPLOY/.promote-lock"; /bin/ln "$l/claim.deadman" "$l/decided" && (setsid sh "$l/run-undo.sh" "$l" >/dev/null 2>&1 </dev/null &) ;; esac; fi\n`,
+  );
+  chmodSync(join(bin, "ln"), 0o755);
+  chmodSync(join(bin, "mv"), 0o755);
   if (spawnSync("sh", ["-c", "command -v sha256sum"]).status !== 0) {
     writeFileSync(join(bin, "sha256sum"), `#!/bin/bash\nexec shasum -a 256 "$@"\n`);
     chmodSync(join(bin, "sha256sum"), 0o755);
@@ -634,7 +686,7 @@ describe("fleet-promote.sh refuses, before anything changes", () => {
     const rev = box.revs[1];
     let r = promote([rev, "--owner-approved", "yes, ship it"]);
     expect(r.out).toContain(
-      `the owner's approval must name the revision it approves (${rev.slice(0, 7)})`,
+      `the owner's approval must name the revision it approves (the approval must hold the start (7 to 40 hex characters) of ${rev.slice(0, 7)}'s commit ID`,
     );
     r = promote([rev, "--owner-approved", `yes ${rev.slice(0, 7)}\nand something else`]);
     expect(r.out).toContain("--owner-approved must be one line");
@@ -645,10 +697,11 @@ describe("fleet-promote.sh refuses, before anything changes", () => {
   it("an approval naming a longer string that only starts with the revision (a prefix collision)", () => {
     const rev = box.revs[1];
     const other = `${rev.slice(0, 7)}${"0".repeat(33)}`;
+    // It is the start of no commit, so it is ignored, and nothing else names the revision.
     const r = promote([rev, "--owner-approved", `Yes, promote ${other}`]);
     expect(r.status).toBe(1);
     expect(r.out).toContain(
-      `the approval names ${other}, which is not exactly one commit this checkout knows`,
+      `the owner's approval must name the revision it approves (the approval must hold the start`,
     );
     expect(read(fake("ssh.log"))).toBe("");
   });
@@ -657,7 +710,7 @@ describe("fleet-promote.sh refuses, before anything changes", () => {
     const rev = box.revs[1];
     const r = promote([rev, "--owner-approved", `yes ${rev.slice(2, 14)}`]);
     expect(r.status).toBe(1);
-    expect(r.out).toContain("which is not exactly one commit this checkout knows");
+    expect(r.out).toContain("the owner's approval must name the revision it approves");
   });
 
   it("an approval that also names another commit", () => {
@@ -691,13 +744,78 @@ describe("fleet-promote.sh refuses, before anything changes", () => {
     let r = promote([a, "--owner-approved", `yes ${a.slice(0, 7)}`, "--rehearsal"]);
     expect(r.status).toBe(1);
     expect(r.out).toContain(
-      `the approval names ${a.slice(0, 7)}, which is not exactly one commit this checkout knows (unknown or ambiguous)`,
+      `the approval names ${a.slice(0, 7)}, which is the start of more than one commit`,
     );
     // Unambiguous and upper case: the approval passes, and a later check refuses instead.
     r = promote([a, "--owner-approved", `YES ${a.slice(0, 9).toUpperCase()}`, "--rehearsal"]);
     expect(r.status).toBe(1);
     expect(r.out).not.toContain("the approval names");
     expect(r.out).not.toContain("must name the revision");
+  });
+
+  it("ignores hex-looking words that name no commit, and still refuses one that names another commit", () => {
+    const [other, rev] = box.revs;
+    const s7 = rev.slice(0, 7);
+    // A date, "feedback" and "deadbeef" are hex runs of 7+ characters that start no commit: ignored.
+    for (const text of [
+      `Yes, promote ${s7} on 20261125`,
+      `Good feedback. Yes, promote ${s7} deadbeef`,
+    ]) {
+      const r = promote([rev, "--owner-approved", text, "--rehearsal"]);
+      expect(r.out, text).not.toContain("the approval names");
+      expect(r.out, text).not.toContain("must name the revision");
+    }
+    // Only hex words that name nothing: refused, stating the rule.
+    let r = promote([rev, "--owner-approved", "Yes, feedback deadbeef 20261125", "--rehearsal"]);
+    expect(r.out).toContain("the approval must hold the start (7 to 40 hex characters) of");
+    // A second token naming another real commit refuses.
+    r = promote([
+      rev,
+      "--owner-approved",
+      `Yes, promote ${s7} on 20261125, not ${other.slice(0, 8)}`,
+    ]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      `the approval names ${other.slice(0, 8)}, which is ${other.slice(0, 12)}, not ${s7}`,
+    );
+  });
+
+  it("a branch named like a short commit ID, as the revision or in the approval (fix 5)", () => {
+    const [a, b] = box.revs;
+    // A local branch named as commit A's 7 characters, pointing at commit B.
+    expect(run(box.repo, "git", ["branch", a.slice(0, 7), b]).status).toBe(0);
+    let r = promote([
+      a.slice(0, 7),
+      "--owner-approved",
+      `Yes, put ${a.slice(0, 7)} live`,
+      "--rehearsal",
+    ]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      `${a.slice(0, 7)} resolves to ${b.slice(0, 12)}, which does not start with it`,
+    );
+    // Promoting B with an approval that names A's short ID (now a branch at B) is refused too: the
+    // approval's tokens are matched against commit IDs only.
+    r = promote([b, "--owner-approved", `Yes, put ${a.slice(0, 7)} live`, "--rehearsal"]);
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      `the approval names ${a.slice(0, 7)}, which is ${a.slice(0, 12)}, not ${b.slice(0, 7)}`,
+    );
+    expect(read(fake("ssh.log"))).toBe("");
+  });
+
+  it("a dead-man deadline that is not longer than the bounded phases plus the margin (fix 6)", () => {
+    const rev = box.revs[1];
+    // Health alone: 20 tries x (2 s + 1 s) = 60 s; with the other synthetic bounds the sum is 125 s.
+    const r = promote([rev, "--owner-approved", yes(rev)], { FLEET_DEADMAN_SECS: "120" });
+    expect(r.status).toBe(1);
+    expect(r.out).toContain(
+      "the dead-man's deadline (120 s) must be longer than the bounded phases after arming (125 s) plus the margin (1 s)",
+    );
+    expect(read(fake("ssh.log"))).toBe("");
+    expect(
+      promote([rev, "--owner-approved", yes(rev)], { FLEET_DEADMAN_SECS: "126" }).out,
+    ).toContain("must be longer than");
   });
 
   it("from a dirty checkout or one not at origin/main, unless --rehearsal", () => {
@@ -893,12 +1011,16 @@ describe("fleet-promote.sh switches, health-checks and undoes", () => {
     expect(records.some((f) => /^promote-.*\.txt$/.test(f))).toBe(true);
     expect(records.some((f) => f.endsWith(".part"))).toBe(false);
     // What runs is the frozen, checked config, started with nothing re-read.
-    expect(read(fake("compose.cfg")).trim()).toMatch(
-      /\/nas\/prod-deploy\/compose\.resolved\.json$/,
-    );
+    // Compose got the checked bytes on stdin: no file was opened between the check and the start.
+    expect(read(fake("compose.cfg")).trim()).toBe("-");
     expect(read(fake("docker.log"))).toMatch(
-      /compose -p fleet-prod --env-file \/dev\/null -f compose\.resolved\.json up -d --pull never/,
+      /compose -p fleet-prod --env-file \/dev\/null -f - up -d --pull never/,
     );
+    expect(read(fake("compose.started.json"))).toBe(
+      read(join(box.prodDeploy, "compose.resolved.json")),
+    );
+    // Change A: the manual undo was saved when the dead-man was armed.
+    expect(records.some((f) => /^manual-undo-.*\.txt$/.test(f))).toBe(true);
     // The root helper containers ran by the checked image ID, never by tag.
     const helpers = read(fake("helper-images.log")).trim().split("\n");
     expect(helpers.length).toBeGreaterThan(2);
@@ -1035,63 +1157,277 @@ describe("fleet-promote.sh switches, health-checks and undoes", () => {
     });
     expect(r.out).toContain("FAIL the running container is not the one that ran before");
     expect(r.out).toContain("FAIL the undo did not complete");
+    expect(r.out).toMatch(
+      /A server-side dead-man may be armed until \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/,
+    );
+    expect(r.out).toContain("promote-records/undo-");
+    expect(r.out).toContain("0. claim the decision first");
+    expect(r.out).not.toContain("then remove the lock folder");
     expect(r.out).not.toContain("UNDONE");
     expect(r.status).toBe(1);
     expect(existsSync(join(box.prodDeploy, ".promote-lock"))).toBe(true);
   });
 
-  it("brings production back from the server alone when this Mac is killed mid-switch (the dead-man)", async () => {
-    ready();
-    const rev = box.revs[1];
-    const child = spawn("bash", [script(), rev, "--owner-approved", yes(rev)], {
+  // Tiny synthetic bounds, so a dead-man deadline of 30 s passes the window check (sum 27 + 1).
+  const QUICK = {
+    FLEET_STOP_SECS: "3",
+    FLEET_SNAPSHOT_COPY_SECS: "3",
+    FLEET_INTEGRITY_SECS: "3",
+    FLEET_START_SECS: "3",
+    FLEET_READY_TRIES: "2",
+    FLEET_STATUS_TIMEOUT_SECS: "2",
+    FLEET_READY_SLEEP: "0",
+    FLEET_TLS_SECS: "2",
+    FLEET_VERIFY_SECS: "2",
+    FLEET_RECORD_SECS: "2",
+    FLEET_DEADMAN_MARGIN_SECS: "1",
+    FLEET_DEADMAN_SECS: "30",
+  };
+  const lockDir = () => join(box.prodDeploy, ".promote-lock");
+  const localLog = () => {
+    const dir = join(dirname(box.conf), "logs");
+    return existsSync(dir)
+      ? readdirSync(dir)
+          .filter((f) => f.endsWith(".log"))
+          .map((f) => read(join(dir, f)))
+          .join("\n")
+      : "";
+  };
+  const spawnPromote = (rev: string, extra: Record<string, string> = {}, approval = yes(rev)) => {
+    const child = spawn("bash", [script(), rev, "--owner-approved", approval], {
       cwd: box.repo,
-      env: { ...process.env, ...env({ FLEET_DEADMAN_SECS: "8" }) },
+      env: { ...process.env, ...env(extra) },
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
-    let out = "";
-    child.stdout.on("data", (d) => (out += String(d)));
-    await waitFor(() => out.includes("stopped the previous production"));
-    // SIGKILL to everything on this side (the script runs its main part in a process group of its
-    // own, and its ssh): no trap runs, nothing here helps.
-    process.kill(-child.pid!, "SIGKILL");
+    const state = { out: "", code: null as number | null, done: false };
+    child.stdout.on("data", (d) => (state.out += String(d)));
+    child.stderr.on("data", (d) => (state.out += String(d)));
+    child.on("close", (c) => {
+      state.code = c;
+      state.done = true;
+    });
+    return { child, state };
+  };
+  // The engine's stop of the old container: the switch is under way on the server.
+  const switching = () => /docker stop -t 30/.test(read(fake("docker.log")));
+  // SIGKILL to everything on this side (the main part runs in a process group of its own, and its
+  // ssh): no trap runs, nothing here helps.
+  const killMac = (pid: number) => {
+    process.kill(-pid, "SIGKILL");
     spawnSync("pkill", ["-KILL", "-f", script()]);
     spawnSync("pkill", ["-KILL", "-f", "synthetic-server"]);
-    const lock = join(box.prodDeploy, ".promote-lock");
-    await waitFor(() => existsSync(join(lock, "deadman.done")), 60_000);
-    expect(read(join(lock, "decided/what")).trim()).toBe("deadman");
+  };
+
+  it("brings production back from the server alone when this Mac is killed mid-switch (the dead-man)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const { child } = spawnPromote(rev, QUICK);
+    await waitFor(switching);
+    killMac(child.pid!);
+    const lock = lockDir();
+    await waitFor(() => existsSync(join(lock, "deadman.done")), 90_000);
+    expect(read(join(lock, "decided")).trim()).toBe("deadman");
     expect(read(join(lock, "deadman.log"))).toContain(
       "no pass from the Mac by the deadline: undoing",
     );
     expect(read(join(lock, "undo.rc")).trim()).toBe("0");
+    expect(read(join(lock, "deadman.done")).trim()).toBe("ok");
     expect(await status()).toBe(OLD_BUILD);
     expect(jobCount()).toBe(3);
     expect(promoteLog()).toContain(" undone-by-server fleet-hand-started -> ");
-    expect(
-      readdirSync(join(box.prodDeploy, "promote-records")).some((f) => /^undo-\S+\.txt$/.test(f)),
-    ).toBe(true);
+    const records = readdirSync(join(box.prodDeploy, "promote-records"));
+    expect(records.some((f) => /^undo-\S+\.txt$/.test(f))).toBe(true);
+    // Change A: the manual undo was saved at arming, beginning with the claim of the decision.
+    const manual = records.find((f) => f.startsWith("manual-undo-")) ?? "x";
+    expect(read(join(box.prodDeploy, "promote-records", manual))).toContain(
+      "0. claim the decision first",
+    );
     // Nobody checked its signed status from the Mac, so the lock stays for a person.
     expect(existsSync(lock)).toBe(true);
+    // Fix 4: a second run is refused with the dead-man's time and record path, never told to remove the lock.
+    const second = promote([rev, "--owner-approved", yes(rev, 2)]);
+    expect(second.status).toBe(1);
+    expect(second.out).toMatch(/dead-man may be armed until \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ/);
+    expect(second.out).toContain("promote-records/undo-");
+    expect(second.out).toContain("do not remove the lock while the dead-man may run");
+    expect(second.out).not.toMatch(/if none is running, remove/);
   });
 
-  it("waits for the dead-man's undo when it claimed it first, and still checks and reports", async () => {
+  for (const [name, inject] of [
+    ["the decision link fails as on a full disk", "ln"],
+    ["an empty decided folder is there", "folder"],
+  ] as const) {
+    it(`keeps the dead-man responsible when ${name} (fix 1)`, async () => {
+      ready();
+      const rev = box.revs[1];
+      const { child } = spawnPromote(rev, { ...QUICK, FAKE_LN_FAIL: inject === "ln" ? "1" : "" });
+      await waitFor(switching);
+      killMac(child.pid!);
+      const lock = lockDir();
+      if (inject === "folder") {
+        await waitFor(() => existsSync(join(lock, "claim.deadman")));
+        mkdirSync(join(lock, "decided"));
+      }
+      await waitFor(() => existsSync(join(lock, "deadman.done")), 90_000);
+      expect(read(join(lock, "deadman.log"))).toContain(
+        "no decision could be recorded: this dead-man stays responsible and undoes",
+      );
+      expect(read(join(lock, "deadman.log"))).not.toContain("disarmed");
+      expect(read(join(lock, "undo.rc")).trim()).toBe("0");
+      expect(await status()).toBe(OLD_BUILD);
+      expect(jobCount()).toBe(3);
+    });
+  }
+
+  it("says so in promote.log when the dead-man's lock is removed by hand (fix 4)", async () => {
     ready();
     const rev = box.revs[1];
-    // The deadline passes during a slow health check: the dead-man undoes, the Mac cannot commit.
+    const { child } = spawnPromote(rev, QUICK);
+    await waitFor(switching);
+    killMac(child.pid!);
+    const lock = lockDir();
+    await waitFor(() => existsSync(join(lock, "deadman.pid")));
+    rmSync(lock, { recursive: true, force: true });
+    await waitFor(() => promoteLog().includes(" deadman-stopped-lock-removed "), 20_000);
+    expect(promoteLog()).toContain("nothing was undone by the server; check production by hand");
+  });
+
+  it("refuses the pass when the dead-man claimed the undo while the record write was slow (fix 9)", async () => {
+    ready();
+    const rev = box.revs[1];
     const r = promote([rev, "--owner-approved", yes(rev)], {
-      FLEET_DEADMAN_SECS: "4",
-      FAKE_BAD_BUILD: "1",
-      FLEET_READY_TRIES: "30",
-      FLEET_READY_SLEEP: "0.5",
+      ...QUICK,
+      FAKE_SSH_DELAY_MATCH: "promote-.*\\.txt\\.part",
+      FAKE_SSH_DELAY: "36",
     });
+    expect(r.out).toContain("PASS 3 jobs");
+    expect(r.out).toContain(
+      "FAIL the server-side dead-man claimed the undo before the pass could be committed",
+    );
     expect(r.out).toContain(
       "the server-side dead-man had already claimed the undo; waiting for it",
     );
-    expect(r.out).toContain(`CHECKED signed status ready, build ${OLD_BUILD.slice(0, 12)}`);
+    expect(r.out).toContain("UNDONE production is back");
+    expect(r.out).not.toMatch(/^PASS production runs/m);
+    expect(r.status).toBe(1);
+    expect(await status()).toBe(OLD_BUILD);
+    expect(jobCount()).toBe(3);
+    expect(promoteLog()).not.toContain(" promoted ");
+    expect(promoteLog()).toContain(" undone-by-server ");
+  });
+
+  it("refuses the pass when the dead-man claims between the commit's checks and its claim", async () => {
+    ready();
+    const rev = box.revs[1];
+    const r = promote([rev, "--owner-approved", yes(rev)], { FAKE_DEADMAN_RACE: "1" });
+    expect(r.out).toContain(
+      "FAIL the server-side dead-man claimed the undo before the pass could be committed",
+    );
+    expect(r.out).toContain("UNDONE production is back");
+    expect(r.out).not.toMatch(/^PASS production runs/m);
+    expect(r.status).toBe(1);
+    expect(await status()).toBe(OLD_BUILD);
+    expect(promoteLog()).toContain(" superseded-by-deadman ");
+    expect(
+      readdirSync(join(box.prodDeploy, "promote-records")).some((f) =>
+        f.endsWith(".txt.superseded"),
+      ),
+    ).toBe(true);
+  });
+
+  for (const [what, ro] of [
+    ["the record cannot be published", "records"],
+    ["the promote.log line cannot be written", "log"],
+  ] as const) {
+    it(`undoes when ${what} at the commit, and never prints PASS (fix 8)`, async () => {
+      ready();
+      const rev = box.revs[1];
+      const r = promote([rev, "--owner-approved", yes(rev)], { FAKE_COMMIT_RO: ro });
+      expect(r.out).toContain("FAIL the pass could not be committed");
+      expect(r.out).toContain("UNDONE production is back");
+      expect(r.out).not.toMatch(/^PASS production runs/m);
+      expect(r.status).toBe(1);
+      expect(await status()).toBe(OLD_BUILD);
+      expect(promoteLog()).not.toMatch(/ promoted fleet-hand-started/);
+    });
+  }
+
+  it("starts the exact bytes that were checked, even if the files change after the check (fix 7)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const r = promote([rev, "--owner-approved", yes(rev)], { FAKE_TAMPER_AT_UP: "1" });
+    expect(r.status, r.out).toBe(0);
+    // The copies were changed after the check...
+    expect(read(join(box.prodDeploy, "compose.resolved.json"))).toContain('"privileged": true');
+    // ...but what Compose was given is the checked config, byte for byte.
+    const started = readFileSync(fake("compose.started.json"));
+    expect(String(started)).not.toContain("privileged");
+    expect(read(fake("compose.cfg")).trim()).toBe("-");
+    const record =
+      readdirSync(join(box.prodDeploy, "promote-records")).find((f) =>
+        /^promote-.*\.txt$/.test(f),
+      ) ?? "x";
+    expect(read(join(box.prodDeploy, "promote-records", record))).toContain(
+      `resolved config sha256 ${sha(started)}`,
+    );
+  });
+
+  it("ends in the undo when a fenced step overruns its bound (fix 6)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const r = promote([rev, "--owner-approved", yes(rev)], {
+      FLEET_SNAPSHOT_COPY_SECS: "2",
+      FAKE_SLOW_COPY: "6",
+    });
+    expect(r.out).toContain("FAIL the snapshot copy took longer than 2 seconds");
+    expect(r.out).toContain(
+      "the new revision never started, so the live state folder was left as it was",
+    );
     expect(r.out).toContain("UNDONE production is back");
     expect(r.status).toBe(1);
-    expect(promoteLog()).toContain(" undone-by-server ");
     expect(await status()).toBe(OLD_BUILD);
+    expect(jobCount()).toBe(3);
+  });
+
+  it("keeps its output and its undo when Ctrl-C comes during the fenced switch (fix 3)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const { child, state } = spawnPromote(rev);
+    await waitFor(switching);
+    // Ctrl-C reaches the script and its logger (the terminal's group); the script passes it on.
+    process.kill(-child.pid!, "SIGINT");
+    await waitFor(() => state.done, 120_000);
+    expect(state.code).toBe(130);
+    expect(state.out).toContain("UNDONE production is back");
+    expect(localLog()).toContain("UNDONE production is back");
+    expect(await status()).toBe(OLD_BUILD);
+    expect(jobCount()).toBe(3);
+  });
+
+  it("still claims and runs the undo from this Mac when its logger is killed after arming (fix 2)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const { child, state } = spawnPromote(rev, { FAKE_BAD_BUILD: "1", FLEET_READY_TRIES: "6" });
+    await waitFor(() => state.out.includes("dead-man is armed"));
+    // The logger is the script's child that stays in the script's process group.
+    const kids = spawnSync("pgrep", ["-P", String(child.pid)], { encoding: "utf8" })
+      .stdout.trim()
+      .split("\n")
+      .filter(Boolean);
+    const logger = kids.find(
+      (k) =>
+        spawnSync("ps", ["-o", "pgid=", "-p", k], { encoding: "utf8" }).stdout.trim() ===
+        String(child.pid),
+    );
+    expect(logger).toBeTruthy();
+    process.kill(Number(logger), "SIGKILL");
+    await waitFor(() => state.done, 120_000);
+    expect(state.code).toBe(1);
+    expect(await status()).toBe(OLD_BUILD);
+    // " undone " is the line the Mac writes when it claimed and ran the undo itself.
+    expect(promoteLog()).toContain(" undone fleet-hand-started -> ");
+    expect(existsSync(lockDir())).toBe(false);
   });
 
   for (const name of ["stdout closed", "the reader gone"] as const) {
