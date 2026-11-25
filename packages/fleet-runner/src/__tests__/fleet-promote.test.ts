@@ -290,6 +290,33 @@ describe("fleet-promote.sh end to end", () => {
     expect(m.status()).toBe(1);
     expect(statusNow(e)).toBe(OLD_BUILD);
   });
+  it("Ctrl-C at the very moment the Mac reads its clock: the lost answer is asked again, and it reads on to the outcome, never UNKNOWN", async () => {
+    // An interrupt ends whatever process the script is waiting for at that moment. If that is the
+    // one that tells it the time, the script must not take "no answer" for "time is up".
+    // (Read 1 is before the start, where an interrupt simply ends the script. Read 2 is the start;
+    // reads 3 and 4 are the read loop's own, and one of them is always its end-of-round check.)
+    for (const nth of [2, 3, 4]) {
+      const e = await setup();
+      const head = headRev(e);
+      writeFileSync(join(e.box.fake, "interrupt-at-clock"), String(nth));
+      const m = promoteAsync(e, [head, "--owner-approved", yes(head)]);
+      await m.done;
+      const out = m.out();
+      const op = lastOp(e);
+      expect(existsSync(join(e.box.fake, "interrupt-at-clock.hit")), `read ${nth}`).toBe(true);
+      expect(out, `read ${nth}`).toContain("interruption requested; outcome pending");
+      expect(out, `read ${nth}`).not.toMatch(/integer (expression )?expected/);
+      expect(out, `read ${nth}`).not.toContain(e.box.root);
+      expect(out, `read ${nth}`).not.toContain("the decider did not begin");
+      expect(out, `read ${nth}`).not.toContain("UNKNOWN");
+      expect(out, `read ${nth}`).not.toContain("PASS production runs");
+      // It read on until the decider had decided, and says what the decider recorded.
+      expect(["undone", "unchanged"], `read ${nth}`).toContain(field(e.box, op, "done", "outcome"));
+      expect(out, `read ${nth}`).toMatch(/UNDONE by the decider|REFUSED by the decider: nothing was changed/);
+      expect(m.status(), `read ${nth}`).toBe(1);
+      expect(statusNow(e), `read ${nth}`).toBe(OLD_BUILD);
+    }
+  });
 });
 
 describe("fleet-promote.sh when the Mac goes away", () => {

@@ -120,11 +120,28 @@ export function makeBox(opts: { rehearsal?: boolean; policy?: string; jobs?: num
   writeFileSync(join(box.bin, "sync"), `#!/bin/sh\necho "sync $*" >> "$FAKE_STATE/sync.log"\n`);
   // perl, with faults at the guard's persistence calls (append, publish, sync-path). perl-faults
   // holds "<call> <n> <mode>" lines: the n-th such call fails, tears, or the decider is killed
-  // around it. Everything else goes straight to the real perl.
+  // around it. And one for the Mac side: interrupt-at-clock holds a number N, and the N-th time the
+  // Mac reads its clock, an interrupt (as Ctrl-C sends it, to the Mac's whole process group)
+  // arrives at that very moment, so that read is lost. Everything else goes straight to the real perl.
   const realPerl = spawnSync("sh", ["-c", "command -v perl"], { encoding: "utf8" }).stdout.trim();
   writeFileSync(
     join(box.bin, "perl"),
     `#!/bin/sh
+case "$*" in
+  *CLOCK_MONOTONIC*)
+    f="$FAKE_STATE/interrupt-at-clock"
+    if [ -f "$f" ]; then
+      c="$FAKE_STATE/clock-count"
+      n=$(( $(cat "$c" 2>/dev/null || echo 0) + 1 ))
+      echo "$n" > "$c"
+      if [ "$n" = "$(cat "$f")" ]; then
+        echo "$n" > "$FAKE_STATE/interrupt-at-clock.hit"
+        ${realPerl} -e 'kill "INT", -$ARGV[0]' "$(cat "$FAKE_STATE/mac.pid")"
+        sleep 2
+        exit 130
+      fi
+    fi ;;
+esac
 case "\${2:-}" in
   append | publish | sync-path)
     f="$FAKE_STATE/perl-faults"
@@ -472,15 +489,31 @@ export async function destroyBoxAsync(box: Box) {
   });
   killAndRemove(box, holders);
 }
+/** A process's command line, or "" when there is no such process. */
+export const commandLine = (pid: number) => (pid > 1 ? spawnSync("ps", ["-ww", "-o", "args=", "-p", String(pid)], { encoding: "utf8" }).stdout.trim() : "");
+/**
+ * Kill a process (or its whole group) ONLY if it is still the one meant: its command line must name
+ * <mark>, a path of the sandbox it belongs to. These tests start so many processes that a number
+ * written down a moment ago is soon given to another process, of another sandbox perhaps; a number
+ * alone is never signalled.
+ */
+export function killIfStill(pid: number, mark: string, group = false) {
+  if (!(pid > 1) || !commandLine(pid).includes(mark)) return;
+  try {
+    process.kill(group ? -pid : pid, "SIGKILL");
+  } catch {}
+}
+/** The step groups recorded in a run's groups file that are still running: checked by the guard itself, by start time. */
+export function liveGroups(groupsFile: string): number[] {
+  if (!existsSync(groupsFile)) return [];
+  const out = spawnSync("perl", [GUARD, "groups-alive", groupsFile], { encoding: "utf8" }).stdout || "";
+  return [...out.matchAll(/^group (\d+) /gm)].map((m) => Number(m[1]));
+}
 function killAndRemove(box: Box, holders: string) {
+  // Fake containers and helper workers: their command lines name this sandbox's engine folder.
   for (const c of containers(box)) {
-    for (const pid of [c.pid, (c as unknown as { helperPid?: number }).helperPid]) {
-      if (pid && alive(pid)) {
-        try {
-          process.kill(pid, "SIGKILL");
-        } catch {}
-      }
-    }
+    killIfStill(c.pid, box.fake);
+    killIfStill((c as unknown as { helperPid?: number }).helperPid ?? 0, box.fake, true);
   }
   // Anything still holding the control folder: a decider, a bound, a hung fake client.
   for (const row of holders.split("\n")) {
@@ -491,16 +524,12 @@ function killAndRemove(box: Box, holders: string) {
       } catch {}
     }
   }
+  // Steps of this sandbox's runs that are still running (never a recorded number that is someone else's now).
   for (const op of existsSync(box.runs) ? readdirSync(box.runs) : []) {
-    const g = join(box.runs, op, "groups");
-    if (!existsSync(g)) continue;
-    for (const row of readFileSync(g, "utf8").split("\n")) {
-      const pgid = Number(row.split(" ")[0]);
-      if (pgid > 1) {
-        try {
-          process.kill(-pgid, "SIGKILL");
-        } catch {}
-      }
+    for (const pgid of liveGroups(join(box.runs, op, "groups"))) {
+      try {
+        process.kill(-pgid, "SIGKILL");
+      } catch {}
     }
   }
   try {

@@ -149,12 +149,19 @@ status_secs="${FLEET_STATUS_TIMEOUT_SECS:-10}"
 [[ "$status_secs" =~ ^[0-9]+$ ]] && [ "$status_secs" -ge 1 ] || die "FLEET_STATUS_TIMEOUT_SECS must be a whole number of seconds"
 poll_secs="${FLEET_POLL_SECS:-2}"
 [[ "$poll_secs" =~ ^[0-9]+(\.[0-9]+)?$ ]] || die "FLEET_POLL_SECS must be a number of seconds"
-# Seconds on a clock that never jumps (the wall clock may be set while this waits).
-# (Asked again if the answer is lost: an interrupt reaches whatever this script is running.)
+# Seconds on a clock that never jumps (the wall clock may be set while this waits), left in $MONO.
+# ALWAYS called as a plain command, never as $(mono): an interrupt (Ctrl-C) ends every process this
+# script is waiting for at that moment, a command substitution's whole subshell included, and the
+# answer would come back empty, to be taken for "time is up". Here the loop runs in this shell,
+# which only notes the interrupt, and the question is asked again until it is answered.
+perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 1 2>/dev/null || die "this Mac's perl has no Time::HiRes with a monotonic clock"
+MONO=""
 mono() {
-  local t=""
-  while [ -z "$t" ]; do t="$(perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 'printf "%d\n", clock_gettime(CLOCK_MONOTONIC)' 2>/dev/null)" || t=""; done
-  printf '%s\n' "$t"
+  MONO=""
+  while :; do
+    MONO="$(perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 'printf "%d\n", clock_gettime(CLOCK_MONOTONIC)' 2>/dev/null)" || MONO=""
+    case "$MONO" in "" | *[!0-9]*) ;; *) return 0 ;; esac
+  done
 }
 prod_node() { CLIENT_TIMEOUT_MS="$((status_secs * 1000))" client_node "$PROD_HOST" "$PROD_PORT" "$PROD_KEYS_DIR" "$PROD_STATUS_ID" "$here/stage-smoke.mjs" "$@"; }
 read_build() {
@@ -170,14 +177,16 @@ build_label() { if [[ "$1" =~ ^[0-9a-f]{7,40}$ ]]; then printf 'build %s' "${1:0
 seen_build="" interrupted=no
 wait_build() {
   local want="$1" until_t got=""
-  until_t=$(($(mono) + $2))
+  mono
+  until_t=$((MONO + $2))
   while :; do
     if got="$(read_build)"; then
       seen_build="$got"
       [ "$got" != "$want" ] || return 0
     fi
     [ "$interrupted" = no ] || return 1
-    [ "$(mono)" -lt "$until_t" ] || return 1
+    mono
+    [ "$MONO" -lt "$until_t" ] || return 1
     sleep "$poll_secs" || true
   done
 }
@@ -185,6 +194,13 @@ receipt_of() { printf '%s/receipts/promote-%s.receipt' "$confdir" "$1"; }
 
 # ---- What the journal says, in plain words. -----------------------------------------------------
 jfield() { printf '%s\n' "$1" | sed -n "s/.* $2=\([^ ]*\).*/\1/p" | head -n 1; }
+# The same, left in $JVAL, by the shell itself: no process is started, so an interrupt cannot lose
+# the answer. For what the read loop decides by (the state, the two challenges, the outcome).
+JVAL=""
+jval() {
+  JVAL=""
+  case " $1 " in *" $2="*) JVAL="${1##* $2=}"; JVAL="${JVAL%% *}" ;; esac
+}
 explain() {
   local state="$1" line="$2"
   case "$state" in
@@ -412,7 +428,8 @@ main() {
   # 7. Start it: in a session of its own on the server, so it outlives this connection.
   started=yes
   local start_at
-  start_at="$(mono)"
+  mono
+  start_at="$MONO"
   nas 'cd "$1" || exit 1
 d="promote-runs/$2"
 [ "$(sha256sum "$d/decider.sh" | cut -d" " -f1)" = "$3" ] && [ "$(sha256sum "$d/guard.pl" | cut -d" " -f1)" = "$4" ] || { echo "FAIL the uploaded decider is not the one this checkout holds"; exit 1; }
@@ -444,15 +461,17 @@ true' "$NAS_PROD_DIR" "$op" 2>/dev/null)"; then
         n=$((n + 1))
         [ "$n" -gt "$shown" ] || continue
         shown="$n"
-        state="$(printf '%s' "$line" | cut -d' ' -f2)"
+        # Read with the shell's own means, never a command substitution: see mono.
+        state="${line#* }"
+        state="${state%% *}"
         last_state="$state"
-        last_read="\"$state\" at $(printf '%s' "$line" | cut -d' ' -f1)"
+        last_read="\"$state\" at ${line%% *}"
         explain "$state" "$line"
         case "$state" in
-          begun) go_nonce="$(jfield "$line" go)" ;;
-          server-checked) ev_nonce="$(jfield "$line" nonce)" ;;
+          begun) jval "$line" go; go_nonce="$JVAL" ;;
+          server-checked) jval "$line" nonce; ev_nonce="$JVAL" ;;
           halted) halted=yes ;;
-          done) outcome="$(jfield "$line" outcome)" ;;
+          done) jval "$line" outcome; outcome="$JVAL" ;;
         esac
       done <<EOF_LINES
 $lines
@@ -516,7 +535,8 @@ EOF_LINES
       # It never began: the lock is held, the plan was refused, or the start never arrived.
       if [ "$shown" -eq 0 ]; then
         case "$out" in *REFUSED*) [ "$settled" = no ] || break ;; esac
-        if [ "$(mono)" -ge $((start_at + b_first)) ]; then
+        mono
+        if [ "$MONO" -ge $((start_at + b_first)) ]; then
           say "the decider wrote no journal line within $b_first seconds of the start"
           break
         fi
@@ -527,9 +547,11 @@ EOF_LINES
       say "this Mac cannot reach the server; it keeps trying (the decider does not need this Mac to decide)"
       unreachable=said
     fi
-    [ "$(mono)" -lt "$deadline" ] || break
+    mono
+    [ "$MONO" -lt "$deadline" ] || break
     sleep "$poll_secs" || true
   done
+  mono
 
   # 9. Say what is known. PASS only from the decider's own "done" and its record.
   local rc=1
@@ -574,7 +596,7 @@ EOF_LINES
     printf '%s\n' "$out" | sed -n '/^HALTED /,$p' | while IFS= read -r line; do say "$line"; done
     say "FAIL the decider halted: production may be down. No other promote, recover or revert will run until this is resolved."
     recover_line
-  elif [ "$shown" -eq 0 ] && [ "$unreachable" = no ] && [ "$(mono)" -lt "$deadline" ]; then
+  elif [ "$shown" -eq 0 ] && [ "$unreachable" = no ] && [ "$MONO" -lt "$deadline" ]; then
     printf '%s\n' "$out" | grep -v '^$' | while IFS= read -r line; do say "$line"; done || true
     say "REFUSED the decider did not begin: nothing was changed in production by this run."
     say "  (If its start arrives late, it gets no go from this Mac and changes nothing.)"
