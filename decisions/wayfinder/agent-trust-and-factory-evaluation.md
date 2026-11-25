@@ -48,6 +48,132 @@ parent conductor. This must be built into the fleet's graph and node shapes now.
 conductor" (#663, #666) will be re-checked against it. #679, #680 and #668 hold any part
 that depends on it.
 
+### Owner addendum: correspondence, seat kinds and fuel, 2026-11-24
+
+The owner stated the following in a Claude Code chat on Yuri on 2026-11-24. They are
+recorded here as owner statements. None has been ticketed or challenged yet, so the
+challenge rule (#664) still applies to each before it guards anything. The plain-language
+page with diagrams is `docs/circusgreen-org-and-correspondence.md`.
+
+- A1. All correspondence between sessions goes through a conductor, never session to
+  session directly. This includes anything from Yuri to Yojimbo.
+- A2. There can be several conductors, with child conductors, and a conductor does not
+  have to route ordinary messages through its parent: conductors may write to each other
+  directly. Blockers are unchanged and still go up seat by seat (#682). The owner ruled the
+  scope on 2026-11-24: "Only ordinary messages".
+- A3. The rule restricts sending only. Any session may read shared threads, and the owner
+  may talk to any session directly.
+- A4. Agents follow the written rule first. HelpDesk records messages that break it
+  without blocking them. Blocking comes later, once the record shows the rule works.
+- A5. Orchestration is separate from HelpDesk and from conductors. It holds the whole
+  picture (what work exists, what kind of session suits it, how sessions relate). It starts
+  as a record; a model with its own dedicated context comes after. HelpDesk stays a relay.
+- A6. Seat kinds: a chief of staff as the owner's single point of contact, conductors, a
+  small pool of specialists for side threads, and pooled workers. Seat labels are already
+  open under #682.
+- A7. ClassicSpaceVenue is a place the owner talks to agents, not only a place to watch
+  them ("Talk there too"). This changes its recorded watch-only boundary. It uses the same
+  sign-in as MorningCockpit, with the two screens kept behind separate security
+  boundaries (owner, 2026-11-24: "same sign but make sure we maintain separate appropriate
+  secure hygiene boundaries"). What each boundary is has not been designed. Approvals stay
+  passkey-signed records whichever screen is used (#679); that last point is a reading of
+  #679, not a separate owner ruling.
+- A8. Long-lived seats run as deployed services on Yojimbo and the NAS. Yuri, a laptop
+  that is sometimes offline, opts in for short-lived instances. Build work happens on Yuri
+  whenever possible; anything on the NAS is asked of the owner first.
+- A9. A fuel layer assigns prioritised work to free capacity. Hosted quota (Anthropic,
+  OpenAI) is capped at 95%, leaving the owner a margin. Quota is not burned for its own
+  sake: owner-free quality and tech-debt work is held for the end of a quota window, from a
+  standing prioritised list. Hosted and local fuel are separate fuels with separate queues.
+  Local fuel earns work only through repeatable evals, and the hosted cost of checking it is
+  counted. The first step is a read-only gauge on the Fleet Build Board (LocalHelp#210).
+  This is the first concrete input to "What budgets does the work register reserve
+  against?" (#675); it must extend that question, not start a second budget model.
+
+Withdrawn the same day: "whoever starts a helper session is its conductor". Under #682 a
+conductor holds a named seat. A helper session reports to the session that started it.
+
+### Owner addendum: GitHub App keys follow GitHub's own flow, 2026-11-24
+
+Building P0-WIZ (LocalHelp#216) showed that "the App keys are held only by the token
+issuer" (#667, #681) cannot be met by the owner clicking "generate a private key" in a
+browser: GitHub generates the key and downloads it to the browser's computer, and offers
+no way to register a key made elsewhere. From a Mac's browser the key would land on that
+Mac. Told this, the owner ruled in a Claude Code chat on Yuri: "SUPPORT GITHUB WAY -- If i
+am wrong, make it right!" The design follows GitHub's supported mechanism and the ruled
+steps are corrected to fit it. The guarantee itself is unchanged: no Mac that runs agents
+ever holds an App key.
+
+Checked against GitHub's documentation on 2026-11-24 (managing private keys for GitHub
+Apps; registering a GitHub App from a manifest; REST "create a GitHub App from a manifest"):
+
+- A key made in the web UI is downloaded to the computer. An App may have up to 25 keys.
+  GitHub recommends a key vault that signs without releasing the key.
+- The manifest flow lets a service create the App: the owner approves in the browser,
+  GitHub redirects the browser to the service with a one-time code, and the service
+  exchanges the code and receives the App's key in the answer. All three steps must finish
+  within one hour. The manifest sets the App's permissions and works for a personal account
+  or an organization.
+- The manifest flow only creates an App. It cannot add a key to an App that exists.
+
+What follows, proposed and not yet challenged:
+
+- The token issuer creates each Mac's App and the check-only gate App through the manifest
+  flow, so the key lands on the NAS and nowhere else. OW-1a (create the Apps) and OW-1b
+  (enrol each key) become one owner step done at the issuer's own page, and that step needs
+  the issuer to exist first. The entrances of S54 and S55 and the scope of TI-1a (S48) need
+  re-planning to match.
+- The owner-setup wizard prepares each App's manifest, which holds no secret, sends the
+  owner to the issuer's page, and stops if the issuer is not there. It never offers a Mac
+  file as a fallback.
+
+How the three risks are handled, proposed and not yet challenged:
+
+- The one-time code. GitHub's documentation does not say the exchange needs
+  authentication, so the code is treated as a bearer secret: whoever exchanges it first
+  gets the key, and it passes through the browser's address bar. The owner therefore
+  approves from a device that runs no agents, such as the phone. The issuer binds the
+  exchange with a state value so that only it can complete it, and refuses a reused or
+  unknown code loudly.
+- Reachability. The issuer's page is reachable only on the home network or over the VPN.
+  If the owner's browser cannot reach it, no key is delivered; the owner connects the VPN
+  and retries within GitHub's one-hour window. GitHub's documentation does not say whether
+  an App that was approved but never exchanged still exists, so the owner deletes any such
+  App and starts again.
+- Rotation. An existing App gets a new key only by a download in GitHub's web UI. The
+  owner asked on 2026-11-24 whether that download could be done on a Mac with every agent
+  paused, if the pause could be enforced, and ruled "otherwise, fresh app". It cannot be
+  enforced today: a pause is a claim made on the same machine (the proof of a stop is #678,
+  built in PH12), agents run under the owner's own account and so can read its downloads,
+  and the file would also reach the browser's store, the search index and backups. So a key
+  is replaced by creating a fresh App by manifest and retiring the old one. The old App is
+  retired only after the new one is proven working on every repo, so there is no gap. The cost is
+  that a fresh App has a new identity: it is installed on the fleet repos again, and
+  anything pinned to the old App (required checks, rulesets, the issuer's own records) is
+  repointed. Revisit if a proven stop, or a separate account that runs no agents, exists.
+
+The roadmap carries the matching edits, each marked "Owner addendum, 2026-11-24": TI-1a
+(S48) gains the manifest step, OW-1a (S54) now waits for P0-GL, and OW-1b (S55) becomes a
+confirmation that each key is in the issuer and on no Mac.
+
+### Owner addendum: who merges after review, 2026-11-24
+
+Two written rules disagreed. The charter guide the owner adopted on 2026-11-19
+(LocalHelp `docs/charter-coordination.md`) has the conductor merge once two independent
+reviews, Codex and Claude, are clean. This map's GitHub identity ruling (#681) says
+"Agents merge after the owner's chat yes." On 2026-11-24 the Yojimbo conductor merged
+workstation-yuri#15 under the first rule, with no owner yes, and the question was put to
+the owner. Asked whether Yojimbo may merge pull requests built on Yuri after two clean
+reviews or only after his yes, he ruled in a Claude Code chat on Yuri: "Merge after
+reviews".
+
+So, until the trust build's own gates are live: after two independent clean reviews, with
+all high and medium findings resolved, the conductor merges without asking the owner
+again. Installs, go-lives, staging runs, NAS changes, owner-only steps and anything this
+map counts as high risk (#673) still need the owner's own yes. The #681 sentence is read
+as describing the built system, where a merge is traced to a grant; it is not a second
+approval step today. This has not been challenged.
+
 ### Boundaries with other maps
 
 - fleet-runner map (#307): owns FleetRunner authority and promotion through "What
