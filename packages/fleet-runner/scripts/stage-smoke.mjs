@@ -2,6 +2,10 @@
 // fleet-stage.sh against the test copy only, with the test copy's own keys.
 //
 //   node stage-smoke.mjs status <revision>   one signed status call: ready, and which build
+//   node stage-smoke.mjs build                one signed status call: prints ready and the build as
+//                                             it is (exit 0 only if ready); fleet-promote.sh compares
+//   node stage-smoke.mjs fingerprint          the SHA-256 fingerprint of the TLS certificate the
+//                                             service presents (no signature, nothing trusted)
 //   node stage-smoke.mjs smoke  <revision>   the three acceptance checks, in order:
 //     1. the signed status answers, ready, and its build is exactly <revision>;
 //     2. a signed job submit (as the test owner) is accepted;
@@ -10,34 +14,66 @@
 // Environment: STAGE_URL (https://<host>:<port>), STAGE_KEYS_DIR (owner.token, stage-worker.token),
 // NODE_EXTRA_CA_CERTS (the private CA, set before node starts). The tokens are the test copy's own:
 // this script never reads production's keys and has no way to name production's address.
+// The one exception is fleet-promote.sh, which uses only status and build against production, as
+// the read-only identity STAGE_STATUS_ID (its <id>.token in STAGE_KEYS_DIR), never the owner key.
+// STAGE_STATUS_ID applies to status and build only; smoke always signs as the test copy's owner.
+// STAGE_TIMEOUT_MS (default 30000) bounds every call of status, build and fingerprint.
 // Prints PASS/FAIL lines and counts only. Needs the package built (dist/), which fleet-stage.sh does.
 import { createHash, randomBytes } from "node:crypto";
 import { join } from "node:path";
+import { connect } from "node:tls";
 
 const [command, revision] = process.argv.slice(2);
 const fail = (why) => {
   console.log(`FAIL ${why}`);
   process.exit(1);
 };
-if (!["status", "smoke"].includes(command ?? "") || !/^[0-9a-f]{7,40}$/.test(revision ?? "")) {
-  console.error("usage: stage-smoke.mjs status|smoke <revision>");
+if (
+  !(["build", "fingerprint"].includes(command ?? "") && revision === undefined) &&
+  !(["status", "smoke"].includes(command ?? "") && /^[0-9a-f]{7,40}$/.test(revision ?? ""))
+) {
+  console.error("usage: stage-smoke.mjs status|smoke <revision> | build | fingerprint");
   process.exit(2);
 }
 const url = process.env.STAGE_URL;
 const keys = process.env.STAGE_KEYS_DIR;
 if (!url || !keys) fail("STAGE_URL and STAGE_KEYS_DIR must be set");
 if (!/^https:\/\/[^/@]+$/.test(url)) fail("STAGE_URL must be an https origin");
+const timeoutMs = Number(process.env.STAGE_TIMEOUT_MS || 30000);
+if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) fail("STAGE_TIMEOUT_MS must be a positive whole number");
+if (command === "fingerprint") {
+  const { hostname, port } = new URL(url);
+  const isIp = /^[0-9.]+$/.test(hostname);
+  const socket = connect({ host: hostname, port: Number(port), rejectUnauthorized: false, ...(isIp ? {} : { servername: hostname }) });
+  socket.setTimeout(timeoutMs, () => fail("TLS handshake timed out"));
+  socket.once("error", (error) => fail(`TLS handshake failed (${error?.code ?? "error"})`));
+  socket.once("secureConnect", () => {
+    const fp = socket.getPeerCertificate()?.fingerprint256;
+    socket.end();
+    if (!fp) fail("no certificate presented");
+    console.log(fp);
+    process.exit(0);
+  });
+} else {
 
 const { fleetClient } = await import(new URL("../dist/client.js", import.meta.url).href);
-const owner = fleetClient(url, "owner", join(keys, "owner.token"));
+// The status reader's key is the only one read for status and build: another identity's status
+// call never opens owner.token.
+const statusId = command === "smoke" ? "owner" : (process.env.STAGE_STATUS_ID || "owner");
+if (!/^[a-z][a-z0-9-]{0,62}$/.test(statusId)) fail("STAGE_STATUS_ID is not an identity name");
+const reader = fleetClient(url, statusId, join(keys, `${statusId}.token`));
 
 let snapshot;
 try {
-  snapshot = await owner.status();
+  snapshot = await reader.status(AbortSignal.timeout(timeoutMs));
 } catch (error) {
   fail(`status unreachable (${error?.cause?.code ?? error?.status ?? "error"})`);
 }
 const { ready, build, reasons } = snapshot.service;
+if (command === "build") {
+  console.log(JSON.stringify({ ready, build, reasons }));
+  process.exit(ready ? 0 : 1);
+}
 // The service stores the full revision the stage script gave it; an abbreviation is accepted.
 const buildMatches = typeof build === "string" && (build === revision || (revision.length < 40 && build.startsWith(revision)));
 if (command === "status") {
@@ -47,6 +83,7 @@ if (command === "status") {
 if (!ready) fail(`status is not ready (${(reasons ?? []).join(",") || "no reason given"})`);
 if (!buildMatches) fail(`status shows build ${String(build).slice(0, 12)}, not ${revision.slice(0, 12)}`);
 console.log(`PASS status ready, build ${revision.slice(0, 12)}`);
+const owner = reader;
 
 // A fixture no earlier run has used, so admission is a real, new job.
 const fixture = Buffer.from(`fleet-runner stage smoke ${revision} ${randomBytes(8).toString("hex")}\n`);
@@ -80,3 +117,4 @@ const accepted = await worker.complete(claim, fixture, sha).catch(() => false);
 const verified = accepted && (await owner.verify(admitted.key).then((r) => r.verified, () => false));
 if (!verified) fail("the claimed job could not be completed and verified");
 console.log("PASS job completed and its output verified");
+}
