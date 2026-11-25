@@ -127,14 +127,24 @@ What follows, proposed and not yet challenged:
   owner to the issuer's page, and stops if the issuer is not there. It never offers a Mac
   file as a fallback.
 
-Not settled:
+How the three risks are handled, proposed and not yet challenged:
 
-- Rotation. Because a manifest cannot add a key to an existing App, replacing a key means
-  either a UI download from a device that runs no agents, or a new App made by manifest.
-- Whether GitHub's redirect works to an issuer page reachable only on the home network or
-  VPN. The documentation sets no restriction and does not say; it has not been tried.
-- The one-time code passes through the browser's address bar. What that exposes, and for
-  how long, has not been assessed.
+- The one-time code. GitHub's documentation does not say the exchange needs
+  authentication, so the code is treated as a bearer secret: whoever exchanges it first
+  gets the key, and it passes through the browser's address bar. The owner therefore
+  approves from a device that runs no agents, such as the phone. The issuer binds the
+  exchange with a state value so that only it can complete it, and refuses a reused or
+  unknown code loudly.
+- Reachability. The issuer's page is reachable only on the home network or over the VPN.
+  If the owner's browser cannot reach it, nothing is created; the owner connects the VPN
+  and retries within GitHub's one-hour window.
+- Rotation. An existing App gets a new key only by a download in GitHub's web UI. The plan
+  is not chosen and needs the owner's word: either a new App made by manifest with the old
+  one retired, or an owner-only download from a device that runs no agents.
+
+The roadmap carries the matching edits, each marked "Owner addendum, 2026-11-24": TI-1a
+(S48) gains the manifest step, OW-1a (S54) now waits for P0-GL, and OW-1b (S55) becomes a
+confirmation that each key is in the issuer and on no Mac.
 
 ### Boundaries with other maps
 

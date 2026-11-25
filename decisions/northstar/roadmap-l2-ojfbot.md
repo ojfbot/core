@@ -762,7 +762,7 @@ slices:
     moves_to: 30
     deliverable: "A reviewed PR closing ojfbot/LocalHelp#136 (trust build slice TI-1a)."
     entrance: "OW-0 and OW-SVC done (the issuer runs under an owner-made account, and its keys must sit where no Mac can read them)."
-    success: "A new package `packages/token-issuer` runs on staging under its own account. It can enrol GitHub App keys and the gate App key, and holds them where no Mac account can read them. It has no settings or secrets power and mints nothing yet. It serves a read-only status."
+    success: "A new package `packages/token-issuer` runs on staging under its own account. It can enrol GitHub App keys and the gate App key, and holds them where no Mac account can read them. It has no settings or secrets power and mints nothing yet. It serves a read-only status. Owner addendum, 2026-11-24: it also runs GitHub's App manifest flow, so a new App's key lands only in the issuer: it accepts the owner's browser redirect, binds the exchange with a state value, exchanges the one-time code itself, and refuses a reused or unknown code loudly."
     check: "pnpm --fail-if-no-match --filter @localhelp/token-issuer build && pnpm --fail-if-no-match --filter @localhelp/token-issuer exec vitest run TI-1a.test"
     autonomy: gate-0
     claimable_by: human_only
@@ -856,7 +856,7 @@ slices:
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#137 (trust build slice OW-1a)."
-    entrance: "P0-WIZ merged."
+    entrance: "P0-WIZ merged and P0-GL done. Owner addendum, 2026-11-24: the Apps are created through the go-live issuer's manifest page, from a device that runs no agents, so each key is delivered to the issuer and never to a Mac."
     success: "One App per Mac with Contents, Pull requests, Issues, Checks and Statuses write, Actions and Administration read, and no Administration or Secrets write, installed on the fleet repos. A check-only gate App. The owner decides here whether the Apps get Actions write, so a stop can cancel Actions runs."
     check: "bash scripts/check-github-app-permissions"
     autonomy: gate-0
@@ -864,16 +864,16 @@ slices:
     kind: m
     repo: LocalHelp
     status: queued
-    depends_on: "rm:rm-l2-ojfbot#S42"
+    depends_on: "rm:rm-l2-ojfbot#S50"
   - id: S55
     phase: PH8
-    title: "OW-1b — (owner-only) Owner: generate each App key and enrol it in the token issuer only"
+    title: "OW-1b — (owner-only) Owner: confirm each App key is enrolled in the token issuer only"
     advances: "ns:l2-ojfbot#P2"
     moves_from: 30
     moves_to: 30
     deliverable: "Owner step recorded on ojfbot/LocalHelp#138 (trust build slice OW-1b)."
     entrance: "OW-1a and P0-GL done (the go-live issuer exists)."
-    success: "Each App's private key, and the gate App's key, is generated and enrolled straight into the go-live issuer, never stored on a Mac. Staging uses separate test Apps or test keys only."
+    success: "Owner addendum, 2026-11-24: each App's private key, and the gate App's key, arrived in the go-live issuer when the App was created by manifest in OW-1a, and is confirmed enrolled there and absent from every Mac. No key is generated in GitHub's web UI on a Mac. Staging uses separate test Apps or test keys only."
     check: "bash scripts/check-no-app-keys-on-mac"
     autonomy: gate-0
     claimable_by: human_only
