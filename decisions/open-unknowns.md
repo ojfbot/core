@@ -327,3 +327,26 @@ Ruling: about 120 guarantees, one owner each, across six NAS services (HelpDesk,
 - Restore drills for the four new services.
 - Load from the minute-by-minute witnessing.
 - Open tickets stay open: #675 FleetRunner budget, #684 owner-only GitHub organization, #685 unregistered and native sessions, #686 key protection on one Mac.
+
+## 2026-11-24 — four kinds of staleness, one signal each (wayfinder #732, ticket #737)
+
+**Deferred decisions**
+- What the reader's flag and the successor mark look like on rules files, hooks, skills and loops. Unblocked by: "What happens to a retired item?" (#742).
+- Who may flag, mark, repair or retire, per kind. Unblocked by: "Who may retire or refresh an item on each surface?" (#741).
+- What the flag is on the wiki, and whether dated claims count. Unblocked by: "What marks a wiki claim untrue, as distinct from a page unused?" (#738).
+- Whether an item in a dormant repo is unused or paused. Unblocked by: the owner, from the map's "Not yet specified".
+- Whether each session should record what it loaded, and in what shape. Unblocked by: the new ticket on the map.
+- Whether copies that fall behind their source are a kind. Unblocked by: the owner, from the map's "Not yet specified".
+
+**Unvalidated assumptions**
+- A 90-day window suits every surface.
+- "A Claude Code session worked in the repo" stands in for "the repo's rules file loaded". Codex session files show the two can differ.
+- A reader will write a flag when it finds an item wrong. No surface but memory shows this happening.
+- The path check finds the broken references that matter. It tests paths only, not commands, flags or names.
+- Codex session files stay on disk long enough to serve as a load record. No retention rule was found.
+
+**Standard considerations not covered**
+- Hosts other than one Mac. Nothing was measured on Yojimbo.
+- False flags: a reader that wrongly marks a true item untrue, and how a flag is withdrawn.
+- How often each signal is recomputed, and by what.
+- Loops: the four kinds are named for them and nothing was computed.

@@ -774,3 +774,12 @@ Slicing core#674 into roadmap slices and issues (discoveries issue ojfbot/core#6
 Codex's leftover on ojfbot/core#687: the RETRO-0 to RETRO-5 commands only counted open slices.
 
 - 2026-11-22: The task assumed each slice leaves a machine-checkable evidence and disposition record. Only "a merged PR closes the issue" is one; owner steps and review-finding handling have no defined record form. Asked the conductor, who ruled: owner steps count as "closed as completed" ("not planned" fails), the disposition record is the "Deviations and discoveries" section with its `_(none yet)_` placeholder replaced by entries or "None.", and owner steps and review findings stay a human read in the retro until the per-Mac GitHub Apps exist (#681). No new record type.
+
+## Deviations — staleness kinds ticket (2026-11-24)
+
+Wayfinder ticket ojfbot/core#737, worked with the owner in session.
+
+- 2026-11-24: The brief assumed the three research files were the whole option set. The owner asked for a deeper inspection of how rules files, hooks and memory load, then for Codex behaviour and tracing tools. Went: traced the load paths read-only, ran one research agent on Codex, and cited the harness documentation read that day. The Codex findings stay outside the repo until a privacy pass.
+- 2026-11-24: The brief assumed the census was right that use is unmeasured on rules files, hooks and memory files. Loading turned out to be recorded; only reliance is not. Went: the ruling uses "not loaded" as the signal and says the Claude Code record is a proxy.
+- 2026-11-24: The grilling skill says to show glossary and ADR changes as diffs for the owner to apply. The brief asked for them to be recorded once the owner confirmed. Went: showed the plan, got confirmation, then wrote the draft ADR and glossary entries, uncommitted.
+
