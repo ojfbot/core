@@ -196,6 +196,10 @@ describe("fleet-promote-guard.pl bound", () => {
       perl "$G" bound --note "$B/groups" start-new 60 1 -- sleep 61 > /dev/null 2>&1 &
       echo $! > "$B/bound.pid"
       while [ "$(wc -l < "$B/groups")" -lt 2 ]; do sleep 0.1; done
+      # The group is recorded before the step is let go: wait until the step itself runs (a bound
+      # killed before that never starts its step, and there would be nothing left to find).
+      g="$(sed -n 2p "$B/groups" | cut -d' ' -f1)"
+      while [ "$(ps -o comm= -p "$g" 2>/dev/null | sed 's|.*/||')" != sleep ]; do sleep 0.1; done
     `);
     expect(r.status).toBe(0);
     process.kill(pidIn("bound.pid"), "SIGKILL");

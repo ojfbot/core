@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { evidenceProblems, filterProblems, pythonProblems, isTestFile, PREREQUISITES, RUNNERS, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
+import { evidenceProblems, filterProblems, pythonProblems, isTestFile, PREREQUISITES, PROMOTE_SWEEP_STEP, RUNNERS, unwired, vitestIncludes } from "../../check-test-wiring.mjs";
 
 describe("check-test-wiring", () => {
   it("recognises JS, TS and Python test file names", () => {
@@ -59,6 +60,36 @@ describe("check-test-wiring", () => {
     for (const drop of ["pnpm --filter @core/launcher-tests --fail-if-no-match test", "run: pnpm test\n"]) {
       const broken = (f) => (f === ".github/workflows/ci.yml" ? ci.replace(drop, "") : real(f));
       expect(evidenceProblems(broken).length, drop).toBeGreaterThan(0);
+    }
+  });
+
+  it("knows the promote's kill sweeps as test files that only their own CI step runs", () => {
+    const sweep = "packages/fleet-runner/src/__tests__/fleet-promote-decider.sweep_test.ts";
+    expect(isTestFile(sweep)).toBe(true);
+    // Not in the root include list (so `pnpm test` does not run them) ...
+    const includes = vitestIncludes(readFileSync(new URL("../../../vitest.config.ts", import.meta.url), "utf8"));
+    expect(includes.some((g) => path.posix.matchesGlob(sweep, g))).toBe(false);
+    // ... and wired through their runner, as a new sweep file beside them would be.
+    expect(unwired([sweep, "packages/fleet-runner/src/__tests__/another.sweep_test.ts"], includes)).toEqual([]);
+  });
+
+  it("fails when the promote sweeps' step is deleted, or its condition is replaced", () => {
+    const real = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8");
+    const ci = real(".github/workflows/ci.yml");
+    expect(ci).toContain(PROMOTE_SWEEP_STEP);
+    const withCi = (text) => (f) => (f === ".github/workflows/ci.yml" ? text : real(f));
+    const run = "        run: pnpm exec vitest run --config vitest.promote-sweeps.config.ts\n";
+    const condition = "if: steps.promote_sweeps.outputs.run != 'false'";
+    const mutations = {
+      "the step's run line deleted": ci.replace(run, ""),
+      "the condition made always false": ci.replace(condition, "if: false"),
+      "the condition made to need an explicit yes that the script's output is not": ci.replace(condition, "if: steps.promote_sweeps.outputs.run == 'yes'"),
+      "the deciding step deleted": ci.replace("        run: bash scripts/fleet-runner/promote-sweeps-decision.sh\n", ""),
+      "the deciding step's id renamed": ci.replace("id: promote_sweeps\n", "id: sweeps\n"),
+    };
+    for (const [what, text] of Object.entries(mutations)) {
+      expect(text, what).not.toBe(ci);
+      expect(evidenceProblems(withCi(text)).length, what).toBeGreaterThan(0);
     }
   });
 

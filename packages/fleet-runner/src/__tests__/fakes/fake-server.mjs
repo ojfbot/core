@@ -3,7 +3,7 @@
 // Environment (from the fake engine): FAKE_PKG, FAKE_ROOT (the service root it mounts), FAKE_BUILD
 // (what its status answers as), FAKE_IMAGE, FAKE_PROD_PORT; FAKE_BAD_BUILD_FOR and
 // FAKE_OTHER_CERT_FOR name an image whose container answers with another build or certificate.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 const pkg = process.env.FAKE_PKG;
 const { JobStore } = await import(`${pkg}/dist/jobs.js`);
@@ -21,6 +21,10 @@ const server = fleetServer(store, {
   tls: { cert: readFileSync(join(tls, "server.crt")), key: readFileSync(join(tls, "server.key")) },
 });
 server.listen(Number(process.env.FAKE_PROD_PORT), "127.0.0.1");
+// A "container" never outlives its sandbox: when the test removes the folders, it ends.
+setInterval(() => {
+  if (!existsSync(root)) process.exit(0);
+}, 1000).unref();
 for (const s of ["SIGTERM", "SIGINT"])
   process.once(s, () => {
     server.close(() => {

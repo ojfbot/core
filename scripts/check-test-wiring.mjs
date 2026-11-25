@@ -30,7 +30,20 @@ export const RUNNERS = [
     text: "unittest discover -s .claude/skills/bead/scripts -p 'test_*.py'" },
   { glob: '.claude/skills/vault/scripts/test_*.py', file: '.github/workflows/ci.yml',
     text: "unittest discover -s .claude/skills/vault/scripts -p 'test_*.py'" },
+  // The FleetRunner promote's kill sweeps: run by their own config, in a CI step that is
+  // conditional (see PROMOTE_SWEEP_STEP below).
+  { glob: 'packages/fleet-runner/src/__tests__/*.sweep_test.ts', file: 'vitest.promote-sweeps.config.ts',
+    text: 'packages/fleet-runner/src/__tests__/*.sweep_test.ts' },
 ];
+
+// The promote sweeps' step with its condition, as ONE text: the run line directly under the one
+// condition that may guard it. Deleting the step, or replacing its condition (with `if: false`,
+// say), removes this text and fails the check. What the text cannot show is whether the decision
+// itself is right: scripts/lib/__tests__/promote-sweeps-decision.test.mjs tests the script that
+// makes it. Nothing here notices a step made harmless some other way (continue-on-error, a
+// condition on the whole job).
+export const PROMOTE_SWEEP_STEP = "if: steps.promote_sweeps.outputs.run != 'false'\n"
+  + '        run: pnpm exec vitest run --config vitest.promote-sweeps.config.ts\n';
 
 // Other things a wired test depends on. Same evidence rule.
 export const PREREQUISITES = [
@@ -40,6 +53,9 @@ export const PREREQUISITES = [
   { file: '.github/workflows/ci.yml', text: 'run: pnpm test\n' },
   { file: '.github/workflows/ci.yml', text: 'sudo apt-get update' },
   { file: '.github/workflows/ci.yml', text: 'vitest.g0.config.ts' },
+  { file: '.github/workflows/ci.yml', text: PROMOTE_SWEEP_STEP },
+  { file: '.github/workflows/ci.yml', text: 'id: promote_sweeps\n' },
+  { file: '.github/workflows/ci.yml', text: 'run: bash scripts/fleet-runner/promote-sweeps-decision.sh\n' },
   { file: '.github/workflows/ci.yml', text: 'python3-yaml' },
   { file: 'scripts/verify-runner/Dockerfile', text: 'python3-yaml' },
 ];

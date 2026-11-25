@@ -668,7 +668,8 @@ async function runJob(job) {
 
     const state = { path: cleanPath.split(delimiter), runner, runnerPath: runner ? run("docker", ["exec", runner.name, "printenv", "PATH"]).stdout.trim() : "" };
     const summaryFile = runner ? `${runnerTemp}/step-summary` : join(runnerTemp, "step-summary");
-    const github = { GITHUB_SHA: sha, GITHUB_REF: EVENT.ref, GITHUB_EVENT_NAME: EVENT.name, GITHUB_RUN_ID: runId, GITHUB_STEP_SUMMARY: summaryFile };
+    // (GITHUB_BASE_REF: the pull request verify stands in for is one against main.)
+    const github = { GITHUB_SHA: sha, GITHUB_REF: EVENT.ref, GITHUB_EVENT_NAME: EVENT.name, GITHUB_BASE_REF: "main", GITHUB_RUN_ID: runId, GITHUB_STEP_SUMMARY: summaryFile };
     const jobEnv = runner
       ? { CI: "true", GITHUB_ACTIONS: "true", HOME: "/home/runner", NO_COLOR: "1", TMPDIR: runner.tmp, RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, BUILDX_CONFIG: runner.buildx, ...github }
       : { ...nativeEnvironment({ docker: JOB_NEEDS[job.key].includes("docker") }), RUNNER_TEMP: runnerTemp, GITHUB_WORKSPACE: jobWorkspace, ...github };
@@ -693,7 +694,7 @@ async function runJob(job) {
       const label = step.name ?? (step.uses ? `uses ${step.uses}` : String(step.run).trim().split("\n")[0]);
       let runIt;
       try {
-        runIt = stepCondition(step.if, { succeeded });
+        runIt = stepCondition(step.if, { succeeded, stepOutputs: ctx.stepOutputs, knownSteps: ctx.knownSteps });
       } catch (error) {
         succeeded = false;
         result.status = "FAIL";

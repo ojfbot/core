@@ -182,6 +182,12 @@ export const EXPECTED_LOCAL_SKIPS = [
     if: "github.event_name != 'pull_request' && github.ref == 'refs/heads/main'",
     reason: "publishes the release archive from a push to main; a pull request does not publish",
   },
+  {
+    job: "ci/build-test",
+    uses: "",
+    if: "steps.promote_sweeps.outputs.run != 'false'",
+    reason: "the FleetRunner promote's kill sweeps run only when the change touches the promote; the step before decides and prints why",
+  },
 ];
 
 /** The Node a job gets when it has no setup-node step: the runner's own, as on GitHub's Ubuntu image. */
@@ -341,11 +347,13 @@ export function substitute(text, ctx) {
 
 /**
  * A step's (or job's) `if:`, evaluated as an open pull request (EVENT). Only the forms the workflows
- * use are understood (success(), always(), failure(), cancelled(), github.event_name and github.ref
- * compared with ==, !=, &&, || and !); anything else throws. A small parser, not eval: workflow
- * text never becomes code.
+ * use are understood (success(), always(), failure(), cancelled(), github.event_name, github.ref
+ * and an earlier step's output, `steps.<id>.outputs.<name>`, compared with ==, !=, &&, || and !);
+ * anything else throws. An output is the text the step wrote (`stepOutputs`), or "" when the step
+ * is one of the job's (`knownSteps`) and wrote none, as on GitHub; a step the job does not have
+ * throws. A small parser, not eval: workflow text never becomes code.
  */
-export function stepCondition(condition, { succeeded }) {
+export function stepCondition(condition, { succeeded, stepOutputs = {}, knownSteps = new Set() }) {
   if (condition === undefined) return succeeded;
   const text = String(condition).replace(/^\s*\$\{\{\s*([\s\S]*?)\s*\}\}\s*$/, "$1");
   const unsupported = () => new Error(`verify cannot evaluate if: ${condition}`);
@@ -370,6 +378,13 @@ export function stepCondition(condition, { succeeded }) {
       take();
       if (take() !== ")" || !(token in calls)) throw unsupported();
       return calls[token];
+    }
+    const output = /^steps\.([A-Za-z0-9_]+)\.outputs\.([A-Za-z0-9_]+)$/.exec(token);
+    if (output) {
+      const [, id, name] = output;
+      if (stepOutputs[id]?.[name] !== undefined) return stepOutputs[id][name];
+      if (knownSteps.has(id) || id in stepOutputs) return "";
+      throw unsupported();
     }
     if (!(token in values)) throw unsupported();
     return values[token];
@@ -564,7 +579,7 @@ function checkJob(workflow, job) {
     strings.push(step.run, ...Object.values(step.env ?? {}), ...Object.values(step.with ?? {}));
     if (step.if !== undefined) {
       try {
-        stepCondition(step.if, { succeeded: true });
+        stepCondition(step.if, { succeeded: true, knownSteps: known });
       } catch (error) {
         problems.push(`${job.key}: ${error.message}`);
       }

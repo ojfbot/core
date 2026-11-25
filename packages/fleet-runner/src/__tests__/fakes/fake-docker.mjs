@@ -114,7 +114,8 @@ function start(c) {
   const root = stateMount ? dirname(stateMount.source) : "";
   c.pid = service
     ? spawnDetached(service.argv, { ...service.env, FAKE_ROOT: root, FAKE_BUILD: (c.env.find((e) => e.startsWith("FLEET_BUILD_REF=")) || "=").split("=")[1], FAKE_IMAGE: c.image })
-    : spawnDetached(["sleep", "100000"], {});
+    : // A "container" that does nothing, and never outlives its sandbox: it ends when the test removes the folders.
+      spawnDetached(["sh", "-c", 'while [ -d "$0" ]; do sleep 1; done', S], {});
   c.status = "running";
   c.startedAt = Date.now();
   save(c);
