@@ -1,0 +1,41 @@
+# FleetRunner PRODUCTION (ojfbot/core#647, slice 4). One service: the release image of one revision,
+# started by scripts/fleet-promote.sh only, on production's own port, folders, keys and certificate.
+# It is the test copy's compose.yaml with what production needs on top: the engine restarts it
+# (unless stopped by hand), the inputs folder, and production's own worker and observer identities.
+# Every machine-specific value comes from the private env file next to this one on the host (see
+# deployment.md); nothing here names a host, address or folder.
+#
+#   docker compose -p <project> --env-file fleet-production.env -f compose.yaml up -d
+name: ${FLEET_COMPOSE_PROJECT:?set FLEET_COMPOSE_PROJECT}
+
+services:
+  fleet-runner:
+    # The image is loaded from the checked release archive and named by its full revision.
+    image: ${FLEET_IMAGE:?set FLEET_IMAGE}
+    platform: linux/amd64
+    # Production keeps running across engine restarts; a container stopped by hand stays stopped.
+    restart: unless-stopped
+    # The account that owns production's folders.
+    user: "${FLEET_UID:?set FLEET_UID}:${FLEET_GID:?set FLEET_GID}"
+    # The same hardening the test copy passes its smoke test with.
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    stop_grace_period: 30s
+    tmpfs: ["/tmp:size=16m,mode=1777"]
+    # The LAN address and port are required: omitting them would publish on every interface.
+    ports: ["${FLEET_LAN_IP:?set FLEET_LAN_IP}:${FLEET_HOST_PORT:?set FLEET_HOST_PORT}:8787"]
+    environment:
+      FLEET_BUILD_REF: ${FLEET_REVISION:?set FLEET_REVISION}
+      # Production's own identities, carried over unchanged from the service this replaces.
+      FLEET_WORKERS: ${FLEET_WORKERS:?set FLEET_WORKERS}
+      FLEET_OBSERVERS: ${FLEET_OBSERVERS:?set FLEET_OBSERVERS}
+      FLEET_INPUT_DIR: /var/lib/fleet-runner/inputs
+      FLEET_TLS_CERT: /run/fleet-runner/tls/server.crt
+      FLEET_TLS_KEY: /run/fleet-runner/tls/server.key
+    volumes:
+      - ${FLEET_PROD_ROOT:?set FLEET_PROD_ROOT}/state:/var/lib/fleet-runner/state
+      - ${FLEET_PROD_ROOT}/output:/var/lib/fleet-runner/output
+      - ${FLEET_PROD_ROOT}/inputs:/var/lib/fleet-runner/inputs
+      - ${FLEET_PROD_ROOT}/public-keys:/run/fleet-runner/public-keys:ro
+      - ${FLEET_PROD_ROOT}/tls:/run/fleet-runner/tls:ro

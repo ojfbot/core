@@ -161,6 +161,7 @@ fi
 # only the client side while the server side keeps running.
 if grep -q -e 'cp -a' "$in"; then echo $$ > "$FAKE_STATE/switch-ssh.pid"; fi
 if grep -q -e 'staged and smoke-tested' "$in"; then echo $$ > "$FAKE_STATE/record-ssh.pid"; fi
+printf '%s\n=====\n' "$cmd" >> "$FAKE_STATE/ssh-cmds.log"
 sh -c 'readlink -f "$(command -v sh)" 2>/dev/null || command -v sh' > "$FAKE_STATE/remote-sh"
 sh -c "$cmd" < "$in"; rc=$?
 # Run it, then lose the connection before the acknowledgement arrives.
@@ -570,6 +571,62 @@ describe("fleet-stage.sh", () => {
     for (const f of ["compose.yaml", "load-release.sh", "release.json", "fleet-runner-image.tar"]) {
       expect(existsSync(join(box.nasDeploy, "releases", a, f)), f).toBe(true);
     }
+  });
+
+  it("writes this Mac's receipt of the verified release for a revision that passes, and none for one that fails", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const receipt = (rev: string) => join(dirname(box.conf), "receipts", `${rev}.receipt`);
+    const text = readFileSync(receipt(a), "utf8");
+    expect(text).toContain(`revision=${a}\n`);
+    expect(text).toContain(`image_id=${IMAGE_ID_OF(a)}\n`);
+    expect(text).toContain(`tag=fleet-runner:${a}\n`);
+    const json = readFileSync(join(box.nasDeploy, "releases", a, "release.json"));
+    expect(text).toContain(`release_json_sha256=${sha(json)}\n`);
+    const r = stage([b, "--release", release(b)], { FAKE_BAD_REV: b, FLEET_READY_TRIES: "2" });
+    expect(r.status).toBe(1);
+    expect(existsSync(receipt(b))).toBe(false);
+  });
+
+  it("rolls back, releases the lock and keeps message text out of remote commands when the reader of stdout goes away after the switch", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const script = join(scriptsIn(box), "fleet-stage.sh");
+    const cmd = `bash ${JSON.stringify(script)} ${b} --release ${JSON.stringify(release(b))} 2>&1 | sed -n "/PASS running image/q"; exit "\${PIPESTATUS[0]}"`;
+    const before = existsSync(fakeState("ssh-cmds.log"))
+      ? readFileSync(fakeState("ssh-cmds.log"), "utf8").length
+      : 0;
+    const r = sh(
+      box.repo,
+      "bash",
+      ["-c", cmd],
+      stageEnv({ FAKE_BAD_REV: b, FLEET_READY_TRIES: "3" }),
+    );
+    const cmds = readFileSync(fakeState("ssh-cmds.log"), "utf8").slice(before);
+    expect(r.status).toBe(1);
+    // No message of the script ever reaches a remote command line.
+    expect(cmds).not.toContain("FAIL");
+    expect(cmds).not.toContain("rolling back");
+    // The rollback happened: a is back in the env file, nothing runs, no lock, a failed state kept.
+    const envFile = readFileSync(join(box.nasDeploy, "fleet-staging.env"), "utf8");
+    expect(envFile).toContain(`FLEET_REVISION=${a}`);
+    expect(existsSync(fakeState("fleet-runner-staging.pid"))).toBe(false);
+    expect(existsSync(join(box.nasDeploy, ".stage-lock"))).toBe(false);
+    expect(readdirSync(box.nasRoot).some((f) => f.startsWith("state.failed-"))).toBe(true);
+    expect(stateValue("last_passed")).toBe(a);
+  });
+
+  it("removes a stale receipt of the same revision at the start of a run", () => {
+    prepare();
+    const [a] = box.revs as [string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const receipt = join(dirname(box.conf), "receipts", `${a}.receipt`);
+    expect(existsSync(receipt)).toBe(true);
+    const r = stage([a, "--release", release(a)], { FAKE_BAD_REV: a, FLEET_READY_TRIES: "2" });
+    expect(r.status).toBe(1);
+    expect(existsSync(receipt)).toBe(false);
   });
 
   it("clears every earlier pass and keeps the previous state folder when it stages the next revision", () => {

@@ -15,12 +15,33 @@
 # Optional: NAS_PROD_ROOT (production's service root, to check it is not the test copy's),
 #   STAGE_PROJECT (default fleet-runner-staging), FLEET_REPO (default ojfbot/core),
 #   STAGE_CA_DIR (this Mac's private CA folder, only for fleet-stage-setup.sh --tls).
+# For fleet-promote.sh only (load_prod_conf), in the same file:
+#   NAS_PROD_DIR=<production's deploy folder: compose.yaml, fleet-production.env, promote.log,
+#                promote-records/; the first promote creates it, with a marker>
+#   NAS_PROD_ROOT=<production's service root: state/ output/ inputs/ public-keys/ tls/> (required)
+#   PROD_KEYS_DIR=<private folder on this Mac: <PROD_STATUS_ID>.token and production's ca.crt>
+# Optional: PROD_PROJECT (production's Compose project, default fleet-runner-production),
+#   PROD_HOST and PROD_LAN_IP (the name clients use and the address it publishes on; default
+#   STAGE_HOST and STAGE_LAN_IP), PROD_STATUS_ID (the read-only identity whose signed status the
+#   promote reads, default observer; never owner).
+#   PROD_KEY_IDS="<id> <id> ..." (required: exactly the identities whose public keys production has
+#   enrolled; checked before the switch and again in the new container).
 
 set -euo pipefail
 
-say() { printf '%s\n' "$*"; }
+# say and die can never fail: a closed or broken stdout (the terminal gone, a reader that quit)
+# must not turn a message into an error that skips a rollback. They print from a subshell: bash 3.2
+# keeps the text of a failed printf in its output buffer and emits it inside the NEXT command
+# substitution (into a computed number, or a remote command line), so a failed write must die with
+# a throwaway process. With FLEET_LOG set, every line is also appended to that durable local log.
+say() {
+  (printf '%s\n' "$*" 2>/dev/null) || true
+  if [ -n "${FLEET_LOG:-}" ]; then (printf '%s\n' "$*" >>"$FLEET_LOG" 2>/dev/null) || true; fi
+}
 die() {
-  printf 'FAIL %s\n' "$*" >&2
+  # Left to right: the message goes to stderr, and only printf's own complaint goes to /dev/null.
+  (printf 'FAIL %s\n' "$*" >&2 2>/dev/null) || true
+  if [ -n "${FLEET_LOG:-}" ]; then (printf 'FAIL %s\n' "$*" >>"$FLEET_LOG" 2>/dev/null) || true; fi
   exit 1
 }
 
@@ -28,6 +49,7 @@ STAGE_WORKFLOW="fleet-runner-release.yml"
 
 load_conf() {
   local conf="${FLEET_STAGE_CONF:-$HOME/.fleet-runner-stage/stage.conf}"
+  FLEET_CONF_FILE="$conf"
   [ -f "$conf" ] || die "no config at $conf (see the header of scripts/lib/fleet-stage-lib.sh)"
   # The config decides where commands run, so a file others can change is refused.
   [ -z "$(find "$conf" -perm -020 -o -perm -002 2>/dev/null)" ] || die "$conf must not be writable by group or others"
@@ -51,25 +73,64 @@ load_conf() {
   [ -z "$(find "$STAGE_KEYS_DIR" -maxdepth 0 -perm -077 2>/dev/null)" ] || die "$STAGE_KEYS_DIR must be private (mode 0700)"
 }
 
+load_prod_conf() {
+  : "${NAS_PROD_DIR:?config must set NAS_PROD_DIR}" "${NAS_PROD_ROOT:?config must set NAS_PROD_ROOT}"
+  : "${PROD_KEYS_DIR:?config must set PROD_KEYS_DIR}"
+  PROD_PROJECT="${PROD_PROJECT:-fleet-runner-production}"
+  PROD_HOST="${PROD_HOST:-$STAGE_HOST}"
+  PROD_LAN_IP="${PROD_LAN_IP:-$STAGE_LAN_IP}"
+  PROD_STATUS_ID="${PROD_STATUS_ID:-observer}"
+  : "${PROD_KEY_IDS:?config must set PROD_KEY_IDS (the identities whose public keys production must have enrolled)}"
+  [[ "$PROD_PROJECT" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || die "PROD_PROJECT is not a valid Compose project name"
+  [ "$PROD_PROJECT" != "$STAGE_PROJECT" ] || die "production and the test copy must be different Compose projects"
+  [ "$PROD_CONTAINER" != "$PROD_PROJECT-fleet-runner-1" ] || die "PROD_CONTAINER is the hand-started container, not the Compose one"
+  [[ "$PROD_STATUS_ID" =~ ^[a-z][a-z0-9-]{0,62}$ ]] || die "PROD_STATUS_ID is not an identity name"
+  # Agents never use production's owner key: the promote reads status as a read-only identity.
+  [ "$PROD_STATUS_ID" != owner ] || die "the promote never signs as production's owner: set PROD_STATUS_ID to a read-only identity"
+  local id
+  for id in $PROD_KEY_IDS; do [[ "$id" =~ ^[a-z][a-z0-9-]{0,62}$ ]] || die "PROD_KEY_IDS holds a name that is not an identity"; done
+  [ -d "$PROD_KEYS_DIR" ] || die "PROD_KEYS_DIR is not a folder"
+  [ -z "$(find "$PROD_KEYS_DIR" -maxdepth 0 -perm -077 2>/dev/null)" ] || die "$PROD_KEYS_DIR must be private (mode 0700)"
+  [ -f "$PROD_KEYS_DIR/$PROD_STATUS_ID.token" ] && [ -f "$PROD_KEYS_DIR/ca.crt" ] ||
+    die "PROD_KEYS_DIR needs $PROD_STATUS_ID.token and ca.crt"
+  local a b
+  for a in "$NAS_PROD_DIR" "$NAS_PROD_ROOT"; do
+    for b in "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT"; do [ "${a%/}" != "${b%/}" ] || die "production and the test copy must not share a folder"; done
+  done
+  [ "$NAS_PROD_DIR" != "$NAS_PROD_ROOT" ] || die "production's deploy folder and service root must differ"
+}
+
 # Run a POSIX sh script on the server: nas 'script' arg1 arg2 ... ($1, $2 ... inside the script).
 nas() {
   local script="$1"
   shift
-  local quoted=() a
-  for a in "$@"; do quoted+=("$(printf '%q' "$a")"); done
+  # Quoted with printf -v, never through a command substitution, so no stray output of this shell can
+  # end up in the remote command line.
+  local quoted=() a q
+  for a in "$@"; do printf -v q '%q' "$a"; quoted+=("$q"); done
+  # The script travels on ssh's stdin. Wrapping it in { ...; } </dev/null makes sh read the whole
+  # script before running any of it, and gives every command an empty stdin, so a command that
+  # reads stdin (docker, a helper script) cannot swallow the rest of the script. (HelpDesk's first
+  # promote failed safely on exactly that.)
+  # The promote keeps its terminal on descriptors 7 and 8; ssh does not need them.
   # shellcheck disable=SC2029
-  ssh -o BatchMode=yes "$NAS_SSH" "sh -s -- ${quoted[*]-}" <<<"set -eu
-$script"
+  ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+    "$NAS_SSH" "sh -s -- ${quoted[*]-}" 7>&- 8>&- <<<"set -eu
+{
+$script
+} </dev/null"
 }
 
 # Copy local files into an existing folder on the server: nas_put <remote folder> <file>...
 # Over the SSH shell, not scp: the server's SFTP view of the file system can differ from its shell's.
 nas_put() {
-  local dest="$1" f
+  local dest="$1" f q
   shift
   for f in "$@"; do
+    printf -v q '%q' "$dest/${f##*/}"
     # shellcheck disable=SC2029
-    ssh -o BatchMode=yes "$NAS_SSH" "umask 077 && cat > $(printf '%q' "$dest/$(basename "$f")")" <"$f"
+    ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+      "$NAS_SSH" "umask 077 && cat > $q" <"$f" 7>&- 8>&- || return 1
   done
 }
 
@@ -125,7 +186,7 @@ select_runs() {
 # stage script.
 ENV_PLAIN_FN='
 env_is_plain() {
-  if grep -v -e "^\$" "$1" | grep -qv -e "^[A-Z][A-Z0-9_]*=[A-Za-z0-9_./:@+-]*\$"; then return 1; fi
+  if grep -v -e "^\$" "$1" | grep -qv -e "^[A-Z][A-Z0-9_]*=[A-Za-z0-9_.,/:@+-]*\$"; then return 1; fi
   [ -z "$(sed -n "s/^\([A-Z][A-Z0-9_]*\)=.*/\1/p" "$1" | sort | uniq -d)" ]
 }
 '
@@ -173,3 +234,300 @@ check_isolation() {
   nas "$ISOLATION" "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$NAS_PROD_ROOT" "$STAGE_PORT" "$PROD_PORT" "$STAGE_PROJECT" "$PROD_CONTAINER" "$STAGE_LAN_IP" ||
     die "the test copy is not isolated from production; nothing was changed"
 }
+
+# ---- Shared by fleet-stage.sh and fleet-promote.sh: run lock, fenced server steps, stop by label.
+
+# stage-state, in the test copy's deploy folder: ONE file naming the last revision that passed and
+# the one staged now (promotable), always written together by one rename. fleet-promote.sh only
+# reads it.
+STATE_FN='
+read_state() { sed -n "s/^$2=//p" "$1/stage-state" 2>/dev/null | tail -n 1; }
+write_state() { printf "last_passed=%s\nstaged_ok=%s\n" "$2" "$3" > "$1/stage-state.new" && mv "$1/stage-state.new" "$1/stage-state"; }
+'
+
+# One run at a time: mkdir is atomic. A crashed run's lock is left for a person to remove.
+#   nas "$LOCK" <deploy folder> <run ID> <lock name> <what runs, for the message>
+LOCK='
+dir="$1" id="$2" name="$3" what="$4"
+if mkdir "$dir/$name" 2>/dev/null; then
+  echo "$id" > "$dir/$name/owner"
+elif [ -f "$dir/$name/v.deadline_utc" ]; then
+  # A promote lock with a dead-man: removing it would disarm the dead-man, so never advise that.
+  o="$(cat "$dir/$name/owner" 2>/dev/null)"
+  echo "FAIL another $what run holds the lock ($o). Its server-side dead-man may be armed until $(cat "$dir/$name/v.deadline_utc"): wait until then for promote-records/undo-$o.txt (or promote-$o.txt) and read it before touching production; do not remove the lock while the dead-man may run"
+  exit 1
+else
+  echo "FAIL another $what run holds the lock ($(cat "$dir/$name/owner" 2>/dev/null)); if none is running, remove $dir/$name"
+  exit 1
+fi
+'
+#   nas "$UNLOCK" <deploy folder> <run ID> <lock name>
+UNLOCK='
+dir="$1" id="$2" name="$3"
+[ "$(cat "$dir/$name/owner" 2>/dev/null)" = "$id" ] && rm -rf "$dir/$name"
+true
+'
+
+# Stop every container of a Compose project by its label. Compose itself would first interpolate
+# the whole file, which fails when the env file lacks a revision; the label does not care.
+STOP_FN='
+stop_project() {
+  ids="$(docker ps -q --filter "label=com.docker.compose.project=$1")" || return 1
+  if [ -n "$ids" ]; then docker stop -t 30 $ids >/dev/null || return 1; fi
+  left="$(docker ps -q --filter "label=com.docker.compose.project=$1")" || return 1
+  [ -z "$left" ]
+}
+'
+STOP="$STOP_FN"'stop_project "$1"'
+
+# Compose prefers a variable in the calling shell over the --env-file, so a server profile that
+# exports FLEET_HOST_PORT or FLEET_STAGE_ROOT would silently change what runs. None is inherited.
+CLEAN_ENV='
+for v in $(env | sed -n -E "s/^((FLEET|COMPOSE)_[A-Za-z0-9_]*)=.*/\1/p"); do unset "$v"; done
+'
+
+# A server-side script that must be fenced: fenced <lock name> <body>. It runs in its OWN process
+# group, recorded in the lock folder, so that a rollback can wait for everything it started (a
+# Compose child outlives a shell that is hung up). Convention: $1 is the deploy folder and $2 this
+# run's ID; the body sees the rest. Before each step it checks, with step, that the run still owns
+# the lock and was not told to stop. Fails closed when it cannot get a group of its own (setsid,
+# else job control).
+fenced() {
+  [[ "$1" =~ ^\.[a-z-]+$ ]] || die "fenced: bad lock name"
+  printf 'lockname=%s\n' "$1"
+  cat <<'EOF_HEAD'
+dir="$1" runid="$2"
+lock="$dir/$lockname"
+[ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] || { echo "FAIL this run does not own the lock"; exit 1; }
+{ printf 'lockname=%s\n' "$lockname"; cat <<'BODY_EOF'
+# The body fails on any error: the wrapper has -eu, but a script run as its own process does not
+# inherit it, and an unchecked write must never be followed by a PASS.
+set -eu
+dir="$1" runid="$2"
+shift 2
+lock="$dir/$lockname"
+pgid="$(ps -o pgid= -p $$ | tr -d ' ')"
+[ "$pgid" = "$$" ] || { echo "FAIL could not run in its own process group"; exit 1; }
+# The group record is NOT removed from here: bash runs an EXIT trap when HUP or TERM ends the shell
+# while a child it started keeps running, and that would erase the only thing a rollback can wait
+# on. It is removed only once the whole group is confirmed gone (by the wrapper, or the rollback).
+echo "$$" > "$lock/fenced.pid"
+# Its output goes to a file in the lock folder, never to the connection: a dropped channel (and the
+# SIGPIPE it would bring) cannot kill it between steps.
+trap "" PIPE HUP
+step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
+EOF_HEAD
+  printf '%s\n' "$2"
+  cat <<'EOF_TAIL'
+BODY_EOF
+} > "$lock/body.sh"
+: > "$lock/progress.log"
+if command -v setsid >/dev/null 2>&1; then
+  setsid sh "$lock/body.sh" "$@" > "$lock/progress.log" 2>&1 < /dev/null &
+else
+  set -m
+  sh "$lock/body.sh" "$@" > "$lock/progress.log" 2>&1 < /dev/null &
+fi
+child=$!
+# Stream the progress file to the caller while the body runs; if this connection is gone, only
+# this loop dies, not the body.
+shown=0
+show() {
+  n="$(wc -l < "$lock/progress.log" | tr -d " ")"
+  if [ "$n" -gt "$shown" ]; then sed -n "$((shown + 1)),${n}p" "$lock/progress.log"; shown="$n"; fi
+}
+while kill -0 "$child" 2>/dev/null; do show; sleep 1; done
+rc=0
+wait "$child" || rc=$?
+sed -n "$((shown + 1)),\$p" "$lock/progress.log"
+i=0
+while kill -0 "-$child" 2>/dev/null; do
+  i=$((i + 1))
+  [ "$i" -lt 900 ] || break
+  sleep 1
+done
+kill -0 "-$child" 2>/dev/null || rm -f "$lock/fenced.pid"
+exit "$rc"
+EOF_TAIL
+}
+
+# The first act of every rollback: fence_wait <lock folder> <run ID> <seconds>. Tells anything
+# fenced that is still running on the server (its connection may be long gone) to stop, and waits
+# until its whole process group has ended. Never kills (a stale ID could belong to someone else):
+# if the group does not end in time it fails, and the caller keeps the lock.
+FENCE_WAIT_FN='
+fence_wait() {
+  lock="$1"
+  [ "$(cat "$lock/owner" 2>/dev/null)" = "$2" ] || { echo "FAIL this run no longer owns the lock; nothing was changed"; return 1; }
+  : > "$lock/abort"
+  pid="$(cat "$lock/fenced.pid" 2>/dev/null)"
+  if [ -n "$pid" ]; then
+    i=0
+    while kill -0 "-$pid" 2>/dev/null || kill -0 "$pid" 2>/dev/null; do
+      i=$((i + 1))
+      [ "$i" -le "$3" ] || { echo "FAIL the server-side step (process group $pid) is still running after $3 seconds; the lock is kept"; return 1; }
+      sleep 1
+    done
+    rm -f "$lock/fenced.pid"
+  fi
+}
+'
+
+# Node, as one service's client: client_node <host> <port> <keys dir> <status identity> <script>
+# [args]. What must not leak in from the caller's shell (a stray FLEET_* setting, another CA,
+# another endpoint) is unset; the values are taken as arguments FIRST, because the private config
+# may well export STAGE_HOST or STAGE_KEYS_DIR. The keys folder holds <identity>.token and ca.crt.
+# CLIENT_TIMEOUT_MS, when set, becomes the script's STAGE_TIMEOUT_MS (the bound of each call).
+client_node() {
+  local host="$1" port="$2" keys="$3" sid="$4" script="$5" tmo="${CLIENT_TIMEOUT_MS:-}"
+  shift 5
+  (
+    for v in $(env | grep -oE '^(FLEET_[A-Z_]*|NODE_EXTRA_CA_CERTS|NODE_OPTIONS|STAGE_[A-Z_]*)=' | tr -d =); do unset "$v"; done
+    export STAGE_URL="https://$host:$port" STAGE_KEYS_DIR="$keys" STAGE_STATUS_ID="$sid"
+    if [ -n "$tmo" ]; then export STAGE_TIMEOUT_MS="$tmo"; fi
+    export NODE_EXTRA_CA_CERTS="$keys/ca.crt"
+    node "$script" "$@"
+  )
+}
+
+# Refuse unless production's folders are not the test copy's (nor inside each other), its deploy
+# folder is production's own (it carries the marker only this check writes, or is new or empty),
+# an env file there says the same root, port, address and project as the private config, and its
+# service root carries no test copy marker. Changes nothing (the deploy folder and its marker are
+# created by PROD_MKDIR, only once every refusal has had its say). Reads nothing of production's data.
+PROD_ISOLATION="$ENV_PLAIN_FN"'
+deploy="$1" root="$2" stage_deploy="$3" stage_root="$4" project="$5" lan="$6" port="$7"
+mark=.fleet-runner-production
+bad=0
+real() {
+  d="${1%/}" rest=""
+  while [ -n "$d" ] && [ ! -d "$d" ]; do rest="/${d##*/}$rest"; d="${d%/*}"; done
+  [ -n "$d" ] && d="$(cd "$d" && pwd -P)"
+  printf "%s%s" "$d" "$rest"
+}
+for a in "$deploy" "$root"; do
+  for b in "$stage_deploy" "$stage_root"; do
+    x="$(real "$a")"; y="$(real "$b")"
+    case "$x/" in "$y"/*) echo "FAIL a production folder is a test copy folder or inside one"; bad=1 ;; esac
+    case "$y/" in "$x"/*) echo "FAIL a test copy folder is inside a production folder"; bad=1 ;; esac
+  done
+done
+[ ! -e "$root/.fleet-runner-staging" ] || { echo "FAIL the production root carries the test copy marker"; bad=1; }
+for d in state output inputs public-keys tls; do [ -d "$root/$d" ] || { echo "FAIL production has no $d folder under the declared root"; bad=1; }; done
+if [ -d "$deploy" ] && [ ! -f "$deploy/$mark" ] && [ -n "$(ls -A "$deploy" 2>/dev/null)" ]; then
+  echo "FAIL $deploy already holds files and is not marked as production deploy folder"; bad=1
+fi
+if [ -f "$deploy/fleet-production.env" ]; then
+  if ! env_is_plain "$deploy/fleet-production.env"; then
+    echo "FAIL fleet-production.env is not one plain KEY=value per line (no export, quotes or duplicate keys)"; bad=1
+  else
+    envv() { sed -n "s/^$1=//p" "$deploy/fleet-production.env" | tail -n 1; }
+    for pair in "FLEET_PROD_ROOT=$root" "FLEET_HOST_PORT=$port" "FLEET_LAN_IP=$lan" "FLEET_COMPOSE_PROJECT=$project"; do
+      k="${pair%%=*}"; v="${pair#*=}"
+      [ "$(envv "$k")" = "$v" ] || { echo "FAIL fleet-production.env $k differs from the private config"; bad=1; }
+    done
+  fi
+fi
+[ "$bad" -eq 0 ] || exit 1
+echo "PASS production has its own folders, port and name"
+'
+check_prod_isolation() {
+  nas "$PROD_ISOLATION" "$NAS_PROD_DIR" "$NAS_PROD_ROOT" "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$PROD_PROJECT" "$PROD_LAN_IP" "$PROD_PORT" ||
+    die "production is not isolated from the test copy; nothing was changed"
+}
+
+# Create production's deploy folder and its marker (the first promote), right before the lock.
+PROD_MKDIR='
+umask 077
+mkdir -p "$1" && : > "$1/.fleet-runner-production" || { echo "FAIL could not create the production deploy folder"; exit 1; }
+'
+
+# ---- Receipts: what this Mac verified when a revision passed in the test copy.
+# fleet-stage.sh writes one per passing revision, from the release.json it verified HERE (never the
+# server's copy), beside the private config: receipts/<revision>.receipt, plain KEY=value lines.
+# fleet-promote.sh requires it, and requires the server's release and image to match it, so the
+# server's account cannot forge the evidence that a revision passed.
+receipt_file() { printf '%s/receipts/%s.receipt' "$(dirname "$FLEET_CONF_FILE")" "$1"; }
+write_receipt() {
+  local json="$1" stagerun="$2" rev dir file
+  rev="$(json_field revision <"$json")"
+  [[ "$rev" =~ ^[0-9a-f]{40}$ ]] || return 1
+  file="$(receipt_file "$rev")"
+  dir="$(dirname "$file")"
+  (umask 077 && mkdir -p "$dir") || return 1
+  {
+    echo "revision=$rev"
+    echo "tag=$(json_field tag <"$json")"
+    echo "image_id=$(json_field image_id <"$json")"
+    echo "manifest_digest=$(json_field manifest_digest <"$json")"
+    echo "archive_sha256=$(json_field archive_sha256 <"$json")"
+    echo "release_json_sha256=$(shasum -a 256 "$json" | cut -d' ' -f1)"
+    echo "stage_run=$stagerun"
+  } >"$file.part" && chmod 0600 "$file.part" && mv "$file.part" "$file"
+}
+receipt_value() { sed -n "s/^$2=//p" "$1" | tail -n 1; }
+
+# ---- Run a script's main function with ALL its output mirrored to a durable local log, so that a
+# closed or broken terminal can neither stop it nor lose what it did:
+#   run_logged <log file> <function> [args]
+# The function runs in the background in its own process group, writing into a FIFO read by a
+# logger that ignores INT, TERM, HUP and PIPE, appends every line to the log and copies it to the
+# terminal while that still works. INT, TERM and HUP sent to this shell are passed on to the
+# function's whole process group (its ssh too), as a terminal's Ctrl-C would. Returns its status.
+run_logged() {
+  local log="$1" fifo lpid mpid rc
+  shift
+  (umask 077 && mkdir -p "$(dirname "$log")" && : >>"$log") || die "cannot write the log $log"
+  fifo="$log.fifo.$$"
+  rm -f "$fifo"
+  mkfifo -m 600 "$fifo" || die "cannot make a FIFO beside $log"
+  (
+    trap '' INT TERM HUP PIPE
+    while IFS= read -r line || [ -n "$line" ]; do
+      printf '%s\n' "$line" >>"$log" 2>/dev/null || true
+      printf '%s\n' "$line" 2>/dev/null || true
+    done <"$fifo"
+  ) &
+  lpid=$!
+  set -m
+  ( set +m; FLEET_LOG="" "$@" ) >"$fifo" 2>&1 &
+  mpid=$!
+  set +m
+  trap 'kill -INT -- -'"$mpid"' 2>/dev/null' INT
+  trap 'kill -TERM -- -'"$mpid"' 2>/dev/null' TERM
+  trap 'kill -HUP -- -'"$mpid"' 2>/dev/null' HUP
+  while :; do
+    rc=0
+    wait "$mpid" || rc=$?
+    kill -0 "$mpid" 2>/dev/null || break
+  done
+  trap - INT TERM HUP
+  wait "$lpid" 2>/dev/null || true
+  rm -f "$fifo"
+  return "$rc"
+}
+
+# Server side: run one step with a bound, bounded <seconds> <what> <container name or -> <command...>.
+# Past the bound the step is killed (the named helper container too, since killing a docker client
+# leaves its container running) and it fails with status 124.
+BOUND_FN='
+bounded() {
+  b_s="$1" b_what="$2" b_name="$3"
+  shift 3
+  "$@" &
+  b_p=$!
+  b_i=0
+  while kill -0 "$b_p" 2>/dev/null; do
+    b_i=$((b_i + 1))
+    if [ "$b_i" -gt "$b_s" ]; then
+      [ "$b_name" = - ] || docker kill "$b_name" >/dev/null 2>&1 || true
+      kill "$b_p" 2>/dev/null || true
+      wait "$b_p" 2>/dev/null || true
+      echo "FAIL $b_what took longer than $b_s seconds"
+      return 124
+    fi
+    sleep 1
+  done
+  wait "$b_p"
+}
+'
