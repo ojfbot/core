@@ -572,6 +572,22 @@ describe("fleet-stage.sh", () => {
     }
   });
 
+  it("writes this Mac's receipt of the verified release for a revision that passes, and none for one that fails", () => {
+    prepare();
+    const [a, b] = box.revs as [string, string];
+    expect(stage([a, "--release", release(a)]).status).toBe(0);
+    const receipt = (rev: string) => join(dirname(box.conf), "receipts", `${rev}.receipt`);
+    const text = readFileSync(receipt(a), "utf8");
+    expect(text).toContain(`revision=${a}\n`);
+    expect(text).toContain(`image_id=${IMAGE_ID_OF(a)}\n`);
+    expect(text).toContain(`tag=fleet-runner:${a}\n`);
+    const json = readFileSync(join(box.nasDeploy, "releases", a, "release.json"));
+    expect(text).toContain(`release_json_sha256=${sha(json)}\n`);
+    const r = stage([b, "--release", release(b)], { FAKE_BAD_REV: b, FLEET_READY_TRIES: "2" });
+    expect(r.status).toBe(1);
+    expect(existsSync(receipt(b))).toBe(false);
+  });
+
   it("clears every earlier pass and keeps the previous state folder when it stages the next revision", () => {
     prepare();
     const [a, b] = box.revs as [string, string];

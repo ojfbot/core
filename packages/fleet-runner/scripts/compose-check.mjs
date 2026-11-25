@@ -5,30 +5,51 @@
 // server with production's own env file, BEFORE production is touched; the switch then requires the
 // config it resolves to be byte-identical to the one checked here.
 //
-//   node compose-check.mjs <resolved.json> <project> <root> <lan address> <port> <uid:gid> <revision>
+//   node compose-check.mjs <resolved.json> <project> <root> <lan address> <port> <uid:gid> <revision> \
+//     <sha256 of production's FLEET_WORKERS> <sha256 of production's FLEET_OBSERVERS>
 //
 // Every key, at every level that matters, must be one the allowlist names, with exactly the value
 // production needs: anything else (privileged, cap_add, devices, network_mode, extra networks,
 // extra volumes or ports, a different user, a changed environment) is refused. Prints PASS or FAIL
-// lines naming keys only, never a value (the environment holds production's identity lists).
+// lines naming keys only, never a value (the environment holds production's identity lists). The
+// identity lists must be production's current ones, compared by SHA-256, so a revision cannot move
+// a worker to observer or add one. The file is started as it is (nothing re-read, no interpolation),
+// so a "$" anywhere in it is refused too.
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-const [file, project, root, lan, port, uidgid, revision] = process.argv.slice(2);
-if (!revision || !/^[0-9a-f]{40}$/.test(revision) || !/^[1-9][0-9]*:[0-9]+$/.test(uidgid ?? "")) {
-  console.error("usage: compose-check.mjs <resolved.json> <project> <root> <lan> <port> <uid:gid> <revision>");
+const [file, project, root, lan, port, uidgid, revision, workersSha, observersSha] = process.argv.slice(2);
+const hex64 = /^[0-9a-f]{64}$/;
+if (
+  !revision ||
+  !/^[0-9a-f]{40}$/.test(revision) ||
+  !/^[1-9][0-9]*:[0-9]+$/.test(uidgid ?? "") ||
+  !hex64.test(workersSha ?? "") ||
+  !hex64.test(observersSha ?? "")
+) {
+  console.error(
+    "usage: compose-check.mjs <resolved.json> <project> <root> <lan> <port> <uid:gid> <revision> <workers sha256> <observers sha256>",
+  );
   process.exit(2);
 }
+const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 const problems = [];
 const bad = (what) => problems.push(what);
 let cfg;
+let text = "";
 try {
-  cfg = JSON.parse(readFileSync(file, "utf8"));
+  text = readFileSync(file, "utf8");
+  cfg = JSON.parse(text);
 } catch {
   console.log("FAIL the resolved compose config is not JSON");
   process.exit(1);
 }
+if (text.includes("$")) bad("the config holds a $, which Compose would interpolate when it starts");
 const isObject = (v) => typeof v === "object" && v !== null && !Array.isArray(v);
-const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// Key order does not matter (Compose's own output order is not a contract); array order does.
+const canon = (v) =>
+  Array.isArray(v) ? v.map(canon) : isObject(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v;
+const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
 // Exactly these keys: a missing required key or any other key is refused.
 function keys(where, obj, required, optional = []) {
   if (!isObject(obj)) return bad(`${where} is not an object`), false;
@@ -94,6 +115,8 @@ if (keys("the config", cfg, ["name", "services"], ["networks"])) {
         for (const k of ["FLEET_WORKERS", "FLEET_OBSERVERS"]) {
           if (typeof env[k] !== "string" || !/^[a-z][a-z0-9-]*(,[a-z][a-z0-9-]*)*$/.test(env[k])) bad(`${k} is not a list of identity names`);
         }
+        if (typeof env.FLEET_WORKERS === "string" && sha256(env.FLEET_WORKERS) !== workersSha) bad("FLEET_WORKERS is not production's current list");
+        if (typeof env.FLEET_OBSERVERS === "string" && sha256(env.FLEET_OBSERVERS) !== observersSha) bad("FLEET_OBSERVERS is not production's current list");
       }
     }
   }

@@ -23,14 +23,22 @@
 # Optional: PROD_PROJECT (production's Compose project, default fleet-runner-production),
 #   PROD_HOST and PROD_LAN_IP (the name clients use and the address it publishes on; default
 #   STAGE_HOST and STAGE_LAN_IP), PROD_STATUS_ID (the read-only identity whose signed status the
-#   promote reads, default observer; never owner), PROD_KEY_IDS (the enrolled public keys production
-#   must have, space-separated; checked before anything changes when set).
+#   promote reads, default observer; never owner).
+#   PROD_KEY_IDS="<id> <id> ..." (required: exactly the identities whose public keys production has
+#   enrolled; checked before the switch and again in the new container).
 
 set -euo pipefail
 
-say() { printf '%s\n' "$*"; }
+# say and die can never fail: a closed or broken stdout (the terminal gone, a reader that quit)
+# must not turn a message into an error that skips a rollback. With FLEET_LOG set, every line is
+# also appended to that durable local log.
+say() {
+  printf '%s\n' "$*" 2>/dev/null || true
+  if [ -n "${FLEET_LOG:-}" ]; then printf '%s\n' "$*" >>"$FLEET_LOG" 2>/dev/null || true; fi
+}
 die() {
-  printf 'FAIL %s\n' "$*" >&2
+  printf 'FAIL %s\n' "$*" >&2 || true
+  if [ -n "${FLEET_LOG:-}" ]; then printf 'FAIL %s\n' "$*" >>"$FLEET_LOG" 2>/dev/null || true; fi
   exit 1
 }
 
@@ -38,6 +46,7 @@ STAGE_WORKFLOW="fleet-runner-release.yml"
 
 load_conf() {
   local conf="${FLEET_STAGE_CONF:-$HOME/.fleet-runner-stage/stage.conf}"
+  FLEET_CONF_FILE="$conf"
   [ -f "$conf" ] || die "no config at $conf (see the header of scripts/lib/fleet-stage-lib.sh)"
   # The config decides where commands run, so a file others can change is refused.
   [ -z "$(find "$conf" -perm -020 -o -perm -002 2>/dev/null)" ] || die "$conf must not be writable by group or others"
@@ -68,7 +77,7 @@ load_prod_conf() {
   PROD_HOST="${PROD_HOST:-$STAGE_HOST}"
   PROD_LAN_IP="${PROD_LAN_IP:-$STAGE_LAN_IP}"
   PROD_STATUS_ID="${PROD_STATUS_ID:-observer}"
-  PROD_KEY_IDS="${PROD_KEY_IDS:-}"
+  : "${PROD_KEY_IDS:?config must set PROD_KEY_IDS (the identities whose public keys production must have enrolled)}"
   [[ "$PROD_PROJECT" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || die "PROD_PROJECT is not a valid Compose project name"
   [ "$PROD_PROJECT" != "$STAGE_PROJECT" ] || die "production and the test copy must be different Compose projects"
   [ "$PROD_CONTAINER" != "$PROD_PROJECT-fleet-runner-1" ] || die "PROD_CONTAINER is the hand-started container, not the Compose one"
@@ -99,7 +108,8 @@ nas() {
   # reads stdin (docker, a helper script) cannot swallow the rest of the script. (HelpDesk's first
   # promote failed safely on exactly that.)
   # shellcheck disable=SC2029
-  ssh -o BatchMode=yes "$NAS_SSH" "sh -s -- ${quoted[*]-}" <<<"set -eu
+  ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+    "$NAS_SSH" "sh -s -- ${quoted[*]-}" <<<"set -eu
 {
 $script
 } </dev/null"
@@ -112,7 +122,8 @@ nas_put() {
   shift
   for f in "$@"; do
     # shellcheck disable=SC2029
-    ssh -o BatchMode=yes "$NAS_SSH" "umask 077 && cat > $(printf '%q' "$dest/$(basename "$f")")" <"$f"
+    ssh -o BatchMode=yes -o ConnectTimeout=15 -o ServerAliveInterval=15 -o ServerAliveCountMax=4 \
+      "$NAS_SSH" "umask 077 && cat > $(printf '%q' "$dest/$(basename "$f")")" <"$f" || return 1
   done
 }
 
@@ -289,21 +300,34 @@ pgid="$(ps -o pgid= -p $$ | tr -d ' ')"
 # while a child it started keeps running, and that would erase the only thing a rollback can wait
 # on. It is removed only once the whole group is confirmed gone (by the wrapper, or the rollback).
 echo "$$" > "$lock/fenced.pid"
+# Its output goes to a file in the lock folder, never to the connection: a dropped channel (and the
+# SIGPIPE it would bring) cannot kill it between steps.
+trap "" PIPE HUP
 step() { [ "$(cat "$lock/owner" 2>/dev/null)" = "$runid" ] && [ ! -e "$lock/abort" ] || { echo "FAIL the run was aborted"; exit 1; }; }
 EOF_HEAD
   printf '%s\n' "$2"
   cat <<'EOF_TAIL'
 BODY_EOF
 } > "$lock/body.sh"
+: > "$lock/progress.log"
 if command -v setsid >/dev/null 2>&1; then
-  setsid sh "$lock/body.sh" "$@" &
+  setsid sh "$lock/body.sh" "$@" > "$lock/progress.log" 2>&1 < /dev/null &
 else
   set -m
-  sh "$lock/body.sh" "$@" &
+  sh "$lock/body.sh" "$@" > "$lock/progress.log" 2>&1 < /dev/null &
 fi
 child=$!
+# Stream the progress file to the caller while the body runs; if this connection is gone, only
+# this loop dies, not the body.
+shown=0
+show() {
+  n="$(wc -l < "$lock/progress.log" | tr -d " ")"
+  if [ "$n" -gt "$shown" ]; then sed -n "$((shown + 1)),${n}p" "$lock/progress.log"; shown="$n"; fi
+}
+while kill -0 "$child" 2>/dev/null; do show; sleep 1; done
 rc=0
 wait "$child" || rc=$?
+sed -n "$((shown + 1)),\$p" "$lock/progress.log"
 i=0
 while kill -0 "-$child" 2>/dev/null; do
   i=$((i + 1))
@@ -355,8 +379,8 @@ client_node() {
 # Refuse unless production's folders are not the test copy's (nor inside each other), its deploy
 # folder is production's own (it carries the marker only this check writes, or is new or empty),
 # an env file there says the same root, port, address and project as the private config, and its
-# service root carries no test copy marker. Creates the deploy folder, with its marker, the first
-# time. Reads nothing of production's data.
+# service root carries no test copy marker. Changes nothing (the deploy folder and its marker are
+# created by PROD_MKDIR, only once every refusal has had its say). Reads nothing of production's data.
 PROD_ISOLATION="$ENV_PLAIN_FN"'
 deploy="$1" root="$2" stage_deploy="$3" stage_root="$4" project="$5" lan="$6" port="$7"
 mark=.fleet-runner-production
@@ -391,11 +415,80 @@ if [ -f "$deploy/fleet-production.env" ]; then
   fi
 fi
 [ "$bad" -eq 0 ] || exit 1
-umask 077
-mkdir -p "$deploy" && : > "$deploy/$mark" || { echo "FAIL could not create the production deploy folder"; exit 1; }
 echo "PASS production has its own folders, port and name"
 '
 check_prod_isolation() {
   nas "$PROD_ISOLATION" "$NAS_PROD_DIR" "$NAS_PROD_ROOT" "$NAS_STAGE_DIR" "$NAS_STAGE_ROOT" "$PROD_PROJECT" "$PROD_LAN_IP" "$PROD_PORT" ||
     die "production is not isolated from the test copy; nothing was changed"
+}
+
+# Create production's deploy folder and its marker (the first promote), right before the lock.
+PROD_MKDIR='
+umask 077
+mkdir -p "$1" && : > "$1/.fleet-runner-production" || { echo "FAIL could not create the production deploy folder"; exit 1; }
+'
+
+# ---- Receipts: what this Mac verified when a revision passed in the test copy.
+# fleet-stage.sh writes one per passing revision, from the release.json it verified HERE (never the
+# server's copy), beside the private config: receipts/<revision>.receipt, plain KEY=value lines.
+# fleet-promote.sh requires it, and requires the server's release and image to match it, so the
+# server's account cannot forge the evidence that a revision passed.
+receipt_file() { printf '%s/receipts/%s.receipt' "$(dirname "$FLEET_CONF_FILE")" "$1"; }
+write_receipt() {
+  local json="$1" stagerun="$2" rev dir file
+  rev="$(json_field revision <"$json")"
+  [[ "$rev" =~ ^[0-9a-f]{40}$ ]] || return 1
+  file="$(receipt_file "$rev")"
+  dir="$(dirname "$file")"
+  (umask 077 && mkdir -p "$dir") || return 1
+  {
+    echo "revision=$rev"
+    echo "tag=$(json_field tag <"$json")"
+    echo "image_id=$(json_field image_id <"$json")"
+    echo "manifest_digest=$(json_field manifest_digest <"$json")"
+    echo "archive_sha256=$(json_field archive_sha256 <"$json")"
+    echo "release_json_sha256=$(shasum -a 256 "$json" | cut -d' ' -f1)"
+    echo "stage_run=$stagerun"
+  } >"$file.part" && chmod 0600 "$file.part" && mv "$file.part" "$file"
+}
+receipt_value() { sed -n "s/^$2=//p" "$1" | tail -n 1; }
+
+# ---- Run a script's main function with ALL its output mirrored to a durable local log, so that a
+# closed or broken terminal can neither stop it nor lose what it did:
+#   run_logged <log file> <function> [args]
+# The function runs in the background in its own process group, writing into a FIFO read by a
+# logger that ignores INT, TERM, HUP and PIPE, appends every line to the log and copies it to the
+# terminal while that still works. INT, TERM and HUP sent to this shell are passed on to the
+# function's whole process group (its ssh too), as a terminal's Ctrl-C would. Returns its status.
+run_logged() {
+  local log="$1" fifo lpid mpid rc
+  shift
+  (umask 077 && mkdir -p "$(dirname "$log")" && : >>"$log") || die "cannot write the log $log"
+  fifo="$log.fifo.$$"
+  rm -f "$fifo"
+  mkfifo -m 600 "$fifo" || die "cannot make a FIFO beside $log"
+  (
+    trap '' INT TERM HUP PIPE
+    while IFS= read -r line || [ -n "$line" ]; do
+      printf '%s\n' "$line" >>"$log" 2>/dev/null || true
+      printf '%s\n' "$line" 2>/dev/null || true
+    done <"$fifo"
+  ) &
+  lpid=$!
+  set -m
+  ( set +m; FLEET_LOG="" "$@" ) >"$fifo" 2>&1 &
+  mpid=$!
+  set +m
+  trap 'kill -INT -- -'"$mpid"' 2>/dev/null' INT
+  trap 'kill -TERM -- -'"$mpid"' 2>/dev/null' TERM
+  trap 'kill -HUP -- -'"$mpid"' 2>/dev/null' HUP
+  while :; do
+    rc=0
+    wait "$mpid" || rc=$?
+    kill -0 "$mpid" 2>/dev/null || break
+  done
+  trap - INT TERM HUP
+  wait "$lpid" 2>/dev/null || true
+  rm -f "$fifo"
+  return "$rc"
 }

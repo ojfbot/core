@@ -21,9 +21,10 @@
 # the new revision; check the running image; then from this Mac, with the test copy's own keys: the
 # signed status answers with exactly this revision, a signed job submit is accepted, and a worker
 # claims the job (stage-smoke.mjs). On success the test copy is stopped (it runs only while a test is
-# under way; --keep-running leaves it up) and stage-state is written: ONE file, replaced by ONE
-# rename, naming the last revision that passed and the one now staged (promotable). Every run first
-# clears the staged one, keeping the last-passed record.
+# under way; --keep-running leaves it up), a local receipt of what was verified here is written beside
+# the private config (receipts/<revision>.receipt, which fleet-promote.sh requires), and stage-state
+# is written: ONE file, replaced by ONE rename, naming the last revision that passed and the one now
+# staged (promotable). Every run first clears the staged one, keeping the last-passed record.
 # The server-side steps that change things (the switch, and recording the pass) run in their own
 # process group, recorded in the lock folder, with the Compose variables of the server shell cleared
 # (Compose prefers them to the env file) and the RESOLVED compose config checked against the private
@@ -37,6 +38,8 @@
 # label, not by Compose, so it works whatever the env file holds. Config and folders:
 # scripts/lib/fleet-stage-lib.sh.
 here="$(cd "$(dirname "$0")" && pwd)"
+# A closed or broken stdout must never kill this run, least of all inside its rollback.
+trap '' PIPE
 # shellcheck source=lib/fleet-stage-lib.sh
 . "$here/lib/fleet-stage-lib.sh"
 
@@ -74,6 +77,8 @@ prev="" prev_label="the empty state"
 # Stop what this run started or left, on any way out, and let go of the lock.
 cleanup() {
   local rc=$?
+  # Nothing in here may end it early: no errexit, and say cannot fail (the lib).
+  set +e +o pipefail
   trap - EXIT INT TERM
   if [ "$switching" = yes ] && [ "$passed" != yes ] && [ "$rolled_back" != yes ]; then
     say "FAIL $short did not pass in the test copy; rolling back to $prev_label"
@@ -328,6 +333,10 @@ if [ "$keep_running" = no ]; then
   nas "$STOP" "$STAGE_PROJECT" || { say "FAIL could not stop the test copy"; exit 1; }
   say "the test copy is stopped again (it runs only while a test is under way)"
 fi
+# The local receipt first, from the release verified HERE: the promote requires it, and requires the
+# server's release to match it. A receipt without a recorded pass promotes nothing (stage-state
+# decides), so the order cannot leave a revision promotable without its receipt.
+write_receipt "$release/release.json" "$runid" || { say "FAIL could not write the local receipt for $short"; exit 1; }
 nas "$RECORD" "$NAS_STAGE_DIR" "$runid" "$rev" || { say "FAIL could not record the pass"; exit 1; }
 passed=yes
 say "PASS $short is staged and smoke-tested in $STAGE_PROJECT (was $prev_label)"
