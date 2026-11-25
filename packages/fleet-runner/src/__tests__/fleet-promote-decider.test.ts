@@ -399,6 +399,12 @@ describe("the decider: refusals before production is touched", () => {
     const r = decider(b, next, "run");
     expect(r.out).toContain(`REFUSED operation ${stuckOp} is unfinished: run recover for it first`);
     expect(journal(b, next)).toEqual([]);
+    // The read-only check the Mac makes before the start says the same, without the lock.
+    const calls = dockerLog(b).length;
+    const check = decider(b, next, "check");
+    expect(check.status).toBe(1);
+    expect(check.out).toContain(`REFUSED operation ${stuckOp} is unfinished: run recover for it first`);
+    expect(disruptive(b, calls)).toEqual([]);
     expect(decider(b, stuckOp, "run").out).toContain("already has a journal");
     expect(decider(b, stuckOp, "recover").out).toContain("UNDONE production is back on");
     const reh = newOp(b, { rev: revOf(3), rehearsal: true });
@@ -973,6 +979,16 @@ describe("the decider: recover", () => {
     const st = decider(b, op, "status");
     expect(st.out).toContain("outcome: undone");
     expect(st.out).toContain("not a statement about what production runs now");
+    // Safe to repeat: recover of a finished operation only reads. It calls the engine for nothing,
+    // writes no journal line and no record, and says so.
+    const calls = dockerLog(b).length;
+    const lines = journal(b, op).length;
+    const again = decider(b, op, "recover");
+    expect(again.out).toContain(`operation ${op} is finished: undone`);
+    expect(again.out).toContain("Nothing was changed.");
+    expect(dockerLog(b).length).toBe(calls);
+    expect(journal(b, op).length).toBe(lines);
+    expect(journal(b, op).filter((l) => l.split(" ")[1] === "done")).toHaveLength(1);
   });
 
   it("an operation whose decider never began is closed, so a late start of it is refused; recover of one run while another is unfinished is refused", async () => {

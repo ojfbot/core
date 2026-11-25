@@ -250,7 +250,9 @@ describe("fleet-promote-guard.pl bound", () => {
     expect(await until(() => !alive(pid), 3000)).toBe(true);
   });
 
-  it("hands the lock descriptor to the step, so the step keeps the lock held", async () => {
+  // (What keeps it held is the bound, which keeps the caller's descriptor for as long as the step
+  // runs. A step need not inherit it: the Compose plugin, started by the engine client, does not.)
+  it("a step left running in the background keeps the lock held, through the bound that runs it, until it has ended", async () => {
     const r = dash(`
       exec 9< "$D"
       perl "$G" lock 9 || exit 1
