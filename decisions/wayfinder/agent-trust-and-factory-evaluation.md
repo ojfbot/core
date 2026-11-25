@@ -138,9 +138,16 @@ How the three risks are handled, proposed and not yet challenged:
 - Reachability. The issuer's page is reachable only on the home network or over the VPN.
   If the owner's browser cannot reach it, nothing is created; the owner connects the VPN
   and retries within GitHub's one-hour window.
-- Rotation. An existing App gets a new key only by a download in GitHub's web UI. The plan
-  is not chosen and needs the owner's word: either a new App made by manifest with the old
-  one retired, or an owner-only download from a device that runs no agents.
+- Rotation. An existing App gets a new key only by a download in GitHub's web UI. The
+  owner asked on 2026-11-24 whether that download could be done on a Mac with every agent
+  paused, if the pause could be enforced, and ruled "otherwise, fresh app". It cannot be
+  enforced today: a pause is a claim made on the same machine (the proof of a stop is #678,
+  built in PH12), agents run under the owner's own account and so can read its downloads,
+  and the file would also reach the browser's store, the search index and backups. So a key
+  is replaced by creating a fresh App by manifest and retiring the old one. The cost is
+  that a fresh App has a new identity: it is installed on the fleet repos again, and
+  anything pinned to the old App (required checks, rulesets, the issuer's own records) is
+  repointed. Revisit if a proven stop, or a separate account that runs no agents, exists.
 
 The roadmap carries the matching edits, each marked "Owner addendum, 2026-11-24": TI-1a
 (S48) gains the manifest step, OW-1a (S54) now waits for P0-GL, and OW-1b (S55) becomes a
