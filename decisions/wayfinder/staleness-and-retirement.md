@@ -24,9 +24,9 @@ survey of the problem.
 ## Notes
 
 **Why this map exists.** Several public talks on running agent factories report the same
-failure: standing instructions and records pile up until agents can no longer work. A check of
-this fleet on 2026-11-24 found designs that detect staleness on three surfaces and nothing,
-on any surface, that retires an item.
+failure: standing instructions and records pile up until agents can no longer work. A check on
+2026-11-24, of `main` and of one host, found designs that detect staleness on three surfaces
+and nothing, on any surface it could see, that retires an item.
 
 **Prior decisions found on `main` (2026-11-24).** The search covered `decisions/adr` and
 `decisions/wayfinder` by keyword, so it can have missed some.
@@ -124,6 +124,10 @@ tickets on this map. They are recorded here so that they reach their owners.
   (#687), not into this map.
 - Yojimbo owns the vault pipeline. The Yuri Mac reviews read-only. `raw/` stays append-only.
 - Research tickets run one at a time.
+- Every finding carries its vantage: the host, the harness and the window it was measured
+  in. A finding from one host or one harness is not a finding about the fleet until it is
+  checked on the others, and no line of this map may say more than was measured. The owner
+  set this on 2026-11-25. The first ticket to apply it is "Which findings so far hold on the other host and in the other harness?".
 
 **Vault reference layer.** `synthesis/` and `concepts/` were searched by keyword on
 2026-11-24. No page on this subject was found.
@@ -146,16 +150,20 @@ so their issues were opened and closed on the same day.
 | What is stale here today, and is any staleness report acted on? (#733) | research | — | closed |
 | How do other teams retire standing agent instructions? (#734) | research | What is stale here today, and is any staleness report acted on? | closed |
 | How do other teams keep a retrieval knowledge store true over time? (#735) | research | What is stale here today, and is any staleness report acted on? | closed |
-| How do the prior staleness decisions relate to this map? (#736) | grilling | What is stale here today, and is any staleness report acted on? | open |
+| How do the prior staleness decisions relate to this map? (#736) | grilling | What is stale here today, and is any staleness report acted on?; Which findings so far hold on the other host and in the other harness? | open |
 | What kinds of staleness are there, and what signal marks each? (#737) | grilling | All three research tickets | closed |
-| What marks a wiki claim untrue, as distinct from a page unused? (#738) | grilling | How do other teams keep a retrieval knowledge store true over time?; What kinds of staleness are there, and what signal marks each? | open |
+| What marks a wiki claim untrue, as distinct from a page unused? (#738) | grilling | How do other teams keep a retrieval knowledge store true over time?; What kinds of staleness are there, and what signal marks each?; What share of sampled claims is untrue? | open |
 | When a source is superseded, how are the pages built on it found and refreshed? (#739) | grilling | What marks a wiki claim untrue, as distinct from a page unused? | open |
-| Is there a budget on what every session loads, and what happens past it? (#740) | grilling | What is stale here today, and is any staleness report acted on?; How do other teams retire standing agent instructions? | open |
+| Is there a budget on what every session loads, and what happens past it? (#740) | grilling | What is stale here today, and is any staleness report acted on?; How do other teams retire standing agent instructions?; What does one session load at start, in each harness? | open |
 | Who may retire or refresh an item on each surface? (#741) | grilling | How do the prior staleness decisions relate to this map?; What kinds of staleness are there, and what signal marks each? | open |
 | What happens to a retired item? (#742) | grilling | What kinds of staleness are there, and what signal marks each? | open |
 | What does retiring an instruction cost under the high-risk review rule? (#743) | grilling | Who may retire or refresh an item on each surface? | open |
-| Would the owner accept what a pruning pass proposes? (#744) | prototype | Who may retire or refresh an item on each surface?; What happens to a retired item? | open |
+| Would the owner accept what a pruning pass proposes? (#744) | prototype | Who may retire or refresh an item on each surface?; What happens to a retired item?; How will we tell whether retirement helped? | open |
 | Should each session record what it loaded, across both harnesses, and in what shape? (#746) | grilling | — | open |
+| Which findings so far hold on the other host and in the other harness? (#747) | research | — | open |
+| What does one session load at start, in each harness? (#748) | research | — | open |
+| What share of sampled claims is untrue? (#749) | research | — | open |
+| How will we tell whether retirement helped? (#750) | grilling | — | open |
 
 **What each ticket asks.**
 
@@ -173,7 +181,7 @@ so their issues were opened and closed on the same day.
 - **How do the prior staleness decisions relate to this map?** For each prior decision in
   the table above: does this map adopt it, propose an amendment to its owner, or leave it
   alone? This includes whether loops stay wholly with `control-plane-conductor`, and
-  where the two defects in the Notes go.
+  where the defects in the Notes go.
 - **What kinds of staleness are there, and what signal marks each?** Tests the three
   working terms against the census and the outside practice, and names one signal per kind
   per surface. It must say what to do where no usage ledger exists, and whether "untrue"
@@ -205,12 +213,37 @@ so their issues were opened and closed on the same day.
   ledger. A record of loads cannot show reliance on an item that is in every session.
   Evidence gathered on 2026-11-24 is held outside the repo and needs a privacy pass before
   it is filed under `decisions/research/`.
+- **Which findings so far hold on the other host and in the other harness?** Added on 2026-11-25 at the owner's request. Every count and defect so far was
+  measured from one Mac, and hooks and skills were counted in one harness. The census did
+  not check whether the host that owns the vault pipeline holds a Git copy of the vault, so
+  "the scanner can flag no page" may hold on one host only. The same doubt applies to "no
+  live process reads the scanner's report" and to the *unused* signal: an item not loaded
+  on one host may load daily on another. The ticket returns each finding with its host,
+  harness and window, marked *holds elsewhere*, *differs* or *not checkable*, and corrected
+  wording for any line here that says more than was measured. It adds the Codex-side and
+  plugin items to the census. Checks on the owning host are read-only and go through a
+  conductor session. It runs first of the three open research tickets.
+- **What does one session load at start, in each harness?** Added on 2026-11-25. The census counted 4,996 lines across 53 rules files in
+  total, not what one session loads. For a session at user scope and at a sample of repos,
+  the ticket measures what loads before the first prompt (instruction files, memory index,
+  skill listing, hook entries) in lines, bytes and count of distinct instructions, per
+  harness.
+- **What share of sampled claims is untrue?** Added on 2026-11-25. *Untrue* is marked only by a reader's flag, and no flag
+  exists yet. The census checked claims that look like paths and nothing else. The ticket
+  checks a fixed sample of claims from rules files, memory files and wiki pages against the
+  current state and reports the share that is false, with the sample size, how it was drawn
+  and who checked. Its file holds counts and kinds of claim, never the contents of memory
+  files or vault pages.
+- **How will we tell whether retirement helped?** Promoted on 2026-11-25 from "Not yet specified". Every remaining ticket assumes
+  that retiring items helps, and the research found no study that removes rules and
+  measures behaviour before and after. The ticket chooses one measure and where it is read
+  from. It builds no evaluation. It is decided before the prototype so that the prototype
+  can report it.
 
 ## Not yet specified
 
 - How an agent should treat an item that is marked stale but not yet retired. The question
   depends on what the marks turn out to be.
-- How to tell whether retirement helped: which measure would show fewer wrong actions.
 - Copies that fall behind their source, such as a checkout many commits behind `main` or a
   host copy of a config. It is unclear whether that is this map's "untrue" or a separate
   problem of synchronisation. The kinds ruling did not settle it. One more instance: the
@@ -218,10 +251,6 @@ so their issues were opened and closed on the same day.
 - Whether an item in a dormant repo is *unused* or only paused. The "not loaded" signal
   marks both the same way: 26 of 51 repo rules files were loaded by neither harness in 90
   days, mostly because their repos are idle.
-- Codex-side and plugin items. The census counted hooks and skills for Claude Code only.
-  Codex has its own hook entries, skills, memory store and automations, and plugins add
-  hooks in both harnesses. It is not yet stated whether these are items on the existing
-  surfaces or need their own census.
 - Instructions held in chat clients (project instructions generated from a contract).
 
 ## Out of scope
