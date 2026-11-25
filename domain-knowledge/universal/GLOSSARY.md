@@ -336,7 +336,7 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Untrue (staleness kind)** — The world has moved past what the item says. Signal: a reader's flag, a mark a person or agent wrote on the item after finding it wrong. Nothing detects a false claim by scanning it, so an unflagged item is not thereby true. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
 
-**Unused (staleness kind)** — Nothing loads or opens the item. Signal: no load record in the window (90 days, uncalibrated) in either harness. It records loading, not reliance, so it never marks an item that loads in every session. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
+**Unused (staleness kind)** — Nothing loads or opens the item. Signal: no load record in the window (90 days, uncalibrated) in either harness, counted per host and per harness and only where a load record was kept. A result names the host-and-harness pairs it rests on and the days each record covers; a shorter cover counts if stated. Where no record was kept the pair reads "no signal", never *unused*. It records loading, not reliance, so it never marks an item that loads in every session. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
 
 ## V
 

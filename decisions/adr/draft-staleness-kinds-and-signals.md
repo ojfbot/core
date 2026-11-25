@@ -62,7 +62,7 @@ is recorded. Whether a session *relied on* it is not.
 
    | Kind | Condition | Signal |
    |---|---|---|
-   | Unused | Nothing loads or opens the item | No load record in the window, in either harness |
+   | Unused | Nothing loads or opens the item | No load record in the window, in either harness, counted only where a load record was kept |
    | Broken | The item names something that is gone | A named path, script or command does not resolve |
    | Untrue | The world has moved past what the item says | A reader's flag on the item |
    | Superseded | A newer item replaces it | A successor mark on the old item |
@@ -71,8 +71,15 @@ is recorded. Whether a session *relied on* it is not.
    - The window is 90 days. It has not been calibrated.
    - A reader is a person or an agent. A flag is a mark a reader wrote on the item after
      finding it wrong.
+   - *Unused* is counted per host and per harness, and only where a load record was kept.
+     A result names the host-and-harness pairs it rests on, the days of the window each
+     record covers, and the pairs it could not use. A record that covers fewer than the 90
+     days counts, with its days stated. Where no record was kept for a pair, the record
+     says "no signal" for that pair: a missing record never makes an item *unused*. The
+     owner added this on 2026-11-25, after one host was found to keep no ledger
+     (ojfbot/core#747).
 
-3. **Signal per surface, as it computes on 2026-11-24.**
+3. **Signal per surface, as it computes on the Yuri Mac on 2026-11-24.**
 
    | Surface | Unused | Broken | Untrue | Superseded |
    |---|---|---|---|---|
@@ -172,6 +179,13 @@ Limits of these measurements:
 ## Open points
 
 - The 90-day window is a guess.
+- The least cover a record needs before a pass may act on *unused*. A stated shorter cover
+  counts, and on 2026-11-25 one pair covers 29 days. A pass that proposes removals may need
+  its own minimum: "Would the owner accept what a pruning pass proposes?"
+  (ojfbot/core#744).
+- The skills row reads the Claude Code tool ledger, while the kind says either harness.
+  Codex leaves a different record of a skill being opened (a `SKILL.md` path in a
+  session's command text). Which record the row rests on per harness is not ruled.
 - What the flag and the successor mark look like on each surface, and what happens to a
   marked item: "What happens to a retired item?" (ojfbot/core#742).
 - Who may flag, mark, repair or retire: "Who may retire or refresh an item on each
@@ -185,5 +199,6 @@ Limits of these measurements:
 | Field | Value |
 | --- | --- |
 | Zero-point | 2026-11-24, wayfinder ticket ojfbot/core#737, ruled by the owner in session |
+| Amended | 2026-11-25, the *unused* signal (counted only where a record was kept; a stated shorter cover counts), ruled by the owner in session after ojfbot/core#747 |
 | Implementation start | _pending_ |
 | Implementation end | _pending_ |

@@ -95,14 +95,17 @@ the open ticket each difference matters to. Nothing below is a decision.
 - The two hosts hold different sets: 51 repo rules files and 133 beads on the Yuri Mac, 46
   and 145 on Yojimbo. A retirement pass run on one host sees a different set from the
   other.
-- **Open against a ruled decision.** The *unused* signal reads "no load record in 90 days
-  in either harness". A host that keeps no record and a host where the item never loaded
-  give the same answer under that wording. The research proposes counting only where a
-  record was kept, per host and per harness, naming the pairs and the days each covers,
-  and calling an item *not measured* where no record was kept. It leaves one choice to the
-  owner: require cover of the whole window (then *unused* computes for Claude Code on the
-  Yuri Mac and nowhere else), or accept a stated shorter cover. The ruling stands as
-  written until the owner decides.
+- **The *unused* signal was amended on 2026-11-25.** As first ruled it read "no load
+  record in 90 days in either harness". A host that keeps no record and a host where the
+  item never loaded gave the same answer under that wording. The owner ruled: *unused* is
+  counted per host and per harness, only where a load record was kept; each result names
+  the pairs it rests on and the days each record covers; a record that covers fewer than
+  90 days counts, with its days stated; and where no record was kept the pair reads "no
+  signal", never *unused*. On that day three pairs keep a record: Claude Code on the Yuri
+  Mac (90 days), Codex on the Yuri Mac (68) and Codex on Yojimbo (29). Claude Code on
+  Yojimbo keeps none.
+- "Would the owner accept what a pruning pass proposes?" must weigh how little cover is
+  enough to act on. 29 days without a load says little about an item used once a quarter.
 
 **Load records found after the census (2026-11-24).** The census reported that use could
 not be measured for rules files, hooks or memory files. That holds for reliance on a single
@@ -184,7 +187,7 @@ so their issues were opened and closed on the same day.
 - **What is stale here today, and is any staleness report acted on?** (#733) Closed 2026-11-24. On this Mac the vault scanner flags 0 of 1,011 pages and cannot see edits (`~/selfco` has no `.git`); no live process reads its report (the hygiene heartbeat is paused). Skills: 66 of 77 had no `Skill` call in the Claude Code tool ledger on the Yuri Mac in 90 days; Codex sessions on the same Mac opened 56 of them. Rules files, hooks and memory have no ledger of use there; loading is recorded in part. Yojimbo keeps no ledger at all (2026-11-25). See [staleness-census-2026-11-24](../research/staleness-census-2026-11-24.md).
 - **How do other teams retire standing agent instructions?** (#734) Closed 2026-11-24. Only agent memory has published removal mechanisms that act without a person (expiry unless re-validated, citation checks, model deletes, background consolidation). For rules files and skills, a model or tool proposes and a person removes; hooks have nothing beyond a slowness report. Six signals work without a usage ledger. No study found in the 15 pages read measures pruning a rules file. See [retiring-agent-instructions-2026-11-24](../research/retiring-agent-instructions-2026-11-24.md).
 - **How do other teams keep a retrieval knowledge store true over time?** (#735) Closed 2026-11-24. Published systems mostly detect *superseded* (a newer item contradicts an older one) or a moved source, not *untrue*; old items are usually kept and marked or ranked (Zep, Wikidata), and deleted only when derived from a changed source (LangChain). Outdated documents cut RAG accuracy by at least 20% even with dates in the prompt (HoH). No study in the 14 pages read covers LLM-maintained wikis, and none of them handles a kept source that has aged. See [keeping-a-knowledge-store-true-2026-11-24](../research/keeping-a-knowledge-store-true-2026-11-24.md).
-- **What kinds of staleness are there, and what signal marks each?** (#737) Closed 2026-11-24. Four kinds, each a condition bound to one signal: *unused* (no load record in 90 days in either harness), *broken* (a named path, script or command does not resolve), *untrue* (a reader's flag) and *superseded* (a successor mark). Where a signal cannot be computed the record says "no signal": nothing marks an item that loads in every session, an unflagged false claim, or an unmarked replacement. → [adr:staleness-kinds-and-signals](../adr/draft-staleness-kinds-and-signals.md) (draft).
+- **What kinds of staleness are there, and what signal marks each?** (#737) Closed 2026-11-24. Four kinds, each a condition bound to one signal: *unused* (no load record in 90 days in either harness; amended 2026-11-25: counted per host and per harness, only where a load record was kept, with the days each record covers stated, and "no signal" where none was kept), *broken* (a named path, script or command does not resolve), *untrue* (a reader's flag) and *superseded* (a successor mark). Where a signal cannot be computed the record says "no signal": nothing marks an item that loads in every session, an unflagged false claim, or an unmarked replacement. → [adr:staleness-kinds-and-signals](../adr/draft-staleness-kinds-and-signals.md) (draft).
 - **Which findings so far hold on the other host and in the other harness?** (#747) Closed 2026-11-25. 23 findings were re-measured. On the Yuri Mac five headline counts changed once Codex records, plugin items and the path the ledger saw were included: 9 of 77 skills have no record in either harness (the 66 is a Claude Code count); 64 to 65 of 133 beads were never opened by `Read`, not 98; 30 of 51 repo rules files have no load record, not 26; hook entries are 158, not 122; 413 of 1,011 wiki pages have no record in three sources, not 770. On Yojimbo (2026-11-25, read-only, through its conductor) no usage ledger exists, so *unused* cannot be computed there for Claude Code, and Codex session files cover 29 days. The vault on Yojimbo was not checked, because the owner left it out, so whether the scanner can flag a page on the host that owns the pipeline is still not known. See [second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md).
 
 ## Tickets
