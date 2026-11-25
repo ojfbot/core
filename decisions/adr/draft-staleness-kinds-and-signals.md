@@ -95,16 +95,19 @@ is recorded. Whether a session *relied on* it is not.
 
 ## Evidence
 
-Measured on one Mac on 2026-11-24. Counts only.
+Measured on the Yuri Mac on 2026-11-24. Counts only. Four rows were corrected on
+2026-11-25 from [second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md).
+Every row that reads a ledger is a Yuri Mac row: Yojimbo keeps no ledger (2026-11-25), so
+none of them has a second-host value.
 
 | Kind | Surface | Result | Source |
 |---|---|---|---|
-| Unused | Rules files (51 repo files) | 25 loaded by either harness in 90 days; 22 by neither in 90 days; 4 by neither ever | Tool ledger `repo` and `cwd`; Codex session working directories |
+| Unused | Rules files (51 repo files) | Per file, each credited to the harness that reads it: 21 with a load record in 90 days (13 `CLAUDE.md`, 8 `AGENTS.md`); 26 with none in 90 days; 4 `CLAUDE.md` never. 263 Codex session files are imports and credit nothing | Tool ledger `repo` and `cwd`; Codex session working directories |
 | Unused | Hook entries (112 repo-scope, Claude Code) | 32 in repos with a session in 90 days; 72 in idle repos; 8 in repos never in the ledger | Tool ledger |
-| Unused | Hook entries (14 repo-scope, Codex) | 9 in projects Codex does not trust | Codex configuration |
+| Unused | Hook entries (14 repo-scope, Codex) | 9 with no hook trust record (3 in an untrusted project, 6 in trusted projects) | Codex configuration |
 | Unused | Memory files (140) | 10 files, in 8 folders with no session transcript on disk. 2 of 139 in no index | Transcript folders; census §6 |
-| Unused | Skills (77) | 66 with no `Skill` call in 90 days; an upper bound | Census §5 |
-| Unused | Beads (133) | 98 never opened by `Read` | Census §7 |
+| Unused | Skills (77) | 66 with no `Skill` call in the Claude Code ledger in 90 days. Codex root sessions opened 56 of them; 9 of 77 have neither record | Census §5 |
+| Unused | Beads (133) | 64 to 65 never opened by `Read`, once `core` beads are matched under the path the ledger saw; 51 when shell reads count | Census §7 |
 | Broken | All but loops | Fixed samples of 20 claims per surface: 0 to 7 fail | Census §3 to §8 |
 | Broken | Hooks | 1 of 122 script paths | Census §4 |
 | Untrue | Memory files | 3 files carry a strict marker (stale or superseded; the census did not split them); 2 index files carry a stale note | Census §6 |

@@ -45,9 +45,14 @@ and nothing, on any surface it could see, that retires an item.
 - The vault holds 1,011 wiki pages. 50 carry an inline stamp in the schema's form,
   `(as of YYYY-MM`; 96 carry "as of" with a date in any form. 3 carry `superseded_by`, and
   3 carry a scanner exemption.
-- Two facts were not checked at charting. The census answered both: on this Mac the
-  vault is not a Git repository, so the scanner's 90-day test can flag no page; and no
-  live process reads the scanner's report.
+- Two facts were not checked at charting. On the Yuri Mac (2026-11-24, re-run 2026-11-25)
+  the vault folder is not a Git repository, so the scanner's 90-day test can flag no page
+  there. A private Git remote of the vault exists, with history to 2026-10-29. On the Yuri
+  Mac no live process reads the scanner's report: launchd, cron, Codex automations and
+  Claude scheduled tasks were checked. On Yojimbo (2026-11-25) no host scheduler names the
+  report either: launchd, cron, its one Codex automation and its Claude scheduled tasks
+  were checked, and FleetRunner's live job table was not. The vault on Yojimbo was not
+  checked: the owner left it out on 2026-11-25, to be handled separately.
 
 **Kinds of staleness.** Ruled on 2026-11-24: four kinds, each a condition bound to one
 signal. They are *unused*, *broken*, *untrue* and *superseded*. The ruling, the signal per
@@ -69,30 +74,62 @@ terms are in `domain-knowledge/GLOSSARY.md`.
   and that ticket may still use them.
 - "Is there a budget on what every session loads, and what happens past it?" carries the
   pile-up problem alone. *Unused* never marks an item that loads in every session.
-- "Would the owner accept what a pruning pass proposes?" has two computable inputs on rules
-  files today: broken references, and files no session loaded.
+- "Would the owner accept what a pruning pass proposes?" has two inputs on rules files that
+  compute on the Yuri Mac today: broken references, and files with no load record there,
+  each file credited only to the harness that reads it.
 - No ticket is invalidated.
+
+**What the second vantage changes (2026-11-25).** The findings are in
+[second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md); its section 4 names
+the open ticket each difference matters to. Nothing below is a decision.
+- Five headline counts from the census were one-harness or one-path counts. Each is
+  restated under "Decisions so far" with its vantage.
+- Yojimbo keeps no usage ledger (2026-11-25). Every count read from a ledger is a Yuri Mac
+  count with no second-host value. A load record has to be installed on each host, not only
+  defined.
+- Codex session files cover 68 of the 90 days on the Yuri Mac and 29 on Yojimbo. A run
+  started in an ephemeral mode leaves no file on either.
+- What a session loads at start differs by host as well as by harness: the user-scope
+  rules file is 7,178 bytes on the Yuri Mac and 3,899 on Yojimbo, and Codex has a global
+  file on the first and none on the second.
+- The two hosts hold different sets: 51 repo rules files and 133 beads on the Yuri Mac, 46
+  and 145 on Yojimbo. A retirement pass run on one host sees a different set from the
+  other.
+- **Open against a ruled decision.** The *unused* signal reads "no load record in 90 days
+  in either harness". A host that keeps no record and a host where the item never loaded
+  give the same answer under that wording. The research proposes counting only where a
+  record was kept, per host and per harness, naming the pairs and the days each covers,
+  and calling an item *not measured* where no record was kept. It leaves one choice to the
+  owner: require cover of the whole window (then *unused* computes for Claude Code on the
+  Yuri Mac and nowhere else), or accept a stated shorter cover. The ruling stands as
+  written until the owner decides.
 
 **Load records found after the census (2026-11-24).** The census reported that use could
 not be measured for rules files, hooks or memory files. That holds for reliance on a single
 item. Loading is recorded: the Claude Code tool ledger stamps repo and working directory on
-every tool call, Codex session files store the merged instruction text and its directory,
-and session transcripts keep run records for some hooks. The census counted hooks and skills
-on the Claude Code side only.
+every tool call; Codex session files store the merged instruction text and its directory
+(on the Yuri Mac 592 of 2,967 files store none, and 263 are imported Claude Code
+transcripts; on Yojimbo there are 802 files from 2026-10-26, none imported; a run started
+in an ephemeral mode leaves no file); and session transcripts keep run records for some
+hooks. The census counted hooks and skills on the Claude Code side only. With plugin and
+Codex entries the Yuri Mac has 158 hook entries, not 122; Yojimbo has 68.
 
 **What the research found that the open tickets must weigh.** Three research tickets
 closed on 2026-11-24. Their files are indexed under "Decisions so far". Nothing below is a
 decision.
-- Nothing, here or in published practice, detects a claim that is untrue in general.
+- Nothing found on `main`, on the Yuri Mac or in the 29 pages read detects a claim that is
+  untrue in general.
   Published systems detect narrower things: a newer item contradicts an older one, a source
   changed or vanished, a cited link died, or nobody has vouched for the item within a
   period.
-- "Unused" cannot be measured here for rules files, hooks or memory files, because no
-  ledger records their use. Two ledgers that did exist stopped being written. Published
+- On the Yuri Mac, reliance on a rules file, hook or memory file cannot be measured,
+  because no ledger records it. Three ledger files there have stopped being written (last
+  rows 2026-08-19, 2026-10-10 and 2026-10-20), and wiki reads left the `Read` record on
+  2026-08-19 for the shell. On Yojimbo (2026-11-25) no ledger file exists. Published
   practice has six signals that need no usage ledger: size, content checks, contradiction
   at read time, contradiction at write time, replay against transcripts, and a mistake a
   person notices.
-- Only agent memory is removed without a person in published practice. For rules files
+- In the pages read, only agent memory is removed without a person. For rules files
   and skills a tool proposes and a person removes. Demoting an item, so that it stays
   installed but stops loading in full, is more common than removing it.
 - Knowledge stores mostly keep a superseded item and mark or rank it. They delete only
@@ -101,7 +138,7 @@ decision.
   alongside current ones cut accuracy by at least 20%, with dates shown and recency
   ranking on. In another, the best of 20 models followed 68% of 500 simultaneous
   instructions. Both are benchmarks, not agent work.
-- Published practice is silent on: retiring hooks; an approval path specific to removal;
+- The 29 pages read say nothing on: retiring hooks; an approval path specific to removal;
   what becomes of a retired rule or skill; a source that stays in an append-only layer but
   has aged; finding and refreshing summary pages built on a superseded source; and
   anything measured about wikis that a model maintains.
@@ -110,12 +147,18 @@ decision.
 tickets on this map. They are recorded here so that they reach their owners.
 - The vault scanner returns "not stale" for every page when the vault has no Git history
   (owner: the scanner ADR).
-- The loops registry lists `selfco-vault-hygiene` as `live` while its automation file
-  says `PAUSED` (owner: the `control-plane-conductor` map).
-- Six `.Codex/...` paths named in `AGENTS.md` files resolve to nothing, even ignoring
-  letter case, and `install-agents.sh` has no Codex handling (owner: not assigned).
-- `log-skill.sh` is wired per repo. Work moved to directories where it is not wired, and
-  `skill-telemetry.jsonl` has not been written since 2026-10-20 (owner: not assigned).
+- The loops registry lists `selfco-vault-hygiene` as `live` while its automation file on
+  the Yuri Mac says `PAUSED`, and no automation of that name exists on Yojimbo
+  (2026-11-25). The registry row names no host. FleetRunner's live job table was not read
+  (owner: the `control-plane-conductor` map).
+- On the Yuri Mac, six `.Codex/...` paths named in `AGENTS.md` files resolve to nothing,
+  even ignoring letter case. Five of the six files that hold such a path are untracked or
+  outside any repo, so they exist only there. The sixth is tracked; whether its path
+  resolves on Yojimbo was not measured. `install-agents.sh` on `main` has no Codex handling
+  (owner: not assigned).
+- `log-skill.sh` is wired per repo. Work moved to directories where it is not wired, and on
+  the Yuri Mac `skill-telemetry.jsonl` has not been written since 2026-10-20; on Yojimbo
+  the file does not exist (2026-11-25) (owner: not assigned).
 
 **Constraints.**
 - Instruction files are high risk under the guided-review ruling (slice CH-5a, #715), so
@@ -138,10 +181,11 @@ so their issues were opened and closed on the same day.
 
 ## Decisions so far
 
-- **What is stale here today, and is any staleness report acted on?** (#733) Closed 2026-11-24. On this Mac the vault scanner flags 0 of 1,011 pages and cannot see edits (`~/selfco` has no `.git`); no live process reads its report (the hygiene heartbeat is paused). Skills: 66 of 77 unused in 90 days. Rules files, hooks and memory have no usage ledger. See [staleness-census-2026-11-24](../research/staleness-census-2026-11-24.md).
-- **How do other teams retire standing agent instructions?** (#734) Closed 2026-11-24. Only agent memory has published removal mechanisms that act without a person (expiry unless re-validated, citation checks, model deletes, background consolidation). For rules files and skills, a model or tool proposes and a person removes; hooks have nothing beyond a slowness report. Six signals work without a usage ledger. No study measures pruning a rules file. See [retiring-agent-instructions-2026-11-24](../research/retiring-agent-instructions-2026-11-24.md).
-- **How do other teams keep a retrieval knowledge store true over time?** (#735) Closed 2026-11-24. Published systems mostly detect *superseded* (a newer item contradicts an older one) or a moved source, not *untrue*; old items are usually kept and marked or ranked (Zep, Wikidata), and deleted only when derived from a changed source (LangChain). Outdated documents cut RAG accuracy by at least 20% even with dates in the prompt (HoH). No study covers LLM-maintained wikis, and nothing handles a kept source that has aged. See [keeping-a-knowledge-store-true-2026-11-24](../research/keeping-a-knowledge-store-true-2026-11-24.md).
+- **What is stale here today, and is any staleness report acted on?** (#733) Closed 2026-11-24. On this Mac the vault scanner flags 0 of 1,011 pages and cannot see edits (`~/selfco` has no `.git`); no live process reads its report (the hygiene heartbeat is paused). Skills: 66 of 77 had no `Skill` call in the Claude Code tool ledger on the Yuri Mac in 90 days; Codex sessions on the same Mac opened 56 of them. Rules files, hooks and memory have no ledger of use there; loading is recorded in part. Yojimbo keeps no ledger at all (2026-11-25). See [staleness-census-2026-11-24](../research/staleness-census-2026-11-24.md).
+- **How do other teams retire standing agent instructions?** (#734) Closed 2026-11-24. Only agent memory has published removal mechanisms that act without a person (expiry unless re-validated, citation checks, model deletes, background consolidation). For rules files and skills, a model or tool proposes and a person removes; hooks have nothing beyond a slowness report. Six signals work without a usage ledger. No study found in the 15 pages read measures pruning a rules file. See [retiring-agent-instructions-2026-11-24](../research/retiring-agent-instructions-2026-11-24.md).
+- **How do other teams keep a retrieval knowledge store true over time?** (#735) Closed 2026-11-24. Published systems mostly detect *superseded* (a newer item contradicts an older one) or a moved source, not *untrue*; old items are usually kept and marked or ranked (Zep, Wikidata), and deleted only when derived from a changed source (LangChain). Outdated documents cut RAG accuracy by at least 20% even with dates in the prompt (HoH). No study in the 14 pages read covers LLM-maintained wikis, and none of them handles a kept source that has aged. See [keeping-a-knowledge-store-true-2026-11-24](../research/keeping-a-knowledge-store-true-2026-11-24.md).
 - **What kinds of staleness are there, and what signal marks each?** (#737) Closed 2026-11-24. Four kinds, each a condition bound to one signal: *unused* (no load record in 90 days in either harness), *broken* (a named path, script or command does not resolve), *untrue* (a reader's flag) and *superseded* (a successor mark). Where a signal cannot be computed the record says "no signal": nothing marks an item that loads in every session, an unflagged false claim, or an unmarked replacement. → [adr:staleness-kinds-and-signals](../adr/draft-staleness-kinds-and-signals.md) (draft).
+- **Which findings so far hold on the other host and in the other harness?** (#747) Closed 2026-11-25. 23 findings were re-measured. On the Yuri Mac five headline counts changed once Codex records, plugin items and the path the ledger saw were included: 9 of 77 skills have no record in either harness (the 66 is a Claude Code count); 64 to 65 of 133 beads were never opened by `Read`, not 98; 30 of 51 repo rules files have no load record, not 26; hook entries are 158, not 122; 413 of 1,011 wiki pages have no record in three sources, not 770. On Yojimbo (2026-11-25, read-only, through its conductor) no usage ledger exists, so *unused* cannot be computed there for Claude Code, and Codex session files cover 29 days. The vault on Yojimbo was not checked, because the owner left it out, so whether the scanner can flag a page on the host that owns the pipeline is still not known. See [second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md).
 
 ## Tickets
 
@@ -160,7 +204,7 @@ so their issues were opened and closed on the same day.
 | What does retiring an instruction cost under the high-risk review rule? (#743) | grilling | Who may retire or refresh an item on each surface? | open |
 | Would the owner accept what a pruning pass proposes? (#744) | prototype | Who may retire or refresh an item on each surface?; What happens to a retired item?; How will we tell whether retirement helped? | open |
 | Should each session record what it loaded, across both harnesses, and in what shape? (#746) | grilling | — | open |
-| Which findings so far hold on the other host and in the other harness? (#747) | research | — | open |
+| Which findings so far hold on the other host and in the other harness? (#747) | research | — | closed |
 | What does one session load at start, in each harness? (#748) | research | — | open |
 | What share of sampled claims is untrue? (#749) | research | — | open |
 | How will we tell whether retirement helped? (#750) | grilling | — | open |
@@ -249,8 +293,15 @@ so their issues were opened and closed on the same day.
   problem of synchronisation. The kinds ruling did not settle it. One more instance: the
   `AGENTS.md` files read as rewrites of `CLAUDE.md` files and name paths that do not exist.
 - Whether an item in a dormant repo is *unused* or only paused. The "not loaded" signal
-  marks both the same way: 26 of 51 repo rules files were loaded by neither harness in 90
-  days, mostly because their repos are idle.
+  marks both the same way: on the Yuri Mac, 30 of 51 repo rules files have no load record
+  in 90 days when each file is credited only to the harness that reads it (28 `CLAUDE.md`,
+  2 `AGENTS.md`), mostly because their repos are idle there. On Yojimbo (46 files,
+  2026-11-25) Claude Code keeps no ledger, and Codex session files cover 29 days: 2 of 7
+  `AGENTS.md` have a record.
+- The vault on the host that owns the pipeline. Whether it is a Git repository there,
+  whether the scanner flags a page there, and what reads its report from inside the vault
+  were not checked. The owner left the vault out of the second-vantage check on
+  2026-11-25, to be handled separately.
 - Instructions held in chat clients (project instructions generated from a contract).
 
 ## Out of scope
