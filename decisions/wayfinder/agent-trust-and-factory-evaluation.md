@@ -144,7 +144,8 @@ How the three risks are handled, proposed and not yet challenged:
   enforced today: a pause is a claim made on the same machine (the proof of a stop is #678,
   built in PH12), agents run under the owner's own account and so can read its downloads,
   and the file would also reach the browser's store, the search index and backups. So a key
-  is replaced by creating a fresh App by manifest and retiring the old one. The cost is
+  is replaced by creating a fresh App by manifest and retiring the old one. The old App is
+  retired only after the new one is proven working on every repo, so there is no gap. The cost is
   that a fresh App has a new identity: it is installed on the fleet repos again, and
   anything pinned to the old App (required checks, rulesets, the issuer's own records) is
   repointed. Revisit if a proven stop, or a separate account that runs no agents, exists.
