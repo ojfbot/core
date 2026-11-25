@@ -156,6 +156,24 @@ The roadmap carries the matching edits, each marked "Owner addendum, 2026-11-24"
 (S48) gains the manifest step, OW-1a (S54) now waits for P0-GL, and OW-1b (S55) becomes a
 confirmation that each key is in the issuer and on no Mac.
 
+### Owner addendum: who merges after review, 2026-11-24
+
+Two written rules disagreed. The charter guide the owner adopted on 2026-11-19
+(LocalHelp `docs/charter-coordination.md`) has the conductor merge once two independent
+reviews, Codex and Claude, are clean. This map's GitHub identity ruling (#681) says
+"Agents merge after the owner's chat yes." On 2026-11-24 the Yojimbo conductor merged
+workstation-yuri#15 under the first rule, with no owner yes, and the question was put to
+the owner. Asked whether Yojimbo may merge pull requests built on Yuri after two clean
+reviews or only after his yes, he ruled in a Claude Code chat on Yuri: "Merge after
+reviews".
+
+So, until the trust build's own gates are live: after two independent clean reviews, with
+all high and medium findings resolved, the conductor merges without asking the owner
+again. Installs, go-lives, staging runs, NAS changes, owner-only steps and anything this
+map counts as high risk (#673) still need the owner's own yes. The #681 sentence is read
+as describing the built system, where a merge is traced to a grant; it is not a second
+approval step today. This has not been challenged.
+
 ### Boundaries with other maps
 
 - fleet-runner map (#307): owns FleetRunner authority and promotion through "What
