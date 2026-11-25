@@ -24,6 +24,7 @@ import {
   destroyBox,
   docker,
   imageId,
+  lockIsFree,
   makeBox,
   pkg,
   sha,
@@ -127,13 +128,35 @@ export function useMacSandboxes() {
   });
 }
 export function destroy(e: E2E) {
-  const pid = join(e.box.fake, "mac.pid");
-  if (existsSync(pid)) {
-    try {
-      process.kill(-Number(readFileSync(pid, "utf8")), "SIGKILL");
-    } catch {}
-  }
+  // Whatever is left of the Mac side: every process of it names this sandbox's repository on its
+  // command line (the script, its logger, its ssh calls). Never by a process ID written down
+  // earlier: by now that number may be another sandbox's process.
+  spawnSync("pkill", ["-9", "-f", e.repo]);
   destroyBox(e.box);
+}
+
+/** The processes of one run on the "server": its decider, the guard's helpers, the steps they run. As "pid command". */
+export function deciderProcesses(op: string): string[] {
+  const pids = spawnSync("pgrep", ["-f", `promote-runs/${op}/`], { encoding: "utf8" }).stdout.split("\n").filter(Boolean);
+  if (!pids.length) return [];
+  return spawnSync("ps", ["-o", "pid=,comm=", "-p", pids.join(",")], { encoding: "utf8" })
+    .stdout.split("\n")
+    .map((l) => l.trim().replace(/\s+/, " "))
+    .filter(Boolean);
+}
+/**
+ * Wait until a run's decider has ended BY ITSELF and nothing of it is left: no process of the run,
+ * and the lock free. After the Mac is killed the decider goes on alone, by design, and it writes
+ * into the sandbox until it is done; a sandbox must not be removed under it. Returns "" once it
+ * is gone, or, after <seconds>, what is still running (process IDs and command names).
+ */
+export async function deciderGone(e: E2E, op: string, seconds: number): Promise<string> {
+  for (let i = 0; i < seconds * 4; i += 1) {
+    if (deciderProcesses(op).length === 0 && lockIsFree(e.box)) return "";
+    await sleep(250);
+  }
+  const left = deciderProcesses(op);
+  return `the decider of ${op} had not ended after ${seconds} seconds: ${left.join(", ") || "no process of it is left"}${lockIsFree(e.box) ? "" : "; the lock is still held"}`;
 }
 
 /** A sandbox, with its synthetic production answering. A port found free can be taken in the moment before the server listens on it: then another sandbox is made, on another port. */

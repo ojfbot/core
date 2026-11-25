@@ -1,6 +1,5 @@
 // What the decider's test files share: the invariant every interrupted run must end in, the kill
 // and recover helpers, and the pool the sweeps run their sandboxes in. EVERYTHING HERE IS SYNTHETIC.
-import { existsSync, readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
 import { afterEach } from "vitest";
@@ -12,6 +11,7 @@ import {
   destroyBox,
   dockerLog,
   field,
+  liveGroups,
   lockIsFree,
   makeBox,
   newOp,
@@ -122,16 +122,11 @@ export function killAll(b: Box, op: string, pid: number) {
       process.kill(target, "SIGKILL");
     } catch {}
   }
-  const g = join(opDir(b, op), "groups");
-  if (existsSync(g)) {
-    for (const row of readFileSync(g, "utf8").split("\n")) {
-      const pgid = Number(row.split(" ")[0]);
-      if (pgid > 1) {
-        try {
-          process.kill(-pgid, "SIGKILL");
-        } catch {}
-      }
-    }
+  // Its steps that are still running: checked by the guard by start time, never a recorded number alone.
+  for (const pgid of liveGroups(join(opDir(b, op), "groups"))) {
+    try {
+      process.kill(-pgid, "SIGKILL");
+    } catch {}
   }
 }
 /** recover until it no longer halts (a late engine effect may make one attempt halt), at most 4 times. */

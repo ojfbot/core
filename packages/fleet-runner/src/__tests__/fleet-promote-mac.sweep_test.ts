@@ -10,7 +10,7 @@ import {
   sleep,
   states,
 } from "./fakes/promote-harness.js";
-import { all, destroy, headRev, lastOp, macLog, promote, promoteAsync, setSsh, setup, sshCount, statusNow, useMacSandboxes, yes } from "./fakes/mac-harness.js";
+import { all, deciderGone, destroy, headRev, lastOp, macLog, promote, promoteAsync, setSsh, setup, sshCount, statusNow, useMacSandboxes, yes } from "./fakes/mac-harness.js";
 
 // The Mac side of the promote, killed at every call it makes to the server. One sandbox per call,
 // before it and after it: expensive, so it is not in `pnpm test`. CI runs it with the decider's
@@ -63,31 +63,50 @@ describe("fleet-promote.sh when the Mac goes away, at every call", () => {
             const log = `${m.out()}\n${macLog(e)}`;
             // Whatever the Mac printed before it died: a PASS needs the decider's finished record.
             if (log.includes("PASS production runs") && !(op && field(e.box, op, "done", "outcome") === "pass")) bad.push("PASS was printed without the decider's done line");
-            // The decider goes on alone. Without a go it changes nothing; with one, it decides.
-            if (op && states(e.box, op).length > 0) {
-              const st = states(e.box, op);
+            // The decider goes on alone, by design, and writes into the sandbox until it is done.
+            // So every case waits for it to END BY ITSELF, then looks at what it decided: without a
+            // go it changes nothing; with a go and no evidence it undoes; with evidence it commits.
+            const outcomeWithin = async (seconds: number) => {
+              for (let i = 0; i < seconds * 10 && field(e.box, op, "done", "outcome") === ""; i++) await sleep(100);
+              return field(e.box, op, "done", "outcome");
+            };
+            const answersAs = async (build: string) => {
+              for (let i = 0; i < 50 && statusNow(e) !== build; i++) await sleep(200);
+              return statusNow(e) === build;
+            };
+            if (op) {
               const sentEvidence = existsSync(join(opDir(e.box, op), "evidence"));
-              if (st.includes("go") || existsSync(join(opDir(e.box, op), "go"))) {
-                if (sentEvidence) {
-                  for (let i = 0; i < 300 && field(e.box, op, "done", "outcome") === ""; i++) await sleep(100);
-                  const outcome = field(e.box, op, "done", "outcome");
-                  seen.add(`evidence:${outcome}`);
-                  if (outcome !== "pass") bad.push(`evidence was delivered, but the outcome is ${outcome || "none"}`);
-                  else if (statusNow(e) !== head) bad.push("pass, but production does not answer as the new revision");
-                  if (n === EVIDENCE && when === "before") bad.push("the Mac was killed before it delivered its evidence, yet evidence is there");
-                } else {
-                  // No evidence will come: it is waiting to undo. It must not have committed.
-                  await sleep(1500);
-                  seen.add("no-evidence");
-                  if (states(e.box, op).includes("committed")) bad.push("committed without evidence");
-                  if (n === EVIDENCE && when === "after") bad.push("the Mac was killed after it delivered its evidence, yet no evidence is there");
-                }
+              const sentGo = states(e.box, op).includes("go") || existsSync(join(opDir(e.box, op), "go"));
+              if (sentGo && sentEvidence) {
+                const outcome = await outcomeWithin(90);
+                seen.add(`evidence:${outcome}`);
+                if (outcome !== "pass") bad.push(`evidence was delivered, but the outcome is ${outcome || "none"}`);
+                else if (!(await answersAs(head))) bad.push("pass, but production does not answer as the new revision");
+                if (n === EVIDENCE && when === "before") bad.push("the Mac was killed before it delivered its evidence, yet evidence is there");
+              } else if (sentGo) {
+                // No evidence will ever come. It finishes the switch if it was still in it, waits
+                // its whole window, and undoes: alone, with no second decider.
+                const outcome = await outcomeWithin(240);
+                seen.add("no-evidence");
+                if (states(e.box, op).includes("committed")) bad.push("committed without evidence");
+                if (outcome !== "undone") bad.push(`no evidence was delivered, and the decider ended ${outcome || "without an outcome"}, not undone`);
+                else if (!(await answersAs(OLD_BUILD))) bad.push("undone, but production does not answer as the previous build");
+                if (n === EVIDENCE && when === "after") bad.push("the Mac was killed after it delivered its evidence, yet no evidence is there");
               } else {
-                for (let i = 0; i < 200 && field(e.box, op, "done", "outcome") === ""; i++) await sleep(100);
-                seen.add(`no-go:${field(e.box, op, "done", "outcome")}`);
-                if (field(e.box, op, "done", "outcome") !== "unchanged") bad.push("no go was sent, but the decider did not end unchanged");
-                if (statusNow(e) !== OLD_BUILD) bad.push("no go was sent, but production changed");
+                // No go was sent. A decider that was started (it may not have written a line yet
+                // when the Mac died) waits for the go, gets none, and changes nothing.
+                const waiting = await deciderGone(e, op, 90);
+                if (waiting) bad.push(waiting);
+                if (states(e.box, op).length === 0) seen.add("never-began");
+                else {
+                  seen.add(`no-go:${field(e.box, op, "done", "outcome")}`);
+                  if (field(e.box, op, "done", "outcome") !== "unchanged") bad.push("no go was sent, but the decider did not end unchanged");
+                }
+                if (!(await answersAs(OLD_BUILD))) bad.push("no go was sent, but production changed");
               }
+              // Nothing of the run may be left when the sandbox is removed.
+              const left = await deciderGone(e, op, 30);
+              if (left) bad.push(left);
             } else {
               seen.add("never-began");
               if (statusNow(e) !== OLD_BUILD) bad.push("the decider never began, but production changed");

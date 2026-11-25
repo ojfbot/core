@@ -55,14 +55,24 @@ const writeJson = (file, value) => {
   renameSync(`${file}.tmp-${process.pid}`, file);
 };
 const sleepMs = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+// A process ID is only "this sandbox's process" while the process that has it names this sandbox on
+// its command line: the tests start so many processes that a number is soon given to another one,
+// and a stale number must never be signalled or taken for a running container.
+const commandLine = (pid) => {
+  try {
+    return readFileSync(`/proc/${pid}/cmdline`, "utf8").replaceAll("\0", " ");
+  } catch {
+    return spawnSync("ps", ["-ww", "-o", "args=", "-p", String(pid)], { encoding: "utf8" }).stdout || "";
+  }
+};
 const alive = (pid) => {
   if (!pid) return false;
   try {
     process.kill(pid, 0);
-    return true;
   } catch {
     return false;
   }
+  return commandLine(pid).includes(S);
 };
 const containers = () =>
   readdirSync(CONTAINERS)
@@ -113,7 +123,7 @@ function start(c) {
   }
   const root = stateMount ? dirname(stateMount.source) : "";
   c.pid = service
-    ? spawnDetached(service.argv, { ...service.env, FAKE_ROOT: root, FAKE_BUILD: (c.env.find((e) => e.startsWith("FLEET_BUILD_REF=")) || "=").split("=")[1], FAKE_IMAGE: c.image })
+    ? spawnDetached([...service.argv, S], { ...service.env, FAKE_ROOT: root, FAKE_BUILD: (c.env.find((e) => e.startsWith("FLEET_BUILD_REF=")) || "=").split("=")[1], FAKE_IMAGE: c.image })
     : // A "container" that does nothing, and never outlives its sandbox: it ends when the test removes the folders.
       spawnDetached(["sh", "-c", 'while [ -d "$0" ]; do sleep 1; done', S], {});
   c.status = "running";
