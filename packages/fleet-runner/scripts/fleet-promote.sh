@@ -723,13 +723,13 @@ promote_main() {
   kind="" prev_label="" prev_build="" prev_rev="" prev_from="" old_cid="" old_image="" img_ref=""
 
   # What this run does on every way out: undo a switch that did not pass, then let go of the lock.
-  # Its output goes back to the real terminal and log first. Nothing in here may end it early: no
-  # errexit, and say cannot fail. While it undoes, Ctrl-C and hangups are ignored (by its ssh too),
-  # so the undo is never cut short by the key that started it.
+  # Its output goes back to the real terminal and log first. Nothing in here can end it early: say
+  # cannot fail, and every other command is guarded (|| or if), which also turns errexit off inside
+  # do_undo. While it undoes, Ctrl-C and hangups are ignored (by its ssh too), so the undo is never
+  # cut short by the key that started it.
   cleanup() {
     local rc=$?
     exec 1>&7 2>&8
-    set +e +o pipefail
     trap '' INT TERM HUP PIPE
     trap - EXIT
     if [ "$switching" = yes ] && [ "$passed" != yes ] && [ "$undone" != yes ]; then

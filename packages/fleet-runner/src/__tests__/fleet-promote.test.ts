@@ -1405,6 +1405,20 @@ describe("fleet-promote.sh switches, health-checks and undoes", () => {
     expect(jobCount()).toBe(3);
   });
 
+  it("keeps logging and undoes when the terminal closes during the fenced switch (SIGHUP)", async () => {
+    ready();
+    const rev = box.revs[1];
+    const { child, state } = spawnPromote(rev);
+    await waitFor(switching);
+    // A closed terminal hangs up its whole group: the script and its logger. The logger must
+    // outlive it, or the rest of the run is lost from the durable log.
+    process.kill(-child.pid!, "SIGHUP");
+    await waitFor(() => state.done, 120_000);
+    expect(state.code).toBe(129);
+    expect(localLog()).toContain("UNDONE production is back");
+    expect(await status()).toBe(OLD_BUILD);
+  });
+
   it("still claims and runs the undo from this Mac when its logger is killed after arming (fix 2)", async () => {
     ready();
     const rev = box.revs[1];
