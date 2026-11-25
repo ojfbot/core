@@ -93,6 +93,49 @@ page with diagrams is `docs/circusgreen-org-and-correspondence.md`.
 Withdrawn the same day: "whoever starts a helper session is its conductor". Under #682 a
 conductor holds a named seat. A helper session reports to the session that started it.
 
+### Owner addendum: GitHub App keys follow GitHub's own flow, 2026-11-24
+
+Building P0-WIZ (LocalHelp#216) showed that "the App keys are held only by the token
+issuer" (#667, #681) cannot be met by the owner clicking "generate a private key" in a
+browser: GitHub generates the key and downloads it to the browser's computer, and offers
+no way to register a key made elsewhere. From a Mac's browser the key would land on that
+Mac. Told this, the owner ruled in a Claude Code chat on Yuri: "SUPPORT GITHUB WAY -- If i
+am wrong, make it right!" The design follows GitHub's supported mechanism and the ruled
+steps are corrected to fit it. The guarantee itself is unchanged: no Mac that runs agents
+ever holds an App key.
+
+Checked against GitHub's documentation on 2026-11-24 (managing private keys for GitHub
+Apps; registering a GitHub App from a manifest; REST "create a GitHub App from a manifest"):
+
+- A key made in the web UI is downloaded to the computer. An App may have up to 25 keys.
+  GitHub recommends a key vault that signs without releasing the key.
+- The manifest flow lets a service create the App: the owner approves in the browser,
+  GitHub redirects the browser to the service with a one-time code, and the service
+  exchanges the code and receives the App's key in the answer. All three steps must finish
+  within one hour. The manifest sets the App's permissions and works for a personal account
+  or an organization.
+- The manifest flow only creates an App. It cannot add a key to an App that exists.
+
+What follows, proposed and not yet challenged:
+
+- The token issuer creates each Mac's App and the check-only gate App through the manifest
+  flow, so the key lands on the NAS and nowhere else. OW-1a (create the Apps) and OW-1b
+  (enrol each key) become one owner step done at the issuer's own page, and that step needs
+  the issuer to exist first. The entrances of S54 and S55 and the scope of TI-1a (S48) need
+  re-planning to match.
+- The owner-setup wizard prepares each App's manifest, which holds no secret, sends the
+  owner to the issuer's page, and stops if the issuer is not there. It never offers a Mac
+  file as a fallback.
+
+Not settled:
+
+- Rotation. Because a manifest cannot add a key to an existing App, replacing a key means
+  either a UI download from a device that runs no agents, or a new App made by manifest.
+- Whether GitHub's redirect works to an issuer page reachable only on the home network or
+  VPN. The documentation sets no restriction and does not say; it has not been tried.
+- The one-time code passes through the browser's address bar. What that exposes, and for
+  how long, has not been assessed.
+
 ### Boundaries with other maps
 
 - fleet-runner map (#307): owns FleetRunner authority and promotion through "What
