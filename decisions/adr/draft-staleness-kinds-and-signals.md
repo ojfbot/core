@@ -48,9 +48,9 @@ is recorded. Whether a session *relied on* it is not.
 
 | Surface | What the harness loads | Record that exists today |
 |---|---|---|
-| Rules files | The whole file, when a session starts in its scope | Claude Code: none naming the file, but `tool-telemetry.jsonl` stamps repo and working directory on every tool call. Codex: each session file stores the merged instruction text and its directory |
+| Rules files | The whole file, when a session starts in its scope | Claude Code: on the Yuri Mac, transcripts from 2026-09-10 name each file loaded at start, with its text (69 of 173 kept transcripts on 2026-11-25); nothing earlier names the file, and `tool-telemetry.jsonl` stamps repo and working directory on every tool call. Codex: each session file stores the merged instruction text and its directory |
 | Hooks | Each entry in a settings file, for sessions in its scope | Session transcripts keep a run record for some hooks. A hook that passes silently leaves none |
-| Memory files | The folder's index, at session start in that project | Index load: none. A file opened with `Read`: logged |
+| Memory files | The folder's index, at session start in that project | Index load: listed in the same transcript record, as a file with its path (Yuri Mac, from 2026-09-10). A file opened with `Read`: logged |
 
 ## Decision
 
@@ -122,13 +122,20 @@ none of them has a second-host value.
 
 Limits of these measurements:
 
-- **The Claude Code load record is a proxy.** "A session worked in the repo" is not "the
-  repo's rules file loaded". Codex session files show the gap: more than half of them start
+- **The Claude Code ledger record is a proxy.** "A session worked in the repo" is not "the
+  repo's rules file loaded". A direct record exists in transcripts on the Yuri Mac from
+  2026-09-10 (77 of the 90 days on 2026-11-25); the counts in this table do not use it
+  yet. Codex session files show the gap: more than half of them start
   above any repo and record only the global instruction text.
 - **Codex session files begin on 2026-09-18,** so the Codex side covers 67 of the 90 days.
 - **The hook and skill counts above are for Claude Code.** Codex has its own hook entries,
   skills and automations, and plugins add hooks in both harnesses. The census did not count
   them.
+- **One file can be read by both harnesses.** On the Yuri Mac, Claude Code has loaded an
+  `AGENTS.md` as a project file in 29 recorded starts, each in a folder with no
+  `CLAUDE.md`. Crediting an `AGENTS.md` only to Codex holds for the 10 repo files, which
+  all sit beside a `CLAUDE.md`, as far as records go (no start in such a repo is recorded
+  after 2026-10-21).
 - **Loops were not counted.** The control-plane census is still open.
 
 ## Consequences

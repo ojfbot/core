@@ -788,3 +788,10 @@ Wayfinder ticket ojfbot/core#737, worked with the owner in session.
 - 2026-11-24: The brief assumed the census was right that use is unmeasured on rules files, hooks and memory files. Loading turned out to be recorded; only reliance is not. Went: the ruling uses "not loaded" as the signal and says the Claude Code record is a proxy.
 - 2026-11-24: The grilling skill says to show glossary and ADR changes as diffs for the owner to apply. The brief asked for them to be recorded once the owner confirmed. Went: showed the plan, got confirmation, then wrote the draft ADR and glossary entries, uncommitted.
 
+
+## Deviations — session load ticket (2026-11-25)
+
+Wayfinder ticket ojfbot/core#748 (what one session loads at start, per harness).
+
+- 2026-11-25: The brief asked for a Codex start at user scope (the home folder). No native Codex session has started there on the Yuri Mac. Went: that row is from files only, with the nearest record (`~/ojfbot`, which loads the global file alone) beside it, each marked as what it is.
+- 2026-11-25: The brief assumed user-scope skills could be read where they sit. 22 of the 28 entries are links into the `core` checkout, which is off limits. Went: read the worktree copies, said so in the file, and put a guard in the script that refuses any read under the checkout.

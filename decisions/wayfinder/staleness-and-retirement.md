@@ -91,7 +91,11 @@ the open ticket each difference matters to. Nothing below is a decision.
   started in an ephemeral mode leaves no file on either.
 - What a session loads at start differs by host as well as by harness: the user-scope
   rules file is 7,178 bytes on the Yuri Mac and 3,899 on Yojimbo, and Codex has a global
-  file on the first and none on the second.
+  file on the first and none on the second. On the Yuri Mac (2026-11-25) 6,933 of the
+  7,178 bytes reach a Claude Code session, and since 2026-11-12 Claude Code also loads
+  `~/AGENTS.md` (6,924 bytes) at every recorded start outside a Git checkout (28 starts),
+  so those starts carry the user-scope rules twice. That file is in no count of repo
+  rules files. Whether Yojimbo has one was not measured.
 - The two hosts hold different sets: 51 repo rules files and 133 beads on the Yuri Mac, 46
   and 145 on Yojimbo. A retirement pass run on one host sees a different set from the
   other.
@@ -107,10 +111,38 @@ the open ticket each difference matters to. Nothing below is a decision.
 - "Would the owner accept what a pruning pass proposes?" must weigh how little cover is
   enough to act on. 29 days without a load says little about an item used once a quarter.
 
+**What the session-load research changes (2026-11-25).** The findings are in
+[session-load-2026-11-25](../research/session-load-2026-11-25.md); its section 9 lists what
+the budget ticket must weigh. Every number is from the Yuri Mac. Nothing below is a
+decision.
+- "Is there a budget on what every session loads, and what happens past it?" is no longer
+  blocked. It must first say which total a budget binds. The four surfaces this map covers
+  (instruction files, memory index, skill listing, hook text) are 21% of a recorded Claude
+  Code start in the home folder and 28% of a recorded Codex start; the rest is the
+  harness's system prompt, tool definitions and connector text, which no rules file
+  controls.
+- The harness already holds the skill listing at a fixed size. Past it, in Claude Code,
+  skills are listed by name without a description: 15% keep one at 300 skills or more. So
+  adding a skill costs no bytes and removes another skill's description.
+- Launch mode moves a start more than the start folder does: 87,036 to 101,237 input
+  tokens across November desktop starts of Claude Code, 3,288 to 4,421 for five of seven
+  SDK starts.
+- "Should each session record what it loaded, across both harnesses, and in what shape?"
+  must weigh a record that already exists: Claude Code transcripts on the Yuri Mac name
+  each instruction file loaded at start, from 2026-09-10. The *unused* counts so far rest
+  on the tool ledger, a proxy, and do not use it.
+- One file can be read by both harnesses. Claude Code loaded an `AGENTS.md` as a project
+  file in 29 recorded starts, each in a folder with no `CLAUDE.md`. Whether it loads a
+  repo's `AGENTS.md` beside a `CLAUDE.md` today is not known.
+
 **Load records found after the census (2026-11-24).** The census reported that use could
 not be measured for rules files, hooks or memory files. That holds for reliance on a single
 item. Loading is recorded: the Claude Code tool ledger stamps repo and working directory on
-every tool call; Codex session files store the merged instruction text and its directory
+every tool call; on the Yuri Mac, Claude Code transcripts from 2026-09-10 also list each
+instruction file loaded at start with its path and text, and the memory index with it (69
+of 173 kept transcripts on 2026-11-25), and from 2026-10-27 they keep the system prompt
+and tool definitions of the first request (32 transcripts); Codex session files store the
+merged instruction text and its directory
 (on the Yuri Mac 592 of 2,967 files store none, and 263 are imported Claude Code
 transcripts; on Yojimbo there are 802 files from 2026-10-26, none imported; a run started
 in an ephemeral mode leaves no file); and session transcripts keep run records for some
@@ -189,6 +221,7 @@ so their issues were opened and closed on the same day.
 - **How do other teams keep a retrieval knowledge store true over time?** (#735) Closed 2026-11-24. Published systems mostly detect *superseded* (a newer item contradicts an older one) or a moved source, not *untrue*; old items are usually kept and marked or ranked (Zep, Wikidata), and deleted only when derived from a changed source (LangChain). Outdated documents cut RAG accuracy by at least 20% even with dates in the prompt (HoH). No study in the 14 pages read covers LLM-maintained wikis, and none of them handles a kept source that has aged. See [keeping-a-knowledge-store-true-2026-11-24](../research/keeping-a-knowledge-store-true-2026-11-24.md).
 - **What kinds of staleness are there, and what signal marks each?** (#737) Closed 2026-11-24. Four kinds, each a condition bound to one signal: *unused* (no load record in 90 days in either harness; amended 2026-11-25: counted per host and per harness, only where a load record was kept, with the days each record covers stated, and "no signal" where none was kept), *broken* (a named path, script or command does not resolve), *untrue* (a reader's flag) and *superseded* (a successor mark). Where a signal cannot be computed the record says "no signal": nothing marks an item that loads in every session, an unflagged false claim, or an unmarked replacement. → [adr:staleness-kinds-and-signals](../adr/draft-staleness-kinds-and-signals.md) (draft).
 - **Which findings so far hold on the other host and in the other harness?** (#747) Closed 2026-11-25. 23 findings were re-measured. On the Yuri Mac five headline counts changed once Codex records, plugin items and the path the ledger saw were included: 9 of 77 skills have no record in either harness (the 66 is a Claude Code count); 64 to 65 of 133 beads were never opened by `Read`, not 98; 30 of 51 repo rules files have no load record, not 26; hook entries are 158, not 122; 413 of 1,011 wiki pages have no record in three sources, not 770. On Yojimbo (2026-11-25, read-only, through its conductor) no usage ledger exists, so *unused* cannot be computed there for Claude Code, and Codex session files cover 29 days. The vault on Yojimbo was not checked, because the owner left it out, so whether the scanner can flag a page on the host that owns the pipeline is still not known. See [second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md).
+- **What does one session load at start, in each harness?** (#748) Closed 2026-11-25. On the Yuri Mac, a Claude Code session started by the desktop app in the home folder sent 247,743 bytes and 92,967 input tokens before its first reply (record, 2026-11-25); instruction files are 13,857 bytes of that, and the system prompt and tool definitions 165,543. A Codex session started in `~/ojfbot` sent 116,544 bytes and 29,204 tokens (record, 2026-11-20); none has started in the home folder. Recorded starts carry 103 to 488 lines of instruction files, never the 4,996. The skill listing is held near 30,000 bytes in Claude Code and near 22,250 or 40,450 in Codex, whatever the number of skills. Claude Code's median first request grew from 37,459 tokens in June to 91,048 in November; Codex's stayed near 35,000. Yojimbo and other launch modes are not measured. See [session-load-2026-11-25](../research/session-load-2026-11-25.md).
 
 ## Tickets
 
@@ -208,7 +241,7 @@ so their issues were opened and closed on the same day.
 | Would the owner accept what a pruning pass proposes? (#744) | prototype | Who may retire or refresh an item on each surface?; What happens to a retired item?; How will we tell whether retirement helped? | open |
 | Should each session record what it loaded, across both harnesses, and in what shape? (#746) | grilling | — | open |
 | Which findings so far hold on the other host and in the other harness? (#747) | research | — | closed |
-| What does one session load at start, in each harness? (#748) | research | — | open |
+| What does one session load at start, in each harness? (#748) | research | — | closed |
 | What share of sampled claims is untrue? (#749) | research | — | open |
 | How will we tell whether retirement helped? (#750) | grilling | — | open |
 
@@ -300,7 +333,10 @@ so their issues were opened and closed on the same day.
   in 90 days when each file is credited only to the harness that reads it (28 `CLAUDE.md`,
   2 `AGENTS.md`), mostly because their repos are idle there. On Yojimbo (46 files,
   2026-11-25) Claude Code keeps no ledger, and Codex session files cover 29 days: 2 of 7
-  `AGENTS.md` have a record.
+  `AGENTS.md` have a record. A further case: on the Yuri Mac a session of either harness
+  that starts above the repos (32 of 75 Claude Code starts and 71 of 317 Codex starts in
+  90 days) loads no repo rules file at start, and the tool ledger then credits the repo
+  once the session works in it.
 - The vault on the host that owns the pipeline. Whether it is a Git repository there,
   whether the scanner flags a page there, and what reads its report from inside the vault
   were not checked. The owner left the vault out of the second-vantage check on
