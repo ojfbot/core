@@ -11,6 +11,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  readlinkSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -502,7 +503,28 @@ function killAndRemove(box: Box, holders: string) {
       }
     }
   }
-  rmSync(box.root, { recursive: true, force: true });
+  try {
+    rmSync(box.root, { recursive: true, force: true });
+  } catch (err) {
+    // Something wrote into the sandbox while it was being removed. Never retried or forced: say
+    // what is left and which processes are still about, so the writer is found.
+    throw new Error(`${String(err)}\n${stillThere(box)}`);
+  }
+}
+/** What is left in a sandbox and which processes still have to do with it (by command line, or by working folder on Linux). */
+export function stillThere(box: Box): string {
+  const left = spawnSync("find", [box.root, "-mindepth", "1"], { encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+  const procs: string[] = [];
+  for (const row of spawnSync("ps", ["-eo", "pid=,ppid=,pgid=,etime=,args="], { encoding: "utf8" }).stdout.split("\n")) {
+    const pid = Number(row.trim().split(/\s+/)[0]);
+    if (!pid || pid === process.pid) continue;
+    let cwd = "";
+    try {
+      cwd = readlinkSync(`/proc/${pid}/cwd`);
+    } catch {}
+    if (row.includes(box.root) || cwd.startsWith(box.root)) procs.push(`${row.trim().slice(0, 300)}${cwd ? ` [cwd ${cwd}]` : ""}`);
+  }
+  return `left in the sandbox (${left.length}): ${left.slice(0, 40).join(", ") || "nothing"}\nprocesses of the sandbox still running (${procs.length}):\n${procs.join("\n") || "none"}`;
 }
 
 /** What production is, as the fake engine and the folders have it. */
