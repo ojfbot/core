@@ -27,7 +27,7 @@ import {
   startDecider,
   states,
 } from "./fakes/promote-harness.js";
-import { CHANGING, HAND, LINE, POOL, killAll, killedAt, nextPlan, passed, pool, recoverUntilDone, useBoxes, wrong } from "./fakes/decider-kit.js";
+import { CHANGING, HAND, LINE, POOL, killAll, killedAt, nextPlan, passed, pool, recoverOnce, useBoxes, wrong } from "./fakes/decider-kit.js";
 
 // The kill sweeps of the promote's decider: SIGKILL at every engine call (before and after the
 // call's effect) of a first cutover, a later promote, the undo, recover itself and a revert, and a
@@ -73,7 +73,7 @@ describe("the decider, killed at every step: recover", () => {
         killAll(b, op, s.pid);
         await s.done;
         setFaults(b, {});
-        const r1 = await recoverUntilDone(b, op);
+        const r1 = await recoverOnce(b, op);
         const logAfter = dockerLog(b).length;
         const r2 = await deciderAsync(b, op, "recover");
         const bad = wrong(b, op, HAND, imageId(rev));
@@ -129,7 +129,7 @@ describe("the decider, killed at every step: recover", () => {
         await s.done;
         setFaults(b, {});
         await sleep(when === "late" ? 1200 : 0);
-        const r1 = await recoverUntilDone(b, op);
+        const r1 = await recoverOnce(b, op);
         const logAfter = dockerLog(b).length;
         await deciderAsync(b, op, "recover");
         const bad = wrong(b, op, { image: imageId(revOf(1)) }, imageId(rev));
@@ -192,7 +192,7 @@ describe("the decider, killed at every step: recover", () => {
         }
         const at = states(b, op).slice(-1)[0];
         setFaults(b, {});
-        const r1 = await recoverUntilDone(b, op);
+        const r1 = await recoverOnce(b, op);
         const logAfter = dockerLog(b).length;
         await deciderAsync(b, op, "recover");
         const bad = wrong(b, op, HAND, imageId(rev));
@@ -261,7 +261,7 @@ describe("the decider, failing or killed at every write: the journal and the rec
         if (states(b, op).includes("committed") && states(b, op).includes("undoing")) bad.push("a committed line AND an undo in one journal");
         // No complete line of the journal is ever two lines run together.
         for (const l of completeLines(b, op)) if (!LINE.test(l)) bad.push(`a malformed journal line: ${l.slice(0, 60)}`);
-        const r1 = await recoverUntilDone(b, op);
+        const r1 = await recoverOnce(b, op);
         const logAfter = dockerLog(b).length;
         await deciderAsync(b, op, "recover");
         bad.push(...wrong(b, op, HAND, imageId(rev)));
@@ -307,7 +307,7 @@ describe("a revert, killed at every step", () => {
         killAll(b, z, s.pid);
         await s.done;
         setFaults(b, {});
-        const r1 = await recoverUntilDone(b, z);
+        const r1 = await recoverOnce(b, z);
         const logAfter = dockerLog(b).length;
         await deciderAsync(b, z, "recover");
         const outcome = field(b, z, "done", "outcome");

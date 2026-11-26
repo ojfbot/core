@@ -62,7 +62,7 @@ describe("fleet-promote.sh when the Mac goes away, at every call", () => {
             }
             const log = `${m.out()}\n${macLog(e)}`;
             // Whatever the Mac printed before it died: a PASS needs the decider's finished record.
-            if (log.includes("PASS production runs") && !(op && field(e.box, op, "done", "outcome") === "pass")) bad.push("PASS was printed without the decider's done line");
+            if (/^PASS run /m.test(log) && !(op && field(e.box, op, "done", "outcome") === "pass")) bad.push("PASS was printed without the decider's done line");
             // The decider goes on alone, by design, and writes into the sandbox until it is done.
             // So every case waits for it to END BY ITSELF, then looks at what it decided: without a
             // go it changes nothing; with a go and no evidence it undoes; with evidence it commits.

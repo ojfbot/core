@@ -39,7 +39,7 @@ import {
 // package, so the signed status calls and the certificate fingerprint are the real ones.
 export const GIT_ID = { GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@example.test", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@example.test" };
 export const KEYS = ["extra", "observer", "owner", "worker-a", "worker-b"];
-export const FAST = { FLEET_B_FIRST: "10", FLEET_B_GO: "10", FLEET_B_COPY: "10", FLEET_B_INTEGRITY: "10", FLEET_B_START: "10", FLEET_B_HEALTH: "12", FLEET_B_EXEC: "10", FLEET_B_EVIDENCE: "60", FLEET_B_UNDO_START: "10", FLEET_B_UNDO_HEALTH: "12", FLEET_B_SETTLE: "1" };
+export const FAST = { FLEET_B_FIRST: "10", FLEET_B_GO: "10", FLEET_B_COPY: "10", FLEET_B_INTEGRITY: "10", FLEET_B_START: "10", FLEET_B_HEALTH: "20", FLEET_B_EXEC: "10", FLEET_B_EVIDENCE: "60", FLEET_B_UNDO_START: "10", FLEET_B_UNDO_HEALTH: "20", FLEET_B_SETTLE: "1" };
 
 // A fake ssh: the remote command line is read by dash, as a strict server's sh would read it, and
 // runs in the sandbox. ssh-faults holds "fail_from=N" (every call from the N-th fails like a lost

@@ -20,7 +20,11 @@ const server = fleetServer(store, {
   build: process.env.FAKE_BAD_BUILD_FOR === image ? "f".repeat(40) : process.env.FAKE_BUILD,
   tls: { cert: readFileSync(join(tls, "server.crt")), key: readFileSync(join(tls, "server.key")) },
 });
-server.listen(Number(process.env.FAKE_PROD_PORT), "127.0.0.1");
+// A test can make a container slow to answer after it is started: <root>/../slow-listen holds the
+// milliseconds to wait before listening.
+const slow = join(root, "..", "slow-listen");
+const delay = existsSync(slow) ? Number(readFileSync(slow, "utf8")) || 0 : 0;
+setTimeout(() => server.listen(Number(process.env.FAKE_PROD_PORT), "127.0.0.1"), delay);
 // A "container" never outlives its sandbox: when the test removes the folders, it ends.
 setInterval(() => {
   if (!existsSync(root)) process.exit(0);

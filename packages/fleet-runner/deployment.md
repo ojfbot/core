@@ -354,7 +354,9 @@ production's CA certificate; the full list is at the top of
 `scripts/lib/fleet-stage-lib.sh`. The promote never signs as production's owner
 and refuses a config that asks it to. All its output also goes to a durable log
 beside the private config (`logs/promote-<run>.log`). It prints no host, address,
-account or path.
+account or path, and not the owner's words either (they may name such things):
+it prints what they approve and the SHA-256 the decider spends, and the words
+themselves are kept only in the run's plan and record on the server.
 
 ### One decider
 
@@ -380,7 +382,12 @@ that could also decide: no watchdog, no claim files, nothing to arbitrate.
   nowhere else; the records in `promote-records/` are reports derived from them.
   Only one operation may be unfinished at a time: every mode refuses while
   another operation's journal has no `done` line, except `recover` of that
-  operation.
+  operation. Every journal is read once, by the guard, and checked before
+  anything is decided by it. An absent journal, an empty one and a last line
+  without its line break (cut) are states an operation can be in. A complete
+  line that is not a record, or a journal that cannot be read, is not: the
+  decider halts and changes nothing, in every mode. It never takes "could not
+  read" for "never began".
 - **It halts rather than guess.** When the engine's or the disk's state is
   ambiguous the decider stops, says what is unresolved, and changes nothing
   more. It never writes `done` for an outcome it did not just observe. A halted
@@ -395,11 +402,26 @@ that could also decide: no watchdog, no claim files, nothing to arbitrate.
   not match, means undo. So a Mac that is closed, interrupted or cut off
   mid-promote ends in an undo, made by the decider alone.
 - **The Mac prints PASS only from the decider's record:** after reading
-  `done outcome=pass` in the journal *and* the record the decider wrote.
+  `done outcome=pass` in the journal *and* the record the decider wrote. It
+  says it as that run's result, with the time the decider committed it ("PASS
+  run <run> promoted <revision>, committed <time>"), never as "production
+  runs": whoever reads it late is not told what production runs now.
 
 Subprocesses the decider starts: perl (the guard), the engine client (`docker`)
-and its Compose plugin, `sh`, and coreutils. Nothing else. Compose is a client:
-once its process group is ended it sends nothing more to the engine.
+and its Compose plugin, `sh`, `ps` and coreutils. Nothing else. On the server
+the Compose plugin runs in the engine client's own process group (seen in the
+rehearsal: a real, attached `compose up` ended at its bound left neither the
+client nor the plugin), so ending the group ends it too. A later plugin that
+started in a group of its own while keeping the client's pipe would make the
+guard report a step that could not be ended, and the decider would halt.
+Nothing the decider decides rests
+on "the client is gone", though: every undo step and the commit look at the
+engine's own state (a container seen stopped, a list seen empty, the previous
+production seen running, and seen again after a settle interval).
+
+`promote-runs/<run>/steps.log` and `engine.log` are operational logs: the label
+and bound of each engine call, and the engine's own output. Nothing reads them
+to decide anything.
 
 ### What it refuses, before anything changes
 
@@ -423,10 +445,20 @@ journal line that spends it); another unfinished operation; a production that is
 not in exactly the form the journals say; for the first promote, a hand-started
 container that is not exactly what the Compose file reproduces (port, five
 mounts, settings), or whose **restart policy would bring it back at a reboot**
-(`always`: anything but `no`, `unless-stopped` or `on-failure` is refused, and
-changing it is the owner's step, never the script's); enrolled keys that are not
-exactly `PROD_KEY_IDS`; free disk below twice the state folder plus 50 MB (both
-numbers are printed); and **everything an undo would need** (see below).
+(anything but `no` or `unless-stopped` is refused: `always` comes back, and for
+`on-failure` the engine's documentation does not say that a container stopped
+by hand stays stopped; changing a policy is the owner's step, never the
+script's); enrolled keys that are not exactly `PROD_KEY_IDS`; free disk below
+twice the state folder plus 50 MB (both numbers are printed); a bound that is
+not a plain whole number between its floor and its ceiling; and **everything an
+undo would need** (see below).
+
+**The staged revision, at the moment the yes is spent.** The Mac reads the test
+copy's `stage-state` early, as a first refusal. The decider reads it again
+itself, once, under its lock, immediately before it writes the line that spends
+the yes, and refuses if this revision is no longer both the last that passed
+and the one staged. So a revision that was staged over while the Mac was
+preparing is not promoted.
 
 ### The switch
 
@@ -448,7 +480,9 @@ and then:
    Compose on stdin, so no file is read between the check and the start;
 4. checks on the server: the running image is the checked one, the engine
    reports it healthy, the enrolled keys are identical by hash, and there are no
-   fewer jobs than in the snapshot;
+   fewer jobs than in the snapshot. (If the engine has no health check for a
+   container, the journal and the record say "running, no health check", never
+   "healthy"; what the service itself answers is the Mac's evidence);
 5. waits for the Mac's evidence (default 120 seconds, 60 to 600);
 6. writes `committed`. That line is the decision. Then the record
    (`promote-records/promote-<run>.txt`) and `done outcome=pass`.
@@ -475,8 +509,9 @@ Every step is "make it so" and looks at what is there:
    started. A previous Compose production that the new revision replaced is
    started from this run's own copy of its config, whose SHA-256 must be the one
    journaled before the switch; a changed copy is never started;
-5. the engine reports it healthy; after a settle interval it is checked again to
-   be the same container or image, running and healthy. Only then `done
+5. the engine reports it healthy (or running, where it has no health check for
+   it, and the record says which); after a settle interval it is checked again to
+   be the same container or image, running and as it was. Only then `done
    outcome=undone` and the record `promote-records/undo-<run>.txt`, which
    carries the time of that check and how many jobs the set-aside state holds
    compared with the snapshot (so the owner knows what the unconfirmed build
@@ -518,6 +553,21 @@ takes the lock, reads the journal, and either **confirms a committed pass**
 and is safe to repeat: a finished operation is only read. It never goes
 forward: without a `committed` line it undoes.
 
+Before it touches the engine it requires that this is the operation that was
+begun: the plan in the run folder must have the hash recorded in the journal's
+first line, and the control folder must be the one recorded there (a copy of
+the folder has another lock). If not it halts and changes nothing.
+
+It **looks before it acts**. If what the undo brings about is already there (no
+helper container of the run, the previous production running with its recorded
+identity and nothing of the project beside it, the state folders as an undo
+leaves them), it stops nothing and starts nothing: it checks health, waits the
+settle interval, checks again and writes the record. That is the case after a
+run that ended "UNDONE, RECORD INCOMPLETE". The one exception: if the journal
+does not show that the previous production was ever *seen stopped* (the run
+died at its very first stop), a stop may still be on its way in the engine, so
+the previous production is stopped, seen stopped, and started again.
+
 If the lock is held, a holder exists: the decider, or a step it started that is
 still running. `recover` waits for the longest step to be ended at its bound;
 after that it refuses and names the holder by process ID and command name. If a
@@ -541,11 +591,25 @@ owner may remove it once a revert is no longer wanted.
 ### The bounds
 
 Every engine call is bounded. At the bound the guard ends the step's whole
-process group (TERM, 5 seconds, KILL) whether or not its leader already exited,
-and returns only when nothing of it is left; the step's group is recorded in the
-run folder before the step starts. A step that cannot be ended halts the
-decider, which changes nothing more. The decider's own waits count seconds and
-never read the clock; printed times are estimates.
+process group (TERM, 5 seconds, KILL) whether or not its leader already exited.
+A step has ended when its leader has exited **and** nothing else is left in its
+process group; the guard looks at the group itself (with `ps`, while the
+leader is still its uncollected child, so the group's number cannot have been
+given to anyone else). The pipe every descendant inherits is only a hint to
+look: a process can close it and live on. A process that leaves the group
+cannot be seen this way; if it kept the pipe the guard reports a step that
+could not be ended, and otherwise nothing knows of it, which is why no decision
+rests on a client having ended. The step's group is recorded in the run folder
+before the step starts; in an undo a step runs even if that record could not be
+written (the disk may be the problem), and then relies on the lock, which the
+guard holds until the step's group is gone, and on the undo looking at the
+engine's state after each step. A step that cannot be ended halts the decider,
+which changes nothing more.
+
+All waits and bounds are measured on a clock that cannot be set (the guard reads
+`CLOCK_MONOTONIC`), not by counting sleeps, so a busy server does not stretch
+them. A health wait is one budget: a look at the container is only started if
+its bound and the ending of a look that runs into it still fit.
 
 `sh scripts/fleet-promote-decider.sh bounds` prints the table. The Mac prints it,
 for the plan it is about to send, **before the yes is spent**; an impossible
@@ -555,13 +619,13 @@ setting is refused before anything is touched. With the defaults:
 |---|---|
 | The Mac waits for the decider's first journal line | 15 |
 | The decider waits for the Mac's go | 30 |
-| The decider's checks, production still up | 260 |
+| The decider's checks, production still up | 270 |
 | Stop the previous production and see it stopped | 55 |
 | Copy the state folder (the snapshot) | 120 |
 | The snapshot's integrity check | 60 |
 | Name the verified snapshot | 30 |
 | Start the new revision and identify it | 80 |
-| Wait for the engine to report it healthy | 60 |
+| Wait for the engine to report it healthy (one budget) | 60 |
 | Enrolled keys and job count in the new container | 60 |
 | **Wait for the Mac's evidence** | **120** |
 | Undo: see that no helper container of this run is left | 10 |
@@ -572,16 +636,40 @@ setting is refused before anything is touched. With the defaults:
 | Undo: identify it and wait for the engine to report it healthy | 80 |
 | Undo: settle, then check it again | 35 |
 | Undo: count the jobs set aside and write the record | 40 |
-| Ending a step that ran into its bound | 60 |
+| Ending the five steps that may run into their bound without ending the undo | 80 |
 
-**Worst case, production offline or on an unconfirmed build: 1120 seconds
-(about 19 minutes).** A pass takes at most 605 seconds; the longest stretch with
-nothing answering is 850 seconds. These hold while the engine and the disk
+**Worst case, production offline or on an unconfirmed build: 1140 seconds
+(about 19 minutes).** A pass takes at most 625 seconds; the longest stretch with
+nothing answering is 910 seconds. The decider computes these figures from the
+same numbers it runs the steps with, and a test adds up every call of a pass, of
+a full undo and of the checks against them. Five steps may run into their bound
+without ending the run, and so add their ending (10 seconds; 40 for a helper
+container, which is then removed by name and seen gone): the stop of the
+previous production, the stop and the removal of the new revision, the second
+stop of the previous production, and the count of set-aside jobs. Any other
+step that runs into its bound ends the switch or halts the undo. Local record
+writes are counted (10 seconds) but not timed. These hold while the engine and the disk
 answer within their bounds. If an undo step itself fails, the decider halts,
 says production may be down, and waits for `recover`; it does not retry forever.
 Each bound is `FLEET_B_<NAME>` in the environment of `fleet-promote.sh` (`STOP`,
 `COPY`, `INTEGRITY`, `START`, `HEALTH`, `EXEC`, `EVIDENCE`, `UNDO_START`,
-`UNDO_HEALTH`, `SETTLE`, `GO`, `FIRST`).
+`UNDO_HEALTH`, `SETTLE`, `GO`, `FIRST`). A bound must be a plain whole number
+(no leading zero) between its floor and its ceiling; the ceilings are far above
+what the rehearsal measured, with room for a state folder of gigabytes:
+
+| Bound | Default | Floor | Ceiling |
+|---|---|---|---|
+| `FIRST` | 15 | 10 | 120 |
+| `GO` | 30 | 10 | 300 |
+| `STOP` | 45 | 40 | 300 |
+| `COPY` | 120 | 10 | 3600 |
+| `INTEGRITY` | 60 | 10 | 900 |
+| `START` | 60 | 10 | 600 |
+| `HEALTH`, `UNDO_HEALTH` | 60 | 20 | 600 |
+| `EXEC` | 30 | 10 | 300 |
+| `EVIDENCE` | 120 | 60 | 600 |
+| `UNDO_START` | 60 | 10 | 600 |
+| `SETTLE` | 10 | 1 | 120 |
 
 Measured once, on a throwaway production on the server with a state folder of
 about 1 MB and every bound at its default (2026-11-25; a bigger state folder
@@ -598,7 +686,9 @@ not begin and that nothing was changed by this run. If it cannot reach the
 server any more it says what it last read and when, whether its evidence was
 delivered, and gives the `status` and `recover` lines; it never prints PASS and
 never says anything about a lock. After Ctrl-C it prints "interruption
-requested; outcome pending" and keeps reading until it knows the outcome.
+requested; outcome pending" and keeps reading until it knows the outcome; its
+own look at what production answers afterwards has the same patience as
+without the interruption.
 
 ### If the server reboots mid-switch
 
@@ -618,8 +708,11 @@ restart policy would bring it back after it was stopped.
 ### Rehearsal
 
 `--rehearsal` lifts the clean-checkout rule and is refused unless the control
-folder carries `.fleet-runner-promote-rehearsal`: a throwaway production with
-its own Compose project, folders, port and keys, never production's database.
+folder **and the service root** both carry `.fleet-runner-promote-rehearsal`: a
+throwaway production with its own Compose project, folders, port and keys,
+never production's database. A real promote refuses a folder that carries the
+marker. So a throwaway control folder cannot be paired with production's own
+service root: production's root does not carry the marker.
 `FLEET_PROMOTE_FAULT=health` makes the Mac's evidence name a wrong build;
 `FLEET_PROMOTE_FAULT=silent` withholds it. Both need `--rehearsal`.
 

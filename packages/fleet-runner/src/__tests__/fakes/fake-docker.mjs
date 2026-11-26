@@ -317,6 +317,9 @@ function fault(name) {
   return f;
 }
 function hangForever() {
+  // "deaf": a client that does not end when asked to (TERM), only when killed: it costs the
+  // caller its bound AND the whole ending of a step that ran into it.
+  if (faults().hang?.deaf) process.on("SIGTERM", () => {});
   writeFileSync(join(S, "hung"), `${callNo} ${process.pid}\n`);
   for (;;) sleepMs(1000);
 }

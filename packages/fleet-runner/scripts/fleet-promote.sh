@@ -173,7 +173,10 @@ tls_fingerprint() { prod_node fingerprint 2>/dev/null; }
 # Only a revision-shaped build is printed.
 build_label() { if [[ "$1" =~ ^[0-9a-f]{7,40}$ ]]; then printf 'build %s' "${1:0:12}"; else printf 'its non-revision build label'; fi; }
 # Ask the signed status until it answers ready with exactly <build>, for at most <seconds>.
-# Prints nothing; the build last seen is in $seen_build.
+# Prints nothing; the build last seen is in $seen_build. With "evidence" as a third word an
+# interruption ends the wait at once (the evidence then says "interrupted"); without it the wait
+# runs its whole time, interrupted or not: the look at what production answers AFTER the decider
+# has decided gets the same patience whether or not Ctrl-C was pressed.
 seen_build="" interrupted=no
 wait_build() {
   local want="$1" until_t got=""
@@ -184,7 +187,7 @@ wait_build() {
       seen_build="$got"
       [ "$got" != "$want" ] || return 0
     fi
-    [ "$interrupted" = no ] || return 1
+    [ "${3:-}" != evidence ] || [ "$interrupted" = no ] || return 1
     mono
     [ "$MONO" -lt "$until_t" ] || return 1
     sleep "$poll_secs" || true
@@ -212,7 +215,9 @@ explain() {
     snapshot) say "  the snapshot is verified: $(jfield "$line" jobs) jobs" ;;
     starting) say "  starting the new revision from the checked config" ;;
     started) say "  the new revision runs, on the checked image" ;;
-    server-checked) say "  healthy, the same enrolled keys, $(jfield "$line" jobs) jobs: it waits $(jfield "$line" window) seconds for this Mac's evidence" ;;
+    server-checked)
+      if [ "$(jfield "$line" health)" = none ]; then say "  running (the engine has no health check for it), the same enrolled keys, $(jfield "$line" jobs) jobs: it waits $(jfield "$line" window) seconds for this Mac's evidence"
+      else say "  healthy, the same enrolled keys, $(jfield "$line" jobs) jobs: it waits $(jfield "$line" window) seconds for this Mac's evidence"; fi ;;
     evidence) say "  it accepted this Mac's evidence" ;;
     committed) say "  COMMITTED on the server" ;;
     undoing) say "  the decider is undoing: $(jfield "$line" reason)" ;;
@@ -222,7 +227,7 @@ explain() {
     undo-state-back) if [ -n "$(jfield "$line" skipped)" ]; then say "  undo: the state folder was never changed"; else say "  undo: the snapshot is the state folder again"; fi ;;
     undo-previous-stopped) ;;
     undo-previous-started) say "  undo: the previous production is started" ;;
-    undo-healthy) say "  undo: the engine reports it healthy" ;;
+    undo-healthy) if [ "$(jfield "$line" health)" = none ]; then say "  undo: it runs (the engine has no health check for it)"; else say "  undo: the engine reports it healthy"; fi ;;
     halted) say "  the decider HALTED: $(jfield "$line" reason)" ;;
     done) say "  the decider finished: $(jfield "$line" outcome)" ;;
   esac
@@ -258,8 +263,10 @@ main() {
   # 1. Refusals that read the server and change nothing in production.
   check_prod_isolation
   if [ "$rehearsal" = yes ]; then
-    nas '[ -f "$1/.fleet-runner-promote-rehearsal" ]' "$NAS_PROD_DIR" ||
-      die "--rehearsal is only for a throwaway production (its control folder carries .fleet-runner-promote-rehearsal); nothing was changed"
+    # A rehearsal is marked in both places, the control folder and the service root: a throwaway
+    # control folder cannot be paired with production's own folders. (The decider checks it again.)
+    nas '[ -f "$1/.fleet-runner-promote-rehearsal" ] && [ -f "$2/.fleet-runner-promote-rehearsal" ]' "$NAS_PROD_DIR" "$NAS_PROD_ROOT" ||
+      die "--rehearsal is only for a throwaway production (its control folder AND its service root carry .fleet-runner-promote-rehearsal); nothing was changed"
     [ -z "$fault" ] || say "REHEARSAL: this Mac's evidence will be made to fail ($fault)"
   fi
   local receipt image_id="" prev_build="" kind="" prev_op="-" prev_cfg="-" prev_label="" resolved_sha="" compose_from="" uidgid=""
@@ -378,6 +385,7 @@ main() {
       echo "prev_resolved_sha256=$prev_cfg"
       echo "key_ids=$(printf '%s\n' $PROD_KEY_IDS | sort | tr '\n' ',' | sed 's/,$//')"
       echo "tls_before=$tls_before"
+      echo "stage_dir=$NAS_STAGE_DIR"
     else
       echo "target=$target"
     fi
@@ -415,7 +423,10 @@ main() {
   ctl_run "$op" check >"$tmp/check" || { grep -v '^$' "$tmp/check" || true; die "the decider's checks refuse this $action; nothing was changed"; }
   grep -e '^PASS' -e '^disk:' -e '^jobs:' "$tmp/check" || true
 
-  say "approved by the owner: $approval"
+  # The owner's words are not printed and not logged here (they may name things this output must
+  # not): they are kept in the run's plan and record on the server. Here: what they approve, and
+  # the digest the decider spends.
+  say "approved by the owner: $what (approval SHA-256 ${approval_sha:0:16}; the words are kept in the run's record on the server)"
   if [ "$action" = promote ]; then
     say "changes: production goes from $prev_label to $short under the Compose project $PROD_PROJECT, with $compose_from compose.production.yaml"
     say "         (same folders, enrolled keys, certificate, address, port and identities); it is offline for the switch"
@@ -491,7 +502,7 @@ EOF_LINES
           sent_evidence=withheld
         else
           # This Mac's own checks, inside the decider's window (less the time to deliver them).
-          if wait_build "$rev" "$((b_evidence > 45 ? b_evidence - 30 : 15))"; then
+          if wait_build "$rev" "$((b_evidence > 45 ? b_evidence - 30 : 15))" evidence; then
             say "  this Mac: the signed status answers ready, $(build_label "$rev")"
           else
             say "  this Mac: the signed status did NOT answer ready on $(build_label "$rev")"
@@ -557,8 +568,13 @@ EOF_LINES
   local rc=1
   if [ "$outcome" = pass ]; then
     if nas 'cat "$1/promote-records/promote-$2.txt"' "$NAS_PROD_DIR" "$op" >"$tmp/record" 2>/dev/null && grep -q "^promote $op: .* -> $rev\$" "$tmp/record"; then
-      say "PASS production runs $short (was $prev_label), by the decider's record promote-records/promote-$op.txt:"
-      sed 's/^/    /' "$tmp/record" | while IFS= read -r line; do say "$line"; done
+      # Said as what it is: this run's result, with the time the decider committed it. Whoever reads
+      # this late (the connection was gone for a while) is not told what production runs NOW.
+      local committed_at
+      committed_at="$(sed -n 's/^committed: \([^;]*\);.*/\1/p' "$tmp/record" | head -n 1)"
+      say "PASS run $op promoted $short (was $prev_label), committed ${committed_at:-at a time the record does not give}, by the decider's record promote-records/promote-$op.txt:"
+      grep -v '^approval: ' "$tmp/record" | sed 's/^/    /' | while IFS= read -r line; do say "$line"; done
+      say "    (This is that run's result. What production runs now is said by: scripts/fleet-promote.sh status <run>, for the latest run.)"
       [ "$interrupted" = no ] || say "(the interruption came after the evidence was delivered: the decider had already committed)"
       rc=0
     else
@@ -570,7 +586,7 @@ EOF_LINES
     [ "$outcome" != reverted ] || word=REVERTED
     nas 'cat "$1/promote-records/$2"' "$NAS_PROD_DIR" "$([ "$outcome" = reverted ] && echo "revert-$op.txt" || echo "undo-$op.txt")" >"$tmp/record" 2>/dev/null || true
     say "$word by the decider (record promote-records/$([ "$outcome" = reverted ] && echo revert || echo undo)-$op.txt):"
-    [ ! -s "$tmp/record" ] || sed 's/^/    /' "$tmp/record" | while IFS= read -r line; do say "$line"; done
+    [ ! -s "$tmp/record" ] || grep -v '^approval: ' "$tmp/record" | sed 's/^/    /' | while IFS= read -r line; do say "$line"; done
     # The one thing the server could not check: what the previous production answers to a client.
     local want="$prev_build"
     if [ "$action" = revert ] && [ -f "$(receipt_of "$target")" ]; then want="$(receipt_value "$(receipt_of "$target")" prev_build)"; fi

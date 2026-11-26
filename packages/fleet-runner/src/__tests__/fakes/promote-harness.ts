@@ -56,6 +56,8 @@ export interface Box {
   ctl: string;
   runs: string;
   prodRoot: string;
+  /** The test copy's folder, whose stage-state the decider reads when it spends the yes. */
+  stage: string;
   port: number;
   env: Record<string, string>;
   ops: number;
@@ -82,11 +84,11 @@ export const FAST_BOUNDS: Record<string, number> = {
   b_copy: 10,
   b_integrity: 10,
   b_start: 10,
-  b_health: 12,
+  b_health: 20,
   b_exec: 10,
   b_evidence: 60,
   b_undo_start: 10,
-  b_undo_health: 12,
+  b_undo_health: 20,
   b_settle: 1,
 };
 
@@ -100,14 +102,16 @@ export function makeBox(opts: { rehearsal?: boolean; policy?: string; jobs?: num
     ctl: join(root, "server/control"),
     runs: join(root, "server/control/promote-runs"),
     prodRoot: join(root, "server/service-root"),
+    stage: join(root, "server/stage-deploy"),
     port: opts.port ?? 18787,
     env: {},
     ops: 0,
   };
-  for (const d of [box.bin, box.fake, box.runs, ...["state", "output", "inputs", "public-keys", "tls"].map((d) => join(box.prodRoot, d))])
+  for (const d of [box.bin, box.fake, box.runs, box.stage, ...["state", "output", "inputs", "public-keys", "tls"].map((d) => join(box.prodRoot, d))])
     mkdirSync(d, { recursive: true });
   writeFileSync(join(box.ctl, ".fleet-runner-production"), "");
-  if (opts.rehearsal) writeFileSync(join(box.ctl, ".fleet-runner-promote-rehearsal"), "");
+  // A rehearsal's throwaway is marked in both places: its control folder and its service root.
+  if (opts.rehearsal) for (const d of [box.ctl, box.prodRoot]) writeFileSync(join(d, ".fleet-runner-promote-rehearsal"), "");
   if (opts.seed) opts.seed(join(box.prodRoot, "state/fleet.sqlite"));
   else {
     const db = new DatabaseSync(join(box.prodRoot, "state/fleet.sqlite"));
@@ -329,6 +333,8 @@ export interface PlanOptions {
   skipPrepare?: boolean;
   /** Leave every bound out of the plan, so the decider's own defaults apply. */
   defaults?: boolean;
+  /** Leave the test copy's stage-state as it is (do not name this revision in it). */
+  keepStage?: boolean;
 }
 let opCounter = 0;
 /** What the Mac does before the start: the run folder, the decider and guard, the config, the plan. */
@@ -358,6 +364,8 @@ export function newOp(box: Box, o: PlanOptions = {}): string {
     const rev = o.rev ?? revOf(1);
     const kind = o.kind ?? "container";
     addImage(box, rev);
+    // The test copy's record names this revision as passed and staged, as when the Mac looked.
+    if (!o.keepStage) staged(box, rev);
     Object.assign(lines, {
       revision: rev,
       kind,
@@ -368,6 +376,7 @@ export function newOp(box: Box, o: PlanOptions = {}): string {
       prev_resolved_sha256: o.prevCfg ?? "-",
       key_ids: KEY_IDS.join(","),
       tls_before: TLS,
+      stage_dir: box.stage,
       resolved_sha256: "0".repeat(64),
     });
     if (!o.skipPrepare) {
@@ -392,6 +401,8 @@ export function newOp(box: Box, o: PlanOptions = {}): string {
   writeFileSync(join(dir, "plan"), `${Object.entries(lines).map(([k, v]) => `${k}=${v}`).join("\n")}\n`);
   return op;
 }
+/** The test copy's record: which revision passed last and which is staged now. */
+export const staged = (box: Box, rev: string, stagedNow = rev) => writeFileSync(join(box.stage, "stage-state"), `last_passed=${rev}\nstaged_ok=${stagedNow}\n`);
 export const planSha = (box: Box, op: string) => sha(readFileSync(join(opDir(box, op), "plan")));
 export function putFile(box: Box, op: string, name: string, lines: Record<string, string>) {
   const f = join(opDir(box, op), name);
@@ -406,6 +417,8 @@ export interface MacPlay {
   evidence?: "ok" | "none" | "wrong-build" | "tls-changed" | "interrupted" | "no-nonce" | "other-run" | "other-plan";
   /** Called once per poll; return true to stop playing the Mac (it "vanishes"). */
   vanish?: (states: string[]) => boolean;
+  /** Called once, when "server-checked" has appeared, before the evidence is sent. */
+  beforeEvidence?: () => void | Promise<void>;
 }
 export interface Run {
   status: number | null;
@@ -454,6 +467,7 @@ export async function playMac(box: Box, op: string, play: MacPlay, ended: () => 
     }
     if (!sentEvidence && st.includes("server-checked")) {
       sentEvidence = true;
+      await play.beforeEvidence?.();
       const e = play.evidence ?? "ok";
       if (e !== "none") {
         const rev = field(box, op, "begun", "rev");

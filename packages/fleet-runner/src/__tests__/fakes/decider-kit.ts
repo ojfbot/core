@@ -21,7 +21,6 @@ import {
   records,
   revOf,
   run,
-  sleep,
   startDecider,
   states,
 } from "./promote-harness.js";
@@ -50,6 +49,11 @@ export const disruptive = (b: Box, from = 0) =>
   dockerLog(b)
     .slice(from)
     .filter((l) => /^(stop|start|rm|compose .* up)\b/.test(l) || (/^run\b/.test(l) && !l.includes(":ro ")));
+/** Engine calls that stop, start, remove or (re)create a container of production, from line <from> on: what "taking production down" is made of. */
+export const changing = (b: Box, from = 0) =>
+  dockerLog(b)
+    .slice(from)
+    .filter((l) => /^(stop|start|rm|compose .* up)\b/.test(l));
 /** Run fn over items, <limit> at a time. Every item is run to its end before the first error is thrown, so nothing is left running behind a failed test. */
 export async function pool<T>(items: T[], limit: number, fn: (item: T) => Promise<void>) {
   const queue = items.slice();
@@ -129,17 +133,14 @@ export function killAll(b: Box, op: string, pid: number) {
     } catch {}
   }
 }
-/** recover until it no longer halts (a late engine effect may make one attempt halt), at most 4 times. */
-export async function recoverUntilDone(b: Box, op: string) {
-  let last = { status: 0 as number | null, out: "" };
-  const all: string[] = [];
-  for (let i = 0; i < 4; i++) {
-    last = await deciderAsync(b, op, "recover");
-    all.push(last.out);
-    if (last.status !== 4 && last.status !== 75) break;
-    await sleep(1500);
-  }
-  return { ...last, all: all.join("\n---\n") };
+/**
+ * recover, ONCE, without blocking the other sandboxes. A recover that halts, or finds the lock held,
+ * fails whoever asked: nothing here runs it again. (recover itself waits for the lock, and the
+ * "late" variants wait for the late engine call to land before they ask.)
+ */
+export async function recoverOnce(b: Box, op: string) {
+  const r = await deciderAsync(b, op, "recover");
+  return { ...r, all: r.out };
 }
 /** Start a run, let it get to <state>, and kill it there with everything it started. */
 export async function killedAt(b: Box, op: string, state: string) {

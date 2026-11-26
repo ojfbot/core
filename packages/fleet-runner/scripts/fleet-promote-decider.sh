@@ -45,11 +45,13 @@ umask 077
 say() { printf '%s\n' "$*" 2>/dev/null || true; }
 now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
-# ---- Bounds, in seconds. One table: the defaults, what a plan may change, and the sum. ----------
+# ---- Bounds, in seconds. One table: the defaults, what a plan may change, and the sums. ---------
+# Every figure printed is made here, from the same numbers the steps below are run with.
 Q=10     # one quick engine query
 P=5      # one poll of a wait
 H=30     # one short helper container
-KILL=30  # ending one timed-out step: 5 s grace, 5 s to see it gone, removing and re-checking its helper
+END=10   # ending a step that ran into its bound: 5 s of grace, then at most 5 s to see it gone
+HG=$((END + 2 * Q + END)) # the same for a helper container, whose removal by name is then asked and seen
 WRITE=10 # local record writes (not timer-enforced; counted)
 bound_names="b_first b_go b_stop b_copy b_integrity b_start b_health b_exec b_evidence b_undo_start b_undo_health b_settle"
 b_default() {
@@ -61,8 +63,19 @@ b_default() {
 }
 b_floor() {
   case "$1" in
-    b_stop) echo 40 ;; b_evidence) echo 60 ;; b_first | b_go | b_copy | b_integrity | b_start | b_health | b_exec | b_undo_start | b_undo_health) echo 10 ;;
+    b_stop) echo 40 ;; b_evidence) echo 60 ;; b_first | b_go | b_copy | b_integrity | b_start | b_exec | b_undo_start) echo 10 ;;
+    # A health wait is one budget for all its polls, each poll's ending included: room for at least two.
+    b_health | b_undo_health) echo 20 ;;
     b_settle) echo 1 ;;
+  esac
+}
+# The most a plan may ask for. Far above what the rehearsal on a real server measured (a stop under
+# 1 s, a 1 MB copy 2 s, a start 1 s, healthy in 6 s), with room for a state folder of gigabytes.
+b_ceiling() {
+  case "$1" in
+    b_first) echo 120 ;; b_go) echo 300 ;; b_stop) echo 300 ;; b_copy) echo 3600 ;; b_integrity) echo 900 ;;
+    b_start) echo 600 ;; b_health) echo 600 ;; b_exec) echo 300 ;; b_evidence) echo 600 ;;
+    b_undo_start) echo 600 ;; b_undo_health) echo 600 ;; b_settle) echo 120 ;;
   esac
 }
 # load_bounds <plan or empty>: sets every b_* and the sums; 1 and a message for an impossible setting.
@@ -72,30 +85,43 @@ load_bounds() {
     lb_v=""
     [ -z "$lb_plan" ] || lb_v="$(sed -n "s/^$lb_n=//p" "$lb_plan" | head -n 1)"
     [ -n "$lb_v" ] || lb_v="$(b_default "$lb_n")"
-    case "$lb_v" in "" | *[!0-9]*) say "REFUSED $lb_n must be a whole number of seconds"; return 1 ;; esac
-    [ "${#lb_v}" -le 5 ] || { say "REFUSED $lb_n is too large"; return 1; }
+    # Plain decimal only: a leading zero would be read as octal by the arithmetic and as decimal by
+    # the timer, and the table would then not be what the steps are run with.
+    case "$lb_v" in "" | *[!0-9]* | 0*) say "REFUSED $lb_n must be a whole number of seconds, written plainly (no sign, no leading zero)"; return 1 ;; esac
+    [ "${#lb_v}" -le 4 ] || { say "REFUSED $lb_n must be at most $(b_ceiling "$lb_n") seconds"; return 1; }
     [ "$lb_v" -ge "$(b_floor "$lb_n")" ] || { say "REFUSED $lb_n must be at least $(b_floor "$lb_n") seconds"; return 1; }
+    [ "$lb_v" -le "$(b_ceiling "$lb_n")" ] || { say "REFUSED $lb_n must be at most $(b_ceiling "$lb_n") seconds"; return 1; }
     eval "$lb_n=$lb_v"
   done
-  [ "$b_evidence" -le 600 ] || { say "REFUSED b_evidence must be at most 600 seconds"; return 1; }
   # The engine's own stop grace must fit inside the stop bound.
   stop_grace=$((b_stop - 15))
-  # Offline or on an unconfirmed build, the longest path: every step slow, no evidence, a full undo.
+  # Production offline: (stop, then seen) (copy) (integrity) (name) (start, listed, identified).
   t_fwd_down=$((b_stop + Q + b_copy + b_integrity + H + b_start + 2 * Q))
+  # The new revision up, unconfirmed: (healthy: one budget) (keys, jobs) (the evidence window).
   t_fwd_up=$((b_health + 2 * b_exec + b_evidence))
-  # (helpers: Q, one listing; a step that failed or was ended has already seen its own helper gone, inside
-  # the allowance for ending it) (new revision: Q + stop + 2Q) (state: 3H) (previous stopped: 2Q + stop)
-  # (started: start + 2Q) (healthy: 2Q + health) (settle: settle + 2Q + P) (jobs H, record WRITE)
+  # The undo: (helpers: Q, one listing; a step that failed or was ended has already seen its own helper
+  # gone) (new revision: Q + stop + 2Q) (state: 3H) (previous stopped: 2Q + stop) (started: start + 2Q)
+  # (healthy: 2Q + one budget) (settle: settle + 2Q + P) (jobs H, record WRITE)
   t_undo=$((Q + Q + b_stop + 2 * Q + 3 * H + 2 * Q + b_stop + b_undo_start + 2 * Q + 2 * Q + b_undo_health + b_settle + 2 * Q + P + H + WRITE))
-  t_worst=$((t_fwd_down + t_fwd_up + t_undo + 2 * KILL))
-  t_pass=$((t_fwd_down + t_fwd_up + Q + WRITE))
-  t_silent=$((t_fwd_down + KILL + t_undo))
-  t_checks=$((17 * Q + 3 * H))
+  # Steps that may run into their bound WITHOUT ending the run, and so add their ending to it: the
+  # stop of the previous production (asked, then seen), and in the undo the stop and the removal of
+  # the new revision, the second stop of the previous production, and the count of set-aside jobs
+  # (a helper). Any other step that runs into its bound ends the switch, or halts the undo.
+  t_ends_pass=$END
+  t_ends=$((4 * END + HG))
+  # Offline or on an unconfirmed build, the longest path: every step slow, no evidence, a full undo.
+  t_worst=$((t_fwd_down + t_fwd_up + t_undo + t_ends))
+  # A pass: the switch, the evidence, the two looks at the new revision around the commit, the record.
+  t_pass=$((t_fwd_down + t_fwd_up + 2 * Q + WRITE + t_ends_pass))
+  # Nothing answering: the start runs into its bound (and is ended), then a slow undo.
+  t_silent=$((t_fwd_down + END + t_undo + t_ends))
+  # The checks before the stop (production still up): at most 18 queries and 3 helpers.
+  t_checks=$((18 * Q + 3 * H))
   t_before=$((b_first + b_go + t_checks))
   # How long recover waits for the lock: the longest single step, and ending it.
   lock_wait=$b_copy
   for lb_n in $b_stop $b_integrity $b_start $b_exec $b_undo_start; do [ "$lb_n" -le "$lock_wait" ] || lock_wait=$lb_n; done
-  lock_wait=$((lock_wait + KILL))
+  lock_wait=$((lock_wait + HG))
 }
 print_bounds() {
   say "bounds, in seconds (each step is ended at its bound):"
@@ -110,7 +136,7 @@ print_bounds() {
   say "    $H  name the verified snapshot"
   say "    $((b_start + 2 * Q))  start the new revision and identify it"
   say "  the new revision up, not yet confirmed:"
-  say "    $b_health  wait for the engine to report it healthy"
+  say "    $b_health  wait for the engine to report it healthy (one budget for the whole wait)"
   say "    $((2 * b_exec))  enrolled keys and job count in the new container"
   say "    $b_evidence  wait for this Mac's evidence"
   say "  the undo, if it comes to that:"
@@ -122,7 +148,7 @@ print_bounds() {
   say "    $((b_undo_health + 2 * Q))  identify it and wait for the engine to report it healthy"
   say "    $((b_settle + 2 * Q + P))  settle, then check it is still the same and still healthy"
   say "    $((H + WRITE))  count the jobs set aside (best effort) and write the record"
-  say "    $((2 * KILL))  ending a step that ran into its bound"
+  say "    $t_ends  ending the five steps that may run into their bound without ending the undo"
   say "worst case, production offline or on an unconfirmed build: $t_worst seconds (about $(((t_worst + 30) / 60)) minutes)"
   say "  a pass takes at most $t_pass seconds; the longest stretch with nothing answering is $t_silent seconds"
   say "  These hold while the engine and the disk answer within their bounds. If an undo step itself"
@@ -180,7 +206,9 @@ plan_ok() {
   if [ "$p_mode" = promote ]; then
     p_rev="$(pv revision)" p_kind="$(pv kind)" p_container="$(pv container)" p_new_image="$(pv new_image)"
     p_cfg="$(pv resolved_sha256)" p_uidgid="$(pv uidgid)" p_prev_op="$(pv prev_op)" p_prev_cfg="$(pv prev_resolved_sha256)"
-    p_key_ids="$(pv key_ids)" p_tls="$(pv tls_before)"
+    p_key_ids="$(pv key_ids)" p_tls="$(pv tls_before)" p_stage_dir="$(pv stage_dir)"
+    case "$p_stage_dir" in /*) ;; *) say "REFUSED the plan does not name the test copy's folder"; return 1 ;; esac
+    case "$p_stage_dir" in *[!A-Za-z0-9._/@+-]*) say "REFUSED the plan's test copy folder holds an unexpected character"; return 1 ;; esac
     case "$p_rev" in *[!0-9a-f]*) say "REFUSED the plan's revision is not a commit ID"; return 1 ;; esac
     [ "${#p_rev}" -eq 40 ] || { say "REFUSED the plan's revision is not a full commit ID"; return 1; }
     case "$p_kind" in container | compose) ;; *) say "REFUSED the plan's kind is not container or compose"; return 1 ;; esac
@@ -212,26 +240,54 @@ is_sha() { case "$1" in *[!0-9a-f]*) return 1 ;; esac; [ "${#1}" -eq 64 ]; }
 is_image() { case "$1" in sha256:*) is_sha "${1#sha256:}" ;; *) return 1 ;; esac; }
 is_hex() { case "$1" in "" | *[!0-9a-f]*) return 1 ;; esac; }
 
-# ---- The journal. An incomplete last line counts for nothing (and is cut off before any append). --
-J() { [ -f "$1" ] && perl -ne 'print if /\n\z/' "$1" 2>/dev/null; }
-jot() { perl "$guard" append "$journal" "$(now) $*"; }
+# ---- The journals. ------------------------------------------------------------------------------
+# Every journal is read ONCE, in this shell, by the guard, and checked: an absent journal, an empty
+# one and a torn last line (cut) are states an operation can be in; a complete line that is not a
+# record, or a journal that cannot be read, is not: load_journals fails, and whoever asked halts
+# and changes nothing. What was read is kept in ALLJ ("<operation> <line>" per line) and every
+# reader below reads ALLJ, so a later read can neither fail nor differ. The one line this decider
+# itself appends is added to ALLJ when its append succeeded; when an append reports a failure the
+# journals are read again (the line may or may not be there).
+ALLJ="" JSTALE=no lj_bad=""
+load_journals() {
+  lj_out="$(perl "$guard" journals "$runs")"
+  lj_rc=$?
+  if [ "$lj_rc" -ne 0 ]; then
+    lj_bad="$(printf '%s\n' "$lj_out" | sed -n 's/^BAD //p' | tail -n 1)"
+    [ -n "$lj_bad" ] || lj_bad="the journals cannot be read"
+    return 1
+  fi
+  ALLJ="$lj_out"
+  JSTALE=no
+}
+# J <operation>: that operation's journal lines.
+J() { printf '%s\n' "$ALLJ" | sed -n "s/^$1 //p"; }
+jot() {
+  jt_line="$(now) $*"
+  if perl "$guard" append "$journal" "$jt_line"; then
+    ALLJ="$ALLJ
+$op $jt_line"
+    return 0
+  fi
+  load_journals || JSTALE=yes
+  return 1
+}
 jhas_of() { J "$1" | grep -q "^[^ ]* $2\( .*\)\{0,1\}\$"; }
 jget_of() { J "$1" | sed -n "s/^[^ ]* $2 \(.*\)\$/ \1 /p" | tail -n 1 | sed -n "s/.* $3=\([^ ]*\) .*/\1/p"; }
-jhas() { jhas_of "$journal" "$1"; }
-jget() { jget_of "$journal" "$1" "$2"; }
-journal_of() { printf '%s/%s/journal' "$runs" "$1"; }
+jhas() { jhas_of "$op" "$1"; }
+jget() { jget_of "$op" "$1" "$2"; }
+# The operations that have a journal line, oldest folder name first.
+ops_named() { printf '%s\n' "$ALLJ" | sed -n 's/^\([A-Za-z0-9-][A-Za-z0-9-]*\) .*/\1/p' | uniq; }
 
 # Every operation, oldest first: "<seq> <op> <mode> <outcome or none>".
 ops_table() {
-  for ot_d in "$runs"/*/; do
-    ot_j="$ot_d/journal"
-    [ -n "$(J "$ot_j" | head -n 1)" ] || continue
-    ot_seq="$(jget_of "$ot_j" begun seq)"
-    [ -n "$ot_seq" ] || ot_seq="$(jget_of "$ot_j" done seq)"
+  for ot_o in $(ops_named); do
+    ot_seq="$(jget_of "$ot_o" begun seq)"
+    [ -n "$ot_seq" ] || ot_seq="$(jget_of "$ot_o" done seq)"
     case "$ot_seq" in "" | *[!0-9]*) ot_seq=0 ;; esac
-    ot_mode="$(jget_of "$ot_j" begun mode)"
-    ot_out="$(jget_of "$ot_j" done outcome)"
-    echo "$ot_seq $(basename "$ot_d") ${ot_mode:-none} ${ot_out:-none}"
+    ot_mode="$(jget_of "$ot_o" begun mode)"
+    ot_out="$(jget_of "$ot_o" done outcome)"
+    echo "$ot_seq $ot_o ${ot_mode:-none} ${ot_out:-none}"
   done | sort -n
 }
 # What production is now, by the journals: cur (container, or compose with cur_op), the highest
@@ -246,7 +302,7 @@ scan_ops() {
       *:none) unfinished="$unfinished $so_op" ;;
       promote:pass) cur=compose; cur_op="$so_op" ;;
       revert:reverted)
-        so_prev="$(jget_of "$(journal_of "$so_op")" verified prev)"
+        so_prev="$(jget_of "$so_op" verified prev)"
         if [ "$so_prev" = container ] || [ -z "$so_prev" ]; then cur=container; cur_op=-; else cur=compose; cur_op="$so_prev"; fi ;;
     esac
   done <<EOF_OPS
@@ -254,13 +310,23 @@ $so_table
 EOF_OPS
   unfinished="${unfinished# }"
 }
-approval_spent() { cat "$runs"/*/journal 2>/dev/null | grep -q " spent approval=$1\$"; }
+approval_spent() { printf '%s\n' "$ALLJ" | grep -q " spent approval=$1\$"; }
+# Before anything is decided by the journals: read them, or stop here having changed nothing.
+# (No line is written: the journal that cannot be read is not written to either.)
+journals_or_stop() {
+  load_journals && return 0
+  say "HALTED $lj_bad."
+  say "  Nothing was changed. A journal is the only record of what an operation did: until it can be"
+  say "  read, no promote, recover or revert will run."
+  exit 4
+}
 
 # ---- Ending: a halt names what is unresolved, changes nothing more, and blocks every other mode. --
 halt() {
   h_code="$1"
   shift
-  jot halted "reason=$h_code" 2>/dev/null || true
+  # (check is read-only: it holds no lock and writes no journal line, so it can block nothing.)
+  [ "$mode" = check ] || jot halted "reason=$h_code" 2>/dev/null || true
   say "HALTED $*"
   say "  Nothing more was changed. This operation is unfinished, and no other promote, recover or revert"
   say "  will run until it is resolved; then run recover for $op again."
@@ -269,7 +335,7 @@ halt() {
 # A step that would not end: it may still be changing things, so nothing else may.
 stuck() {
   st_who="$(perl "$guard" groups-alive "$groups" 2>/dev/null | sed 's/^/  still running: /')"
-  jot halted "reason=step-would-not-end step=$1" 2>/dev/null || true
+  [ "$mode" = check ] || jot halted "reason=step-would-not-end step=$1" 2>/dev/null || true
   st_msg="HALTED the step $1 could not be ended; production may be down until that process is ended."
   [ -z "$st_who" ] || st_msg="$st_msg
 $st_who"
@@ -434,7 +500,11 @@ prerequisites() {
   if [ "$u_prev" = container ]; then
     if ident prereq-previous "$u_prev_id"; then
       [ "$i_image" = "$u_prev_image" ] || pq_missing="$pq_missing; the previous container no longer has the image it had"
-      case "$i_policy" in no | unless-stopped | on-failure) ;; *) pq_missing="$pq_missing; the previous container's restart policy is no longer one that stays stopped" ;; esac
+      case "$i_policy" in no | unless-stopped) ;; *) pq_missing="$pq_missing; the previous container's restart policy is no longer one that stays stopped" ;; esac
+      # The image it would run from, by ID: a container can outlive its image.
+      if q prereq-image "$Q" docker image inspect --format '{{.Id}}' "$u_prev_image" && [ "$OUT" = "$u_prev_image" ]; then :; else
+        pq_missing="$pq_missing; the image of the previous production's container is no longer on the server"
+      fi
     else
       pq_missing="$pq_missing; the previous production's container is gone"
     fi
@@ -502,34 +572,47 @@ $tl_who"
 }
 
 # wait_file <file> <nonce> <seconds>: 0 once <file> holds nonce=<nonce>; anything else is ignored.
-# The wait is counted, never read from a clock (a clock can be set): in fifths of a second where
-# this system's sleep takes a fraction, else in whole seconds.
-if sleep 0.2 2> /dev/null; then tick=0.2 ticks=5; else tick=1 ticks=1; fi
-wait_file() {
-  wf_i=0 wf_n=$(($3 * ticks))
-  while :; do
-    if [ -f "$1" ] && [ "$(sed -n 's/^nonce=//p' "$1" 2>/dev/null | head -n 1)" = "$2" ]; then return 0; fi
-    [ "$wf_i" -lt "$wf_n" ] || return 1
-    wf_i=$((wf_i + 1))
-    sleep "$tick"
-  done
+# The guard waits, by a clock that cannot be set: the window is the stated number of seconds, not
+# a count of sleeps that a busy server would stretch.
+wait_file() { perl "$guard" wait-nonce "$1" "$2" "$3"; }
+# mono: whole seconds on that clock, in MONO; 1 if it cannot be read.
+mono() {
+  MONO="$(perl "$guard" now)" || return 1
+  case "$MONO" in "" | *[!0-9]*) return 1 ;; esac
 }
-# wait_health <label> <container> <seconds>: 0 once the engine reports it healthy (or it has no check).
+# health_of <label> <container> <seconds>: one look. Sets health to what the engine says: healthy,
+# starting, unhealthy, or none (the container has no health check). 1 if it could not be read.
+health_of() {
+  health=""
+  if bound_run "$1" "$3" docker inspect --format "$F_HEALTH" "$2" > "$here/.health" 2>> "$englog"; then
+    health="$(head -n 1 "$here/.health")"
+    case "$health" in healthy | starting | unhealthy | none) return 0 ;; esac
+    health=""
+    return 1
+  fi
+  [ "$?" -ne 125 ] || stuck "$1"
+  return 1
+}
+# wait_health <label> <container> <seconds>: 0 once the engine reports it healthy, or says it has no
+# health check for it (health=none: then "running" is all that was observed, and that is what gets
+# recorded, never "healthy"). ONE budget for the whole wait: a look is only started if its bound
+# and the ending of a look that runs into it still fit, so the wait never runs past <seconds>.
 wait_health() {
-  wh_i=0 wh_tries=$(($3 / (P + 1)))
-  [ "$wh_tries" -ge 1 ] || wh_tries=1
+  mono || return 1
+  wh_until=$((MONO + $3))
   while :; do
-    if bound_run "$1" "$P" docker inspect --format "$F_HEALTH" "$2" > "$here/.health" 2>> "$englog"; then
-      health="$(head -n 1 "$here/.health")"
+    mono || return 1
+    wh_b=$((wh_until - MONO - END))
+    [ "$wh_b" -le "$P" ] || wh_b=$P
+    [ "$wh_b" -ge 1 ] || return 1
+    if health_of "$1" "$2" "$wh_b"; then
       case "$health" in healthy | none) return 0 ;; esac
-    else
-      [ "$?" -ne 125 ] || stuck "$1"
     fi
-    wh_i=$((wh_i + 1))
-    [ "$wh_i" -lt "$wh_tries" ] || return 1
     sleep 1
   done
 }
+# In words, for a person and for the record.
+health_words() { if [ "$1" = none ]; then printf 'running (the engine has no health check for it)'; else printf 'healthy, by the engine'; fi; }
 # stop_seen <label> <container>: stop it and SEE it not running. A stop the engine accepted goes on
 # after its client is gone, so "running" is never trusted after a stop that failed or timed out:
 # the stop is asked again and the container must be observed stopped. 1: it could not be observed.
@@ -557,11 +640,64 @@ ujot() {
   [ "$journal_broken" = no ] || return 0
   jot "$@" || { journal_broken=yes; say "the journal cannot be written; the undo carries on, and its record will be incomplete"; }
 }
+# already_undone: LOOKS, changes nothing that runs. True when what an undo would bring about is
+# already there: no helper of this run, the previous production running with its recorded identity
+# and nothing of the project beside it, and the state folders as the undo leaves them. Asked only
+# by recover, and only where no stop of the previous production can still be on its way (the
+# journal says it was SEEN stopped, or this is a revert, which never stops it before the undo):
+# then a previous production that runs was started by an undo whose lines did not get written,
+# and stopping it again would take a healthy production down for nothing.
+already_undone() {
+  [ "$p_mode" = revert ] || jhas stopped || return 1
+  quiet_helpers undo-observe || return 1
+  previous_now || return 1
+  if swap_needed; then
+    probe observe || return 1
+    [ "$(layout)" = 3 ] || return 1
+  fi
+  return 0
+}
+undo_observed=no
 undo() {
   ud_reason="$1"
   soft="--soft-note"
   load_undo_facts || halt undo-facts "this operation's journal does not say what to put back"
   say "undoing ($ud_reason): putting back $(prev_words)"
+  if [ "$undo_observed" = ask ] && already_undone; then
+    # Nothing is stopped, removed, renamed or started: only looked at, then recorded.
+    undo_observed=yes
+    say "what the undo brings about is already there: the previous production runs; it is checked and recorded, not stopped again"
+    jhas undoing || ujot undoing "reason=$ud_reason"
+    jhas undo-quiet || ujot undo-quiet observed=1
+    jhas undo-new-removed || ujot undo-new-removed observed=1
+    jhas undo-state-aside || ujot undo-state-aside observed=1
+    jhas undo-state-back || ujot undo-state-back observed=1
+    jhas undo-previous-stopped || ujot undo-previous-stopped observed=1
+    jhas undo-previous-started || ujot undo-previous-started "id=$prev_now" observed=1
+  fi
+  [ "$undo_observed" = yes ] || undo_steps
+  # 5. Healthy, by the engine, or running where the engine has no health check for it. (Its signed
+  # status is the Mac's to check; the server has no key.)
+  previous_now || halt previous-identity "what runs now is not the previous production; production state is unknown"
+  wait_health undo-health "$prev_now" "$b_undo_health" || halt previous-unhealthy "the previous production is started but the engine does not report it healthy"
+  ud_health="$health"
+  jhas undo-healthy || ujot undo-healthy "health=$ud_health"
+  # 6. Settle, then look again: only what was just seen to be true is recorded as done.
+  sleep "$b_settle"
+  previous_now || halt previous-identity "after settling, what runs is not the previous production; production state is unknown"
+  health_of undo-recheck "$prev_now" "$P" && [ "$health" = "$ud_health" ] || halt previous-unhealthy "after settling, the engine no longer reports the previous production as it did"
+  ud_checked="$(now)"
+  # 7. What the unconfirmed build accepted, for the owner. Best effort; never fails the undo.
+  ud_jobs="unknown"
+  if swap_needed; then
+    if helper jobs-aside "$H" "$u_uidgid" "only:state.failed-$u_aside" node -e "$SNAP_JS" "/srv/state.failed-$u_aside/fleet.sqlite" 2>/dev/null; then
+      ud_jobs="$(printf '%s' "$OUT" | sed -n 's/^ok [0-9]* \([0-9][0-9]*\)$/\1/p')"
+    fi
+  fi
+  finish_undo
+}
+# The undo's own steps, 1 to 4: each makes it so and then looks.
+undo_steps() {
   # 1. This run's helper containers, by name, and with them any copy still being written.
   if ! jhas undo-quiet; then
     quiet_helpers undo-quiet || halt helpers-remain "a helper container of this run could not be listed or removed"
@@ -642,23 +778,6 @@ undo() {
     previous_now || halt previous-identity "what runs now is not the previous production; production state is unknown"
     jhas undo-previous-started || ujot undo-previous-started "id=$prev_now"
   fi
-  # 5. Healthy, by the engine. (Its signed status is the Mac's to check; the server has no key.)
-  previous_now || halt previous-identity "what runs now is not the previous production; production state is unknown"
-  wait_health undo-health "$prev_now" "$b_undo_health" || halt previous-unhealthy "the previous production is started but the engine does not report it healthy"
-  jhas undo-healthy || ujot undo-healthy
-  # 6. Settle, then look again: only what was just seen to be true is recorded as done.
-  sleep "$b_settle"
-  previous_now || halt previous-identity "after settling, what runs is not the previous production; production state is unknown"
-  wait_health undo-recheck "$prev_now" "$P" || halt previous-unhealthy "after settling, the engine no longer reports the previous production healthy"
-  ud_checked="$(now)"
-  # 7. What the unconfirmed build accepted, for the owner. Best effort; never fails the undo.
-  ud_jobs="unknown"
-  if swap_needed; then
-    if helper jobs-aside "$H" "$u_uidgid" "only:state.failed-$u_aside" node -e "$SNAP_JS" "/srv/state.failed-$u_aside/fleet.sqlite" 2>/dev/null; then
-      ud_jobs="$(printf '%s' "$OUT" | sed -n 's/^ok [0-9]* \([0-9][0-9]*\)$/\1/p')"
-    fi
-  fi
-  finish_undo
 }
 # previous_now: the previous production, running, with the identity recorded, and nothing else of
 # the production project running beside it. Sets prev_now. (A container an interrupted call created
@@ -680,12 +799,12 @@ previous_now() {
 }
 finish_undo() {
   if [ "$p_mode" = revert ]; then fu_outcome=reverted fu_record="revert-$op.txt"; else fu_outcome=undone fu_record="undo-$op.txt"; fi
-  fu_snap_jobs="$(jget_of "$(journal_of "$u_snap")" snapshot jobs)"
+  fu_snap_jobs="$(jget_of "$u_snap" snapshot jobs)"
   {
     if [ "$p_mode" = revert ]; then echo "revert $op of run $(pv target): production put back to $(prev_words)"
     else echo "undo of promote $op: production put back to $(prev_words); $(printf '%s' "$p_rev" | cut -c1-12) was NOT promoted"; fi
     echo "reason: $(jget undoing reason)"
-    echo "checked: $ud_checked, by the engine: the previous production runs with the identity recorded before the switch and is healthy."
+    echo "checked: $ud_checked, by the engine: the previous production runs with the identity recorded before the switch; it is $(health_words "$ud_health")."
     echo "  Its signed status was not checked from the server (the server holds no client key)."
     if swap_needed; then
       echo "state: the snapshot state.pre-$u_snap is the state folder again; the state the other build ran on is state.failed-$u_aside"
@@ -713,7 +832,7 @@ finish_undo() {
 # recover when a decider died between the two. It never undoes. It writes "done outcome=pass" only
 # if the new revision is seen running right now.
 commit_records() {
-  cr_time="$(J "$journal" | sed -n 's/^\([^ ]*\) committed$/\1/p' | tail -n 1)"
+  cr_time="$(J "$op" | sed -n 's/^\([^ ]*\) committed$/\1/p' | tail -n 1)"
   cr_cid="$(jget started cid)" cr_image="$(jget verified new_image)"
   if ident commit-seen "$cr_cid" && [ "$i_image" = "$cr_image" ] && [ "$i_running" = true ]; then :; else
     jot halted reason=committed-not-running 2>/dev/null || true
@@ -727,7 +846,7 @@ commit_records() {
     echo "promote $op: $(prev_words) -> $(jget begun rev)"
     echo "committed: $cr_time; seen running: $cr_checked"
     echo "approval_sha256: $(jget spent approval)"
-    echo "approval: $(pv approval)"
+    printf 'approval: %s\n' "$(pv approval)"
     echo "snapshot: state.pre-$op ($(jget snapshot jobs) jobs, schema $(jget snapshot schema))"
     echo "config sha256: $(jget verified cfg); image: $cr_image"
     echo "evidence from the Mac: signed status answered with this revision; the same TLS certificate"
@@ -773,10 +892,18 @@ verify_form() {
   for vf_o in $unfinished; do [ "$vf_o" = "$op" ] || vf_others="$vf_others $vf_o"; done
   [ -z "$vf_others" ] || { why="operation${vf_others} is unfinished: run recover for it first"; return 1; }
   ! approval_spent "$p_approval_sha" || { why="this approval was already used: each yes covers one operation"; return 1; }
-  if [ "$p_rehearsal" = yes ]; then [ -f "$ctl/.fleet-runner-promote-rehearsal" ] || { why="a rehearsal needs a throwaway production (its control folder carries the rehearsal marker)"; return 1; }
-  else [ ! -f "$ctl/.fleet-runner-promote-rehearsal" ] || { why="this control folder is a rehearsal's; a real promote does not run in it"; return 1; }; fi
+  # A rehearsal is marked in BOTH places, its control folder and its service root, and a real
+  # promote in neither: a throwaway control folder cannot be paired with production's own folders.
+  vf_rm=.fleet-runner-promote-rehearsal
+  if [ "$p_rehearsal" = yes ]; then
+    [ -f "$ctl/$vf_rm" ] || { why="a rehearsal needs a throwaway production (its control folder carries the rehearsal marker)"; return 1; }
+    [ -f "$p_root/$vf_rm" ] || { why="a rehearsal needs a throwaway production: this service root does not carry the rehearsal marker, so it may be production's own"; return 1; }
+  else
+    [ ! -f "$ctl/$vf_rm" ] || { why="this control folder is a rehearsal's; a real promote does not run in it"; return 1; }
+    [ ! -f "$p_root/$vf_rm" ] || { why="this service root is a rehearsal's; a real promote does not run on it"; return 1; }
+  fi
   v_ctl="$(perl -e '@s = stat($ARGV[0]); print "$s[0]:$s[1]\n" if @s' "$ctl")"
-  for vf_j in "$runs"/*/journal; do
+  for vf_j in $(ops_named); do
     vf_c="$(jget_of "$vf_j" begun ctl)"
     [ -z "$vf_c" ] || [ "$vf_c" = "$v_ctl" ] || { why="the control folder is not the folder earlier operations ran in (it was replaced or copied)"; return 1; }
   done
@@ -845,8 +972,11 @@ verify_promote() {
     [ "$i_running" = true ] || { why="the hand-started container is not running"; return 1; }
     # A container with restart policy "always" comes back at a reboot even though it was stopped,
     # on top of the new revision's state. Changing a policy is the owner's step, never this script's.
+    # ("on-failure" is refused too: the engine's documentation says a manual stop is only honoured
+    # "until the Docker daemon restarts", and does not say what then happens to a stopped
+    # on-failure container whose stop ended in a kill. Only what is known to stay stopped passes.)
     case "$i_policy" in
-      no | unless-stopped | on-failure) ;;
+      no | unless-stopped) ;;
       *) why="the hand-started container's restart policy ($i_policy) would bring it back at a reboot after it was stopped; changing it is the owner's step"; return 1 ;;
     esac
     v_prev=container v_prev_id="$i_id" v_prev_image="$i_image" v_prev_rev=- v_prev_cfg=- v_policy="$i_policy"
@@ -854,7 +984,7 @@ verify_promote() {
     first_env_check "$v_prev_id" "$v_prev_image" || return 1
   else
     [ "$p_prev_op" = "$cur_op" ] || { why="the plan says production is run $p_prev_op, the journals say $cur_op"; return 1; }
-    vp_pj="$(journal_of "$cur_op")"
+    vp_pj="$cur_op"
     v_prev="$cur_op" v_prev_image="$(jget_of "$vp_pj" verified new_image)" v_prev_rev="$(jget_of "$vp_pj" begun rev)" v_prev_cfg="$(jget_of "$vp_pj" verified cfg)"
     [ "$v_prev_rev" != "$p_rev" ] || { why="production already runs this revision"; return 1; }
     is_image "$v_prev_image" && is_sha "$v_prev_cfg" || { why="the previous run's journal does not say what it started"; return 1; }
@@ -887,8 +1017,15 @@ verify_promote() {
 }
 verify_revert() {
   [ "$cur" = compose ] && [ "$cur_op" = "$p_target" ] || { why="run $p_target is not what production runs now (the journals say: $cur $cur_op); only the current run can be reverted"; return 1; }
-  vr_j="$(journal_of "$p_target")"
+  vr_j="$p_target"
   [ "$(jget_of "$vr_j" done outcome)" = pass ] || { why="run $p_target did not pass"; return 1; }
+  # The run being reverted, as it was begun: its plan unchanged, and this revert for the same
+  # project and the same service root (a revert acts on what that plan named, nothing else).
+  vr_plan="$runs/$p_target/plan"
+  [ -n "$(jget_of "$vr_j" begun plan)" ] && [ "$(sha_file "$vr_plan")" = "$(jget_of "$vr_j" begun plan)" ] ||
+    { why="the plan of run $p_target is not the plan it was begun with"; return 1; }
+  [ "$(sed -n 's/^project=//p' "$vr_plan" | head -n 1)" = "$p_project" ] && [ "$(sed -n 's/^root=//p' "$vr_plan" | head -n 1)" = "$p_root" ] ||
+    { why="this revert does not name the project and the service root that run $p_target used"; return 1; }
   v_prev="$(jget_of "$vr_j" verified prev)" v_prev_id="$(jget_of "$vr_j" verified prev_id)" v_prev_image="$(jget_of "$vr_j" verified prev_image)"
   v_prev_rev="$(jget_of "$vr_j" verified prev_rev)" v_prev_cfg="$(jget_of "$vr_j" verified prev_cfg)"
   v_helper="$(jget_of "$vr_j" verified new_image)" v_keys="$(jget_of "$vr_j" verified keys)" v_policy=-
@@ -923,12 +1060,24 @@ verify_revert() {
   esac
   return 0
 }
+# stage_still: the test copy's record, read ONCE (it is replaced by one rename, so one read is one
+# state), must name this revision as both the last that passed and the one staged now.
+stage_still() {
+  ss_text="$(cat "$p_stage_dir/stage-state" 2>/dev/null)" || { why="the test copy's record of what is staged cannot be read"; return 1; }
+  ss_last="$(printf '%s\n' "$ss_text" | sed -n 's/^last_passed=//p' | tail -n 1)"
+  ss_staged="$(printf '%s\n' "$ss_text" | sed -n 's/^staged_ok=//p' | tail -n 1)"
+  [ "$ss_last" = "$p_rev" ] && [ "$ss_staged" = "$p_rev" ] ||
+    { why="this revision is no longer the one the test copy passed and has staged (it was staged again since the Mac looked)"; return 1; }
+}
 # verify_all: 0 with every v_* set, or 1 with $why.
 verify_all() {
   why=""
   verify_form || return 1
   # A check of this run that was interrupted may have left a helper container of its own.
   quiet_helpers verify-quiet || { why="a helper container of this run, left by an interrupted check, could not be removed"; return 1; }
+  # (check says it early, without the lock; the run reads the test copy's record once, itself,
+  # at the moment it spends the yes.)
+  if [ "$p_mode" = promote ] && [ "$mode" = check ]; then stage_still || return 1; fi
   if [ "$p_mode" = promote ]; then verify_promote || return 1; else verify_revert || return 1; fi
   if ! prerequisites; then why="the undo's prerequisites are not all there: $pq_missing"; return 1; fi
   return 0
@@ -973,22 +1122,24 @@ prepare)
   ;;
 
 current)
+  journals_or_stop
   scan_ops
-  cu_j="$(journal_of "$cur_op")"
+  cu_j="$cur_op"
   echo "current kind=$cur op=$cur_op rev=$(jget_of "$cu_j" begun rev) cfg=$(jget_of "$cu_j" verified cfg) image=$(jget_of "$cu_j" verified new_image) unfinished=$(printf '%s' "$unfinished" | tr ' ' ',')"
   exit 0
   ;;
 
 status)
-  if [ -z "$(J "$journal" | head -n 1)" ]; then say "operation $op: its decider never began; production was not changed by it"; exit 0; fi
+  journals_or_stop
+  if [ -z "$(J "$op" | head -n 1)" ]; then say "operation $op: its decider never began; production was not changed by it"; exit 0; fi
   st_out="$(jget done outcome)"
-  st_last="$(J "$journal" | grep -v ' halted ' | tail -n 1 | cut -d' ' -f2)"
+  st_last="$(J "$op" | grep -v ' halted ' | tail -n 1 | cut -d' ' -f2)"
   say "operation $op ($(jget begun mode)): last completed step: $st_last"
   case "$st_out" in
-    pass) say "outcome: PASSED at $(J "$journal" | sed -n 's/^\([^ ]*\) committed.*/\1/p' | tail -n 1) (record: promote-records/$(jget done record))" ;;
+    pass) say "outcome: PASSED at $(J "$op" | sed -n 's/^\([^ ]*\) committed.*/\1/p' | tail -n 1) (record: promote-records/$(jget done record))" ;;
     undone | reverted | unchanged) say "outcome: $st_out (record: promote-records/$(jget done record))" ;;
     *) say "outcome: UNFINISHED. If no decider of it is running, run recover for $op."
-      if jhas halted; then say "  it halted: $(J "$journal" | sed -n 's/^[^ ]* halted \(.*\)$/\1/p' | tail -n 1)"; fi ;;
+      if jhas halted; then say "  it halted: $(J "$op" | sed -n 's/^[^ ]* halted \(.*\)$/\1/p' | tail -n 1)"; fi ;;
   esac
   say "This is that operation's result, not a statement about what production runs now."
   exit 0
@@ -997,6 +1148,7 @@ status)
 check)
   plan_ok || exit 1
   clean_env
+  journals_or_stop
   if verify_all; then
     say "PASS every check the decider makes before it touches production"
     exit 0
@@ -1016,6 +1168,7 @@ u_uidgid="${p_uidgid:-0:0}"
 if [ "$mode" = recover ]; then
   take_lock "$lock_wait"
   notes=yes
+  journals_or_stop
   scan_ops
   for rc_o in $unfinished; do
     [ "$rc_o" = "$op" ] || { say "REFUSED operation $rc_o is unfinished: recover that one first. Nothing was changed."; exit 1; }
@@ -1029,9 +1182,23 @@ if [ "$mode" = recover ]; then
     say "  Nothing was changed. Run recover for $op again once it has ended."
     exit 4
   fi
-  if [ -z "$(J "$journal" | head -n 1)" ]; then
+  if [ -z "$(J "$op" | head -n 1)" ]; then
     seq=$((maxseq + 1))
     close_unchanged never-began "the decider of $op never began"
+  fi
+  # This must be the operation that was begun: the same plan, in the same control folder. A plan
+  # that was changed since (it names the project and the folders an undo acts on), or a copy of the
+  # control folder (whose lock is another lock), is not: nothing is touched.
+  rc_ctl="$(perl -e '@s = stat($ARGV[0]); print "$s[0]:$s[1]\n" if @s' "$ctl")"
+  if [ "$(jget begun plan)" != "$plan_sha" ] || [ -z "$plan_sha" ]; then
+    say "HALTED the plan of operation $op is not the plan it was begun with. Nothing was changed."
+    say "  recover acts by the plan (the project, the folders): put the run folder's own plan back, then run recover for $op again."
+    exit 4
+  fi
+  if [ "$(jget begun ctl)" != "$rc_ctl" ] || [ -z "$rc_ctl" ]; then
+    say "HALTED this is not the control folder operation $op was begun in (it was replaced or copied). Nothing was changed."
+    say "  Run recover for $op in production's own control folder."
+    exit 4
   fi
   seq="$(jget begun seq)"
   rc_out="$(jget done outcome)"
@@ -1062,6 +1229,8 @@ if [ "$mode" = recover ]; then
     say "  Nothing was changed: whatever runs now was left running. Put back what is missing, then run recover for $op again."
     exit 4
   fi
+  # The undo looks first: if what it would bring about is already there, it only checks and records.
+  undo_observed=ask
   if jhas undoing; then undo "$(jget undoing reason)"; fi
   if [ "$p_mode" = revert ]; then undo revert; fi
   undo interrupted
@@ -1070,7 +1239,8 @@ fi
 # ---- run ---------------------------------------------------------------------------------------
 take_lock 0
 notes=yes
-if [ -e "$journal" ]; then say "REFUSED operation $op already has a journal: an operation name is used once. Use status or recover."; exit 1; fi
+journals_or_stop
+if [ -e "$journal" ] || [ -n "$(J "$op" | head -n 1)" ]; then say "REFUSED operation $op already has a journal: an operation name is used once. Use status or recover."; exit 1; fi
 scan_ops
 for rn_o in $unfinished; do say "REFUSED operation $rn_o is unfinished: run recover for it first. Nothing was changed."; exit 1; done
 seq=$((maxseq + 1))
@@ -1096,7 +1266,10 @@ jot verified "prev=$v_prev" "prev_id=$v_prev_id" "prev_image=$v_prev_image" "pre
 say "verified: everything the switch and its undo need is there"
 u_uidgid="$p_uidgid"
 
-# The yes is spent here, under the lock, and nowhere else.
+# The yes is spent here, under the lock, and nowhere else. And only for a revision that is, at this
+# very moment, still the one the test copy passed and has staged: read here, by the decider itself
+# (the Mac's own look, earlier, was only an early refusal).
+if [ "$p_mode" = promote ]; then stage_still || close_unchanged refused "$why"; fi
 jot spent "approval=$p_approval_sha" || close_unchanged journal "the journal cannot be written"
 load_undo_facts || halt undo-facts "the journal does not hold what was just written"
 
@@ -1136,6 +1309,7 @@ ident start-identify "$new_cid" || undo start-unknown
 jot started "cid=$new_cid" || undo journal-failed
 
 wait_health new-health "$new_cid" "$b_health" || undo new-not-healthy
+new_health="$health"
 q new-keys "$b_exec" docker exec "$new_cid" sh -c 'cd /run/fleet-runner/public-keys && sha256sum -- *.pub' || undo keys-unreadable
 [ "$(keys_hash "$OUT")" = "$v_keys" ] || undo keys-changed
 q new-jobs "$b_exec" docker exec "$new_cid" node -e "$SNAP_JS" /var/lib/fleet-runner/state/fleet.sqlite || undo jobs-unreadable
@@ -1143,8 +1317,8 @@ new_jobs="$(printf '%s' "$OUT" | sed -n 's/^ok [0-9]* \([0-9][0-9]*\)$/\1/p')"
 [ -n "$new_jobs" ] && [ "$new_jobs" -ge "$snap_jobs" ] || undo jobs-fewer
 ev_nonce="$(perl "$guard" nonce)" || undo nonce-failed
 is_hex "$ev_nonce" || undo nonce-failed
-jot server-checked "jobs=$new_jobs" "nonce=$ev_nonce" "window=$b_evidence" || undo journal-failed
-say "the new revision runs, healthy, same keys, $new_jobs jobs: waiting up to $b_evidence seconds for this Mac's evidence"
+jot server-checked "jobs=$new_jobs" "nonce=$ev_nonce" "window=$b_evidence" "health=$new_health" || undo journal-failed
+say "the new revision is $(health_words "$new_health"), has the same keys and $new_jobs jobs: waiting up to $b_evidence seconds for this Mac's evidence"
 
 # Evidence must answer THIS challenge; anything else in the file is ignored and the wait goes on.
 wait_file "$here/evidence" "$ev_nonce" "$b_evidence" || undo no-evidence
@@ -1159,6 +1333,14 @@ jot evidence "build=$p_rev" tls=same || undo journal-failed
 
 # THE decision. If writing it reports a failure, the journal itself says which way it went.
 if ! jot committed; then
+  # Whether the line is there is read from the journal. If the journal cannot be read either,
+  # nobody knows which way it went: that is never undone on a guess, and never called a pass.
+  if [ "$JSTALE" = yes ]; then
+    say "HALTED the commit line may or may not be in the journal, and the journal cannot be read now."
+    say "  Nothing more was changed: the new revision is left running. Run recover for $op once the journal can be read;"
+    say "  it confirms the pass or, if the line did not survive, undoes."
+    exit 4
+  fi
   if jhas committed; then
     say "COMMITTED, RECORD INCOMPLETE the pass is in the journal but could not be confirmed flushed to disk."
     say "  Not reported as a pass. Run recover for $op: it confirms the pass or, if the line did not survive, undoes."

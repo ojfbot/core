@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -39,11 +39,12 @@ import {
   startDecider,
   states,
 } from "./fakes/promote-harness.js";
-import { HAND, POOL, disruptive, killAll, killedAt, nextPlan, passed, pool, recoverUntilDone, useBoxes, wrong } from "./fakes/decider-kit.js";
+import { HAND, OLD_IMAGE, POOL, changing, disruptive, killAll, killedAt, nextPlan, passed, pool, recoverOnce, useBoxes, wrong } from "./fakes/decider-kit.js";
 
 // The promote's server-side decider (fleet-promote-decider.sh) against the fake engine, under dash:
 // engine calls that land late, recover, the undo's prerequisites, a failing disk, and revert.
-// The rest is in fleet-promote-decider.test.ts; the kill sweeps are in
+// These sit through real waits, so they are not in `pnpm test` (see vitest.promote-sweeps.config.ts).
+// The rest is in fleet-promote-decider.test.ts and .slow_test.ts; the kill sweeps are in
 // fleet-promote-decider.sweep_test.ts. EVERYTHING HERE IS SYNTHETIC. No server, no real engine.
 vi.setConfig({ testTimeout: 600_000 });
 const box = useBoxes();
@@ -62,7 +63,7 @@ describe("the decider: an engine call that takes effect after its client is gone
     await s.done;
     setFaults(b, {});
     const from = dockerLog(b).length;
-    const r = await recoverUntilDone(b, op);
+    const r = await recoverOnce(b, op);
     const calls = dockerLog(b).slice(from).map((l) => l.split(" ")[0]);
     expect(calls).toContain("stop");
     expect(calls.indexOf("stop")).toBeLessThan(calls.indexOf("start"));
@@ -118,6 +119,88 @@ describe("the decider: an engine call that takes effect after its client is gone
   });
 });
 
+describe("the decider: what is recorded is what was observed", () => {
+  it("a container the engine has no health check for is recorded as running, never as healthy", async () => {
+    const b = box();
+    const rev = revOf(1);
+    setFaults(b, { health: { [OLD_IMAGE]: "none" } });
+    const op = newOp(b, { rev });
+    const r = await run(b, op, { evidence: "wrong-build" });
+    expect(r.out).toContain("UNDONE production is back on");
+    expect(field(b, op, "undo-healthy", "health")).toBe("none");
+    expect(record(b, `undo-${op}.txt`)).toContain("it is running (the engine has no health check for it).");
+    expect(record(b, `undo-${op}.txt`)).not.toMatch(/is healthy/);
+    // And where the engine does have one, that is what it says.
+    setFaults(b, {});
+    const op2 = newOp(b, { rev: revOf(2) });
+    await run(b, op2, { evidence: "wrong-build" });
+    expect(field(b, op2, "undo-healthy", "health")).toBe("healthy");
+    expect(field(b, op2, "server-checked", "health")).toBe("healthy");
+    expect(record(b, `undo-${op2}.txt`)).toContain("it is healthy, by the engine.");
+  });
+
+  it("the health wait is one budget: looks that keep running into their bound do not stretch it", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    // Every look at the new revision's health hangs, and does not end when asked to: each costs
+    // its bound and the whole ending of a step that ran into it.
+    setFaults(b, { hang: { match: "State.Health", deaf: true } });
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, { vanish: (st) => st.includes("started") }, () => !alive(s.pid));
+    const startedAt = Date.now();
+    await playMac(b, op, { vanish: (st) => st.includes("undoing") }, () => !alive(s.pid));
+    const waited = (Date.now() - startedAt) / 1000;
+    setFaults(b, {});
+    await playMac(b, op, {}, () => !alive(s.pid));
+    await s.done;
+    expect(field(b, op, "undoing", "reason")).toBe("new-not-healthy");
+    // b_health is 20 here: each hung look takes its bound and its ending, and the whole wait stays inside 20.
+    expect(waited).toBeLessThanOrEqual(20.5);
+    expect(waited).toBeGreaterThan(5);
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  it("a new revision that dies during the evidence wait is not committed: it is looked at again right before the commit, and undone", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    const r = await run(b, op, {
+      beforeEvidence: () => {
+        // Good evidence is about to arrive, for a revision that has just stopped running.
+        docker(b, ["stop", "-t", "1", field(b, op, "started", "cid")]);
+      },
+    });
+    expect(states(b, op)).not.toContain("committed");
+    expect(field(b, op, "undoing", "reason")).toBe("new-gone-before-commit");
+    expect(r.out).toContain("UNDONE production is back on");
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  it("nothing of the project may run beside the restored hand-started container: 'undone' is not recorded over two productions", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    // The undo dies after the snapshot is back and before the previous production is started.
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, { evidence: "wrong-build", vanish: (st) => st.includes("undo-state-back") }, () => !alive(s.pid));
+    killAll(b, op, s.pid);
+    await s.done;
+    expect(states(b, op)).toContain("undo-new-removed");
+    // Then a container of the project is started again (an engine call that landed late, a person).
+    const up = spawnSync("docker", ["compose", "-p", PROJECT, "--env-file", "/dev/null", "-f", "-", "up", "-d", "--pull", "never"], {
+      env: b.env,
+      input: readFileSync(join(opDir(b, op), "resolved.json")),
+    });
+    expect(up.status).toBe(0);
+    const r = decider(b, op, "recover");
+    expect(r.status).toBe(4);
+    expect(r.out).toContain("HALTED what runs now is not the previous production; production state is unknown");
+    expect(states(b, op)).not.toContain("done");
+    expect(records(b)).toEqual([]);
+  });
+});
+
 describe("the decider: recover", () => {
   it("killing ONLY the decider: recover waits for the lock, which is free only once the bounded step has been ended, then undoes", async () => {
     const b = box();
@@ -170,7 +253,7 @@ describe("the decider: recover", () => {
     expect(dockerLog(b).length).toBe(before);
     process.kill(hungPid, "SIGKILL");
     await sleep(500);
-    expect((await recoverUntilDone(b, op)).out).toContain("UNDONE production is back on");
+    expect((await recoverOnce(b, op)).out).toContain("UNDONE production is back on");
     expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
   });
 
@@ -277,9 +360,122 @@ describe("the decider: recover", () => {
   });
 });
 
+describe("the decider: a journal that cannot be read, or is not a journal, is never taken for one that never began", () => {
+  it("recover with the unconfirmed build running and its journal unreadable, or holding a line that is not a record: it halts and changes nothing", async () => {
+    for (const what of ["unreadable", "not-a-record", "blank-line"] as const) {
+      const b = box();
+      const rev = revOf(1);
+      const op = newOp(b, { rev });
+      await killedAt(b, op, "server-checked");
+      const file = join(opDir(b, op), "journal");
+      const good = readFileSync(file, "utf8");
+      if (what === "unreadable") chmodSync(file, 0o000);
+      else if (what === "not-a-record") writeFileSync(file, good.replace(/^(\S+) snapshot .*$/m, "$1 snapshot this line is not a record"));
+      else writeFileSync(file, good.replace(/\n/, "\n\n"));
+      const before = dockerLog(b).length;
+      const recordsBefore = records(b);
+      for (const mode of ["recover", "check", "current", "status"]) {
+        const r = decider(b, op, mode);
+        expect(r.status, `${what} ${mode}`).toBe(4);
+        expect(r.out, `${what} ${mode}`).toMatch(what === "unreadable" ? /HALTED the journal of operation \S+ cannot be read\./ : /HALTED the journal of operation \S+ holds a complete line that is not a record\./);
+        expect(r.out, `${what} ${mode}`).toContain("Nothing was changed");
+      }
+      // Nothing was asked of the engine, nothing recorded, nothing written to the journal, and the
+      // unconfirmed build is still what runs: never an "unchanged" over it.
+      expect(dockerLog(b).length, what).toBe(before);
+      expect(records(b), what).toEqual(recordsBefore);
+      expect(reality(b).running.map((c) => c.image), what).toEqual([imageId(rev)]);
+      chmodSync(file, 0o600);
+      if (what !== "unreadable") expect(readFileSync(file, "utf8"), what).not.toContain("halted");
+      // Another operation does not run either while a journal cannot be read.
+      chmodSync(file, what === "unreadable" ? 0o000 : 0o600);
+      const other = newOp(b, { rev: revOf(2), skipPrepare: true });
+      const blocked = decider(b, other, "run");
+      expect(blocked.status, what).toBe(4);
+      expect(journal(b, other), what).toEqual([]);
+      // Once the journal is what it was, recover undoes as it should.
+      chmodSync(file, 0o600);
+      writeFileSync(file, good);
+      expect(decider(b, op, "recover").out, what).toContain("UNDONE production is back on");
+      expect(wrong(b, op, HAND, imageId(rev)), what).toEqual([]);
+    }
+  });
+
+  it("a torn last line is cut, an empty journal and an absent one are an operation that never began", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    await killedAt(b, op, "server-checked");
+    const file = join(opDir(b, op), "journal");
+    writeFileSync(file, `${readFileSync(file, "utf8")}2026-01-01T00:00:00Z eviden`);
+    expect(decider(b, op, "recover").out).toContain("UNDONE production is back on");
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+    for (const text of ["", "2026-01-01T00:00:00Z begu"]) {
+      const never = newOp(b, { rev: revOf(2), skipPrepare: true });
+      writeFileSync(join(opDir(b, never), "journal"), text);
+      expect(decider(b, never, "status").out).toContain("its decider never began");
+      expect(decider(b, never, "recover").out).toContain(`the decider of ${never} never began`);
+      expect(field(b, never, "done", "outcome")).toBe("unchanged");
+    }
+  });
+});
+
+describe("the decider: recover and revert act only on the operation that was begun", () => {
+  it("a plan that was changed since the operation began (it names the project an undo acts on): recover halts before any engine call", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    await killedAt(b, op, "server-checked");
+    const planFile = join(opDir(b, op), "plan");
+    const plan = readFileSync(planFile, "utf8");
+    writeFileSync(planFile, plan.replace(`project=${PROJECT}`, "project=some-other-project"));
+    const before = dockerLog(b).length;
+    const r = decider(b, op, "recover");
+    expect(r.status).toBe(4);
+    expect(r.out).toContain(`HALTED the plan of operation ${op} is not the plan it was begun with. Nothing was changed.`);
+    expect(dockerLog(b).length).toBe(before);
+    expect(reality(b).running.map((c) => c.image)).toEqual([imageId(rev)]);
+    writeFileSync(planFile, plan);
+    expect(decider(b, op, "recover").out).toContain("UNDONE production is back on");
+  });
+
+  it("a copy of the control folder is another lock: recover in the copy halts before any engine call", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    await killedAt(b, op, "server-checked");
+    const copy = join(b.root, "server/control-copy");
+    spawnSync("cp", ["-R", b.ctl, copy]);
+    const before = dockerLog(b).length;
+    const r = spawnSync(DASH, [join(copy, "promote-runs", op, "decider.sh"), "recover", op], { cwd: copy, env: b.env, encoding: "utf8" });
+    expect(r.status).toBe(4);
+    expect(r.stdout).toContain(`HALTED this is not the control folder operation ${op} was begun in`);
+    expect(dockerLog(b).length).toBe(before);
+    expect(reality(b).running.map((c) => c.image)).toEqual([imageId(rev)]);
+    expect(decider(b, op, "recover").out).toContain("UNDONE production is back on");
+  });
+
+  it("a revert whose target's plan was changed, or that names another project than the run it reverts, is refused before the yes is spent", async () => {
+    const b = box();
+    const one = await passed(b);
+    const planFile = join(opDir(b, one), "plan");
+    const plan = readFileSync(planFile, "utf8");
+    writeFileSync(planFile, `${plan}b_settle=2\n`.replace("b_settle=1\n", ""));
+    const z1 = newOp(b, { mode: "revert", target: one });
+    const before = dockerLog(b).length;
+    expect((await run(b, z1)).out).toContain(`REFUSED the plan of run ${one} is not the plan it was begun with`);
+    writeFileSync(planFile, plan);
+    const z2 = newOp(b, { mode: "revert", target: one, override: { project: "some-other-project" } });
+    expect((await run(b, z2)).out).toContain(`REFUSED this revert does not name the project and the service root that run ${one} used`);
+    for (const z of [z1, z2]) expect(states(b, z)).not.toContain("spent");
+    expect(disruptive(b, before)).toEqual([]);
+    expect(reality(b).running.map((c) => c.image)).toEqual([imageId(revOf(1))]);
+  });
+});
+
 describe("the decider: what the undo needs is checked before the first disruptive call, in every mode", () => {
   it("recover with the unconfirmed build running: a missing prerequisite refuses and leaves that build running", async () => {
-    const cases = ["previous-container", "previous-policy", "snapshot", "snapshot-marker", "helper-image"] as const;
+    const cases = ["previous-container", "previous-policy", "previous-image", "snapshot", "snapshot-marker", "helper-image"] as const;
     await pool([...cases], POOL, async (what) => {
       const b = makeBox();
       try {
@@ -301,6 +497,11 @@ describe("the decider: what the undo needs is checked before the first disruptiv
           writeFileSync(handFile, JSON.stringify({ ...JSON.parse(hand), policy: "always" }));
           put = () => writeFileSync(handFile, hand);
           say = /restart policy is no longer one that stays stopped/;
+        } else if (what === "previous-image") {
+          // The container is still there, the image it would run from is not.
+          dropImageName(b, OLD_IMAGE);
+          put = () => writeFileSync(join(b.fake, "images.json"), images);
+          say = /the image of the previous production's container is no longer on the server/;
         } else if (what === "snapshot") {
           spawnSync("mv", [snap, `${snap}.moved`]);
           put = () => spawnSync("mv", [`${snap}.moved`, snap]);
@@ -385,7 +586,56 @@ describe("the decider: the journal and the records when the disk fails", () => {
     expect(reality(b).running.map((c) => c.name)).toEqual([HAND_NAME]);
     expect(reality(b).jobs).toBe(3);
     setPerlFaults(b, []);
+    // recover completes the record. It does NOT take the healthy production down to do it: what
+    // the undo brings about is already there, so it stops, removes and starts nothing.
+    const before = dockerLog(b).length;
+    const rec = decider(b, op, "recover");
+    expect(rec.out).toContain("what the undo brings about is already there");
+    expect(rec.out).toContain("UNDONE production is back on");
+    expect(changing(b, before)).toEqual([]);
+    expect(states(b, op).filter((x) => x.startsWith("undo") || x === "done")).toEqual(["undoing", "undo-quiet", "undo-new-removed", "undo-state-aside", "undo-state-back", "undo-previous-stopped", "undo-previous-started", "undo-healthy", "done"]);
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  it("the same after a later promote: recover does not stop, remove and recreate the previous revision's container", async () => {
+    const b = box();
+    const first = await passed(b);
+    const rev = revOf(2);
+    const op = newOp(b, nextPlan(b, first, rev));
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, { vanish: (st) => st.includes("server-checked") }, () => false);
+    setPerlFaults(b, Array.from({ length: 40 }, (_, i) => `append ${i + 1} fail`));
+    await playMac(b, op, { evidence: "wrong-build" }, () => !alive(s.pid));
+    await s.done;
+    expect(readOut(b, op)).toContain("UNDONE, RECORD INCOMPLETE production is back on revision");
+    const restored = reality(b).running.map((c) => c.id);
+    setPerlFaults(b, []);
+    const before = dockerLog(b).length;
+    const rec = decider(b, op, "recover");
+    expect(rec.out).toContain("UNDONE production is back on revision");
+    expect(changing(b, before)).toEqual([]);
+    // The very container the undo started is the one that still runs.
+    expect(reality(b).running.map((c) => c.id)).toEqual(restored);
+    expect(wrong(b, op, { image: imageId(revOf(1)) }, imageId(rev))).toEqual([]);
+  });
+
+  it("where the previous production was never SEEN stopped, a stop may still be on its way: recover does stop it, see it stopped, and start it", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    // The decider dies at its very first stop, after the yes is spent: the journal ends at "spent".
+    setFaults(b, { hang: { match: "stop -t", when: "before" } });
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, {}, () => existsSync(join(b.fake, "hung")) || !alive(s.pid));
+    killAll(b, op, s.pid);
+    await s.done;
+    setFaults(b, {});
+    expect(states(b, op).slice(-1)).toEqual(["spent"]);
+    const before = dockerLog(b).length;
     expect(decider(b, op, "recover").out).toContain("UNDONE production is back on");
+    const calls = dockerLog(b).slice(before);
+    expect(calls.some((l) => l.startsWith("stop -t"))).toBe(true);
+    expect(calls.findIndex((l) => l.startsWith("stop -t"))).toBeLessThan(calls.findIndex((l) => l.startsWith("start ")));
     expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
   });
 
