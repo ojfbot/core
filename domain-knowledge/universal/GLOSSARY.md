@@ -42,6 +42,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Brassboard (shadow stage)** — *NASA SEH term.* A medium-fidelity functional unit structured to operate in *simulated operational environments* to assess critical functions, on the TRL maturity ladder. In Control-Gated Slices it anchors the **shadow stage**: an enforcement control runs observe-only/simulated, emitting TPMs but taking **no real action**, before promotion to Operational. *"Shadow mode" itself is a harness extension — NASA has no exact term for it.* (`seh-study` `packages/shared/src/glossary.json`; ADR-0086; `gated-slice/SKILL.md`)
 
+**Broken (staleness kind)** — The item names something that is gone. Signal: a named path, script or command does not resolve. The remedy is repair in place, which is why it is a kind apart from *untrue*. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
+
 **built_on** — Registry declaration linking an app to the substrates it is built on (e.g. fairway → mirrorworld). (adr:operating-surface-tiered-composition)
 
 ## C
@@ -288,6 +290,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 
 **Subagent (`.claude/agents/`)** — _(ADR-0082)_ A *defined* agent file with restricted `tools`/`model` frontmatter, distributed via `install-agents.sh`. **Default-deny:** prefer a *Skill* or the *Agent (Claude Code)* tool's native delegation; define one only for an experienced tool-isolation, model-downgrade, or hard context-isolation need. The fleet defines **none** today (all three triggers theoretical). Not to be confused with *Agent (Claude Code)* (ad-hoc native delegation, no committed file) or cv-builder's `.agents/registry.json` (separate event-automation system).
 
+**Stale** — Umbrella word for an item an agent reads that is one or more of four kinds: *unused*, *broken*, *untrue*, *superseded*. Each kind is a condition bound to one signal; where the signal cannot be computed on a surface, the record says "no signal". Narrower earlier uses: `adr:vault-page-lifecycle-policy` uses "staleness" for pages nothing uses (*unused* here) and "currency" for fact-validity (*untrue* here); `adr:path-scoped-rules-dir-adoption` uses "stale" for *untrue*. (adr:staleness-kinds-and-signals, proposed)
+
 **Stamp** — Reputation unit in Wasteland federation. Multi-dimensional: quality, reliability, creativity.
 
 **StandupFunnel** — Measurement of `/frame-standup` Step 7 suggestions through four stages (suggested → launched → addressed → closed). Drop-off rates expose adoption vs. efficacy gaps. Telemetry in `~/.claude/standup-telemetry.jsonl`. See CONTEXT.md §5 and ADR-0054.
@@ -303,6 +307,8 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Substrate** — Foundational layer delivering assets/data/engine interactions, with apps built on top; never switcher-listed; registry `role: substrate`. Examples: mirrorworld, asset-foundry, f1-substrate, switchboard, core. (adr:operating-surface-tiered-composition)
 
 **Success Criteria** — *NASA SEH term (formerly "exit criteria").* The specific accomplishments that must be satisfactorily **demonstrated to pass** a Control Gate. In Control-Gated Slices each Success Criterion is expressed as a **TPM** (a metric tracked vs a baseline with a threshold), not a vibe. (`seh-study` `packages/shared/src/glossary.json`; ADR-0086)
+
+**Superseded (staleness kind)** — A newer item replaces this one. Signal: a successor mark on the old item, such as `superseded_by`. An unmarked replacement is not detected. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
 
 **suggest-skill.sh** — Hook bound to UserPromptSubmit. Matches user prompt against `skill-catalog.json` triggers; injects skill suggestions.
 
@@ -327,6 +333,10 @@ One entry per term. Definition first (≤2 sentences), source/file in parenthese
 **Ubiquitous language (DDD)** — Shared vocabulary used consistently in code, docs, prompts, conversations. CONTEXT.md + this glossary are the canonical artifacts. (Pocock framing.)
 
 **Understanding object** — A consulted knowledge artifact (vault page): knowledge-about, not state-of. Contrast *work object*. (adr:bonded-pair-division-of-labor)
+
+**Untrue (staleness kind)** — The world has moved past what the item says. Signal: a reader's flag, a mark a person or agent wrote on the item after finding it wrong. Nothing detects a false claim by scanning it, so an unflagged item is not thereby true. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
+
+**Unused (staleness kind)** — Nothing loads or opens the item. Signal: no load record in the window (90 days, uncalibrated) in either harness, counted per host and per harness and only where a load record was kept. A result names the host-and-harness pairs it rests on and the days each record covers; a shorter cover counts if stated. Where no record was kept the pair reads "no signal", never *unused*. It records loading, not reliance, so it never marks an item that loads in every session. See *Stale*. (adr:staleness-kinds-and-signals, proposed)
 
 ## V
 
