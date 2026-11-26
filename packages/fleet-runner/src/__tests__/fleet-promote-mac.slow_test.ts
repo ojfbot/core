@@ -24,6 +24,7 @@ import {
   record,
   records,
   setFaults,
+  setPerlFaults,
   sleep,
 } from "./fakes/promote-harness.js";
 import { GIT_ID, headRev, lastOp, macLog, ops, promote, promoteAsync, script, setSsh, setup, sh, sshCmds, staged, statusNow, useMacSandboxes, yes } from "./fakes/mac-harness.js";
@@ -322,5 +323,77 @@ describe("fleet-promote.sh when the Mac goes away", () => {
     expect(containers(e.box).filter((c) => c.project === PROJECT)).toEqual([]);
     expect(alive(m.pid)).toBe(false);
     void setFaults;
+  });
+});
+
+describe("fleet-promote.sh when what it reads cannot be trusted", () => {
+  it("a journal line that is not a record: the Mac reads the journal through the decider's checked reader and refuses it, never PASS", async () => {
+    const e = await setup();
+    const head = headRev(e);
+    // Right after the decider commits, a complete line that is not a record lands in the journal.
+    writeFileSync(join(e.box.fake, "append-garbage-after"), "committed");
+    const r = promote(e, [head, "--owner-approved", yes(head)]);
+    const op = lastOp(e);
+    expect(existsSync(join(e.box.fake, "append-garbage-after.hit"))).toBe(true);
+    expect(r.out).not.toMatch(/^PASS run /m);
+    expect(r.out).toContain(`FAIL the journal of operation ${op} holds a complete line that is not a record`);
+    expect(r.out).toContain(`sh promote-runs/${op}/decider.sh recover ${op}`);
+    expect(r.status).toBe(1);
+  });
+
+  it("'record incomplete' with the journal's 'stopped' line lost: the Mac prints the decider's whole warning, that recover will restart production", async () => {
+    const e = await setup();
+    const head = headRev(e);
+    // begun, go, verified and spent are appended; "stopped" (the fifth) and every later append fail.
+    setPerlFaults(e.box, Array.from({ length: 40 }, (_, i) => `append ${i + 5} fail`));
+    const r = promote(e, [head, "--owner-approved", yes(head)]);
+    setPerlFaults(e.box, []);
+    expect(r.out).toMatch(/^UNDONE, RECORD INCOMPLETE production is back on/m);
+    expect(r.out).toContain("recover will stop the previous production, see it stopped and start it again (a short outage)");
+    expect(r.out).toContain("FAIL the decider ended without its record");
+    expect(r.out).not.toMatch(/^PASS run /m);
+    expect(r.status).toBe(1);
+  });
+
+  it("a Mac clock that stops being readable during a run: after a few tries it says UNKNOWN and gives the recover line, never a wait that cannot end", async () => {
+    const e = await setup();
+    const head = headRev(e);
+    const m = promoteAsync(e, [head, "--owner-approved", yes(head)]);
+    while (!m.out().includes("it has this Mac's go") && m.status() === null) await sleep(50);
+    writeFileSync(join(e.box.fake, "clock-broken"), "");
+    for (let i = 0; i < 600 && m.status() === null; i++) await sleep(100);
+    const ended = m.status() !== null;
+    if (!ended) {
+      process.kill(-m.pid, "SIGKILL");
+      await m.done;
+    }
+    rmSync(join(e.box.fake, "clock-broken"));
+    expect(ended).toBe(true);
+    const op = lastOp(e);
+    expect(m.out()).toContain("FAIL this Mac's monotonic clock cannot be read");
+    expect(m.out()).toContain("UNKNOWN this Mac stopped reading. This is NOT a pass.");
+    expect(m.out()).toContain(`sh promote-runs/${op}/decider.sh recover ${op}`);
+    expect(m.out()).not.toMatch(/^PASS run /m);
+    expect(m.status()).not.toBe(0);
+    // The decider, alone, still decides.
+    for (let i = 0; i < 1200 && field(e.box, op, "done", "outcome") === ""; i++) await sleep(100);
+    expect(["pass", "undone"]).toContain(field(e.box, op, "done", "outcome"));
+  });
+
+  it("a Mac clock that cannot be read is fatal before anything is uploaded: never a wait that cannot end", async () => {
+    const e = await setup();
+    const head = headRev(e);
+    writeFileSync(join(e.box.fake, "clock-broken"), "");
+    const m = promoteAsync(e, [head, "--owner-approved", yes(head)]);
+    for (let i = 0; i < 600 && m.status() === null; i++) await sleep(100);
+    const ended = m.status() !== null;
+    if (!ended) {
+      process.kill(-m.pid, "SIGKILL");
+      await m.done;
+    }
+    expect(ended).toBe(true);
+    expect(m.out()).toContain("cannot read a monotonic clock");
+    expect(m.status()).not.toBe(0);
+    expect(ops(e)).toEqual([]);
   });
 });

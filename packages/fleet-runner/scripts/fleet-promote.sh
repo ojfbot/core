@@ -154,15 +154,29 @@ poll_secs="${FLEET_POLL_SECS:-2}"
 # script is waiting for at that moment, a command substitution's whole subshell included, and the
 # answer would come back empty, to be taken for "time is up". Here the loop runs in this shell,
 # which only notes the interrupt, and the question is asked again until it is answered.
-perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 1 2>/dev/null || die "this Mac's perl has no Time::HiRes with a monotonic clock"
+# A read that fails or comes back below zero (clock_gettime's answer when the clock cannot be read)
+# is asked again a few times, as an interrupted one is; a clock that still cannot be read is fatal.
 MONO=""
+mono_once() {
+  MONO="$(perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 'printf "%d\n", clock_gettime(CLOCK_MONOTONIC)' 2>/dev/null)" || MONO=""
+  case "$MONO" in "" | *[!0-9]*) MONO=""; return 1 ;; esac
+}
+clock_fatal() {
+  say "FAIL this Mac's monotonic clock cannot be read: nothing here can be timed."
+  if [ "${started:-no}" = yes ]; then
+    say "UNKNOWN this Mac stopped reading. This is NOT a pass. The decider on the server decides alone."
+    recover_line
+  fi
+  exit 1
+}
 mono() {
-  MONO=""
-  while :; do
-    MONO="$(perl -MTime::HiRes=clock_gettime,CLOCK_MONOTONIC -e 'printf "%d\n", clock_gettime(CLOCK_MONOTONIC)' 2>/dev/null)" || MONO=""
-    case "$MONO" in "" | *[!0-9]*) ;; *) return 0 ;; esac
+  local tries=0
+  until mono_once; do
+    tries=$((tries + 1))
+    [ "$tries" -lt 10 ] || clock_fatal
   done
 }
+mono_once || mono_once || die "this Mac's perl cannot read a monotonic clock (Time::HiRes, CLOCK_MONOTONIC)"
 prod_node() { CLIENT_TIMEOUT_MS="$((status_secs * 1000))" client_node "$PROD_HOST" "$PROD_PORT" "$PROD_KEYS_DIR" "$PROD_STATUS_ID" "$here/stage-smoke.mjs" "$@"; }
 read_build() {
   local out
@@ -449,23 +463,39 @@ perl "$d/guard.pl" detach "$d/decider.out" -- sh "$d/decider.sh" run "$2" > /dev
     say "the start may not have reached the server; reading its journal to find out"
 
   # 8. Read the journal until the decider has finished; answer its two challenges on the way.
-  local deadline shown=0 lines="" out="" prev_out="-" settled=no unreachable=no go_nonce="" ev_nonce="" outcome="" halted=no incomplete=""
+  local deadline shown=0 lines="" out="" prev_out="-" settled=no unreachable=no go_nonce="" ev_nonce="" outcome="" halted=no incomplete="" badjournal="" jrc="" jok=no
   # How long this Mac keeps reading: the whole worst case and a margin, unless told otherwise
   # (FLEET_MAC_WAIT_SECS changes this Mac's patience only, never what the decider does).
   local mac_wait="${FLEET_MAC_WAIT_SECS:-$((t_before + t_worst + 90))}"
   [[ "$mac_wait" =~ ^[0-9]+$ ]] && [ "$mac_wait" -ge 20 ] || mac_wait=$((t_before + t_worst + 90))
   deadline=$((start_at + mac_wait))
   while :; do
-    # Only the journal's complete lines: a line without its line break was never written.
-    if lines="$(nas 'j="$1/promote-runs/$2/journal"
-if [ -f "$j" ]; then head -n "$(wc -l < "$j" | tr -d " ")" "$j"; fi
+    # The journal is read by the decider's own checked reader (the guard): complete lines only (a
+    # line without its line break was never written), every one a record. Its status comes back
+    # with it: a read that failed is not "no line yet", and a line that is not a record is refused.
+    if lines="$(nas 'rc=0
+j="$(perl "$1/promote-runs/$2/guard.pl" journals "$1/promote-runs")" || rc=$?
+printf "%s\n" "$j" | sed -n "s/^$2 //p"
+echo "=====RC $rc"
+printf "%s\n" "$j" | sed -n "s/^BAD //p" | head -n 1
 echo "=====OUT"
 cat "$1/promote-runs/$2/decider.out" 2>/dev/null
-true' "$NAS_PROD_DIR" "$op" 2>/dev/null)"; then
+exit 0' "$NAS_PROD_DIR" "$op" 2>/dev/null)" && [[ "$lines" == *"=====RC "*"=====OUT"* ]]; then
       [ "$unreachable" != said ] || say "the server answers again"
       unreachable=no
       out="${lines#*=====OUT}"
-      lines="${lines%%=====OUT*}"
+      jrc="${lines#*=====RC }"
+      lines="${lines%%=====RC *}"
+      jrc="${jrc%%=====OUT*}"
+      case "${jrc%%$'\n'*}" in
+        0) jok=yes ;;
+        5)
+          badjournal="${jrc#*$'\n'}"
+          badjournal="${badjournal%%$'\n'*}"
+          break
+          ;;
+        *) jok=no lines="" ;; # not read this time: asked again, never taken for "no line yet"
+      esac
       local n=0 line state
       while IFS= read -r line; do
         [ -n "$line" ] || continue
@@ -539,12 +569,13 @@ EOF_LINES
       [ "$out" != "$prev_out" ] || settled=yes
       prev_out="$out"
       case "$out" in
-        *"RECORD INCOMPLETE"*) if [ "$settled" = yes ]; then incomplete="$(printf '%s\n' "$out" | grep 'RECORD INCOMPLETE' | tail -n 1)"; break; fi ;;
+        *"RECORD INCOMPLETE"*) if [ "$settled" = yes ]; then incomplete="$(printf '%s\n' "$out" | sed -n '/RECORD INCOMPLETE/,$p')"; break; fi ;;
         *"HALTED "*) halted=yes ;;
       esac
       if [ "$halted" = yes ] && [ "$settled" = yes ]; then break; fi
-      # It never began: the lock is held, the plan was refused, or the start never arrived.
-      if [ "$shown" -eq 0 ]; then
+      # It never began: the lock is held, the plan was refused, or the start never arrived. (Only
+      # said from a journal that was read: one that could not be read is not one with no line.)
+      if [ "$shown" -eq 0 ] && [ "$jok" = yes ]; then
         case "$out" in *REFUSED*) [ "$settled" = no ] || break ;; esac
         mono
         if [ "$MONO" -ge $((start_at + b_first)) ]; then
@@ -604,8 +635,13 @@ EOF_LINES
   elif [ "$outcome" = unchanged ]; then
     printf '%s\n' "$out" | grep -e '^REFUSED' -e '^disk:' | while IFS= read -r line; do say "$line"; done || true
     say "REFUSED by the decider: nothing was changed in production."
+  elif [ -n "$badjournal" ]; then
+    say "FAIL ${badjournal:-the journal of this run holds a complete line that is not a record}: what the decider did is not read from it. This is NOT a pass."
+    say "  recover reads the same journal and halts on it, changing nothing, until the line is looked at."
+    recover_line
   elif [ -n "$incomplete" ]; then
-    say "$incomplete"
+    # Every line the decider said from there on: what recover will do is among them.
+    printf '%s\n' "$incomplete" | while IFS= read -r line; do say "$line"; done
     say "FAIL the decider ended without its record: this is NOT reported as a pass or as a finished undo."
     recover_line
   elif [ "$halted" = yes ]; then
