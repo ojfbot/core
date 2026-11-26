@@ -603,7 +603,12 @@ rests on a client having ended. The step's group is recorded in the run folder
 before the step starts; in an undo a step runs even if that record could not be
 written (the disk may be the problem), and then relies on the lock, which the
 guard holds until the step's group is gone, and on the undo looking at the
-engine's state after each step. A step that cannot be ended halts the decider,
+engine's state after each step. The decider, the guard and the engine client
+hold the lock. The Compose plugin does not, because the engine client does not
+pass that descriptor on. So if the guard and the client are both killed while
+the plugin still runs, and the record was not written, nothing records the
+plugin. The next operation then relies only on what it sees of the engine's
+state, as it does for any engine request that outlives its client. A step that cannot be ended halts the decider,
 which changes nothing more.
 
 All waits and bounds are measured on a clock that cannot be set (the guard reads
@@ -670,6 +675,11 @@ what the rehearsal measured, with room for a state folder of gigabytes:
 | `EVIDENCE` | 120 | 60 | 600 |
 | `UNDO_START` | 60 | 10 | 600 |
 | `SETTLE` | 10 | 1 | 120 |
+
+The defaults stay as they are for the first real promote, by the owner's
+decision of 2026-11-26: "keep generous worst case limit for first run". No
+ceiling is below its default. Tightening them is a later change, made once real
+production times exist.
 
 Measured once, on a throwaway production on the server with a state folder of
 about 1 MB and every bound at its default (2026-11-25; a bigger state folder
