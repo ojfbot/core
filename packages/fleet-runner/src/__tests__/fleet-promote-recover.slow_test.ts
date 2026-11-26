@@ -619,6 +619,31 @@ describe("the decider: the journal and the records when the disk fails", () => {
     expect(wrong(b, op, { image: imageId(revOf(1)) }, imageId(rev))).toEqual([]);
   });
 
+  it("'record incomplete' where the journal never got its 'stopped' line says that recover will restart production, and recover does", async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    // begun, go, verified and spent are appended; "stopped" (the fifth) and every later append fail.
+    setPerlFaults(b, Array.from({ length: 40 }, (_, i) => `append ${i + 5} fail`));
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, {}, () => !alive(s.pid));
+    await s.done;
+    expect(s.status()).toBe(3);
+    expect(states(b, op).slice(-1)).toEqual(["spent"]);
+    const out = readOut(b, op);
+    expect(out).toContain("UNDONE, RECORD INCOMPLETE production is back on the hand-started container");
+    // What it says recover will do is what recover does: not "it completes the record" alone.
+    expect(out).toContain("recover will stop the previous production, see it stopped and start it again");
+    expect(out).not.toContain("it completes the record.");
+    setPerlFaults(b, []);
+    const before = dockerLog(b).length;
+    expect(decider(b, op, "recover").out).toContain("UNDONE production is back on");
+    const calls = dockerLog(b).slice(before);
+    expect(calls.findIndex((l) => l.startsWith("stop -t"))).toBeGreaterThanOrEqual(0);
+    expect(calls.findIndex((l) => l.startsWith("stop -t"))).toBeLessThan(calls.findIndex((l) => l.startsWith("start ")));
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
   it("where the previous production was never SEEN stopped, a stop may still be on its way: recover does stop it, see it stopped, and start it", async () => {
     const b = box();
     const rev = revOf(1);

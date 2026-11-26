@@ -526,7 +526,10 @@ refuses and **leaves that build running**, saying exactly what is missing.
 
 A journal line that cannot be written does not stop the undo: production coming
 back matters more than the line. The run then ends "UNDONE, RECORD INCOMPLETE"
-with a non-zero status, and `recover` completes the record. A `committed` line
+with a non-zero status, and `recover` completes the record. If the line that
+was lost is the one saying the previous production was seen stopped, the
+message says that `recover` will stop it, see it stopped and start it again
+before it completes the record (see "It looks before it acts" below). A `committed` line
 whose write reported a failure is read back: if the line is in the journal the
 run ends "COMMITTED, RECORD INCOMPLETE" (never undone, never called a pass until
 `recover` confirms it); if it is not, the switch is undone.

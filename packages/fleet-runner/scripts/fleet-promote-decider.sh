@@ -825,7 +825,13 @@ finish_undo() {
     exit 1
   fi
   say "UNDONE, RECORD INCOMPLETE production is back on $(prev_words) (checked $ud_checked), but the journal or the record could not be written."
-  say "  Run recover for $op once the disk can be written; it completes the record."
+  # Said as recover will act: it decides by the journal (already_undone), not by what this run saw.
+  if [ "$p_mode" = revert ] || jhas stopped; then
+    say "  Run recover for $op once the disk can be written; it completes the record."
+  else
+    say "  Run recover for $op once the disk can be written. The journal does not show the previous production seen stopped, so recover cannot rule out a stop still on its way:"
+    say "  recover will stop the previous production, see it stopped and start it again (a short outage), then complete the record."
+  fi
   exit 3
 }
 # A committed pass: its record, then "done". Entered by the run right after "committed", and by
