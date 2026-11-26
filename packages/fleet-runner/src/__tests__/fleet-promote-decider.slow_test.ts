@@ -255,14 +255,12 @@ describe("the decider: refusals before production is touched", () => {
     // Anything the decider writes to the run folder's .record now fails.
     mkdirSync(join(opDir(b, op), ".record"));
     const r = await run(b, op);
-    if (field(b, op, "done", "outcome") === "pass") {
-      // A pass is only recorded with its whole record.
-      expect(record(b, `promote-${op}.txt`)).toMatch(new RegExp(`^promote ${op}: .* -> ${revOf(1)}\n`));
-      expect(record(b, `promote-${op}.txt`)).toContain("approval_sha256: ");
-    } else {
-      expect(r.out).toContain("COMMITTED, RECORD INCOMPLETE");
-      expect(states(b, op)).not.toContain("done");
-    }
+    // The record is made in memory and written whole by the guard's publish, so the run folder is
+    // not needed for it: the pass is recorded, with its whole record, never an empty or a partial one.
+    expect(r.out).toContain("PASS production runs");
+    expect(field(b, op, "done", "outcome")).toBe("pass");
+    expect(record(b, `promote-${op}.txt`)).toMatch(new RegExp(`^promote ${op}: .* -> ${revOf(1)}\n`));
+    expect(record(b, `promote-${op}.txt`)).toContain("approval_sha256: ");
   });
 
   it("a rehearsal is marked in both places: a throwaway control folder cannot be paired with a service root that may be production's", async () => {
