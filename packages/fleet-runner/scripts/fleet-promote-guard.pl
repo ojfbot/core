@@ -12,11 +12,13 @@
 #
 #   bound [--note <file> <label>] [--soft-note] [--stdin-checked <file> <sha256>] <seconds> <grace> -- cmd..
 #       Run cmd in a session and process group of its own, with this process's stdout and stderr.
-#       If cmd AND everything it started have ended within <seconds>, exit with cmd's status
-#       (121 if cmd's own status was one of the verdicts below, so those are never ambiguous).
-#       Otherwise (the time is up, or cmd itself ended and left something running) send TERM to
-#       the group, wait <grace> seconds, send KILL, and wait until nothing of it is left.
-#         124: it had to be ended, and nothing of it is left.
+#       If cmd AND everything in its process group have ended within <seconds>, exit with cmd's
+#       status (121 if cmd's own status was one of the verdicts below, so those are never
+#       ambiguous). Otherwise (the time is up, or cmd itself ended and left something of its
+#       group running) send TERM to the group, wait <grace> seconds, send KILL, and wait at most
+#       5 seconds more until nothing of the group is left. So it returns within
+#       <seconds> + <grace> + 5 (and a second), by a clock that cannot be set.
+#         124: it had to be ended, and nothing of its group is left.
 #         125: something of it is still running; the caller must stop and change nothing more.
 #         126: cmd could not be started.
 #       --note: BEFORE cmd runs, append "<group ID> <start time> <label>" to <file> and flush it
@@ -25,6 +27,7 @@
 #       --stdin-checked: read <file> ONCE into memory (at most 16000 bytes), require those bytes
 #         to have the SHA-256 <sha256>, and give exactly those bytes to cmd on stdin
 #         (122 and cmd never runs if they differ or cannot be read). Check and use are one buffer.
+#         They are fed without ever blocking: a cmd that does not read them is ended at the bound.
 #       Without --stdin-checked, cmd's stdin is this process's.
 #
 #   detach <log> -- cmd..
@@ -57,18 +60,34 @@
 #   nonce
 #       32 random hex characters.
 #
-# How bound knows that nothing is left: cmd and all it starts inherit the write end of a pipe; the
-# read end reaches end-of-file only when the last of them has exited. A signal is only ever sent to
-# the group while its leader is still this process's unreaped child (running, or exited and not yet
-# collected), so the group ID cannot have been given to anyone else; the leader is collected last.
+#   wait-nonce <file> <nonce> <seconds>
+#       Wait until <file> holds a first "nonce=" line equal to <nonce>: 0. After <seconds>, by a
+#       clock that cannot be set: 1. A file that is absent, or holds another value, is waited out.
+#
+#   now
+#       Whole seconds on that clock, for a caller that keeps a budget of its own.
+#
+#   journals <runs folder>
+#       Every operation's journal under <runs folder>/<operation>/journal, read once and checked.
+#       Prints "<operation> <line>" for every complete line; a last line without its line break
+#       was never written and is left out. 0: all of them could be read and every complete line
+#       is a record. Otherwise the last line printed is "BAD <what, in words>" and the status is
+#       4 (a folder or a journal could not be read) or 5 (a complete line is not a record).
+#       An absent journal and an empty one are not errors: they print nothing.
+#
+# How bound knows that a step has ended is written where it does it ("WHEN A STEP HAS ENDED").
 use strict;
 use warnings;
 use POSIX qw(setsid :sys_wait_h);
-use Fcntl qw(:flock :DEFAULT F_GETFD F_SETFD FD_CLOEXEC);
+use Fcntl qw(:flock :DEFAULT F_GETFD F_SETFD F_GETFL F_SETFL FD_CLOEXEC);
 use IO::Handle;
+use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
+
+# Seconds on a clock that cannot be set and never runs backwards.
+sub mono { return clock_gettime(CLOCK_MONOTONIC) }
 
 sub usage {
-  print STDERR "usage: fleet-promote-guard.pl lock|bound|detach|append|publish|sync-path|groups-alive|holders|nonce (see the file's header)\n";
+  print STDERR "usage: fleet-promote-guard.pl lock|bound|detach|append|publish|sync-path|groups-alive|holders|nonce|wait-nonce|now|journals (see the file's header)\n";
   exit 2;
 }
 sub whole { my ($v) = @_; return defined $v && $v =~ /^[0-9]{1,6}$/ }
@@ -217,45 +236,122 @@ if ($mode eq 'bound') {
       exit 123;
     }
   }
-  # Only cmd's own end counts from here (looking up the start time ran a child of its own).
-  $chld = 0;
   syswrite($go_w, 'g');
   close($go_w);
-  if (defined $bytes) { write_all($in_w, $bytes); close($in_w); }
-  # True once nothing that holds the write end is left, or false after <wait> seconds, or (with
-  # $stop_on_exit) a second after cmd itself has ended while something of it lives on. Counted in
-  # quarter-second waits, never read from the clock, so a clock that jumps changes nothing.
-  my $unstarted = 0;
-  my $gone = sub {
-    my ($wait, $stop_on_exit) = @_;
-    my $after_exit = 0;
-    for (my $i = 0; $i < $wait * 4; $i++) {
-      my $bits = '';
-      vec($bits, fileno($rd), 1) = 1;
-      my $n = select($bits, undef, undef, 0.25);
-      if (defined $n && $n > 0) {
-        my $got = sysread($rd, my $buf, 4096);
-        return 1 if defined $got && $got == 0;
-        $unstarted = 1 if defined $got && $got > 0;
-        return 0 unless defined $got || $!{EINTR};
-      }
-      return 0 if $stop_on_exit && $chld && ++$after_exit > 4;
+  # The checked bytes are fed in the loop below, never in a write that could block: a step that
+  # does not read them cannot hold this helper past its bound.
+  my $fed = 0;
+  if (defined $bytes) {
+    my $fl = fcntl($in_w, F_GETFL, 0);
+    defined $fl && fcntl($in_w, F_SETFL, $fl | O_NONBLOCK) or exit 126;
+  }
+  my $feed = sub {
+    return unless defined $bytes && defined $in_w;
+    while ($fed < length($bytes)) {
+      my $n = syswrite($in_w, $bytes, length($bytes) - $fed, $fed);
+      if (!defined $n) { next if $!{EINTR}; return if $!{EAGAIN} || $!{EWOULDBLOCK}; last }    # anything else: the step is not reading
+      $fed += $n;
     }
-    return 0;
+    close($in_w);
+    undef $in_w;
   };
+  # WHEN A STEP HAS ENDED. Its leader has exited AND nothing else is left in its process group.
+  # The group is looked at with ps while the leader is still this process's uncollected child, so
+  # the group's number is still its own. (A signal-0 probe of the group cannot tell: with only the
+  # exited, uncollected leader left, Linux still answers "there".) The pipe every descendant
+  # inherits is only a HINT to look now: a process can close it and live on, so its end-of-file
+  # proves nothing. A process that left the group (a session of its own) cannot be seen this way;
+  # if it kept the pipe that is noticed (125), if it closed it too, nothing here knows of it, and
+  # nothing the decider decides rests on "the client is gone": it looks at the engine's state.
+  # Time is read from a clock that cannot be set, and everything, the collecting of the leader
+  # included, is inside the deadline.
+  my $state = sub {
+    open(my $ps, '-|', 'ps', '-A', '-o', 'pid=,pgid=,stat=') or return ();
+    my ($live, $leader) = (0, 'unseen');
+    while (my $row = <$ps>) {
+      my ($p, $g, $st) = split(' ', $row);
+      next unless defined $st && $g =~ /^[0-9]+$/ && $g == $pid;
+      if ($st =~ /^Z/) { $leader = 'exited' if $p == $pid; next }
+      $leader = 'running' if $p == $pid;
+      $live++;
+    }
+    close($ps) or return ();
+    return ($live, $leader);
+  };
+  my ($eof, $unstarted) = (0, 0);
+  # Wait on the pipe for at most $wait seconds; note end-of-file and the "could not start" byte.
+  my $watch = sub {
+    my ($wait) = @_;
+    if ($eof) { select(undef, undef, undef, $wait) if $wait > 0; return }
+    my $bits = '';
+    vec($bits, fileno($rd), 1) = 1;
+    my $n = select($bits, undef, undef, $wait > 0 ? $wait : 0);
+    return unless defined $n && $n > 0;
+    my $got = sysread($rd, my $buf, 4096);
+    if (defined $got && $got == 0) { $eof = 1 }
+    elsif (defined $got && $got > 0) { $unstarted = 1 }
+  };
+  my $deadline = mono() + $secs;
+  my ($finished, $leader_out_at, $look_at) = (0, undef, 0);
+  $chld = 0;
+  while (1) {
+    $feed->();
+    my $now = mono();
+    if ($chld || $eof || $now >= $look_at) {
+      my ($live, $leader) = $state->();
+      # (Reset after the look: ps is a child of this process too, and its own end must not ask for
+      # another look. An exit of the leader that this hides is seen at the next look, a second on
+      # at most, and at once in the usual case, where the pipe's end-of-file says to look.)
+      $chld = 0;
+      $look_at = mono() + 1;
+      if (defined $live && $leader eq 'exited') {
+        if ($live == 0) { $finished = 1; last }
+        # The leader is gone and left something running: a second for it to end by itself, then it is ended.
+        $leader_out_at //= $now;
+        last if $now - $leader_out_at >= 1;
+      }
+    }
+    $now = mono();
+    last if $now >= $deadline;
+    my $wait = $deadline - $now;
+    $watch->($wait < 0.25 ? $wait : 0.25);
+  }
   my $ended = 0;
-  if (!$gone->($secs, 1)) {
+  if (!$finished) {
     $ended = 1;
     # The leader is this process's child, running or exited and not yet collected: the group ID is
     # still its own, whoever of the group is left.
     kill('TERM', -$pid);
-    if (!$gone->($grace, 0)) {
+    my $gone = sub {
+      my ($wait) = @_;
+      my $until = mono() + $wait;
+      while (1) {
+        my ($live, $leader) = $state->();
+        return 1 if defined $live && $live == 0 && $leader eq 'exited';
+        return 0 if mono() >= $until;
+        $watch->(0.25);
+      }
+    };
+    if (!$gone->($grace)) {
       kill('KILL', -$pid);
-      exit 125 unless $gone->(5, 0);
+      exit 125 unless $gone->(5);
     }
   }
-  waitpid($pid, 0);
-  my $st = $?;
+  # The leader has exited (it was just seen so), so collecting it does not wait.
+  my $st = 0;
+  for (my $i = 0; ; $i++) {
+    my $got = waitpid($pid, WNOHANG);
+    if ($got == $pid) { $st = $?; last }
+    exit 125 if $got == -1 || $i >= 20;
+    select(undef, undef, undef, 0.05);
+  }
+  # The hint, used the one way it can be: the group is empty and the leader collected, yet something
+  # still holds the pipe. That is a process of the step that left its group and cannot be ended here.
+  if (!$eof) {
+    my $until = mono() + 1;
+    $watch->(0.25) while !$eof && mono() < $until;
+    exit 125 unless $eof;
+  }
   exit 124 if $ended;
   my $code = ($st & 127) ? 128 + ($st & 127) : $st >> 8;
   # 122 to 126 are this helper's own verdicts; a command that ends with one of them is reported as 121.
@@ -393,6 +489,74 @@ if ($mode eq 'nonce') {
   my $n = sysread($r, my $buf, 16);
   exit 1 unless defined $n && $n == 16;
   print unpack('H*', $buf), "\n";
+  exit 0;
+}
+
+if ($mode eq 'wait-nonce') {
+  my ($file, $nonce, $secs) = @ARGV;
+  usage() unless @ARGV == 3 && defined $nonce && $nonce =~ /^[0-9a-f]+$/ && whole($secs);
+  my $until = mono() + $secs;
+  while (1) {
+    if (open(my $f, '<', $file)) {
+      while (my $row = <$f>) {
+        next unless $row =~ /^nonce=(.*)$/;
+        exit 0 if $1 eq $nonce;
+        last;
+      }
+      close($f);
+    }
+    exit 1 if mono() >= $until;
+    select(undef, undef, undef, 0.2);
+  }
+}
+
+if ($mode eq 'now') {
+  usage() if @ARGV;
+  printf "%d\n", mono();
+  exit 0;
+}
+
+if ($mode eq 'journals') {
+  my ($dir) = @ARGV;
+  usage() unless defined $dir && @ARGV == 1;
+  # A record: "<UTC time> <state> [key=value ..]", the state one this decider writes.
+  my $states = join('|', qw(begun go verified spent stopped snapshot starting started server-checked evidence committed
+    undoing undo-quiet undo-new-removed undo-state-aside undo-state-back undo-previous-stopped undo-previous-started
+    undo-healthy done halted));
+  my $record = qr/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ (?:$states)(?: [a-z_]+=[^\s=]*)*$/;
+  my $bad = sub { my ($status, $what) = @_; print "BAD $what\n"; exit $status };
+  opendir(my $d, $dir) or $bad->(4, 'the folder of operations cannot be read');
+  my @ops = sort grep { /^[A-Za-z0-9-]+$/ } readdir($d);
+  closedir($d);
+  for my $o (@ops) {
+    # Whether there is a journal is read from the folder's own listing, never from a failed look.
+    my $od;
+    if (!opendir($od, "$dir/$o")) {
+      next if $!{ENOTDIR} || $!{ENOENT};
+      $bad->(4, "the folder of operation $o cannot be read");
+    }
+    my $there = grep { $_ eq 'journal' } readdir($od);
+    closedir($od);
+    next unless $there;
+    open(my $fh, '<', "$dir/$o/journal") or $bad->(4, "the journal of operation $o cannot be read");
+    binmode($fh);
+    my $text = '';
+    while (1) {
+      my $n = sysread($fh, my $buf, 65536);
+      $bad->(4, "the journal of operation $o cannot be read") unless defined $n;
+      last if $n == 0;
+      $text .= $buf;
+      $bad->(5, "the journal of operation $o is not a journal (it is far too long)") if length($text) > 4_000_000;
+    }
+    close($fh);
+    $text =~ s/[^\n]*\z//;    # a last line without its line break was never written
+    chomp(my $whole = $text);
+    for my $line (split(/\n/, $whole, -1)) {
+      last if $whole eq '';
+      $bad->(5, "the journal of operation $o holds a complete line that is not a record") unless $line =~ $record;
+      print "$o $line\n";
+    }
+  }
   exit 0;
 }
 

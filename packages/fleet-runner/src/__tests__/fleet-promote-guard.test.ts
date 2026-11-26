@@ -46,6 +46,7 @@ const alive = (pid: number) => {
   }
 };
 const pidIn = (name: string) => Number(readFileSync(join(box, name), "utf8").trim());
+const sha256 = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
 const sleep = (ms: number) => new Promise((ok) => setTimeout(ok, ms));
 async function until(what: () => boolean, ms: number) {
   const end = Date.now() + ms;
@@ -163,6 +164,47 @@ describe("fleet-promote-guard.pl bound", () => {
     expect(alive(pidIn("straggler.pid"))).toBe(false);
     // Not after the 30-second bound: about a second after the leader was seen to have ended.
     expect(Date.now() - t0).toBeLessThan(8000);
+  });
+
+  it("a child that closes every descriptor it inherited is still found and ended: an empty pipe is a hint, never proof", () => {
+    // The step's leader exits at once and leaves a child that shut the pipe the guard watches.
+    const t0 = Date.now();
+    const r = dash(`
+      perl "$G" bound 30 1 -- perl -e '
+        my $k = fork();
+        if (!$k) { require POSIX; POSIX::close($_) for (0 .. 255); sleep 60; exit 0 }
+        open(my $f, ">", "$ENV{B}/quiet.pid"); print $f "$k\n"; close($f); exit 0'
+      echo "status=$?"
+    `);
+    expect(r.out).toContain("status=124");
+    expect(alive(pidIn("quiet.pid"))).toBe(false);
+    expect(Date.now() - t0).toBeLessThan(9000);
+  });
+
+  it("a leader that closes its descriptors does not run past its bound: the wait for it is inside the bound too", () => {
+    const t0 = Date.now();
+    const r = dash(`
+      perl "$G" bound 1 1 -- perl -e 'require POSIX; POSIX::close($_) for (3 .. 255); sleep 8; exit 0'
+      echo "status=$?"
+    `);
+    const took = Date.now() - t0;
+    expect(r.out).toContain("status=124");
+    expect(took).toBeGreaterThanOrEqual(900);
+    expect(took).toBeLessThan(4000);
+  });
+
+  it("keeps to the bound by a clock that cannot be set, to within a second, also with a step that never reads the bytes it is handed", () => {
+    // 16,000 bytes (the most it accepts) for a step that never reads them: writing them must not block the guard.
+    writeFileSync(join(box, "big.json"), "x".repeat(16000));
+    const hash = sha256(readFileSync(join(box, "big.json")));
+    const t0 = Date.now();
+    const r = dash(`perl "$G" bound --stdin-checked "$B/big.json" ${hash} 2 1 -- sleep 30; echo "status=$?"`);
+    const took = Date.now() - t0;
+    expect(r.out).toContain("status=124");
+    expect(took).toBeGreaterThanOrEqual(1900);
+    expect(took).toBeLessThan(4500);
+    // And the same bytes still arrive whole at a step that does read them.
+    expect(dash(`perl "$G" bound --stdin-checked "$B/big.json" ${hash} 5 1 -- wc -c`).out.trim()).toBe("16000");
   });
 
   it("records the step's process group, durably, BEFORE the step runs; without the record the step never runs", () => {
