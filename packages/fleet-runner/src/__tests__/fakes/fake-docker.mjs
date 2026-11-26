@@ -297,6 +297,12 @@ if (process.argv[2] === "--apply") {
 
 const argv = process.argv.slice(2);
 appendFileSync(join(S, "docker.log"), `${argv.join(" ").replace(/\s+/g, " ").slice(0, 3000)}\n`);
+// A client the test's fake perl marked, for one bounded step by its label: it never answers and
+// does not end when asked to (TERM), only when killed.
+if (process.env.FAKE_DOCKER_HANG === "deaf") {
+  process.on("SIGTERM", () => {});
+  for (;;) sleepMs(1000);
+}
 const callNo = readFileSync(join(S, "docker.log"), "utf8").split("\n").length - 1;
 const line = argv.join(" ");
 

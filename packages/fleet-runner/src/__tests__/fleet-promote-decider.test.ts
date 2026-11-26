@@ -85,16 +85,16 @@ describe("the decider, in seconds", () => {
   it("with NO bound set, the defaults add up to the documented worst case and are accepted", () => {
     const r = bounds();
     expect(r.status).toBe(0);
-    expect(r.stdout).toContain("worst_case=1140 pass_path=625 silent_max=910 before=315");
+    expect(r.stdout).toContain("worst_case=1167 pass_path=626 silent_max=966 before=315");
     expect(r.stdout).toContain("120  wait for this Mac's evidence");
     expect(r.stdout).toContain("this Mac waits for the decider's first journal line");
     // The printed rows of the offline window and the undo are the sum.
     const all = r.stdout.split("\n");
     const rows = all.slice(all.findIndex((l) => l.includes("production offline:")));
     const sum = rows.map((l) => /^ {4}(\d+) {2}/.exec(l)?.[1]).filter(Boolean).reduce((t, n) => t + Number(n), 0);
-    expect(sum).toBe(1140);
+    expect(sum).toBe(1167);
     // The documented number is this number.
-    expect(readFileSync(join(DECIDER, "../../deployment.md"), "utf8")).toContain("1140 seconds");
+    expect(readFileSync(join(DECIDER, "../../deployment.md"), "utf8")).toContain("1167 seconds");
   });
 
   it("refuses an impossible setting before anything is touched", () => {

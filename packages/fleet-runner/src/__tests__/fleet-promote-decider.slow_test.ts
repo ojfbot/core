@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -91,7 +91,7 @@ describe("the decider: bounds", () => {
     expect(readFileSync(join(opDir(b, a), "plan"), "utf8")).not.toContain("b_");
     const u = await run(b, a, { evidence: "interrupted" });
     expect(u.out).toContain("UNDONE production is back on");
-    expect(field(b, a, "verified", "offline_max")).toBe("1140");
+    expect(field(b, a, "verified", "offline_max")).toBe("1167");
     expect(field(b, a, "server-checked", "window")).toBe("120");
     const c = newOp(b, { rev: revOf(2), defaults: true });
     const p = await run(b, c);
@@ -120,21 +120,46 @@ describe("the decider: bounds", () => {
     const fromStop = (rows: [string, string][]) => rows.slice(rows.findIndex(([label]) => label === "stop-previous"));
     const beforeStop = (rows: [string, string][]) => rows.slice(0, rows.findIndex(([label]) => label === "stop-previous"));
 
-    // A full switch and a full undo: every call, the evidence window, the settle interval and the
-    // record writes, plus the endings of the five steps that may run into their bound without
-    // ending the undo (4 x 10, and 40 for the helper that counts the jobs). No more, no less.
+    // Ending a step that ran into its bound: 5 s of grace, at most 5 s to see it gone, and the
+    // guard's own last look (a second). A helper's ending adds its removal by name, asked and seen.
+    const END = 11;
+    const ENDS = 4 * END + (END + 2 * 10 + END);
+
+    // The longest path: good evidence, then the look right before the commit runs into its bound
+    // (an engine that hangs), then a full undo. Every call, the evidence window, the settle
+    // interval, the record writes and that look's ending, plus the endings of the five steps that
+    // may run into their bound without ending the undo. No more, no less.
     const b = box();
+    const late = newOp(b, { rev: revOf(1) });
+    writeFileSync(join(b.fake, "bound-faults"), "commit-identify hang\n");
+    await run(b, late);
+    unlinkSync(join(b.fake, "bound-faults"));
+    expect(field(b, late, "undoing", "reason")).toBe("new-gone-before-commit");
+    expect(field(b, late, "done", "outcome")).toBe("undone");
+    expect(steps(b, late).map(([label]) => label)).toContain("commit-identify");
+    expect(sumOf(fromStop(steps(b, late))) + 60 + 1 + 10 + END).toBe(figure(b, late, "worst_case") - ENDS);
+
+    // Bad evidence ends before that look: the same, without it.
     const undone = newOp(b, { rev: revOf(1) });
     await run(b, undone, { evidence: "wrong-build" });
     expect(field(b, undone, "done", "outcome")).toBe("undone");
-    expect(sumOf(fromStop(steps(b, undone))) + 60 + 1 + 10).toBe(figure(b, undone, "worst_case") - 80);
+    expect(sumOf(fromStop(steps(b, undone))) + 60 + 1 + 10 + (10 + END)).toBe(figure(b, undone, "worst_case") - ENDS);
+
+    // Nothing answering for longest: the start succeeds, the new revision never gets healthy (its
+    // whole health budget), then a full undo.
+    const sick = box();
+    setFaults(sick, { health: { [imageId(revOf(1))]: "unhealthy" } });
+    const never = newOp(sick, { rev: revOf(1) });
+    await run(sick, never);
+    expect(field(sick, never, "undoing", "reason")).toBe("new-not-healthy");
+    expect(sumOf(fromStop(steps(sick, never))) + 1 + 10).toBe(figure(sick, never, "silent_max") - ENDS);
 
     // A pass: every call from the stop to the look after the commit, the evidence window and the
     // record writes, plus the ending of a stop that ran into its bound and was still seen stopped.
     const passed1 = newOp(b, { rev: revOf(2) });
     await run(b, passed1);
     expect(field(b, passed1, "done", "outcome")).toBe("pass");
-    expect(sumOf(fromStop(steps(b, passed1))) + 60 + 10).toBe(figure(b, passed1, "pass_path") - 10);
+    expect(sumOf(fromStop(steps(b, passed1))) + 60 + 10).toBe(figure(b, passed1, "pass_path") - END);
 
     // The checks before the stop, for a first cutover, a later promote and a revert: within their row.
     const checksRow = figure(b, passed1, "before") - 10 - 30;
@@ -201,6 +226,43 @@ describe("the decider: refusals before production is touched", () => {
     expect(states(b, op)).not.toContain("spent");
     staged(b, rev);
     expect((await run(b, newOp(b, { rev }))).out).toContain("PASS production runs");
+  });
+
+  it("a stage run that holds the test copy's lock when the yes is to be spent: refused, nothing changed, its lock left alone", async () => {
+    const b = box();
+    const rev = revOf(1);
+    // A stage run is under way: it holds the stage lock (and may be about to clear what is staged).
+    mkdirSync(join(b.stage, ".stage-lock"));
+    writeFileSync(join(b.stage, ".stage-lock", "owner"), "stage-run-1\n");
+    const op = newOp(b, { rev });
+    const before = dockerLog(b).length;
+    const r = await run(b, op);
+    expect(r.out).toContain("REFUSED a stage run holds the test copy's lock");
+    expect(field(b, op, "done", "outcome")).toBe("unchanged");
+    expect(states(b, op)).not.toContain("spent");
+    expect(disruptive(b, before)).toEqual([]);
+    expect(readFileSync(join(b.stage, ".stage-lock", "owner"), "utf8")).toBe("stage-run-1\n");
+    // Once it is gone the promote runs, and holds the lock only while it reads and spends: it is
+    // free again afterwards.
+    rmSync(join(b.stage, ".stage-lock"), { recursive: true });
+    expect((await run(b, newOp(b, { rev }))).out).toContain("PASS production runs");
+    expect(existsSync(join(b.stage, ".stage-lock"))).toBe(false);
+  });
+
+  it("a record that cannot be built in the run folder is never published as a pass: the record is written whole by one checked writer", async () => {
+    const b = box();
+    const op = newOp(b, { rev: revOf(1) });
+    // Anything the decider writes to the run folder's .record now fails.
+    mkdirSync(join(opDir(b, op), ".record"));
+    const r = await run(b, op);
+    if (field(b, op, "done", "outcome") === "pass") {
+      // A pass is only recorded with its whole record.
+      expect(record(b, `promote-${op}.txt`)).toMatch(new RegExp(`^promote ${op}: .* -> ${revOf(1)}\n`));
+      expect(record(b, `promote-${op}.txt`)).toContain("approval_sha256: ");
+    } else {
+      expect(r.out).toContain("COMMITTED, RECORD INCOMPLETE");
+      expect(states(b, op)).not.toContain("done");
+    }
   });
 
   it("a rehearsal is marked in both places: a throwaway control folder cannot be paired with a service root that may be production's", async () => {
@@ -381,6 +443,21 @@ describe("the decider: it undoes, by itself, whatever fails once the yes is spen
     expect(reality(b).stateFolders).toEqual(["state"]);
     expect(field(b, op, "undo-state-back", "skipped")).toBe("1");
     expect(field(b, op, "undo-state-aside", "skipped")).toBe("1");
+  });
+
+  it("a health look that could not be ended (the guard's 125) halts the decider: it is never taken for 'not healthy yet'", async () => {
+    const b = box();
+    const op = newOp(b, { rev: revOf(1) });
+    writeFileSync(join(b.fake, "bound-faults"), "new-health 125\n");
+    const r = await run(b, op);
+    expect(readFileSync(join(b.fake, "bound-faults.hit"), "utf8")).toContain("new-health 125");
+    expect(r.out).toContain("HALTED the step new-health could not be ended");
+    expect(r.status).toBe(4);
+    expect(field(b, op, "halted", "reason")).toBe("step-would-not-end");
+    // Nothing more was done: no second look, no undo, no commit.
+    expect(readFileSync(join(b.fake, "bound-faults.hit"), "utf8").trim().split("\n")).toHaveLength(1);
+    expect(states(b, op)).not.toContain("undoing");
+    expect(states(b, op)).not.toContain("committed");
   });
 
   it("a new revision that does not start, is not healthy, lost a job, or whose keys cannot be read", async () => {

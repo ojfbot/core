@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -10,6 +10,7 @@ import {
   HAND_NAME,
   PROJECT,
   alive,
+  containers,
   decider,
   deciderAsync,
   destroyBoxAsync,
@@ -595,6 +596,64 @@ describe("the decider: the journal and the records when the disk fails", () => {
     expect(changing(b, before)).toEqual([]);
     expect(states(b, op).filter((x) => x.startsWith("undo") || x === "done")).toEqual(["undoing", "undo-quiet", "undo-new-removed", "undo-state-aside", "undo-state-back", "undo-previous-stopped", "undo-previous-started", "undo-healthy", "done"]);
     expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  // An undo that finished but could not write its journal (a full disk), as above: production is
+  // back on the hand-started container, the state folders are in the restored layout.
+  const incompleteUndo = async () => {
+    const b = box();
+    const rev = revOf(1);
+    const op = newOp(b, { rev });
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, { vanish: (st) => st.includes("server-checked") }, () => false);
+    setPerlFaults(b, Array.from({ length: 40 }, (_, i) => `append ${i + 1} fail`));
+    await playMac(b, op, { evidence: "wrong-build" }, () => !alive(s.pid));
+    await s.done;
+    expect(readOut(b, op)).toContain("UNDONE, RECORD INCOMPLETE production is back on the hand-started container");
+    setPerlFaults(b, []);
+    return { b, op, rev };
+  };
+
+  it("the shortcut's look for helpers: a helper container of the run left behind is removed and seen gone, never left beside a 'finished' undo", async () => {
+    const { b, op, rev } = await incompleteUndo();
+    // A helper of this run is still there (created, never started).
+    const id = sha(`left-helper-${op}`);
+    writeFileSync(
+      join(b.fake, "containers", `${id}.json`),
+      JSON.stringify({ id, name: `fleet-promote-${op}-left`, image: imageId(rev), status: "created", pid: 0, policy: "no", env: [], helper: true }),
+    );
+    const rec = decider(b, op, "recover");
+    expect(rec.out).toContain("UNDONE production is back on");
+    expect(containers(b).filter((c) => c.name.startsWith(`fleet-promote-${op}-`))).toEqual([]);
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  it("the shortcut's look at the state folders: not in the restored layout, recover does the undo's renames, it does not record them as done", async () => {
+    const { b, op, rev } = await incompleteUndo();
+    // The snapshot is not the state folder any more: the second rename is undone (layout 2).
+    renameSync(join(b.prodRoot, "state"), join(b.prodRoot, `state.pre-${op}`));
+    const rec = decider(b, op, "recover");
+    expect(rec.out).not.toContain("what the undo brings about is already there");
+    expect(rec.out).toContain("UNDONE production is back on");
+    expect(existsSync(join(b.prodRoot, "state"))).toBe(true);
+    expect(existsSync(join(b.prodRoot, `state.pre-${op}`))).toBe(false);
+    expect(wrong(b, op, HAND, imageId(rev))).toEqual([]);
+  });
+
+  it("a record of the run's steps that cannot be read halts recover, nothing changed: never 'no step is running'", async () => {
+    const b = box();
+    const op = newOp(b, { rev: revOf(1) });
+    const s = startDecider(b, op, "run");
+    await playMac(b, op, { vanish: (st) => st.includes("server-checked") }, () => false);
+    killAll(b, op, s.pid);
+    await s.done;
+    appendFileSync(join(opDir(b, op), "groups"), "this is not a group line\n");
+    const before = dockerLog(b).length;
+    const r = decider(b, op, "recover");
+    expect(r.status).toBe(4);
+    expect(r.out).toContain("HALTED the record of the steps operation");
+    expect(dockerLog(b).slice(before)).toEqual([]);
+    expect(states(b, op)).not.toContain("done");
   });
 
   it("the same after a later promote: recover does not stop, remove and recreate the previous revision's container", async () => {

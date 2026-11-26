@@ -50,7 +50,7 @@ now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 Q=10     # one quick engine query
 P=5      # one poll of a wait
 H=30     # one short helper container
-END=10   # ending a step that ran into its bound: 5 s of grace, then at most 5 s to see it gone
+END=11   # ending a step that ran into its bound: 5 s of grace, at most 5 s to see it gone, the guard's last look
 HG=$((END + 2 * Q + END)) # the same for a helper container, whose removal by name is then asked and seen
 WRITE=10 # local record writes (not timer-enforced; counted)
 bound_names="b_first b_go b_stop b_copy b_integrity b_start b_health b_exec b_evidence b_undo_start b_undo_health b_settle"
@@ -109,12 +109,17 @@ load_bounds() {
   # (a helper). Any other step that runs into its bound ends the switch, or halts the undo.
   t_ends_pass=$END
   t_ends=$((4 * END + HG))
-  # Offline or on an unconfirmed build, the longest path: every step slow, no evidence, a full undo.
-  t_worst=$((t_fwd_down + t_fwd_up + t_undo + t_ends))
+  # Offline or on an unconfirmed build, the longest path: every step slow, the evidence at the end
+  # of its window, then the look right before the commit runs into its bound (and is ended), then
+  # a full undo.
+  t_worst=$((t_fwd_down + t_fwd_up + Q + END + t_undo + t_ends))
   # A pass: the switch, the evidence, the two looks at the new revision around the commit, the record.
   t_pass=$((t_fwd_down + t_fwd_up + 2 * Q + WRITE + t_ends_pass))
-  # Nothing answering: the start runs into its bound (and is ended), then a slow undo.
-  t_silent=$((t_fwd_down + END + t_undo + t_ends))
+  # Nothing answering: the start runs into its bound (and is ended), or it succeeds and the new
+  # revision never gets healthy (its whole health budget, the longer of the two), then a slow undo.
+  t_sl_up=$b_health
+  [ "$t_sl_up" -ge "$END" ] || t_sl_up=$END
+  t_silent=$((t_fwd_down + t_sl_up + t_undo + t_ends))
   # The checks before the stop (production still up): at most 18 queries and 3 helpers.
   t_checks=$((18 * Q + 3 * H))
   t_before=$((b_first + b_go + t_checks))
@@ -139,6 +144,7 @@ print_bounds() {
   say "    $b_health  wait for the engine to report it healthy (one budget for the whole wait)"
   say "    $((2 * b_exec))  enrolled keys and job count in the new container"
   say "    $b_evidence  wait for this Mac's evidence"
+  say "    $((Q + END))  look at it once more right before the commit (if that look hangs: ended, then the undo)"
   say "  the undo, if it comes to that:"
   say "    $Q  see that no helper container of this run is left"
   say "    $((b_stop + 3 * Q))  stop and remove the new revision"
@@ -183,6 +189,11 @@ records="$ctl/promote-records"
 # Whatever the shell or a tool writes to stderr may name a path: it goes to this run's own log,
 # never to the output a person or the Mac reads.
 case "$mode" in status | current) exec 2> /dev/null ;; *) exec 2>> "$englog" ;; esac
+# Every bound and wait is on the monotonic clock: if it cannot be read, nothing is started (the
+# Mac's preflight runs check, so this is asked before anything is uploaded for a run).
+case "$mode" in check | run | recover)
+  perl "$guard" now > /dev/null || { say "REFUSED the server's monotonic clock cannot be read: no step could be bounded or timed. Nothing was changed."; exit 1; } ;;
+esac
 
 # ---- The plan: plain KEY=value lines, read as text, never run. ---------------------------------
 pv() { sed -n "s/^$1=//p" "$plan" 2>/dev/null | head -n 1; }
@@ -584,13 +595,16 @@ mono() {
 # starting, unhealthy, or none (the container has no health check). 1 if it could not be read.
 health_of() {
   health=""
+  # The look's status is taken in the else branch: after an if whose branch did not run, $? is 0.
   if bound_run "$1" "$3" docker inspect --format "$F_HEALTH" "$2" > "$here/.health" 2>> "$englog"; then
     health="$(head -n 1 "$here/.health")"
     case "$health" in healthy | starting | unhealthy | none) return 0 ;; esac
     health=""
     return 1
+  else
+    ho_rc=$?
   fi
-  [ "$?" -ne 125 ] || stuck "$1"
+  [ "$ho_rc" -ne 125 ] || stuck "$1"
   return 1
 }
 # wait_health <label> <container> <seconds>: 0 once the engine reports it healthy, or says it has no
@@ -602,7 +616,8 @@ wait_health() {
   wh_until=$((MONO + $3))
   while :; do
     mono || return 1
-    wh_b=$((wh_until - MONO - END))
+    # (Less a second: the clock is read in whole seconds, so up to one may already be gone.)
+    wh_b=$((wh_until - MONO - END - 1))
     [ "$wh_b" -le "$P" ] || wh_b=$P
     [ "$wh_b" -ge 1 ] || return 1
     if health_of "$1" "$2" "$wh_b"; then
@@ -800,7 +815,8 @@ previous_now() {
 finish_undo() {
   if [ "$p_mode" = revert ]; then fu_outcome=reverted fu_record="revert-$op.txt"; else fu_outcome=undone fu_record="undo-$op.txt"; fi
   fu_snap_jobs="$(jget_of "$u_snap" snapshot jobs)"
-  {
+  # The record is made in memory and written whole by one checked writer (the guard's publish).
+  fu_text="$({
     if [ "$p_mode" = revert ]; then echo "revert $op of run $(pv target): production put back to $(prev_words)"
     else echo "undo of promote $op: production put back to $(prev_words); $(printf '%s' "$p_rev" | cut -c1-12) was NOT promoted"; fi
     echo "reason: $(jget undoing reason)"
@@ -813,10 +829,10 @@ finish_undo() {
       echo "state: the state folder was never changed. A snapshot copy this run made, if any, is left unused."
     fi
     echo "approval_sha256: $(jget spent approval)"
-  } > "$here/.record" 2>/dev/null
+  } 2>/dev/null)"
   fu_ok=yes
   [ "$journal_broken" = no ] || fu_ok=no
-  if [ "$fu_ok" = yes ]; then publish "$fu_record" < "$here/.record" || fu_ok=no; fi
+  if [ "$fu_ok" = yes ]; then printf '%s\n' "$fu_text" | publish "$fu_record" || fu_ok=no; fi
   if [ "$fu_ok" = yes ]; then jot done "outcome=$fu_outcome" "checked=$ud_checked" "record=$fu_record" || fu_ok=no; fi
   if [ "$fu_ok" = yes ]; then
     if [ "$p_mode" = revert ]; then say "REVERTED production is back on $(prev_words) (checked $ud_checked; record: promote-records/$fu_record)"
@@ -848,7 +864,8 @@ commit_records() {
     exit 4
   fi
   cr_checked="$(now)"
-  {
+  # Made in memory and written whole by one checked writer; "done" only after it is written.
+  cr_text="$({
     echo "promote $op: $(prev_words) -> $(jget begun rev)"
     echo "committed: $cr_time; seen running: $cr_checked"
     echo "approval_sha256: $(jget spent approval)"
@@ -859,8 +876,8 @@ commit_records() {
     echo "to go back to $(prev_words): fleet-promote.sh revert $op --owner-approved '<the owner's yes, naming $op>'"
     echo "  An owner-run command: it sets aside every job accepted since this promote. No agent runs it without the owner's yes naming this run."
     if [ "$u_prev" = container ]; then echo "  The hand-started container stays stopped for that; the owner may remove it once a revert is no longer wanted."; fi
-  } > "$here/.record" 2>/dev/null
-  if publish "promote-$op.txt" < "$here/.record" && jot done outcome=pass "checked=$cr_checked" "record=promote-$op.txt"; then
+  } 2>/dev/null)"
+  if printf '%s\n' "$cr_text" | publish "promote-$op.txt" && jot done outcome=pass "checked=$cr_checked" "record=promote-$op.txt"; then
     say "PASS production runs $(jget begun rev) (committed $cr_time, seen running $cr_checked; record: promote-records/promote-$op.txt)"
     exit 0
   fi
@@ -878,12 +895,12 @@ close_unchanged() {
   shift
   say "REFUSED $*"
   say "nothing was changed in production"
-  {
+  cu_text="$({
     echo "operation $op: nothing was changed in production"
     echo "reason: $cu_reason ($*)"
     echo "the owner's yes was $(if jhas spent; then echo spent; else echo not spent; fi)"
-  } > "$here/.record" 2>/dev/null
-  if publish "undo-$op.txt" < "$here/.record" && jot done outcome=unchanged "reason=$cu_reason" "seq=${seq:-0}" "record=undo-$op.txt"; then exit 1; fi
+  } 2>/dev/null)"
+  if printf '%s\n' "$cu_text" | publish "undo-$op.txt" && jot done outcome=unchanged "reason=$cu_reason" "seq=${seq:-0}" "record=undo-$op.txt"; then exit 1; fi
   say "  (the journal or the record could not be written; run recover for $op to close it)"
   exit 3
 }
@@ -1075,6 +1092,23 @@ stage_still() {
   [ "$ss_last" = "$p_rev" ] && [ "$ss_staged" = "$p_rev" ] ||
     { why="this revision is no longer the one the test copy passed and has staged (it was staged again since the Mac looked)"; return 1; }
 }
+# stage_hold / stage_release: the test copy's own run lock (the one fleet-stage.sh takes, a folder
+# made by mkdir), taken WITHOUT waiting around the one read of its record and the spending of the
+# yes, so no stage run can change what is staged in between. If a stage run holds it, the promote is
+# refused with nothing changed. (A decider killed in that instant leaves the lock, naming this
+# operation; fleet-stage.sh then says so, and a person removes it.)
+stage_lock_dir() { printf '%s/.stage-lock' "$p_stage_dir"; }
+stage_hold() {
+  if ! mkdir "$(stage_lock_dir)" 2>/dev/null; then
+    why="a stage run holds the test copy's lock ($(head -c 80 "$(stage_lock_dir)/owner" 2>/dev/null | tr -cd 'A-Za-z0-9._ -')): what is staged may be about to change. Promote again once it has finished"
+    return 1
+  fi
+  printf 'promote %s\n' "$op" > "$(stage_lock_dir)/owner" 2>/dev/null || true
+}
+stage_release() {
+  rm -f "$(stage_lock_dir)/owner" 2>/dev/null
+  rmdir "$(stage_lock_dir)" 2>/dev/null || say "the test copy's stage lock could not be released: remove $(stage_lock_dir) once this operation has ended"
+}
 # verify_all: 0 with every v_* set, or 1 with $why.
 verify_all() {
   why=""
@@ -1182,6 +1216,11 @@ if [ "$mode" = recover ]; then
   # Nothing of this operation may still be running: not a step, not a helper it was bounding.
   rc_live="$(perl "$guard" groups-alive "$groups" 2>/dev/null)"
   rc_rc=$?
+  if [ "$rc_rc" -eq 2 ]; then
+    say "HALTED the record of the steps operation $op started cannot be read, so whether one still runs is not known; production may be down."
+    say "  Nothing was changed. Run recover for $op again once the run folder can be read."
+    exit 4
+  fi
   if [ "$rc_rc" -ne 0 ]; then
     say "HALTED a step of operation $op is still running; production may be down until that process is ended."
     printf '%s\n' "$rc_live" | sed 's/^/  still running: /'
@@ -1275,8 +1314,15 @@ u_uidgid="$p_uidgid"
 # The yes is spent here, under the lock, and nowhere else. And only for a revision that is, at this
 # very moment, still the one the test copy passed and has staged: read here, by the decider itself
 # (the Mac's own look, earlier, was only an early refusal).
-if [ "$p_mode" = promote ]; then stage_still || close_unchanged refused "$why"; fi
-jot spent "approval=$p_approval_sha" || close_unchanged journal "the journal cannot be written"
+if [ "$p_mode" = promote ]; then
+  stage_hold || close_unchanged refused "$why"
+  stage_still || { stage_release; close_unchanged refused "$why"; }
+fi
+if ! jot spent "approval=$p_approval_sha"; then
+  [ "$p_mode" != promote ] || stage_release
+  close_unchanged journal "the journal cannot be written"
+fi
+[ "$p_mode" != promote ] || stage_release
 load_undo_facts || halt undo-facts "the journal does not hold what was just written"
 
 if [ "$p_mode" = revert ]; then undo revert; fi

@@ -126,13 +126,19 @@ export function makeBox(opts: { rehearsal?: boolean; policy?: string; jobs?: num
   // holds "<call> <n> <mode>" lines: the n-th such call fails, tears, or the decider is killed
   // around it. And one for the Mac side: interrupt-at-clock holds a number N, and the N-th time the
   // Mac reads its clock, an interrupt (as Ctrl-C sends it, to the Mac's whole process group)
-  // arrives at that very moment, so that read is lost. Everything else goes straight to the real perl.
+  // arrives at that very moment, so that read is lost. clock-broken: every read of the Mac's clock
+  // answers -1, as clock_gettime does when the clock cannot be read. bound-faults holds
+  // "<label> 125|hang" lines: the guard's bound of the step with that label answers 125 at once
+  // ("could not be ended"), or runs the step with an engine client that never answers and ignores
+  // TERM. append-garbage-after holds a journal state: right after that line is appended, a
+  // complete line that is not a record follows it. Everything else goes straight to the real perl.
   const realPerl = spawnSync("sh", ["-c", "command -v perl"], { encoding: "utf8" }).stdout.trim();
   writeFileSync(
     join(box.bin, "perl"),
     `#!/bin/sh
 case "$*" in
   *CLOCK_MONOTONIC*)
+    if [ -f "$FAKE_STATE/clock-broken" ]; then echo -1; exit 0; fi
     f="$FAKE_STATE/interrupt-at-clock"
     if [ -f "$f" ]; then
       c="$FAKE_STATE/clock-count"
@@ -144,6 +150,25 @@ case "$*" in
         sleep 2
         exit 130
       fi
+    fi ;;
+esac
+case "\${2:-}" in
+  bound)
+    f="$FAKE_STATE/bound-faults"
+    if [ "\${3:-}" = --note ] && [ -f "$f" ]; then
+      mode="$(sed -n "s/^\${5:-} //p" "$f" | head -n 1)"
+      [ -z "$mode" ] || echo "$5 $mode" >> "$FAKE_STATE/bound-faults.hit"
+      case "$mode" in
+        125) exit 125 ;;
+        hang) FAKE_DOCKER_HANG=deaf; export FAKE_DOCKER_HANG ;;
+      esac
+    fi ;;
+  append)
+    f="$FAKE_STATE/append-garbage-after"
+    if [ -f "$f" ] && [ ! -f "$FAKE_STATE/perl-faults" ]; then
+      case "$4" in
+        *" $(cat "$f")"*) ${realPerl} "$@" || exit 1; printf 'not a record\n' >> "$3"; echo "$4" > "$FAKE_STATE/append-garbage-after.hit"; exit 0 ;;
+      esac
     fi ;;
 esac
 case "\${2:-}" in
