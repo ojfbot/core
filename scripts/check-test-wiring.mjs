@@ -30,10 +30,12 @@ export const RUNNERS = [
     text: "unittest discover -s .claude/skills/bead/scripts -p 'test_*.py'" },
   { glob: '.claude/skills/vault/scripts/test_*.py', file: '.github/workflows/ci.yml',
     text: "unittest discover -s .claude/skills/vault/scripts -p 'test_*.py'" },
-  // The FleetRunner promote's kill sweeps: run by their own config, in a CI step that is
-  // conditional (see PROMOTE_SWEEP_STEP below).
+  // The FleetRunner promote's kill sweeps and its tests that sit through real waits: run by their
+  // own config, in a CI step that is conditional (see PROMOTE_SWEEP_STEP below).
   { glob: 'packages/fleet-runner/src/__tests__/*.sweep_test.ts', file: 'vitest.promote-sweeps.config.ts',
-    text: 'packages/fleet-runner/src/__tests__/*.sweep_test.ts' },
+    text: '"packages/fleet-runner/src/__tests__/*.sweep_test.ts"' },
+  { glob: 'packages/fleet-runner/src/__tests__/*.slow_test.ts', file: 'vitest.promote-sweeps.config.ts',
+    text: '"packages/fleet-runner/src/__tests__/*.slow_test.ts"' },
 ];
 
 // The promote sweeps' step with its condition, as ONE text: the run line directly under the one

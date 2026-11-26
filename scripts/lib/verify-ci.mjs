@@ -186,7 +186,7 @@ export const EXPECTED_LOCAL_SKIPS = [
     job: "ci/build-test",
     uses: "",
     if: "steps.promote_sweeps.outputs.run != 'false'",
-    reason: "the FleetRunner promote's kill sweeps run only when the change touches the promote; the step before decides and prints why",
+    reason: "the FleetRunner promote's kill sweeps and slow tests run only when the change touches fleet-runner; the step before decides and prints why",
   },
 ];
 

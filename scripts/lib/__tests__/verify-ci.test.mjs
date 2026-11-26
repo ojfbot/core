@@ -193,7 +193,7 @@ describe("conditions are evaluated as a pull request", () => {
 
   it("the promote sweeps' step, skipped by its condition, is a skip GitHub makes too, with its reason", () => {
     const step = { run: "pnpm exec vitest run --config vitest.promote-sweeps.config.ts", if: "steps.promote_sweeps.outputs.run != 'false'" };
-    expect(expectedLocalSkip("ci/build-test", step)).toMatch(/kill sweeps run only when the change touches the promote/);
+    expect(expectedLocalSkip("ci/build-test", step)).toMatch(/kill sweeps and slow tests run only when the change touches fleet-runner/);
     expect(expectedLocalSkip("ci/build-test", { ...step, if: "steps.promote_sweeps.outputs.run == 'true'" })).toBeNull();
     expect(expectedLocalSkip("ci/other", step)).toBeNull();
   });

@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # promote-sweeps-decision.sh: should this CI run run the FleetRunner promote's kill sweeps?
 #
-# The sweeps (packages/fleet-runner/src/__tests__/*.sweep_test.ts, about 360 sandboxes) take far
-# longer than everything else in CI together, and only a change to the promote can break them. So
-# CI's "Build & Test" job runs them:
+# The sweeps and the promote tests that sit through real waits
+# (packages/fleet-runner/src/__tests__/*.sweep_test.ts and *.slow_test.ts) take far longer than
+# everything else in CI together, and only a change to fleet-runner can break them. So CI's
+# "Build & Test" job runs them:
 #   - on every push to main;
 #   - otherwise when the change touches one of the paths in touches() below, compared with the pull
 #     request's base branch (pull_request events: the merge base of the checked-out commit and
@@ -23,14 +24,15 @@ decide() {
   exit 0
 }
 
-# The paths a change to which can break the sweeps: the promote's scripts and deploy files, its
-# tests and fakes, how CI runs them, and what they are built and run with.
+# The paths a change to which can break them: the whole fleet-runner package (the promote's scripts,
+# deploy files, tests and fakes, and the sources its tests build and run a real server from), how
+# CI runs them, and what they are built and run with.
 touches() {
   case "$1" in
-    packages/fleet-runner/scripts/* | packages/fleet-runner/deploy/* | packages/fleet-runner/src/__tests__/*) return 0 ;;
+    packages/fleet-runner/*) return 0 ;;
     .github/workflows/ci.yml | scripts/fleet-runner/promote-sweeps-decision.sh | scripts/check-test-wiring.mjs) return 0 ;;
     vitest*.config.* | */vitest*.config.*) return 0 ;;
-    package.json | pnpm-lock.yaml | packages/fleet-runner/package.json | packages/fleet-runner/pnpm-lock.yaml) return 0 ;;
+    package.json | pnpm-lock.yaml | pnpm-workspace.yaml | tsconfig*.json) return 0 ;;
     .nvmrc | .node-version | .tool-versions) return 0 ;;
   esac
   return 1
@@ -52,14 +54,16 @@ else
 fi
 [ -n "$from" ] || decide true "run, because the comparison found no common commit"
 
-changed="$(git diff --name-only "$from" HEAD 2>/dev/null)" ||
+# Every path the change touches, old names and new: a file moved OUT of a watched folder shows up
+# under its old name only with rename detection off. Paths are read NUL-delimited and unquoted, so
+# a name with a space, a line break or a non-ASCII letter is the name itself, not an escaped form.
+list="$(mktemp)" || decide true "run, because the changed files could not be listed"
+trap 'rm -f "$list"' EXIT
+git -c core.quotePath=false diff --no-renames --name-only -z "$from" HEAD >"$list" 2>/dev/null ||
   decide true "run, because the changed files could not be listed"
 
-while IFS= read -r file; do
-  [ -n "$file" ] || continue
-  if touches "$file"; then decide true "run, because $file changed"; fi
-done <<EOF_CHANGED
-$changed
-EOF_CHANGED
+while IFS= read -r -d '' file; do
+  if touches "$file"; then decide true "run, because $(printf '%s' "$file" | tr -c '[:alnum:]._/@+-' '?') changed"; fi
+done <"$list"
 
 decide false "skip, no promote path changed"

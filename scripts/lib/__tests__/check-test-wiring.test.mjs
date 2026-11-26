@@ -63,14 +63,23 @@ describe("check-test-wiring", () => {
     }
   });
 
-  it("knows the promote's kill sweeps as test files that only their own CI step runs", () => {
-    const sweep = "packages/fleet-runner/src/__tests__/fleet-promote-decider.sweep_test.ts";
-    expect(isTestFile(sweep)).toBe(true);
-    // Not in the root include list (so `pnpm test` does not run them) ...
+  it("knows the promote's kill sweeps and slow tests as test files that only their own CI step runs", () => {
     const includes = vitestIncludes(readFileSync(new URL("../../../vitest.config.ts", import.meta.url), "utf8"));
-    expect(includes.some((g) => path.posix.matchesGlob(sweep, g))).toBe(false);
-    // ... and wired through their runner, as a new sweep file beside them would be.
-    expect(unwired([sweep, "packages/fleet-runner/src/__tests__/another.sweep_test.ts"], includes)).toEqual([]);
+    for (const file of ["fleet-promote-decider.sweep_test.ts", "fleet-promote-recover.slow_test.ts"]) {
+      const full = `packages/fleet-runner/src/__tests__/${file}`;
+      expect(isTestFile(full), file).toBe(true);
+      // Not in the root include list (so `pnpm test` does not run them) ...
+      expect(includes.some((g) => path.posix.matchesGlob(full, g)), file).toBe(false);
+      // ... and wired through their runner, as a new file of the kind beside them would be.
+      expect(unwired([full, full.replace("fleet-promote-", "another-")], includes), file).toEqual([]);
+    }
+    // Their config really includes both kinds: without either line the check fails.
+    const real = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), "utf8");
+    const config = real("vitest.promote-sweeps.config.ts");
+    for (const kind of ["sweep_test", "slow_test"]) {
+      const without = (f) => (f === "vitest.promote-sweeps.config.ts" ? config.replace(`"packages/fleet-runner/src/__tests__/*.${kind}.ts"`, "") : real(f));
+      expect(evidenceProblems(without).length, kind).toBeGreaterThan(0);
+    }
   });
 
   it("fails when the promote sweeps' step is deleted, or its condition is replaced", () => {
