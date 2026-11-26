@@ -15,6 +15,7 @@ import {
   checkPlan,
   checkoutDestination,
   describeHostMismatch,
+  expectedLocalSkip,
   githubOnlyReason,
   globToRegExp,
   loadWorkflows,
@@ -175,6 +176,26 @@ describe("conditions are evaluated as a pull request", () => {
 
   it("refuses a condition it cannot read", () => {
     expect(() => stepCondition("contains(github.ref, 'x')", { succeeded: true })).toThrow(/cannot evaluate/);
+  });
+
+  it("reads an earlier step's output: what the step wrote, nothing if it wrote none, and refuses a step the job does not have", () => {
+    const condition = "steps.promote_sweeps.outputs.run != 'false'";
+    const knownSteps = new Set(["promote_sweeps"]);
+    expect(stepCondition(condition, { succeeded: true, knownSteps, stepOutputs: { promote_sweeps: { run: "false" } } })).toBe(false);
+    expect(stepCondition(condition, { succeeded: true, knownSteps, stepOutputs: { promote_sweeps: { run: "true" } } })).toBe(true);
+    // No output at all (the step wrote nothing): GitHub compares the empty text, and so the step runs.
+    expect(stepCondition(condition, { succeeded: true, knownSteps, stepOutputs: {} })).toBe(true);
+    expect(stepCondition(condition, { succeeded: true, knownSteps, stepOutputs: { promote_sweeps: {} } })).toBe(true);
+    expect(stepCondition("steps.promote_sweeps.outputs.run == 'true' && github.event_name == 'pull_request'", { succeeded: true, knownSteps, stepOutputs: { promote_sweeps: { run: "true" } } })).toBe(true);
+    expect(() => stepCondition("steps.other.outputs.run != 'false'", { succeeded: true, knownSteps })).toThrow(/cannot evaluate/);
+    expect(() => stepCondition(condition, { succeeded: true })).toThrow(/cannot evaluate/);
+  });
+
+  it("the promote sweeps' step, skipped by its condition, is a skip GitHub makes too, with its reason", () => {
+    const step = { run: "pnpm exec vitest run --config vitest.promote-sweeps.config.ts", if: "steps.promote_sweeps.outputs.run != 'false'" };
+    expect(expectedLocalSkip("ci/build-test", step)).toMatch(/kill sweeps and slow tests run only when the change touches fleet-runner/);
+    expect(expectedLocalSkip("ci/build-test", { ...step, if: "steps.promote_sweeps.outputs.run == 'true'" })).toBeNull();
+    expect(expectedLocalSkip("ci/other", step)).toBeNull();
   });
 });
 

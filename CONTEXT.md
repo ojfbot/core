@@ -23,6 +23,11 @@ with its own deployment boundary; owns admitted work and attempts under the shar
 authorization and correspondence contracts, and inherits the conductor's loop oversight remit.
 → deeper: `decisions/adr/0108-fleet-runner-in-core.md`
 
+**Decider** (fleet-runner promote):
+The one process, on the server, that switches fleet-runner's production to a new revision and alone decides pass or undo; it holds a kernel lock for its whole run and writes a **journal**, one line per completed step, which is the only authority on what production is. The Mac supplies **evidence** (what a client observes), never a decision. `recover` finishes an operation whose decider is gone; a **revert** is a later operation of its own that goes back from a passed promote.
+_Avoid_: watchdog, dead-man (there is no second party that decides)
+→ deeper: `packages/fleet-runner/deployment.md`
+
 **Bead**:
 A small, dated markdown file in `.handoff/` carrying inter-session context — a brief,
 report, or decision. Self-report, not ground truth: verify against git + tracker before
