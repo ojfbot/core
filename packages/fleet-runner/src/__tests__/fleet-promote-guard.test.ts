@@ -455,3 +455,87 @@ echo "a multi-line script ran"' "two words" 'a $dollar and a "quote"' "it's" ''`
     expect(r.cmds).not.toContain("$'");
   });
 });
+
+describe("fleet-promote-guard.pl when what it reads fails", () => {
+  // The guard's own source, run by perl -e with a prefix that breaks one thing it depends on.
+  const broken = (prefix: string, args: string, ms = 20_000) => {
+    const t0 = Date.now();
+    const r = spawnSync(DASH, ["-c", `perl -e "$P$(cat "$G")" ${args}; echo "status=$?"`], {
+      encoding: "utf8",
+      timeout: ms,
+      env: { ...process.env, G: GUARD, B: box, P: prefix },
+    });
+    return { out: `${r.stdout}`, err: `${r.stderr}`, secs: (Date.now() - t0) / 1000, timedOut: r.error !== undefined };
+  };
+
+  it("a look with ps that answers late is not taken for 'the step ended': the step is ended at its bound", () => {
+    // ps answers its first question only after 9 seconds; every later one at once.
+    const realPs = spawnSync("sh", ["-c", "command -v ps"], { encoding: "utf8" }).stdout.trim();
+    mkdirSync(join(box, "slowps"));
+    writeFileSync(
+      join(box, "slowps", "ps"),
+      `#!/bin/sh\nexec 2>/dev/null\nc="$B/ps.count"; n=$(( $(cat "$c" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$c"\n[ "$n" -gt 1 ] || sleep 9\nexec ${realPs} "$@"\n`,
+    );
+    chmodSync(join(box, "slowps", "ps"), 0o755);
+    const t0 = Date.now();
+    const r = dash(`PATH="$B/slowps:$PATH" perl "$G" bound 1 1 -- sleep 8; echo "status=$?"`);
+    const secs = (Date.now() - t0) / 1000;
+    expect(r.out).toContain("status=124");
+    expect(secs).toBeLessThan(5);
+    // A ps that answers in time but then does not end: its answer is not waited for past the bound.
+    writeFileSync(
+      join(box, "slowps", "ps"),
+      `#!/bin/sh\nexec 2>/dev/null\nc="$B/ps2.count"; n=$(( $(cat "$c" 2>/dev/null || echo 0) + 1 )); echo "$n" > "$c"\n[ "$n" -gt 1 ] && exec ${realPs} "$@"\nout="$(${realPs} "$@")"; printf '%s\\n' "$out"; exec >&-; sleep 9\n`,
+    );
+    const t1 = Date.now();
+    const r2 = dash(`PATH="$B/slowps:$PATH" perl "$G" bound 1 1 -- sleep 8; echo "status=$?"`);
+    expect(r2.out).toContain("status=124");
+    expect((Date.now() - t1) / 1000).toBeLessThan(5);
+  });
+
+  it("a listing of the operations that fails part way is a failed read (4), never 'no journal'", () => {
+    mkdirSync(join(box, "runs", "20260101T000001Z-1"), { recursive: true });
+    writeFileSync(join(box, "runs", "20260101T000001Z-1", "journal"), "2026-01-01T00:00:01Z begun seq=1\n2026-01-01T00:00:02Z spent approval=x\n");
+    expect(dash(`perl "$G" journals "$B/runs"; echo "status=$?"`).out).toContain("status=0");
+    const r = broken("BEGIN { *CORE::GLOBAL::readdir = sub (*) { $! = 5; return wantarray ? () : undef; }; }", `journals "$B/runs"`);
+    expect(r.out).toContain("BAD the folder of operations cannot be read");
+    expect(r.out).toContain("status=4");
+  });
+
+  it("groups-alive cannot tell (2), never 'none alive', when its record cannot be read or holds a line that is not one", () => {
+    writeFileSync(join(box, "groups"), "12345 unknown copy\nnot a group line at all\n");
+    expect(dash(`perl "$G" groups-alive "$B/groups"; echo "status=$?"`).out).toContain("status=2");
+    writeFileSync(join(box, "groups"), "1 unknown copy\n");
+    expect(dash(`perl "$G" groups-alive "$B/groups"; echo "status=$?"`).out).toContain("status=2");
+    // A file that cannot be read (here: a folder in its place).
+    mkdirSync(join(box, "groups-folder"));
+    expect(dash(`perl "$G" groups-alive "$B/groups-folder"; echo "status=$?"`).out).toContain("status=2");
+    // An incomplete last line recorded nothing that ran; no file at all, nothing ran.
+    writeFileSync(join(box, "groups"), "12345 unknown co");
+    expect(dash(`perl "$G" groups-alive "$B/groups"; echo "status=$?"`).out).toContain("status=0");
+    expect(dash(`perl "$G" groups-alive "$B/none"; echo "status=$?"`).out).toContain("status=0");
+  });
+
+  it("publish writes nothing from a stdin that cannot be read to its end, or is empty", () => {
+    mkdirSync(join(box, "not-a-file"));
+    expect(dash(`perl "$G" publish "$B/record.txt" < "$B/not-a-file"; echo "status=$?"`).out).toContain("status=1");
+    expect(existsSync(join(box, "record.txt"))).toBe(false);
+    expect(dash(`printf '' | perl "$G" publish "$B/record.txt"; echo "status=$?"`).out).toContain("status=1");
+    expect(existsSync(join(box, "record.txt"))).toBe(false);
+  });
+
+  it("a clock that cannot be read is fatal: no bound, no wait and no reading of the time goes on without it", () => {
+    const noClock = "BEGIN { require Time::HiRes; no warnings; *Time::HiRes::clock_gettime = sub { -1 }; }";
+    const now = broken(noClock, "now");
+    expect(now.out).toContain("status=2");
+    expect(now.err).toContain("the monotonic clock cannot be read");
+    // The step is never started, so it cannot outlive its bound.
+    const bound = broken(noClock, `bound 1 1 -- sh -c 'touch "$B/ran"; sleep 4'`);
+    expect(bound.out).toContain("status=2");
+    expect(bound.secs).toBeLessThan(3);
+    expect(existsSync(join(box, "ran"))).toBe(false);
+    const wait = broken(noClock, `wait-nonce "$B/none" abcdef 2`, 10_000);
+    expect(wait.timedOut).toBe(false);
+    expect(wait.out).toContain("status=2");
+  });
+});

@@ -1,8 +1,12 @@
 #!/usr/bin/perl
 # fleet-promote-guard: the few things the promote's server-side decider (fleet-promote-decider.sh,
 # POSIX sh) cannot do in sh, with only the perl modules a minimal install has (POSIX, Fcntl,
-# IO::Handle), so that ONE code path runs on the Linux server, in CI and in the tests on macOS
+# IO::Handle) and Time::HiRes, for the monotonic clock (on some Linux systems it comes with the
+# full perl library rather than the smallest perl package; without it no mode of this file
+# runs), so that ONE code path runs on the Linux server, in CI and in the tests on macOS
 # (which has no flock, setsid or timeout commands). ojfbot/core#647, slice 4.
+# A clock that cannot be read, or reads below zero, is fatal: status 2 and a message, never a
+# bound or a wait that could not end (in bound, after the step has started: it is ended, 125).
 #
 #   lock <fd>
 #       Take an exclusive, non-blocking kernel lock (flock) on the descriptor the caller already
@@ -42,7 +46,7 @@
 #
 #   publish <file>
 #       Write stdin to <file>.part, flush it, rename it to <file>, flush the folder. 0 only if all
-#       of that worked.
+#       of that worked. A stdin that cannot be read to its end, or is empty, publishes nothing (1).
 #
 #   sync-path <path>..
 #       Flush each file or folder to disk. 0 only if every one worked.
@@ -83,8 +87,14 @@ use Fcntl qw(:flock :DEFAULT F_GETFD F_SETFD F_GETFL F_SETFL FD_CLOEXEC);
 use IO::Handle;
 use Time::HiRes qw(clock_gettime CLOCK_MONOTONIC);
 
-# Seconds on a clock that cannot be set and never runs backwards.
-sub mono { return clock_gettime(CLOCK_MONOTONIC) }
+# Seconds on a clock that cannot be set and never runs backwards. clock_gettime answers -1 when the
+# clock cannot be read: every bound and wait would then never end. That is fatal, never ignored.
+our $clock_failed = sub { print STDERR "FATAL the monotonic clock cannot be read: nothing can be bounded or timed\n"; exit 2 };
+sub mono {
+  my $t = eval { clock_gettime(CLOCK_MONOTONIC) };
+  $clock_failed->() unless defined $t && $t >= 0;
+  return $t;
+}
 
 sub usage {
   print STDERR "usage: fleet-promote-guard.pl lock|bound|detach|append|publish|sync-path|groups-alive|holders|nonce|wait-nonce|now|journals (see the file's header)\n";
@@ -184,6 +194,7 @@ if ($mode eq 'bound') {
   }
   my ($secs, $grace, $dash, @cmd) = @ARGV;
   usage() unless whole($secs) && $secs >= 1 && whole($grace) && defined $dash && $dash eq '--' && @cmd;
+  mono();    # before anything runs: a clock that cannot be read starts nothing
   my $bytes;
   if (defined $in_file) {
     open(my $f, '<', $in_file) or exit 122;
@@ -227,6 +238,8 @@ if ($mode eq 'bound') {
   close($wr);
   close($go_r);
   close($in_r) if defined $bytes;
+  # From here on the step may run: if the clock fails now, it is ended and that is said (125).
+  $clock_failed = sub { print STDERR "FATAL the monotonic clock cannot be read: the step was ended\n"; kill('KILL', -$pid); kill('KILL', $pid); exit 125 };
   if (defined $note_file) {
     my $ok = append_line($note_file, "$pid " . (start_time_of($pid) || 'unknown') . " $note_label");
     if (!$ok && !$soft) {
@@ -264,18 +277,52 @@ if ($mode eq 'bound') {
   # if it kept the pipe that is noticed (125), if it closed it too, nothing here knows of it, and
   # nothing the decider decides rests on "the client is gone": it looks at the engine's state.
   # Time is read from a clock that cannot be set, and everything, the collecting of the leader
-  # included, is inside the deadline.
+  # and each look with ps included, is inside the deadline.
+  # A look: ps, read without ever blocking past <until>. A look that is not answered in time, that
+  # fails, or whose answer is incomplete or holds a row that is not one, says nothing (an empty
+  # list): never "ended".
   my $state = sub {
-    open(my $ps, '-|', 'ps', '-A', '-o', 'pid=,pgid=,stat=') or return ();
+    my ($until) = @_;
+    return () if mono() >= $until;
+    my $kid = open(my $ps, '-|', 'ps', '-A', '-o', 'pid=,pgid=,stat=') or return ();
+    my ($out, $done) = ('', 0);
+    while (1) {
+      my $left = $until - mono();
+      last if $left <= 0;
+      my $bits = '';
+      vec($bits, fileno($ps), 1) = 1;
+      my $n = select($bits, undef, undef, $left);
+      if ($n < 0) { next if $!{EINTR}; last }
+      next if $n == 0;
+      my $got = sysread($ps, $out, 65536, length($out));
+      if (!defined $got) { next if $!{EINTR}; last }
+      if ($got == 0) { $done = 1; last }
+    }
+    if (!$done) { kill('KILL', $kid); close($ps); return () }
+    # Collected without blocking, inside the same deadline: a ps that closed its output and lives
+    # on must not hold this helper past the bound either.
+    my $st;
+    while (1) {
+      my $w = waitpid($kid, WNOHANG);
+      if ($w == $kid) { $st = $?; last }
+      if ($w == -1 || mono() >= $until) {
+        kill('KILL', $kid);
+        close($ps);
+        return ();
+      }
+      select(undef, undef, undef, 0.02);
+    }
+    close($ps);    # its process is already collected: this only closes the pipe
+    return () unless $st == 0 && $out =~ /\n\z/;
     my ($live, $leader) = (0, 'unseen');
-    while (my $row = <$ps>) {
+    for my $row (split(/\n/, $out)) {
       my ($p, $g, $st) = split(' ', $row);
-      next unless defined $st && $g =~ /^[0-9]+$/ && $g == $pid;
+      return () unless defined $st && $p =~ /^[0-9]+$/ && $g =~ /^[0-9]+$/;
+      next unless $g == $pid;
       if ($st =~ /^Z/) { $leader = 'exited' if $p == $pid; next }
       $leader = 'running' if $p == $pid;
       $live++;
     }
-    close($ps) or return ();
     return ($live, $leader);
   };
   my ($eof, $unstarted) = (0, 0);
@@ -298,14 +345,15 @@ if ($mode eq 'bound') {
     $feed->();
     my $now = mono();
     if ($chld || $eof || $now >= $look_at) {
-      my ($live, $leader) = $state->();
+      my ($live, $leader) = $state->($deadline);
       # (Reset after the look: ps is a child of this process too, and its own end must not ask for
       # another look. An exit of the leader that this hides is seen at the next look, a second on
       # at most, and at once in the usual case, where the pipe's end-of-file says to look.)
       $chld = 0;
       $look_at = mono() + 1;
       if (defined $live && $leader eq 'exited') {
-        if ($live == 0) { $finished = 1; last }
+        # Ended only if seen so in time: a look that came back after the bound decides nothing.
+        if ($live == 0 && mono() <= $deadline) { $finished = 1; last }
         # The leader is gone and left something running: a second for it to end by itself, then it is ended.
         $leader_out_at //= $now;
         last if $now - $leader_out_at >= 1;
@@ -326,7 +374,7 @@ if ($mode eq 'bound') {
       my ($wait) = @_;
       my $until = mono() + $wait;
       while (1) {
-        my ($live, $leader) = $state->();
+        my ($live, $leader) = $state->($until);
         return 1 if defined $live && $live == 0 && $leader eq 'exited';
         return 0 if mono() >= $until;
         $watch->(0.25);
@@ -387,7 +435,16 @@ if ($mode eq 'publish') {
   my ($file) = @ARGV;
   usage() unless defined $file && @ARGV == 1;
   binmode(STDIN);
-  my $text = do { local $/; <STDIN> } // '';
+  # Every byte, or nothing: a read that fails is not taken for the end of the record, and an empty
+  # record is never published.
+  my $text = '';
+  while (1) {
+    my $n = sysread(STDIN, my $buf, 65536);
+    if (!defined $n) { next if $!{EINTR}; exit 1 }
+    last if $n == 0;
+    $text .= $buf;
+  }
+  exit 1 if $text eq '';
   sysopen(my $fh, "$file.part", O_WRONLY | O_CREAT | O_TRUNC, 0600) or exit 1;
   write_all($fh, $text) or exit 1;
   $fh->sync or exit 1;
@@ -407,15 +464,24 @@ if ($mode eq 'groups-alive') {
   usage() unless defined $file && @ARGV == 1;
   exit 0 unless -e $file;
   open(my $fh, '<', $file) or exit 2;
+  # Read to its end or not at all: a read that fails is not the end of the file (2).
+  my $text = '';
+  while (1) {
+    my $n = sysread($fh, my $buf, 65536);
+    if (!defined $n) { next if $!{EINTR}; exit 2 }
+    last if $n == 0;
+    $text .= $buf;
+  }
+  close($fh);
+  $text =~ s/[^\n]*\z//;    # an incomplete last line recorded nothing that ran
   my (%label, %start);
-  while (my $row = <$fh>) {
-    next unless $row =~ /\n\z/;    # an incomplete last line recorded nothing that ran
-    my ($g, $t, $l) = split(' ', $row);
-    next unless defined $l && $g =~ /^[0-9]+$/ && $g > 1;
+  for my $row (split(/\n/, $text)) {
+    my ($g, $t, $l, @more) = split(' ', $row);
+    # A complete line that is not "<group> <start time> <label>" cannot be read: 2, never "none".
+    exit 2 unless defined $l && !@more && $g =~ /^[0-9]+$/ && $g > 1;
     $label{$g} = $l;
     $start{$g} = $t;
   }
-  close($fh);
   my @live;
   for my $g (sort { $a <=> $b } keys %label) {
     next unless kill(0, -$g) || $!{EPERM};
@@ -525,8 +591,17 @@ if ($mode eq 'journals') {
     undo-healthy done halted));
   my $record = qr/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ (?:$states)(?: [a-z_]+=[^\s=]*)*$/;
   my $bad = sub { my ($status, $what) = @_; print "BAD $what\n"; exit $status };
+  # A listing that fails part way reads like a shorter one: errno is cleared before it and looked at
+  # after it, so a failed listing is a failed read, never "fewer operations".
+  my $list = sub {
+    my ($dh) = @_;
+    local $! = 0;
+    my @names = readdir($dh);
+    return $! ? undef : \@names;
+  };
   opendir(my $d, $dir) or $bad->(4, 'the folder of operations cannot be read');
-  my @ops = sort grep { /^[A-Za-z0-9-]+$/ } readdir($d);
+  my $names = $list->($d) or $bad->(4, 'the folder of operations cannot be read');
+  my @ops = sort grep { /^[A-Za-z0-9-]+$/ } @$names;
   closedir($d);
   for my $o (@ops) {
     # Whether there is a journal is read from the folder's own listing, never from a failed look.
@@ -535,7 +610,8 @@ if ($mode eq 'journals') {
       next if $!{ENOTDIR} || $!{ENOENT};
       $bad->(4, "the folder of operation $o cannot be read");
     }
-    my $there = grep { $_ eq 'journal' } readdir($od);
+    my $in = $list->($od) or $bad->(4, "the folder of operation $o cannot be read");
+    my $there = grep { $_ eq 'journal' } @$in;
     closedir($od);
     next unless $there;
     open(my $fh, '<', "$dir/$o/journal") or $bad->(4, "the journal of operation $o cannot be read");
