@@ -111,6 +111,18 @@ the open ticket each difference matters to. Nothing below is a decision.
 - "Would the owner accept what a pruning pass proposes?" must weigh how little cover is
   enough to act on. 29 days without a load says little about an item used once a quarter.
 
+**What the untrue-claims sample changes (2026-11-26).** The findings are in
+[untrue-claims-2026-11-26](../research/untrue-claims-2026-11-26.md); its section 7 lists
+what the wiki-claim ticket must weigh. Every number is from the Yuri Mac, checked by one
+agent with no second reader. Nothing below is a decision.
+- "What marks a wiki claim untrue, as distinct from a page unused?" is no longer blocked.
+- *Untrue* is not rare where it can be checked: about 1 claim in 14, and none of the
+  untrue items carried a stale, superseded or "as of" mark. Two carried a date that nothing
+  acted on.
+- The wiki is the surface whose claims can least often be checked from here: 11 of 30, most
+  for want of an outside source. 7 of its 19 true verdicts show only that a page matches
+  its own `raw/` capture, not that the world still matches the capture.
+
 **What the session-load research changes (2026-11-25).** The findings are in
 [session-load-2026-11-25](../research/session-load-2026-11-25.md); its section 9 lists what
 the budget ticket must weigh. Every number is from the Yuri Mac. Nothing below is a
@@ -222,6 +234,7 @@ so their issues were opened and closed on the same day.
 - **What kinds of staleness are there, and what signal marks each?** (#737) Closed 2026-11-24. Four kinds, each a condition bound to one signal: *unused* (no load record in 90 days in either harness; amended 2026-11-25: counted per host and per harness, only where a load record was kept, with the days each record covers stated, and "no signal" where none was kept), *broken* (a named path, script or command does not resolve), *untrue* (a reader's flag) and *superseded* (a successor mark). Where a signal cannot be computed the record says "no signal": nothing marks an item that loads in every session, an unflagged false claim, or an unmarked replacement. → [adr:staleness-kinds-and-signals](../adr/draft-staleness-kinds-and-signals.md) (draft).
 - **Which findings so far hold on the other host and in the other harness?** (#747) Closed 2026-11-25. 23 findings were re-measured. On the Yuri Mac five headline counts changed once Codex records, plugin items and the path the ledger saw were included: 9 of 77 skills have no record in either harness (the 66 is a Claude Code count); 64 to 65 of 133 beads were never opened by `Read`, not 98; 30 of 51 repo rules files have no load record, not 26; hook entries are 158, not 122; 413 of 1,011 wiki pages have no record in three sources, not 770. On Yojimbo (2026-11-25, read-only, through its conductor) no usage ledger exists, so *unused* cannot be computed there for Claude Code, and Codex session files cover 29 days. The vault on Yojimbo was not checked, because the owner left it out, so whether the scanner can flag a page on the host that owns the pipeline is still not known. See [second-vantage-2026-11-25](../research/second-vantage-2026-11-25.md).
 - **What does one session load at start, in each harness?** (#748) Closed 2026-11-25. On the Yuri Mac, a Claude Code session started by the desktop app in the home folder sent 247,743 bytes and 92,967 input tokens before its first reply (record, 2026-11-25); instruction files are 13,857 bytes of that, and the system prompt and tool definitions 165,543. A Codex session started in `~/ojfbot` sent 116,544 bytes and 29,204 tokens (record, 2026-11-20); none has started in the home folder. Recorded starts carry 103 to 488 lines of instruction files, never the 4,996. The skill listing is held near 30,000 bytes in Claude Code and near 22,250 or 40,450 in Codex, whatever the number of skills. Claude Code's median first request grew from 37,459 tokens in June to 91,048 in November; Codex's stayed near 35,000. Yojimbo and other launch modes are not measured. See [session-load-2026-11-25](../research/session-load-2026-11-25.md).
+- **What share of sampled claims is untrue?** (#749) Closed 2026-11-26. On the Yuri Mac, a fixed random sample of 90 claims (30 each from rules files, memory files and the Yuri Mac copy of the wiki; seed 20261126) was checked by one agent, with no second reader. 5 of 70 checkable claims were untrue (7.1%, Wilson 95% 3.1–15.7%), and 9 of 70 were untrue or partly true. By surface: rules 4 of 28, memory 1 of 23, wiki 0 of 19, too few to rank the surfaces. 20 of the 90 could not be checked here, 11 of them for want of an outside source. Most untrue claims concern configuration, a path or a status. None of the untrue items carried a stale, superseded or "as of" mark. See [untrue-claims-2026-11-26](../research/untrue-claims-2026-11-26.md).
 
 ## Tickets
 
@@ -242,7 +255,7 @@ so their issues were opened and closed on the same day.
 | Should each session record what it loaded, across both harnesses, and in what shape? (#746) | grilling | — | open |
 | Which findings so far hold on the other host and in the other harness? (#747) | research | — | closed |
 | What does one session load at start, in each harness? (#748) | research | — | closed |
-| What share of sampled claims is untrue? (#749) | research | — | open |
+| What share of sampled claims is untrue? (#749) | research | — | closed |
 | How will we tell whether retirement helped? (#750) | grilling | — | open |
 
 **What each ticket asks.**

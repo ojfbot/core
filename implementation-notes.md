@@ -795,3 +795,11 @@ Wayfinder ticket ojfbot/core#748 (what one session loads at start, per harness).
 
 - 2026-11-25: The brief asked for a Codex start at user scope (the home folder). No native Codex session has started there on the Yuri Mac. Went: that row is from files only, with the nearest record (`~/ojfbot`, which loads the global file alone) beside it, each marked as what it is.
 - 2026-11-25: The brief assumed user-scope skills could be read where they sit. 22 of the 28 entries are links into the `core` checkout, which is off limits. Went: read the worktree copies, said so in the file, and put a guard in the script that refuses any read under the checkout.
+
+## Deviations — untrue claims ticket (2026-11-26)
+
+Wayfinder ticket ojfbot/core#749 (what share of sampled claims is untrue).
+
+- 2026-11-26: The brief gave four reasons a claim is not checkable. Some present-tense claims have nothing on disk to check against, and some past events have no record that a search could find. Went: both are reported as "not checkable: no record" (8 claims). Not forced into one of the four, and not counted in the denominator.
+- 2026-11-26: The method did not say what to do when the main clause of a claim holds but a minor clause is not found where it was searched. Went: such a claim is "true", with the gap noted (2 claims). "Partly true" is kept for a clause shown to be wrong, so "not found" is never counted as untrue.
+- 2026-11-26: The web queue assumed every outside-source claim has a public page. Three do not (a private workspace page, a printed book, and follower counts behind sign-in walls that are also about a person). Went: they were not fetched, they were left out of the queue, and they are reported as "not checkable: outside source". Three of the 10 web fetches were inconclusive and still count against the cap.

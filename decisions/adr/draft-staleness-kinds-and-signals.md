@@ -96,7 +96,9 @@ is recorded. Whether a session *relied on* it is not.
    - Reliance on anything that loads in every session: the user-scope rules files, the
      user-scope hook entries, the home memory folder, and any single rule inside a file that
      did load.
-   - A false claim that no reader has flagged.
+   - A false claim that no reader has flagged. On the Yuri Mac on 2026-11-26, about 1
+     checkable claim in 14 was untrue in a sample of 70 (Wilson 95% 3–16%), and none of
+     them was flagged.
    - A replacement that nobody marked.
    - A clean result on one kind says nothing about the other three.
 
@@ -118,6 +120,7 @@ none of them has a second-host value.
 | Broken | All but loops | Fixed samples of 20 claims per surface: 0 to 7 fail | Census §3 to §8 |
 | Broken | Hooks | 1 of 122 script paths | Census §4 |
 | Untrue | Memory files | 3 files carry a strict marker (stale or superseded; the census did not split them); 2 index files carry a stale note | Census §6 |
+| Untrue | Rules files, memory files, wiki (Yuri Mac copy) | Sample of 90 claims on 2026-11-26, 70 checkable: 5 untrue (rules 4 of 28, memory 1 of 23, wiki 0 of 19); none carried a flag or marker. One agent checked; no second reader | [untrue-claims-2026-11-26](../research/untrue-claims-2026-11-26.md) |
 | Superseded | Beads, wiki | 3 beads; 3 wiki pages | Census §7, §8 |
 
 Limits of these measurements:
