@@ -405,7 +405,10 @@ that could also decide: no watchdog, no claim files, nothing to arbitrate.
   `done outcome=pass` in the journal *and* the record the decider wrote. It
   says it as that run's result, with the time the decider committed it ("PASS
   run <run> promoted <revision>, committed <time>"), never as "production
-  runs": whoever reads it late is not told what production runs now.
+  runs": whoever reads it late is not told what production runs now. It reads
+  the journal through the guard's own checked reader. A read that fails is
+  read again, never taken for "no line yet". A complete line that is not a
+  record ends its reading with FAIL and the `recover` line, never PASS.
 
 Subprocesses the decider starts: perl (the guard), the engine client (`docker`)
 and its Compose plugin, `sh`, `ps` and coreutils. Nothing else. On the server
@@ -458,7 +461,13 @@ copy's `stage-state` early, as a first refusal. The decider reads it again
 itself, once, under its lock, immediately before it writes the line that spends
 the yes, and refuses if this revision is no longer both the last that passed
 and the one staged. So a revision that was staged over while the Mac was
-preparing is not promoted.
+preparing is not promoted. Around that read and the spending of the yes it also
+takes the test copy's own run lock (`.stage-lock`, the one `fleet-stage.sh`
+takes), without waiting: if a stage run holds it, the promote is refused and
+nothing is changed, and no stage run can change what is staged in between. The
+lock is released right after the yes is spent. A decider killed in that very
+instant leaves it, naming the operation; `fleet-stage.sh` then refuses and says
+so, and a person removes it.
 
 ### The switch
 
@@ -636,6 +645,7 @@ setting is refused before anything is touched. With the defaults:
 | Wait for the engine to report it healthy (one budget) | 60 |
 | Enrolled keys and job count in the new container | 60 |
 | **Wait for the Mac's evidence** | **120** |
+| Look at the new revision once more right before the commit (if that look hangs, it is ended and the undo follows) | 21 |
 | Undo: see that no helper container of this run is left | 10 |
 | Undo: stop and remove the new revision | 75 |
 | Undo: look at the state folders, two renames | 90 |
@@ -644,15 +654,22 @@ setting is refused before anything is touched. With the defaults:
 | Undo: identify it and wait for the engine to report it healthy | 80 |
 | Undo: settle, then check it again | 35 |
 | Undo: count the jobs set aside and write the record | 40 |
-| Ending the five steps that may run into their bound without ending the undo | 80 |
+| Ending the five steps that may run into their bound without ending the undo | 86 |
 
-**Worst case, production offline or on an unconfirmed build: 1140 seconds
-(about 19 minutes).** A pass takes at most 625 seconds; the longest stretch with
-nothing answering is 910 seconds. The decider computes these figures from the
-same numbers it runs the steps with, and a test adds up every call of a pass, of
-a full undo and of the checks against them. Five steps may run into their bound
-without ending the run, and so add their ending (10 seconds; 40 for a helper
-container, which is then removed by name and seen gone): the stop of the
+**Worst case, production offline or on an unconfirmed build: 1167 seconds
+(about 19 minutes).** That path is: every step slow, the Mac's evidence at the
+very end of its window, the look right before the commit hanging until it is
+ended, then a full undo. A pass takes at most 626 seconds. The longest stretch
+with nothing answering is 966 seconds: the new revision starts but never gets
+healthy, so its whole health budget is spent before the undo. (If the engine
+reports it healthy while it does not answer clients, that stretch can last up
+to the worst case.) The decider computes these figures from the same numbers it
+runs the steps with. A test adds up every call against them: the longest path,
+a full undo after bad evidence, the never-healthy path, a pass, and the checks.
+Ending a step that ran into its bound costs at most 11 seconds: 5 of grace, at
+most 5 to see it gone, and the guard's own last look. Five steps may run into
+their bound without ending the run, and so add their ending (11 seconds; 42 for
+a helper container, which is then removed by name and seen gone): the stop of the
 previous production, the stop and the removal of the new revision, the second
 stop of the previous production, and the count of set-aside jobs. Any other
 step that runs into its bound ends the switch or halts the undo. Local record
@@ -710,7 +727,8 @@ The journal and `recover` are the answer:
 
 | Journal at the reboot | What is up after boot | What to do |
 |---|---|---|
-| before `stopped` | the previous production | `recover` closes the run |
+| before `spent` | the previous production | `recover` closes the run as unchanged |
+| `spent` up to before `stopped` | the previous production, or nothing if the stop landed before the reboot | `recover` stops it if it runs, sees it stopped and starts it (a short outage: the journal cannot show that no stop is still on its way) |
 | `stopped` up to before `starting` | nothing: a container stopped by hand stays stopped | `recover` starts the previous production |
 | `starting` up to before `committed` | the unconfirmed new revision, by its restart policy | `recover` undoes |
 | `committed` or later | the new revision | `recover` confirms |
