@@ -197,8 +197,15 @@ describe("fleet-promote.sh end to end", () => {
   it("the lock is held by someone else: the Mac says a holder exists (the decider, or a step), that nothing was changed, and gives no advice to remove anything", async () => {
     const e = await setup();
     const head = headRev(e);
-    const holder = spawn(DASH, ["-c", `exec 9< "$1"; perl "$2" lock 9 || exit 1; exec sleep 60`, "sh", e.box.ctl, GUARD], { stdio: "ignore" });
-    while (lockIsFree(e.box)) await sleep(50);
+    // The holder says when it has the lock. (Probing the lock from here would take it for a moment,
+    // and a holder that tries once at that moment gives up: then nothing ever holds it.)
+    const has = join(e.box.root, "holder-has-the-lock");
+    const holder = spawn(DASH, ["-c", `exec 9< "$1"; perl "$2" lock 9 || exit 1; : > "$3"; exec sleep 300`, "sh", e.box.ctl, GUARD, has], { stdio: "ignore" });
+    for (let i = 0; !existsSync(has); i += 1) {
+      if (holder.exitCode !== null || i > 600) throw new Error("the stand-in holder did not take the lock");
+      await sleep(50);
+    }
+    expect(lockIsFree(e.box)).toBe(false);
     const r = promote(e, [head, "--owner-approved", yes(head)]);
     holder.kill("SIGKILL");
     expect(r.status).toBe(1);
